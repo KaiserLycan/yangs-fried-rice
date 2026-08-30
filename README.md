@@ -79,3 +79,4 @@ supabase/
   schema.sql             # full ERD from the project doc
   seed.sql                # dev seed data
 ```
+
