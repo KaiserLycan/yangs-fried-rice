@@ -1,0 +1,12 @@
+.next
+out
+build
+coverage
+node_modules
+package-lock.json
+next-env.d.ts
+
+# Other people's source material — reformatting these would create noise
+# in PRs to the upstream repo.
+docs/reference/
+supabase/
