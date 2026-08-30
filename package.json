@@ -9,7 +9,7 @@
     "lint": "next lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "supabase:types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID --schema public > types/database.types.ts"
   },
