@@ -39,10 +39,14 @@ const config: Config = {
         success: "hsl(var(--success))",
         warning: "hsl(var(--warning))",
       },
+      // Figma `radius` group: 8 / 12 / 16 / 999. ShadCN derives md and sm by
+      // subtracting 2px and 4px from --radius, which would give 12/10/8 and
+      // miss the design's 16. Mapped literally instead.
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        sm: "0.5rem", // radius/8
+        md: "var(--radius)", // radius/12
+        lg: "1rem", // radius/16
+        pill: "9999px", // radius/999
       },
     },
   },
