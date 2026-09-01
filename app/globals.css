@@ -27,7 +27,7 @@
     --success: 135 26% 33%; /* surface/green  #3F6B4A */
     --warning: 33 77% 44%; /* surface/amber  #C8791A */
 
-    --radius: 0.5rem;
+    --radius: 0.75rem; /* radius/12 */
   }
 }
 
