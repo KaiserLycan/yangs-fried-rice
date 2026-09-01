@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import { fontFamily } from "tailwindcss/defaultTheme";
 
 const config: Config = {
   darkMode: ["class"],
@@ -38,6 +39,13 @@ const config: Config = {
         },
         success: "hsl(var(--success))",
         warning: "hsl(var(--warning))",
+      },
+      // Loaded via next/font in app/layout.tsx. DM Sans is the body face and
+      // Anton is display-only, so it is a separate `font-display` utility
+      // rather than an override of the default sans stack.
+      fontFamily: {
+        sans: ["var(--font-sans)", ...fontFamily.sans],
+        display: ["var(--font-display)", ...fontFamily.sans],
       },
       // Figma `radius` group: 8 / 12 / 16 / 999. ShadCN derives md and sm by
       // subtracting 2px and 4px from --radius, which would give 12/10/8 and
