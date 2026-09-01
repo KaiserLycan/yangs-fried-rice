@@ -2,23 +2,31 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Palette mirrors "Collection 1" in the Figma file. Comments name the
+   Figma variable each slot comes from, so the two stay traceable. */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 20 14% 4%;
-    --primary: 24 90% 50%;
-    --primary-foreground: 60 9% 98%;
-    --secondary: 60 5% 96%;
-    --secondary-foreground: 24 10% 10%;
-    --muted: 60 5% 96%;
-    --muted-foreground: 25 5% 45%;
-    --accent: 60 5% 96%;
-    --accent-foreground: 24 10% 10%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 60 9% 98%;
-    --border: 20 6% 90%;
-    --input: 20 6% 90%;
-    --ring: 24 90% 50%;
+    --background: 40 65% 95%; /* surface/cream  #FBF6EC */
+    --foreground: 12 24% 8%; /* neutral/ink    #1A1210 */
+    --primary: 4 76% 31%; /* brand/red      #8C1C13 */
+    --primary-foreground: 0 0% 100%; /* surface/white  #FFFFFF */
+    --secondary: 35 44% 83%; /* surface/sand   #E7D7C1 */
+    --secondary-foreground: 12 24% 8%; /* neutral/ink */
+    --muted: 35 44% 83%; /* surface/sand */
+    --muted-foreground: 23 12% 43%; /* neutral/muted  #7A6A60 */
+    --accent: 16 81% 52%; /* brand/flame    #E8541F */
+    --accent-foreground: 0 0% 100%; /* surface/white */
+    --destructive: 0 49% 50%; /* brand/brick    #BF4342 */
+    --destructive-foreground: 0 0% 100%; /* surface/white */
+    --border: 35 44% 83%; /* surface/sand */
+    --input: 35 44% 83%; /* surface/sand */
+    --ring: 16 81% 52%; /* brand/flame */
+
+    /* Status colours. Grouped under `surface` in Figma, but they read as
+       semantic states rather than surfaces — no ShadCN slot covers them. */
+    --success: 135 26% 33%; /* surface/green  #3F6B4A */
+    --warning: 33 77% 44%; /* surface/amber  #C8791A */
+
     --radius: 0.5rem;
   }
 }
