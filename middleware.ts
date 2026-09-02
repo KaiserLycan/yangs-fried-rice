@@ -1,26 +1,62 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 /**
  * Route-protection seam.
  *
- * Auth is not built yet, so this passes every request straight through. The
- * matcher below is the part that matters today: it already names every area
- * that will need a session, so pages added inside those areas are covered
- * automatically once the real check lands here.
+ * Refreshes the Supabase session on every request and redirects signed-out
+ * visitors away from customer areas. Employee areas (/manage, /deliver) are
+ * intentionally NOT guarded here yet — that depends on the employee auth
+ * flow, which is separate from Cust1-3 and out of scope for this issue.
  *
- * TODO(auth): refresh the Supabase session and redirect signed-out visitors.
- * There are two destinations, not one:
- *   - customer areas (/cart, /checkout, /orders, /profile) -> /login
- *   - employee areas (/manage, /deliver)                   -> /employee/login
- *
- * Do NOT add "/employee/:path*" to this matcher. /employee/login lives under
+ * Do NOT add "/employee/:path*" to the matcher. /employee/login lives under
  * that prefix, so guarding it wholesale would redirect a signed-out visitor
  * to a page that redirects them again, forever. The employee login is public
- * by definition; only /manage and /deliver need guarding.
+ * by definition; only /manage and /deliver need guarding, and that guard is
+ * still a TODO for whoever picks up employee auth.
  */
-export function middleware(_request: NextRequest) {
-  return NextResponse.next();
+export async function middleware(request: NextRequest) {
+  let response = NextResponse.next({ request: { headers: request.headers } });
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(
+          cookiesToSet: { name: string; value: string; options: CookieOptions }[]
+        ) {
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
+          );
+          response = NextResponse.next({ request: { headers: request.headers } });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          );
+        },
+      },
+    }
+  );
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const isCustomerArea = ["/cart", "/checkout", "/orders", "/profile"].some(
+    (path) => request.nextUrl.pathname.startsWith(path)
+  );
+
+  if (isCustomerArea && !user) {
+    const redirectUrl = new URL("/login", request.url);
+    redirectUrl.searchParams.set("next", request.nextUrl.pathname);
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  return response;
 }
 
 export const config = {
@@ -32,8 +68,7 @@ export const config = {
     "/checkout/:path*",
     "/orders/:path*",
     "/profile/:path*",
-    // Employee areas. Literal prefixes, so one match each covers every page
-    // added inside them later.
+    // Employee areas — matched but not yet guarded (see comment above).
     "/manage/:path*",
     "/deliver/:path*",
   ],
