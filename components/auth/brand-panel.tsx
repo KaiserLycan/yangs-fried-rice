@@ -33,7 +33,7 @@ export function BrandPanel() {
         Wok-fired to order. Get it hot at your door.
       </p>
 
-      <div className="relative hidden flex-1 flex-col justify-end pt-[198px] md:flex">
+      <div className="relative hidden flex-col pt-[198px] md:mb-10 md:flex">
         <h1 className="font-display text-[66px] leading-[62px] text-on-brand">
           WOK-FIRED
           <br />
@@ -51,7 +51,15 @@ export function BrandPanel() {
         </p>
       </div>
 
-      <div className="relative mt-10 hidden gap-7 border-t border-on-brand-rule pt-[22px] md:flex">
+      {/* The auto top margin is what keeps surplus height out of the middle
+          of the panel. It absorbs every leftover pixel in the column, so on a
+          window taller than the drawn frame the extra space opens up here,
+          below the body copy, instead of pooling in the wordmark-to-headline
+          gap. The designed 40px of that gap comes from the headline block's
+          own bottom margin rather than a top margin here, because an auto
+          margin collapses to zero when there is no surplus and the gap would
+          vanish at the drawn height. */}
+      <div className="relative hidden gap-7 border-t border-on-brand-rule pt-[22px] md:mt-auto md:flex">
         <Stat value="18 min" label="Avg. delivery" />
         <Stat value="4.8 ★" label="2,140 reviews" />
       </div>
