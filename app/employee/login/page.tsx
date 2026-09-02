@@ -1,25 +1,21 @@
-import { RoutePlaceholder } from "@/components/route-placeholder";
-
-export default function EmployeeLoginPage() {
-  return (
-    <RoutePlaceholder
-      title="Employee sign in"
-      description="One sign-in page shared by Staff, Business Owner, and Rider. Customers do not log in here — they use /login. There is no matching register page: employee accounts are created by the Business Owner."
-      requirements={["SAS1"]}
-    />
-  );
-}
+import { EmployeeAuthShell } from "@/components/auth/employee-auth-shell";
+import { EmployeeBrandPanel } from "@/components/auth/employee-brand-panel";
+import { EmployeeLoginForm } from "@/components/auth/employee-login-form";
 
 /**
- * TODO(auth): the destination after sign-in depends on Employee.role, because
- * one page serves three roles:
+ * Employee sign-in (SAS1). One page shared by Staff, Business Owner and
+ * Rider. Customers do not sign in here — they use /login. There is no
+ * matching register page: employee accounts are created by the Business
+ * Owner, and the footer on this screen says so.
  *
- *   Staff, Business Owner -> /manage
- *   Rider                 -> /deliver
- *
- * This redirect is the only place in the whole route tree where the role
- * vocabulary actually changes behaviour, which is why the unsettled question
- * of what the roles are called does not block the rest of this scaffold.
- * Confirm the final Employee.role values with the PM and DB developer before
- * wiring it.
+ * The post-sign-in redirect depends on Employee.role and is the only place in
+ * the route tree where the role vocabulary changes behaviour. See the TODO in
+ * EmployeeLoginForm.
  */
+export default function EmployeeLoginPage() {
+  return (
+    <EmployeeAuthShell brand={<EmployeeBrandPanel />}>
+      <EmployeeLoginForm />
+    </EmployeeAuthShell>
+  );
+}
