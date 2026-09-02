@@ -135,27 +135,6 @@ export function CustomerLoginForm() {
         </div>
 
         <Button type="submit">Log in</Button>
-
-        {/* Social sign-in appears only in the desktop error frame, not in the
-            clean or mobile ones — most likely the newer frame is the current
-            one. Rendered on desktop to match it, and flagged: OAuth is not in
-            Cust1/Cust2 and needs Supabase providers configured. */}
-        <div className="hidden items-center gap-3 md:flex">
-          <span className="h-px flex-1 bg-divider" />
-          <span className="text-[11px] uppercase tracking-[1.54px] text-placeholder">
-            or
-          </span>
-          <span className="h-px flex-1 bg-divider" />
-        </div>
-        <div className="hidden gap-[10px] md:flex">
-          {/* TODO(auth): wire to Supabase OAuth providers once configured. */}
-          <Button type="button" variant="outline">
-            Continue with Google
-          </Button>
-          <Button type="button" variant="outline">
-            Continue with Facebook
-          </Button>
-        </div>
       </form>
 
       {/* TODO(auth): "Continue as guest" contradicts the recorded decision
