@@ -49,7 +49,6 @@ const config: Config = {
         track: "hsl(var(--track))",
         "field-border": "hsl(var(--field-border))",
         placeholder: "hsl(var(--placeholder))",
-        divider: "hsl(var(--divider))",
         "error-surface": "hsl(var(--error-surface))",
         "error-border": "hsl(var(--error-border))",
       },
