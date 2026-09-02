@@ -19,6 +19,7 @@ import { z } from "zod";
  */
 export const customerEmailSchema = z
   .string()
+  .trim()
   .email("Enter a valid email address.");
 
 export const customerPasswordSchema = z
