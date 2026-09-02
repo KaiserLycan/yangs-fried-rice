@@ -39,6 +39,19 @@ const config: Config = {
         },
         success: "hsl(var(--success))",
         warning: "hsl(var(--warning))",
+        "on-brand": {
+          DEFAULT: "hsl(var(--on-brand))",
+          accent: "hsl(var(--on-brand-accent))",
+          muted: "hsl(var(--on-brand-muted))",
+          subtle: "hsl(var(--on-brand-subtle))",
+          rule: "hsl(var(--on-brand-rule))",
+        },
+        track: "hsl(var(--track))",
+        "field-border": "hsl(var(--field-border))",
+        placeholder: "hsl(var(--placeholder))",
+        divider: "hsl(var(--divider))",
+        "error-surface": "hsl(var(--error-surface))",
+        "error-border": "hsl(var(--error-border))",
       },
       // Loaded via next/font in app/layout.tsx. DM Sans is the body face and
       // Anton is display-only, so it is a separate `font-display` utility
