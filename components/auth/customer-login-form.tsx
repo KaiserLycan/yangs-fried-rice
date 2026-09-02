@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useTransition } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -9,13 +10,18 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { AuthTabs } from "@/components/auth/auth-tabs";
 import { loginSchema, type LoginField } from "@/lib/validation/login";
+import { loginCustomer } from "@/app/(auth)/actions";
 
 type FieldErrors = Partial<Record<LoginField, string>>;
 
 export function CustomerLoginForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [errors, setErrors] = useState<FieldErrors>({});
+  const [serverError, setServerError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -37,9 +43,18 @@ export function CustomerLoginForm() {
     }
 
     setErrors({});
-    // TODO(auth): no session yet. Sign in against Supabase, then return the
-    // customer to wherever they were headed — usually the item they were
-    // trying to add to their cart.
+    setServerError(null);
+
+    startTransition(async () => {
+      const outcome = await loginCustomer(result.data);
+      if (!outcome.success) {
+        setServerError(outcome.error);
+        return;
+      }
+      const next = searchParams.get("next") ?? "/";
+      router.push(next);
+      router.refresh();
+    });
   }
 
   const hasErrors = Object.keys(errors).length > 0;
@@ -62,7 +77,9 @@ export function CustomerLoginForm() {
           </p>
         </div>
 
-        {submitted && hasErrors ? (
+        {serverError ? (
+          <Alert>{serverError}</Alert>
+        ) : submitted && hasErrors ? (
           <Alert>
             We couldn&apos;t sign you in. Check your details and try again.
           </Alert>
@@ -114,7 +131,9 @@ export function CustomerLoginForm() {
           </Link>
         </div>
 
-        <Button type="submit">Log in</Button>
+        <Button type="submit" disabled={isPending}>
+          {isPending ? "Logging in…" : "Log in"}
+        </Button>
       </form>
 
       <p className="relative hidden text-[11px] leading-[16.5px] text-placeholder md:mt-[18px] md:block">
