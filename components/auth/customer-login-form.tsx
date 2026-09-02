@@ -2,31 +2,15 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { z } from "zod";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { AuthTabs } from "@/components/auth/auth-tabs";
+import { loginSchema, type LoginField } from "@/lib/validation/login";
 
-/**
- * Messages are taken verbatim from the error frames rather than written
- * fresh, so the rendered errors match the design exactly.
- */
-const loginSchema = z.object({
-  identifier: z
-    .string()
-    .refine(
-      (value) =>
-        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ||
-        /^\+?[\d\s-]{7,}$/.test(value),
-      "Enter a valid email address or mobile number.",
-    ),
-  password: z.string().min(8, "Password must be at least 8 characters."),
-});
-
-type FieldErrors = Partial<Record<"identifier" | "password", string>>;
+type FieldErrors = Partial<Record<LoginField, string>>;
 
 export function CustomerLoginForm() {
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -37,7 +21,7 @@ export function CustomerLoginForm() {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const result = loginSchema.safeParse({
-      identifier: String(data.get("identifier") ?? ""),
+      email: String(data.get("email") ?? ""),
       password: String(data.get("password") ?? ""),
     });
 
@@ -84,18 +68,14 @@ export function CustomerLoginForm() {
           </Alert>
         ) : null}
 
-        <Field
-          label="Email or mobile"
-          htmlFor="identifier"
-          error={errors.identifier}
-        >
+        <Field label="Email" htmlFor="email" error={errors.email}>
           <Input
-            id="identifier"
-            name="identifier"
-            type="text"
-            autoComplete="username"
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
             placeholder="you@example.com"
-            invalid={Boolean(errors.identifier)}
+            invalid={Boolean(errors.email)}
           />
         </Field>
 
@@ -137,18 +117,7 @@ export function CustomerLoginForm() {
         <Button type="submit">Log in</Button>
       </form>
 
-      {/* TODO(auth): "Continue as guest" contradicts the recorded decision
-          that the cart is server-side and keyed by customer_id, with no guest
-          checkout (docs/reference/frontend-integration.md §2). Raised with
-          the PM; points at the public menu until it is settled. */}
-      <Link
-        href="/menu"
-        className="relative mt-[18px] block text-center text-[14px] font-bold text-on-brand-accent underline md:mt-0 md:pb-[8px] md:pt-[6px] md:text-left md:text-primary"
-      >
-        Continue as guest →
-      </Link>
-
-      <p className="relative hidden text-[11px] leading-[16.5px] text-placeholder md:block">
+      <p className="relative hidden text-[11px] leading-[16.5px] text-placeholder md:mt-[18px] md:block">
         By continuing you agree to Yang&apos;s terms of service and privacy
         policy.
       </p>
