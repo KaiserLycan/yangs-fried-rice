@@ -44,6 +44,25 @@
     --field-border: 34 35% 79%; /* #DDCDB8  input border */
     --placeholder: 22 11% 59%; /* #A2938A  placeholder text */
 
+    /* --- The employee console brand ------------------------------------
+       A second brand, not a dark variant of the red one. The employee login
+       frames (206:15, 206:74, 206:183, 206:229) bind NO Figma variables at
+       all — every value in them is raw — so this group mirrors the "on brand"
+       group above and names them here instead.
+
+       DESIGNER: none of these six exist in Collection 1. Only --console has a
+       name anywhere in the file ("color/red/brown", visible inline on the
+       mobile frame); the rest are unnamed hexes. Please add and bind them. */
+    --console: 8 13% 13%; /* #241D1C  employee panel surface */
+    /* Same value as --placeholder above, but a different job: body copy on
+       the dark panel, not the empty state of an input. Named separately so
+       the designer can move one without silently moving the other. */
+    --on-console-muted: 22 11% 59%; /* #A2938A  body copy on the panel */
+    --on-console-subtle: 20 9% 50%; /* #8C7C74  stat labels */
+    --on-console-faint: 19 11% 39%; /* #6E5F58  eyebrow label, mobile footer */
+    --on-console-rule: 11 14% 16%; /* #2E2523  divider on the panel */
+    --rule: 36 36% 83%; /* #E3D6C3  hairline divider on cream */
+
     --error-surface: 9 71% 95%; /* #FBEAE7  error banner fill */
     --error-border: 6 63% 46%; /* #C0392B  invalid field border */
 
