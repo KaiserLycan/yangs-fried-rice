@@ -11,9 +11,23 @@ import { z } from "zod";
  * Messages are taken verbatim from the error frames rather than written
  * fresh, so the rendered errors match the design exactly.
  */
+/**
+ * The two fields, exported separately because the sign-up screen has to use
+ * the same ones. Sharing the schema rather than re-typing the rules is what
+ * keeps the promise that "the email field behaves identically to login" true
+ * as either screen changes.
+ */
+export const customerEmailSchema = z
+  .string()
+  .email("Enter a valid email address.");
+
+export const customerPasswordSchema = z
+  .string()
+  .min(8, "Password must be at least 8 characters.");
+
 export const loginSchema = z.object({
-  email: z.string().email("Enter a valid email address."),
-  password: z.string().min(8, "Password must be at least 8 characters."),
+  email: customerEmailSchema,
+  password: customerPasswordSchema,
 });
 
 export type LoginValues = z.infer<typeof loginSchema>;
