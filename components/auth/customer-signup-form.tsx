@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useTransition } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -9,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { AuthTabs } from "@/components/auth/auth-tabs";
 import { signupSchema, type SignupField } from "@/lib/validation/signup";
+import { registerCustomer } from "@/app/(auth)/actions";
 
 type FieldErrors = Partial<Record<SignupField, string>>;
 
@@ -27,9 +29,13 @@ type FieldErrors = Partial<Record<SignupField, string>>;
  * to scroll on mobile rather than the card being compressed to fit.
  */
 export function CustomerSignupForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [errors, setErrors] = useState<FieldErrors>({});
+  const [serverError, setServerError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -54,10 +60,22 @@ export function CustomerSignupForm() {
     }
 
     setErrors({});
-    // TODO(auth): no accounts yet. Create the Customer against Supabase, save
-    // the address under DEFAULT_ADDRESS_LABEL, then sign the new customer
-    // straight in — sign-up is reached from a blocked add-to-cart, so
-    // returning them to a login screen would lose the item they wanted.
+    setServerError(null);
+
+    // Sign-up is reached from a blocked add-to-cart, so on success we
+    // return the customer to wherever ?next= points rather than a generic
+    // landing page — losing the item they wanted would be worse than
+    // skipping a "you're signed up" screen.
+    startTransition(async () => {
+      const outcome = await registerCustomer(result.data);
+      if (!outcome.success) {
+        setServerError(outcome.error);
+        return;
+      }
+      const next = searchParams.get("next") ?? "/";
+      router.push(next);
+      router.refresh();
+    });
   }
 
   const hasErrors = Object.keys(errors).length > 0;
@@ -80,7 +98,9 @@ export function CustomerSignupForm() {
           </p>
         </div>
 
-        {submitted && hasErrors ? (
+        {serverError ? (
+          <Alert>{serverError}</Alert>
+        ) : submitted && hasErrors ? (
           <Alert>
             We couldn&apos;t create your account. Check the fields marked below.
           </Alert>
@@ -161,7 +181,9 @@ export function CustomerSignupForm() {
           />
         </Field>
 
-        <Button type="submit">Create account</Button>
+        <Button type="submit" disabled={isPending}>
+          {isPending ? "Creating account…" : "Create account"}
+        </Button>
 
         {/* The tabs above already lead back to login, but they read as a mode
             switch rather than an escape hatch. This is the sentence someone
