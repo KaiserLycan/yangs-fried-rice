@@ -27,6 +27,27 @@
     --success: 135 26% 33%; /* surface/green  #3F6B4A */
     --warning: 33 77% 44%; /* surface/amber  #C8791A */
 
+    /* --- Not in Collection 1 ------------------------------------------
+       The login screens use eleven colours the Figma collection does not
+       define. The first five are foreground tints that sit on top of the
+       brand red, which Collection 1 has no group for at all; the rest are
+       form-control and error-state values. Send this list to the designer
+       so Collection 1 can absorb them and go back to being the source of
+       truth. Until then, these are the design's values, not invented ones. */
+    --on-brand: 38 54% 93%; /* #F7F0E4  headings on red */
+    --on-brand-accent: 28 80% 71%; /* #F0B27A  accent word, stat figures */
+    --on-brand-muted: 9 46% 83%; /* #E7C4BE  body copy on red */
+    --on-brand-subtle: 8 50% 75%; /* #E0A9A1  stat labels */
+    --on-brand-rule: 5 57% 42%; /* #A8382E  divider on red */
+
+    --track: 37 42% 89%; /* #EFE6D8  segmented-control track */
+    --field-border: 34 35% 79%; /* #DDCDB8  input border */
+    --placeholder: 22 11% 59%; /* #A2938A  placeholder text */
+    --divider: 36 36% 83%; /* #E3D6C3  hairline rule on cream */
+
+    --error-surface: 9 71% 95%; /* #FBEAE7  error banner fill */
+    --error-border: 6 63% 46%; /* #C0392B  invalid field border */
+
     --radius: 0.75rem; /* radius/12 */
   }
 }
