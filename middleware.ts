@@ -1,25 +1,26 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import type { Database } from "@/types/database.types";
 
 /**
  * Route-protection seam.
  *
- * Refreshes the Supabase session on every request and redirects signed-out
- * visitors away from customer areas. Employee areas (/manage, /deliver) are
- * intentionally NOT guarded here yet — that depends on the employee auth
- * flow, which is separate from Cust1-3 and out of scope for this issue.
+ * Refreshes the Supabase session on every request and redirects
+ * signed-out visitors away from both customer and employee areas.
  *
- * Do NOT add "/employee/:path*" to the matcher. /employee/login lives under
- * that prefix, so guarding it wholesale would redirect a signed-out visitor
- * to a page that redirects them again, forever. The employee login is public
- * by definition; only /manage and /deliver need guarding, and that guard is
- * still a TODO for whoever picks up employee auth.
+ * Employee areas check for a matching `employee` row, not just any
+ * authenticated session — a logged-in customer must not be able to walk
+ * into /manage just because they have a valid session cookie.
+ *
+ * /employee/login itself is intentionally NOT in the matcher below — it's
+ * public by definition, and guarding it wholesale would redirect a
+ * signed-out visitor to a page that redirects them again, forever.
  */
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request: { headers: request.headers } });
 
-  const supabase = createServerClient(
+  const supabase = createServerClient<Database, "public">(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -28,7 +29,11 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(
-          cookiesToSet: { name: string; value: string; options: CookieOptions }[]
+          cookiesToSet: {
+            name: string;
+            value: string;
+            options: CookieOptions;
+          }[]
         ) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
@@ -46,14 +51,42 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const pathname = request.nextUrl.pathname;
   const isCustomerArea = ["/cart", "/checkout", "/orders", "/profile"].some(
-    (path) => request.nextUrl.pathname.startsWith(path)
+    (path) => pathname.startsWith(path)
+  );
+  const isEmployeeArea = ["/manage", "/deliver"].some((path) =>
+    pathname.startsWith(path)
   );
 
   if (isCustomerArea && !user) {
     const redirectUrl = new URL("/login", request.url);
-    redirectUrl.searchParams.set("next", request.nextUrl.pathname);
+    redirectUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(redirectUrl);
+  }
+
+  if (isEmployeeArea) {
+    const redirectToEmployeeLogin = () => {
+      const redirectUrl = new URL("/employee/login", request.url);
+      redirectUrl.searchParams.set("next", pathname);
+      return NextResponse.redirect(redirectUrl);
+    };
+
+    if (!user) {
+      return redirectToEmployeeLogin();
+    }
+
+    const { data: employee } = await supabase
+      .from("employee")
+      .select("employee_id")
+      .eq("employee_id", user.id)
+      .single();
+
+    // Authenticated but not an employee (e.g. a customer session trying
+    // /manage directly) — same destination as signed-out.
+    if (!employee) {
+      return redirectToEmployeeLogin();
+    }
   }
 
   return response;
@@ -68,7 +101,8 @@ export const config = {
     "/checkout/:path*",
     "/orders/:path*",
     "/profile/:path*",
-    // Employee areas — matched but not yet guarded (see comment above).
+    // Employee areas. /employee/login is deliberately excluded — see the
+    // comment above the middleware function for why.
     "/manage/:path*",
     "/deliver/:path*",
   ],
