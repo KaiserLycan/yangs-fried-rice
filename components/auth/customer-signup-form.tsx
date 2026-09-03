@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Alert } from "@/components/ui/alert";
@@ -15,8 +16,22 @@ import { registerCustomer } from "@/app/(auth)/actions";
 type FieldErrors = Partial<Record<SignupField, string>>;
 
 /**
- * Customer sign-up (Cust1).
- *
+ * Exported wrapper — keeps the same name/interface the page imports, so
+ * page.tsx needs no changes. useSearchParams() (used inside
+ * SignupFormInner) requires a Suspense boundary during static
+ * prerendering, or `next build` fails with "should be wrapped in a
+ * suspense boundary" — dev mode doesn't surface this, production builds
+ * do.
+ */
+export function CustomerSignupForm() {
+  return (
+    <Suspense fallback={null}>
+      <SignupFormInner />
+    </Suspense>
+  );
+}
+
+/**
  * DESIGNER: there is no Figma frame for this screen. It is composed from the
  * login frames — same shell, same brand panel, same tabs, same field and
  * error treatment — so that it reads as the other half of one screen rather
@@ -28,7 +43,7 @@ type FieldErrors = Partial<Record<SignupField, string>>;
  * of two: the heading is desktop-only (as on login) and the page is allowed
  * to scroll on mobile rather than the card being compressed to fit.
  */
-export function CustomerSignupForm() {
+function SignupFormInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -62,10 +77,6 @@ export function CustomerSignupForm() {
     setErrors({});
     setServerError(null);
 
-    // Sign-up is reached from a blocked add-to-cart, so on success we
-    // return the customer to wherever ?next= points rather than a generic
-    // landing page — losing the item they wanted would be worse than
-    // skipping a "you're signed up" screen.
     startTransition(async () => {
       const outcome = await registerCustomer(result.data);
       if (!outcome.success) {
