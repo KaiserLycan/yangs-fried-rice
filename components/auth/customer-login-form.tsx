@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Alert } from "@/components/ui/alert";
@@ -14,7 +15,23 @@ import { loginCustomer } from "@/app/(auth)/actions";
 
 type FieldErrors = Partial<Record<LoginField, string>>;
 
+/**
+ * Exported wrapper — keeps the same name/interface the page imports, so
+ * page.tsx needs no changes. useSearchParams() (used inside
+ * LoginFormInner) requires a Suspense boundary during static
+ * prerendering, or `next build` fails with "should be wrapped in a
+ * suspense boundary" — dev mode doesn't surface this, production builds
+ * do.
+ */
 export function CustomerLoginForm() {
+  return (
+    <Suspense fallback={null}>
+      <LoginFormInner />
+    </Suspense>
+  );
+}
+
+function LoginFormInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [errors, setErrors] = useState<FieldErrors>({});
