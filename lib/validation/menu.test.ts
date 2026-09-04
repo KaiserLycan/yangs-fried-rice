@@ -3,6 +3,7 @@ import {
   productSchema,
   productUpdateSchema,
   categorySchema,
+  searchParamsSchema,
 } from "./menu";
 
 // productSchema
@@ -277,5 +278,77 @@ describe("categorySchema", () => {
       category_name: "Rice",
     });
     expect(result.success).toBe(false);
+  });
+});
+
+// searchParamsSchema
+
+describe("searchParamsSchema", () => {
+  it("accepts a valid search string", () => {
+    const result = searchParamsSchema.safeParse({
+      search: "fried rice",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts empty object (no params)", () => {
+    const result = searchParamsSchema.safeParse({});
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects search exceeding 200 characters", () => {
+    const result = searchParamsSchema.safeParse({
+      search: "x".repeat(201),
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.errors[0].message).toBe(
+        "Search query must be 200 characters or fewer"
+      );
+    }
+  });
+
+  it("trims whitespace from search", () => {
+    const result = searchParamsSchema.safeParse({
+      search: "  fried  ",
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.search).toBe("fried");
+    }
+  });
+
+  it("accepts a partial category name filter", () => {
+    const result = searchParamsSchema.safeParse({
+      category: "Fried",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts comma-separated category names for multi-select", () => {
+    const result = searchParamsSchema.safeParse({
+      category: "Rice,Addon,Drinks",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects category filter exceeding 100 characters", () => {
+    const result = searchParamsSchema.safeParse({
+      category: "x".repeat(101),
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.errors[0].message).toBe(
+        "Category filter must be 100 characters or fewer"
+      );
+    }
+  });
+
+  it("accepts combined search + category name", () => {
+    const result = searchParamsSchema.safeParse({
+      search: "special",
+      category: "Rice",
+    });
+    expect(result.success).toBe(true);
   });
 });
