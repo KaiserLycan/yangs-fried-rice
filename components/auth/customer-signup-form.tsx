@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useTransition } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -9,12 +11,27 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { AuthTabs } from "@/components/auth/auth-tabs";
 import { signupSchema, type SignupField } from "@/lib/validation/signup";
+import { registerCustomer } from "@/app/(auth)/actions";
 
 type FieldErrors = Partial<Record<SignupField, string>>;
 
 /**
- * Customer sign-up (Cust1).
- *
+ * Exported wrapper — keeps the same name/interface the page imports, so
+ * page.tsx needs no changes. useSearchParams() (used inside
+ * SignupFormInner) requires a Suspense boundary during static
+ * prerendering, or `next build` fails with "should be wrapped in a
+ * suspense boundary" — dev mode doesn't surface this, production builds
+ * do.
+ */
+export function CustomerSignupForm() {
+  return (
+    <Suspense fallback={null}>
+      <SignupFormInner />
+    </Suspense>
+  );
+}
+
+/**
  * DESIGNER: there is no Figma frame for this screen. It is composed from the
  * login frames — same shell, same brand panel, same tabs, same field and
  * error treatment — so that it reads as the other half of one screen rather
@@ -26,10 +43,14 @@ type FieldErrors = Partial<Record<SignupField, string>>;
  * of two: the heading is desktop-only (as on login) and the page is allowed
  * to scroll on mobile rather than the card being compressed to fit.
  */
-export function CustomerSignupForm() {
+function SignupFormInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [errors, setErrors] = useState<FieldErrors>({});
+  const [serverError, setServerError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -54,10 +75,18 @@ export function CustomerSignupForm() {
     }
 
     setErrors({});
-    // TODO(auth): no accounts yet. Create the Customer against Supabase, save
-    // the address under DEFAULT_ADDRESS_LABEL, then sign the new customer
-    // straight in — sign-up is reached from a blocked add-to-cart, so
-    // returning them to a login screen would lose the item they wanted.
+    setServerError(null);
+
+    startTransition(async () => {
+      const outcome = await registerCustomer(result.data);
+      if (!outcome.success) {
+        setServerError(outcome.error);
+        return;
+      }
+      const next = searchParams.get("next") ?? "/";
+      router.push(next);
+      router.refresh();
+    });
   }
 
   const hasErrors = Object.keys(errors).length > 0;
@@ -80,7 +109,9 @@ export function CustomerSignupForm() {
           </p>
         </div>
 
-        {submitted && hasErrors ? (
+        {serverError ? (
+          <Alert>{serverError}</Alert>
+        ) : submitted && hasErrors ? (
           <Alert>
             We couldn&apos;t create your account. Check the fields marked below.
           </Alert>
@@ -161,7 +192,9 @@ export function CustomerSignupForm() {
           />
         </Field>
 
-        <Button type="submit">Create account</Button>
+        <Button type="submit" disabled={isPending}>
+          {isPending ? "Creating account…" : "Create account"}
+        </Button>
 
         {/* The tabs above already lead back to login, but they read as a mode
             switch rather than an escape hatch. This is the sentence someone

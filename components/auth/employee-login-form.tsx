@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -11,6 +12,7 @@ import {
   EMPLOYEE_SIGN_IN_FAILED,
   type EmployeeLoginField,
 } from "@/lib/validation/employee-login";
+import { loginEmployee } from "@/app/(auth)/actions";
 
 type FieldErrors = Partial<Record<EmployeeLoginField, string>>;
 
@@ -36,9 +38,12 @@ const FOOTER_NOTE =
  * cream column and the footer becomes its last row, above a hairline rule.
  */
 export function EmployeeLoginForm() {
+  const router = useRouter();
   const [errors, setErrors] = useState<FieldErrors>({});
+  const [serverError, setServerError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -60,11 +65,20 @@ export function EmployeeLoginForm() {
     }
 
     setErrors({});
-    // TODO(auth): no session yet. Sign in against Supabase, then route on
-    // Employee.role — Staff and Business Owner to /manage, Rider to /deliver.
-    // That redirect is the only place in the route tree where the role
-    // vocabulary changes behaviour, so it needs the final Employee.role values
-    // confirmed with the PM and DB developer before it is wired.
+    setServerError(null);
+
+    // Route on Employee.role: Staff and Business Owner to /manage, Rider
+    // to /deliver. Role values are placeholders pending PM confirmation
+    // — see the comment above EMPLOYEE_ROLE_REDIRECTS in actions.ts.
+    startTransition(async () => {
+      const outcome = await loginEmployee(result.data);
+      if (!outcome.success) {
+        setServerError(outcome.error);
+        return;
+      }
+      router.push(outcome.redirectTo);
+      router.refresh();
+    });
   }
 
   const hasErrors = Object.keys(errors).length > 0;
@@ -85,7 +99,9 @@ export function EmployeeLoginForm() {
           </p>
         </div>
 
-        {submitted && hasErrors ? (
+        {serverError ? (
+          <Alert>{serverError}</Alert>
+        ) : submitted && hasErrors ? (
           <Alert>{EMPLOYEE_SIGN_IN_FAILED}</Alert>
         ) : null}
 
@@ -130,7 +146,9 @@ export function EmployeeLoginForm() {
           />
         </Field>
 
-        <Button type="submit">Sign in</Button>
+        <Button type="submit" disabled={isPending}>
+          {isPending ? "Signing in…" : "Sign in"}
+        </Button>
 
         <div className="flex items-center justify-between">
           <Link

@@ -1,26 +1,95 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import type { Database } from "@/types/database.types";
 
 /**
  * Route-protection seam.
  *
- * Auth is not built yet, so this passes every request straight through. The
- * matcher below is the part that matters today: it already names every area
- * that will need a session, so pages added inside those areas are covered
- * automatically once the real check lands here.
+ * Refreshes the Supabase session on every request and redirects
+ * signed-out visitors away from both customer and employee areas.
  *
- * TODO(auth): refresh the Supabase session and redirect signed-out visitors.
- * There are two destinations, not one:
- *   - customer areas (/cart, /checkout, /orders, /profile) -> /login
- *   - employee areas (/manage, /deliver)                   -> /employee/login
+ * Employee areas check for a matching `employee` row, not just any
+ * authenticated session — a logged-in customer must not be able to walk
+ * into /manage just because they have a valid session cookie.
  *
- * Do NOT add "/employee/:path*" to this matcher. /employee/login lives under
- * that prefix, so guarding it wholesale would redirect a signed-out visitor
- * to a page that redirects them again, forever. The employee login is public
- * by definition; only /manage and /deliver need guarding.
+ * /employee/login itself is intentionally NOT in the matcher below — it's
+ * public by definition, and guarding it wholesale would redirect a
+ * signed-out visitor to a page that redirects them again, forever.
  */
-export function middleware(_request: NextRequest) {
-  return NextResponse.next();
+export async function middleware(request: NextRequest) {
+  let response = NextResponse.next({ request: { headers: request.headers } });
+
+  const supabase = createServerClient<Database, "public">(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(
+          cookiesToSet: {
+            name: string;
+            value: string;
+            options: CookieOptions;
+          }[]
+        ) {
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
+          );
+          response = NextResponse.next({ request: { headers: request.headers } });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          );
+        },
+      },
+    }
+  );
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const pathname = request.nextUrl.pathname;
+  const isCustomerArea = ["/cart", "/checkout", "/orders", "/profile"].some(
+    (path) => pathname.startsWith(path)
+  );
+  const isEmployeeArea = ["/manage", "/deliver"].some((path) =>
+    pathname.startsWith(path)
+  );
+
+  if (isCustomerArea && !user) {
+    const redirectUrl = new URL("/login", request.url);
+    redirectUrl.searchParams.set("next", pathname);
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  if (isEmployeeArea) {
+    const redirectToEmployeeLogin = () => {
+      const redirectUrl = new URL("/employee/login", request.url);
+      redirectUrl.searchParams.set("next", pathname);
+      return NextResponse.redirect(redirectUrl);
+    };
+
+    if (!user) {
+      return redirectToEmployeeLogin();
+    }
+
+    const { data: employee } = await supabase
+      .from("employee")
+      .select("employee_id")
+      .eq("employee_id", user.id)
+      .single();
+
+    // Authenticated but not an employee (e.g. a customer session trying
+    // /manage directly) — same destination as signed-out.
+    if (!employee) {
+      return redirectToEmployeeLogin();
+    }
+  }
+
+  return response;
 }
 
 export const config = {
@@ -32,8 +101,8 @@ export const config = {
     "/checkout/:path*",
     "/orders/:path*",
     "/profile/:path*",
-    // Employee areas. Literal prefixes, so one match each covers every page
-    // added inside them later.
+    // Employee areas. /employee/login is deliberately excluded — see the
+    // comment above the middleware function for why.
     "/manage/:path*",
     "/deliver/:path*",
   ],
