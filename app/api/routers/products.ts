@@ -12,21 +12,50 @@ interface RouteParams {
 
 /**
  * GET /api/menu/products
- * Optional query parameter: ?categoryId=<UUID>
+ * Optional query parameters:
+ *   ?search=<keyword>         — case-insensitive partial match on product_name
+ *   ?category=<name>          — case-insensitive partial match on category_name
+ *                               supports comma-separated values for multi-select
+ *                               e.g. ?category=Rice,Addon
+ *   Both can be combined.
  */
 export async function getProducts(request: Request) {
   const { searchParams } = new URL(request.url);
-  const categoryId = searchParams.get("categoryId");
+  const search = searchParams.get("search");
+  const category = searchParams.get("category");
 
   const supabase = createClient();
 
+  // Parse comma-separated category names into an array
+  const categoryFilters = category
+    ? category.split(",").map((c) => c.trim()).filter((c) => c.length > 0)
+    : [];
+
+  // When filtering by category name we need an INNER join so PostgREST
+  // can filter on the related table.  Otherwise use a normal (left) join
+  // so products without a category still appear.
+  const joinExpr = categoryFilters.length > 0
+    ? "*, categories!inner(category_name)"
+    : "*, categories(category_name)";
+
   let query = supabase
     .from("product")
-    .select("*, categories(category_name)")
+    .select(joinExpr)
     .order("product_name");
 
-  if (categoryId) {
-    query = query.eq("category_id", categoryId);
+  if (categoryFilters.length === 1) {
+    // Single category — simple ILIKE
+    query = query.ilike("categories.category_name", `%${categoryFilters[0]}%`);
+  } else if (categoryFilters.length > 1) {
+    // Multiple categories — combine with OR
+    const orClause = categoryFilters
+      .map((c) => `category_name.ilike.%${c}%`)
+      .join(",");
+    query = query.or(orClause, { referencedTable: "categories" });
+  }
+
+  if (search && search.trim().length > 0) {
+    query = query.ilike("product_name", `%${search.trim()}%`);
   }
 
   const { data, error } = await query;
