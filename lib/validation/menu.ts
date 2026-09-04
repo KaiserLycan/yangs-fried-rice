@@ -48,8 +48,24 @@ export const categorySchema = z.object({
     .max(100, "Category name must be 100 characters or fewer"),
 });
 
+// Search / filter query-string validation
+
+export const searchParamsSchema = z.object({
+  search: z
+    .string()
+    .trim()
+    .max(200, "Search query must be 200 characters or fewer")
+    .optional(),
+  category: z
+    .string()
+    .trim()
+    .max(100, "Category filter must be 100 characters or fewer")
+    .optional(),
+});
+
 // Inferred TypeScript types
 
 export type ProductInput = z.infer<typeof productSchema>;
 export type ProductUpdateInput = z.infer<typeof productUpdateSchema>;
 export type CategoryInput = z.infer<typeof categorySchema>;
+export type SearchParams = z.infer<typeof searchParamsSchema>;

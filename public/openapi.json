@@ -19,6 +19,10 @@
     {
       "name": "Products",
       "description": "CRUD operations on menu products"
+    },
+    {
+      "name": "Address",
+      "description": "Address validation using Nominatim geocoding with text-based fallback"
     }
   ],
   "paths": {
@@ -398,20 +402,30 @@
     "/api/menu/products": {
       "get": {
         "tags": ["Products"],
-        "summary": "Get all products (or filter by category)",
-        "description": "Fetches all products joined with their category. Can optionally filter by `?categoryId=<UUID>`.",
+        "summary": "Search & filter products",
+        "description": "Fetches all products joined with their category. Supports keyword search via `?search=<keyword>` (case-insensitive, partial match on product_name) and category filter by name via `?category=<name>` (case-insensitive, partial match). Both can be combined.",
         "operationId": "getProducts",
         "parameters": [
           {
-            "name": "categoryId",
+            "name": "search",
             "in": "query",
             "required": false,
-            "description": "Optional category UUID to filter products by",
+            "description": "Case-insensitive keyword search on product name (partial match)",
             "schema": {
               "type": "string",
-              "format": "uuid"
+              "maxLength": 200
             },
-            "example": "c0000000-0000-0000-0000-000000000001"
+            "example": "fried"
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "description": "Case-insensitive partial match on category name. Supports comma-separated values for multi-select (e.g. 'Rice,Addon' matches products in either category).",
+            "schema": {
+              "type": "string"
+            },
+            "example": "Rice,Addon"
           }
         ],
         "responses": {
@@ -775,6 +789,101 @@
           }
         }
       }
+    },
+    "/api/address/validate": {
+      "post": {
+        "tags": ["Address"],
+        "summary": "Validate a customer address",
+        "description": "Validates an address using Nominatim (OpenStreetMap) geocoding. If Nominatim is unreachable, falls back to simple text-based validation (checks length and presence of a house number).",
+        "operationId": "validateAddress",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddressInput"
+              },
+              "example": {
+                "address": "123 Rizal Avenue, Quezon City, Philippines"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Address validation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddressValidationResponse"
+                },
+                "examples": {
+                  "nominatim_found": {
+                    "summary": "Address found via Nominatim",
+                    "value": {
+                      "valid": true,
+                      "formatted_address": "123 Rizal Avenue, Quezon City, Metro Manila, Philippines",
+                      "latitude": 14.6336,
+                      "longitude": 121.0014,
+                      "source": "nominatim"
+                    }
+                  },
+                  "nominatim_not_found": {
+                    "summary": "Address not found via Nominatim",
+                    "value": {
+                      "valid": false,
+                      "message": "Address could not be found. Please check the address and try again.",
+                      "source": "nominatim"
+                    }
+                  },
+                  "fallback_valid": {
+                    "summary": "Validated by text-based fallback",
+                    "value": {
+                      "valid": true,
+                      "message": "Address accepted (external validation unavailable — verified by format only).",
+                      "source": "fallback"
+                    }
+                  },
+                  "fallback_invalid": {
+                    "summary": "Rejected by text-based fallback",
+                    "value": {
+                      "valid": false,
+                      "message": "Address should include a house or building number.",
+                      "source": "fallback"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error (address too short, too long, or missing)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Address must be at least 5 characters"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Internal server error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -944,6 +1053,55 @@
             "items": {
               "type": "object"
             }
+          }
+        }
+      },
+      "AddressInput": {
+        "type": "object",
+        "required": ["address"],
+        "properties": {
+          "address": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 500,
+            "example": "123 Rizal Avenue, Quezon City, Philippines"
+          }
+        }
+      },
+      "AddressValidationResponse": {
+        "type": "object",
+        "properties": {
+          "valid": {
+            "type": "boolean",
+            "example": true
+          },
+          "formatted_address": {
+            "type": "string",
+            "description": "Full formatted address (only when source=nominatim and valid=true)",
+            "example": "123 Rizal Avenue, Quezon City, Metro Manila, Philippines"
+          },
+          "latitude": {
+            "type": "number",
+            "format": "float",
+            "description": "Latitude (only when source=nominatim and valid=true)",
+            "example": 14.6336
+          },
+          "longitude": {
+            "type": "number",
+            "format": "float",
+            "description": "Longitude (only when source=nominatim and valid=true)",
+            "example": 121.0014
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable validation message",
+            "example": "Address accepted (external validation unavailable — verified by format only)."
+          },
+          "source": {
+            "type": "string",
+            "enum": ["nominatim", "fallback"],
+            "description": "Which validation method was used",
+            "example": "nominatim"
           }
         }
       }
