@@ -1,0 +1,952 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Yang's Fried Rice - Menu Management API",
+    "version": "1.0.0",
+    "description": "Interactive Swagger/OpenAPI documentation for Menu Management & Database Setup (US-02). Use 'Try it out' to execute live requests against the PostgreSQL database."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Local Development Server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Categories",
+      "description": "CRUD operations on menu categories"
+    },
+    {
+      "name": "Products",
+      "description": "CRUD operations on menu products"
+    }
+  ],
+  "paths": {
+    "/api/menu/categories": {
+      "get": {
+        "tags": ["Categories"],
+        "summary": "Get all categories",
+        "description": "Fetches all categories from the database, sorted alphabetically.",
+        "operationId": "getCategories",
+        "responses": {
+          "200": {
+            "description": "List of categories retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "count": {
+                      "type": "integer",
+                      "example": 5
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Category"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Internal server error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Categories"],
+        "summary": "Create a new category",
+        "description": "Inserts a new category record. You may supply a custom UUID `category_id` (e.g. `c0000000-0000-0000-0000-000000000001`). If the ID is duplicate, a 409 Conflict error is returned.",
+        "operationId": "createCategory",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryInput"
+              },
+              "example": {
+                "category_id": "c0000000-0000-0000-0000-000000000001",
+                "category_name": "Fried Rice"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Category created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Category \"Fried Rice\" created successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Category"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failure (invalid category name or UUID)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Category name is required"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Duplicate category_id conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Category ID \"c0000000-0000-0000-0000-000000000001\" already exists. Duplicate IDs are not allowed."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Internal server error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/menu/categories/{id}": {
+      "get": {
+        "tags": ["Categories"],
+        "summary": "Get category by UUID",
+        "description": "Fetches a single category record by its UUID.",
+        "operationId": "getCategoryById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "UUID of the category",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "c0000000-0000-0000-0000-000000000001"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Category found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Category"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid category UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "category_id URL parameter is required"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Category not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Category with ID \"c0000000-0000-0000-0000-000000000001\" not found"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Internal server error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Categories"],
+        "summary": "Update category by UUID",
+        "description": "Renames an existing category.",
+        "operationId": "updateCategory",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "UUID of the category to update (e.g. c0000000-0000-0000-0000-000000000001)",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "c0000000-0000-0000-0000-000000000001"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryInput"
+              },
+              "example": {
+                "category_name": "Signature Fried Rice"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Category updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Category \"Signature Fried Rice\" updated successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Category"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Category name is required"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Category not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Category with ID \"c0000000-0000-0000-0000-000000000001\" not found"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Internal server error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Categories"],
+        "summary": "Delete category by UUID",
+        "description": "Permanently removes a category. The category cannot be deleted if products are still assigned to it (returns 400 Bad Request).",
+        "operationId": "deleteCategory",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "UUID of the category to delete",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "c0000000-0000-0000-0000-000000000001"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Category deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Category \"Signature Fried Rice\" deleted successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Category"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid UUID or category still contains products",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Cannot delete category because 2 products are still assigned to it. Please reassign or delete the products first."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Category not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Category with ID \"c0000000-0000-0000-0000-000000000001\" not found"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Internal server error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/menu/products": {
+      "get": {
+        "tags": ["Products"],
+        "summary": "Get all products (or filter by category)",
+        "description": "Fetches all products joined with their category. Can optionally filter by `?categoryId=<UUID>`.",
+        "operationId": "getProducts",
+        "parameters": [
+          {
+            "name": "categoryId",
+            "in": "query",
+            "required": false,
+            "description": "Optional category UUID to filter products by",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "c0000000-0000-0000-0000-000000000001"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Products retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "count": {
+                      "type": "integer",
+                      "example": 10
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Product"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Internal server error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Products"],
+        "summary": "Create a new product (with custom product_id)",
+        "description": "Inserts a new product into the PostgreSQL database. Testers can add their own `product_id` (must be a valid UUID, e.g. `00000000-0000-0000-0000-000000000001`). If the same `product_id` is used again, PostgreSQL unique constraint detects it and returns a 409 Conflict error.",
+        "operationId": "createProduct",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductInput"
+              },
+              "example": {
+                "product_id": "00000000-0000-0000-0000-000000000001",
+                "product_name": "Yang Special Fried Rice",
+                "product_price": 185.0,
+                "product_details": "House special with char siu, egg, and scallions",
+                "category_id": "c0000000-0000-0000-0000-000000000001",
+                "is_available": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Product created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Product \"Yang Special Fried Rice\" created successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Product"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error (invalid price, missing name, or non-existent category_id)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Category with ID \"c0000000-0000-0000-0000-000000000302\" does not exist."
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Duplicate product_id conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Product ID \"00000000-0000-0000-0000-000000000001\" already exists. Duplicate IDs are not allowed."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Internal server error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/menu/products/{id}": {
+      "get": {
+        "tags": ["Products"],
+        "summary": "Get product by UUID",
+        "description": "Fetches a single product record by its UUID.",
+        "operationId": "getProductById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "UUID of the product",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "00000000-0000-0000-0000-000000000001"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Product found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Product"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Product not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Product with ID \"00000000-0000-0000-0000-000000000001\" not found"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Internal server error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Products"],
+        "summary": "Update product fields / toggle availability",
+        "description": "Updates fields on an existing product (partial update). Send only the properties you want to modify.",
+        "operationId": "updateProduct",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "UUID of the product to update",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "00000000-0000-0000-0000-000000000001"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductUpdateInput"
+              },
+              "example": {
+                "product_name": "Yang Special Fried Rice (Large)",
+                "product_price": 195.0,
+                "product_details": "Updated recipe with extra scrambled eggs and scallions",
+                "category_id": "c0000000-0000-0000-0000-000000000001",
+                "is_available": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Product updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Product \"Yang Special Fried Rice\" updated successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Product"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Price must be greater than 0"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Product not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Product with ID \"00000000-0000-0000-0000-000000000001\" not found"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Internal server error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Products"],
+        "summary": "Delete product by UUID",
+        "description": "Permanently removes a product from the database.",
+        "operationId": "deleteProduct",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "UUID of the product to delete",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "example": "00000000-0000-0000-0000-000000000001"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Product deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Product \"Yang Special Fried Rice\" deleted successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Product"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid UUID format",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "product_id URL parameter is required"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Product not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Product with ID \"00000000-0000-0000-0000-000000000001\" not found"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Internal server error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Category": {
+        "type": "object",
+        "required": ["category_id", "category_name"],
+        "properties": {
+          "category_id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "c0000000-0000-0000-0000-000000000001"
+          },
+          "category_name": {
+            "type": "string",
+            "example": "Fried Rice"
+          }
+        }
+      },
+      "CategoryInput": {
+        "type": "object",
+        "required": ["category_name"],
+        "properties": {
+          "category_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "example": "Fried Rice"
+          },
+          "category_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Optional custom UUID",
+            "example": "c0000000-0000-0000-0000-000000000001"
+          }
+        }
+      },
+      "Product": {
+        "type": "object",
+        "required": ["product_id", "product_name", "product_price"],
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "00000000-0000-0000-0000-000000000001"
+          },
+          "product_name": {
+            "type": "string",
+            "example": "Yang Special Fried Rice"
+          },
+          "product_price": {
+            "type": "number",
+            "format": "float",
+            "example": 185.0
+          },
+          "product_details": {
+            "type": "string",
+            "nullable": true,
+            "example": "House special with char siu, egg, and scallions"
+          },
+          "category_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "example": "c0000000-0000-0000-0000-000000000001"
+          },
+          "is_available": {
+            "type": "boolean",
+            "example": true
+          },
+          "categories": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "category_name": {
+                "type": "string",
+                "example": "Fried Rice"
+              }
+            }
+          }
+        }
+      },
+      "ProductInput": {
+        "type": "object",
+        "required": ["product_name", "product_price"],
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Optional custom UUID (must be unique).",
+            "example": "00000000-0000-0000-0000-000000000001"
+          },
+          "product_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "example": "Yang Special Fried Rice"
+          },
+          "product_price": {
+            "type": "number",
+            "minimum": 0.01,
+            "maximum": 99999.99,
+            "example": 185.0
+          },
+          "product_details": {
+            "type": "string",
+            "maxLength": 1000,
+            "nullable": true,
+            "example": "House special with char siu, egg, and scallions"
+          },
+          "category_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "example": "c0000000-0000-0000-0000-000000000001"
+          },
+          "is_available": {
+            "type": "boolean",
+            "default": true,
+            "example": true
+          }
+        }
+      },
+      "ProductUpdateInput": {
+        "type": "object",
+        "properties": {
+          "product_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "example": "Updated Fried Rice"
+          },
+          "product_price": {
+            "type": "number",
+            "minimum": 0.01,
+            "maximum": 99999.99,
+            "example": 195.0
+          },
+          "product_details": {
+            "type": "string",
+            "maxLength": 1000,
+            "nullable": true,
+            "example": "Updated details"
+          },
+          "category_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "example": "c0000000-0000-0000-0000-000000000001"
+          },
+          "is_available": {
+            "type": "boolean",
+            "example": false
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "string",
+            "example": "Internal server error"
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    }
+  }
+}
