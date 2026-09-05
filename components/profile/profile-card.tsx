@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 export function ProfileCard({
   id,
   title,
+  subtitle,
   isEditing,
   onEdit,
   onCancel,
@@ -29,6 +30,13 @@ export function ProfileCard({
   /** Anchor target for the sidebar's in-page links. */
   id?: string;
   title: string;
+  /**
+   * Informational text beside the title, shown in both states rather than
+   * only while editing — the password card's "Last changed 4 months ago" is
+   * the one consumer, and it is a fact about the account, not about whether
+   * the card happens to be open.
+   */
+  subtitle?: React.ReactNode;
   isEditing: boolean;
   onEdit: () => void;
   onCancel: () => void;
@@ -51,6 +59,12 @@ export function ProfileCard({
         <h2 className="font-display text-[15px] tracking-[0.3px] text-foreground md:text-[17px] md:tracking-[0.34px]">
           {title}
         </h2>
+
+        {subtitle ? (
+          <span className="text-[12.5px] text-muted-foreground">
+            {subtitle}
+          </span>
+        ) : null}
 
         {isEditing ? (
           <span className="rounded-sm bg-rule px-[8px] py-[4px] text-[10.5px] font-bold uppercase tracking-[1.05px] text-primary md:text-[11px] md:tracking-[1.1px]">
@@ -94,12 +108,19 @@ export function ProfileCard({
 export function CardField({
   label,
   htmlFor,
+  action,
   hint,
   error,
   children,
 }: {
   label: string;
   htmlFor?: string;
+  /**
+   * Trailing control on the label row — the password field's "Show" toggle,
+   * matching how `components/ui/field.tsx` places the same control on the
+   * auth screens. Optional because no other card field needs one.
+   */
+  action?: React.ReactNode;
   /**
    * Explanation under the control. An error replaces it rather than stacking
    * beneath it — the line is one slot, and a customer reading why their entry
@@ -111,9 +132,12 @@ export function CardField({
 }) {
   return (
     <div className="flex min-w-0 flex-col gap-[3px] md:gap-[5px]">
-      <span className="text-[10.5px] font-bold uppercase tracking-[1.47px] text-muted-foreground">
-        {htmlFor ? <label htmlFor={htmlFor}>{label}</label> : label}
-      </span>
+      <div className="flex items-baseline justify-between gap-[8px]">
+        <span className="text-[10.5px] font-bold uppercase tracking-[1.47px] text-muted-foreground">
+          {htmlFor ? <label htmlFor={htmlFor}>{label}</label> : label}
+        </span>
+        {action}
+      </div>
       {children}
       {error ? (
         <p className="text-[12px] text-primary">{error}</p>
