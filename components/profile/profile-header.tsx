@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Avatar } from "@/components/ui/avatar";
+import { AvatarButton } from "@/components/profile/avatar-button";
 import { shortAddressLabel } from "@/lib/profile/address-label";
 import type { CustomerProfile } from "@/lib/profile/customer-profile";
 import { initialsFrom } from "@/lib/profile/identity";
@@ -83,7 +83,7 @@ export function ProfileHeader({ profile }: { profile: CustomerProfile }) {
               </span>
             </div>
           ) : null}
-          <Avatar
+          <AvatarButton
             initials={initials}
             className="size-[32px] bg-accent text-[12px] font-bold text-white"
           />
@@ -108,9 +108,10 @@ export function ProfileHeader({ profile }: { profile: CustomerProfile }) {
         <span className="font-display text-[18px] tracking-[0.54px] text-white">
           MY PROFILE
         </span>
-        <Avatar
+        <AvatarButton
           initials={initials}
-          className="ml-auto size-[30px] bg-accent text-[11.5px] font-bold text-white"
+          className="size-[30px] bg-accent text-[11.5px] font-bold text-white"
+          wrapperClassName="ml-auto"
         />
       </div>
     </header>

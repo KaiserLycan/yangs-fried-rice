@@ -1,4 +1,4 @@
-import { Avatar } from "@/components/ui/avatar";
+import { AvatarButton } from "@/components/profile/avatar-button";
 import type { CustomerProfile } from "@/lib/profile/customer-profile";
 import {
   formatMemberSince,
@@ -13,8 +13,7 @@ import {
  *
  * The frame places a "Photo" button on the right of this card. It is removed:
  * the avatar itself is the control for changing a photo at both breakpoints,
- * so a separate button would be a second affordance for one action. The
- * avatar's interaction arrives with the ticket that builds it.
+ * so a separate button would be a second affordance for one action.
  */
 export function ProfileSummaryCard({ profile }: { profile: CustomerProfile }) {
   const joined = formatMemberSince(profile.memberSince);
@@ -22,7 +21,7 @@ export function ProfileSummaryCard({ profile }: { profile: CustomerProfile }) {
 
   return (
     <div className="flex items-center gap-[13px] rounded-sm border border-rule bg-background px-[14px] py-[13px] md:hidden">
-      <Avatar
+      <AvatarButton
         initials={initialsFrom(profile.name)}
         className="size-[52px] bg-primary font-display text-[20px] text-background"
       />
