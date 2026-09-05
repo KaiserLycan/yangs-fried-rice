@@ -1,0 +1,89 @@
+import { vi, describe, it, expect, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { CustomerSignupForm } from "@/components/auth/customer-signup-form";
+import { useRouter, useSearchParams } from "next/navigation";
+import { registerCustomer } from "@/app/(auth)/actions";
+
+// 1. Mock the Next.js navigation hooks using Vitest (vi)
+vi.mock("next/navigation", () => ({
+  useRouter: vi.fn(),
+  useSearchParams: vi.fn(),
+}));
+
+// 2. Mock the Backend Server Action
+vi.mock("@/app/(auth)/actions", () => ({
+  registerCustomer: vi.fn(),
+}));
+
+describe("US-01: CustomerSignupForm Validations", () => {
+  const mockPush = vi.fn();
+  
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (useRouter as any).mockReturnValue({ push: mockPush, refresh: vi.fn() });
+    (useSearchParams as any).mockReturnValue({ get: vi.fn(() => "/") });
+  });
+
+  it("TC-1.1.U-A: Blocks submission and shows error alert when fields are blank", async () => {
+    render(<CustomerSignupForm />);
+    
+    const submitButton = screen.getByRole("button", { name: /create account/i });
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(screen.getByText(/We couldn't create your account/i)).toBeInTheDocument();
+    });
+    
+    expect(registerCustomer).not.toHaveBeenCalled();
+  });
+
+  it("TC-1.1.I: Successfully submits valid data and redirects user", async () => {
+    (registerCustomer as any).mockResolvedValue({ success: true });
+    
+    render(<CustomerSignupForm />);
+    
+    fireEvent.change(screen.getByLabelText(/name/i), { target: { value: "Liza Reyes" } });
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "liza@example.com" } });
+    fireEvent.change(screen.getByLabelText(/mobile number/i), { target: { value: "09171234567" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "securepassword123" } });
+    fireEvent.change(screen.getByLabelText(/delivery address/i), { target: { value: "123 Mapúa Ave" } });
+
+    const submitButton = screen.getByRole("button", { name: /create account/i });
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(registerCustomer).toHaveBeenCalledWith({
+        name: "Liza Reyes",
+        email: "liza@example.com",
+        phone: "09171234567",
+        password: "securepassword123",
+        address: "123 Mapúa Ave",
+      });
+      expect(mockPush).toHaveBeenCalledWith("/");
+    });
+  });
+
+it("TC-1.1.U-D: Displays server errors correctly", async () => {
+    (registerCustomer as any).mockResolvedValue({ 
+      success: false, 
+      error: "An account with this email already exists." 
+    });
+    
+    render(<CustomerSignupForm />);
+    
+    // We MUST fill out the whole form so the Zod validation passes and hits the server!
+    fireEvent.change(screen.getByLabelText(/name/i), { target: { value: "Test User" } });
+    fireEvent.change(screen.getByLabelText(/mobile number/i), { target: { value: "09171234567" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "securepassword123" } });
+    fireEvent.change(screen.getByLabelText(/delivery address/i), { target: { value: "123 Mapúa Ave" } });
+    
+    // Use our duplicate email
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "duplicate@example.com" } });
+    
+    fireEvent.click(screen.getByRole("button", { name: /create account/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/An account with this email already exists/i)).toBeInTheDocument();
+    });
+  });
+});
