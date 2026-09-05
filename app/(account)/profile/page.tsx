@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { AccountActions } from "@/components/profile/account-actions";
 import { ContactDetailsCard } from "@/components/profile/contact-details-card";
 import { DeliveryAddressesCard } from "@/components/profile/delivery-addresses-card";
+import { PasswordCard } from "@/components/profile/password-card";
 import { PersonalDetailsCard } from "@/components/profile/personal-details-card";
 import { ProfileAvatarCard } from "@/components/profile/profile-avatar-card";
 import { ProfileHeader } from "@/components/profile/profile-header";
@@ -14,9 +15,8 @@ import { initialsFrom } from "@/lib/profile/identity";
 /**
  * Customer profile (Cust3, Cust4, Cust5).
  *
- * The shell, log out and delete account came first; personal, contact and
- * delivery addresses followed. The password section lands in a later ticket
- * and slots into the marked gap below.
+ * The shell, log out and delete account came first; personal, contact,
+ * delivery addresses and password followed.
  *
  * Reads are real; writes are not. Everything displayed here comes from live
  * data so the screen can be reviewed against the design, but every mutation
@@ -45,7 +45,7 @@ export default async function ProfilePage() {
             id="profile"
             className="flex-1 px-[14px] py-[16px] md:px-[32px] md:py-[26px]"
           >
-            <div className="flex flex-col gap-[12px] md:max-w-[880px] md:gap-[18px]">
+            <div className="flex flex-col gap-[12px] md:mx-auto md:max-w-[880px] md:gap-[18px]">
               <div className="hidden items-baseline gap-[12px] md:flex">
                 <h1 className="font-display text-[32px] tracking-[0.32px] text-foreground">
                   MY PROFILE
@@ -70,8 +70,7 @@ export default async function ProfilePage() {
 
               <DeliveryAddressesCard addresses={profile.addresses} />
 
-              {/* The password section lands here. Its anchor id is what the
-                  sidebar link already points at. */}
+              <PasswordCard />
 
               <AccountActions />
             </div>
