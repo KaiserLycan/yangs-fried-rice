@@ -1,5 +1,5 @@
 import { vi, describe, it, expect, beforeEach } from "vitest";
-import { createProduct, updateProduct, deleteProduct } from "@/lib/actions/menu";
+import { createProduct, updateProduct, deleteProduct, createCategory, deleteCategory } from "@/lib/actions/menu";
 import { revalidatePath } from "next/cache";
 
 // 1. Mock Next.js Cache Revalidation
@@ -98,5 +98,42 @@ describe("US-02: Menu Management Server Actions", () => {
     
     // Verify the UI refreshes after deletion
     expect(revalidatePath).toHaveBeenCalledWith("/manage/menu");
+  });
+
+  it("TC-2.4.I: createCategory successfully inserts a logical category (e.g., Fried Rice)", async () => {
+    // Mock the database returning our new category
+    mockSingle.mockResolvedValue({ 
+      data: { category_id: "cat-uuid-123", category_name: "Fried Rice" }, 
+      error: null 
+    });
+
+    const result = await createCategory({
+      category_name: "Fried Rice",
+    });
+
+    // Verify it succeeded
+    expect(result.error).toBeNull();
+    expect(result.data).toEqual({ category_id: "cat-uuid-123", category_name: "Fried Rice" });
+    
+    // Verify it targeted the 'categories' table, fulfilling Acceptance Criteria #2
+    expect(mockFrom).toHaveBeenCalledWith("categories");
+    expect(mockInsert).toHaveBeenCalled();
+  });
+
+ it("TC-2.4.U: deleteCategory prevents deletion if products are still mapped to it", async () => {
+    // 1. Build the specific chain for the count query: .select().eq()
+    const mockEqForCount = vi.fn().mockResolvedValue({ count: 5, error: null });
+    const mockSelectForCount = vi.fn(() => ({ eq: mockEqForCount }));
+    
+    // 2. Override mockFrom just for this test, using 'as any' to bypass TypeScript's strict rules
+    mockFrom.mockImplementationOnce(() => ({
+      select: mockSelectForCount,
+    } as any));
+
+    const result = await deleteCategory("cat-uuid-123");
+
+    // The system should block the deletion
+    expect(result.data).toBeNull();
+    expect(result.error).toContain("Cannot delete category because 5 products are still assigned to it");
   });
 });
