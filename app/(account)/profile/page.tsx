@@ -1,17 +1,21 @@
 import { redirect } from "next/navigation";
 import { AccountActions } from "@/components/profile/account-actions";
+import { ContactDetailsCard } from "@/components/profile/contact-details-card";
+import { PersonalDetailsCard } from "@/components/profile/personal-details-card";
+import { ProfileAvatarCard } from "@/components/profile/profile-avatar-card";
 import { ProfileHeader } from "@/components/profile/profile-header";
 import { ProfileSidebar } from "@/components/profile/profile-sidebar";
 import { ProfileSummaryCard } from "@/components/profile/profile-summary-card";
 import { ToastProvider } from "@/components/ui/toast";
 import { readCustomerProfile } from "@/lib/profile/customer-profile";
+import { initialsFrom } from "@/lib/profile/identity";
 
 /**
  * Customer profile (Cust3, Cust4, Cust5).
  *
- * This ticket builds the shell, log out and delete account. The personal,
- * contact, address and password sections land in later tickets and slot into
- * the marked gap below.
+ * The shell, log out and delete account came first; personal and contact
+ * details followed. The address and password sections land in later tickets
+ * and slot into the marked gap below.
  *
  * Reads are real; writes are not. Everything displayed here comes from live
  * data so the screen can be reviewed against the design, but every mutation
@@ -52,9 +56,19 @@ export default async function ProfilePage() {
 
               <ProfileSummaryCard profile={profile} />
 
-              {/* Personal details, contact details, addresses and password
-                  sections land here. Their anchor ids are what the sidebar
-                  links already point at. */}
+              {/* The avatar card is desktop-only, so on mobile this row is
+                  just the personal details card at full width. */}
+              <div className="flex flex-col gap-[12px] md:flex-row md:items-start md:gap-[18px]">
+                <ProfileAvatarCard initials={initialsFrom(profile.name)} />
+                <div className="min-w-0 flex-1">
+                  <PersonalDetailsCard profile={profile} />
+                </div>
+              </div>
+
+              <ContactDetailsCard profile={profile} />
+
+              {/* The addresses and password sections land here. Their anchor
+                  ids are what the sidebar links already point at. */}
 
               <AccountActions />
             </div>

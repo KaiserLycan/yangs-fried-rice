@@ -24,6 +24,13 @@ const buttonVariants = cva(
         // different colour again.
         confirm:
           "rounded-md bg-primary px-[14px] py-[15px] text-[14px] text-white hover:bg-primary/90",
+        // The submit inside a profile card. Ink rather than flame: the card
+        // is already outlined in flame while it is being edited, and a flame
+        // button inside a flame border reads as one blur. It is full width on
+        // mobile and hugs its label on desktop, which is how both frames draw
+        // it.
+        save:
+          "rounded-sm bg-foreground p-[13px] text-[14.5px] text-white hover:bg-foreground/90 md:w-auto md:self-start md:px-[20px] md:py-[11px] md:text-[13.5px]",
       },
     },
     defaultVariants: { variant: "primary" },

@@ -26,6 +26,26 @@ export function initialsFrom(name: string): string {
   return (first + last).toUpperCase();
 }
 
+/**
+ * Runs an ISO date through a formatter, or gives back an empty string.
+ *
+ * Both formatters below need the same two guards and the same UTC discipline,
+ * so the shape lives here once. Missing and unparseable collapse to the same
+ * empty string on purpose: every caller draws an empty state for one, and
+ * neither has anything useful to say about the other.
+ */
+function formatUtcDate(
+  isoDate: string | null | undefined,
+  formatter: Intl.DateTimeFormat,
+): string {
+  if (!isoDate) return "";
+
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return formatter.format(date);
+}
+
 const MEMBER_SINCE_FORMAT = new Intl.DateTimeFormat("en-US", {
   month: "long",
   year: "numeric",
@@ -44,12 +64,28 @@ const MEMBER_SINCE_FORMAT = new Intl.DateTimeFormat("en-US", {
  * mismatch.
  */
 export function formatMemberSince(isoDate: string | null | undefined): string {
-  if (!isoDate) return "";
+  return formatUtcDate(isoDate, MEMBER_SINCE_FORMAT);
+}
 
-  const date = new Date(isoDate);
-  if (Number.isNaN(date.getTime())) return "";
+const DATE_OF_BIRTH_FORMAT = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC",
+});
 
-  return MEMBER_SINCE_FORMAT.format(date);
+/**
+ * "14 June 1996", from the ISO date a native date input produces.
+ *
+ * Sits beside `formatMemberSince` because it is the same job on the same kind
+ * of value, and splitting the two across modules is how they end up
+ * disagreeing about timezones.
+ *
+ * Returns an empty string for a missing value, which today is every customer:
+ * there is no date-of-birth column yet, so the card draws its empty state.
+ */
+export function formatDateOfBirth(isoDate: string | null | undefined): string {
+  return formatUtcDate(isoDate, DATE_OF_BIRTH_FORMAT);
 }
 
 /**
