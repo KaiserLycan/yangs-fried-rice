@@ -73,6 +73,15 @@ today and renders its empty state until the column lands.
   on which; it just needs the flag to read from and a way to set it.
 - **`customer_address.delivery_note`** — nullable free text. A note like
   "Beside the blue gate," separate from the address itself.
+- **A creation-order column on `customer_address`** — `created_at`, or a
+  sequence, anything that actually orders. The table's only ordering key
+  today is `address_id`, a random UUID, so the frontend has no honest way to
+  say which of a customer's addresses was saved first. That's invisible
+  today because sign-up only ever writes one, but it stops being invisible
+  the moment a second address exists: the "Deliver to" nav label and the
+  addresses card's row order are both currently sorted by UUID, which is
+  stable across page loads but not chronological, and not something the
+  frontend can fix without a column to order by.
 
 ## 4. Decisions already made that constrain your side
 

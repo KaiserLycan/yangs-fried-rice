@@ -6,6 +6,7 @@ import {
   CardInput,
   CardValue,
 } from "@/components/profile/profile-card";
+import { fieldErrorsFrom } from "@/components/profile/use-card-editor";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
@@ -257,12 +258,7 @@ function AddressFormDialog({
     });
 
     if (!result.success) {
-      const next: Partial<Record<DeliveryAddressField, string>> = {};
-      for (const issue of result.error.issues) {
-        const key = issue.path[0] as DeliveryAddressField;
-        next[key] ??= issue.message;
-      }
-      setErrors(next);
+      setErrors(fieldErrorsFrom<DeliveryAddressValues>(result.error.issues));
       return;
     }
 
@@ -287,53 +283,58 @@ function AddressFormDialog({
         </>
       }
     >
-      {/* Key on the address id (or "add") so the uncontrolled fields remount
-          with fresh defaults every time a different row's Edit is pressed,
-          rather than carrying the previous address's values into this one. */}
-      <form
-        key={address?.id ?? "add"}
-        id={formId}
-        noValidate
-        onSubmit={handleSubmit}
-        className="flex flex-col gap-[12px]"
-      >
-        <CardField
-          label="Label"
-          htmlFor="address-label"
-          hint="Optional. e.g. Home or Work."
+      {/* Only rendered while open — matching the password card's mobile
+          dialog — so the fields don't sit mounted (and, briefly, holding the
+          previous address's values) while the dialog is closed. Keyed on the
+          address id (or "add") so the uncontrolled fields remount with fresh
+          defaults every time a different row's Edit is pressed, rather than
+          carrying the previous address's values into this one. */}
+      {open ? (
+        <form
+          key={address?.id ?? "add"}
+          id={formId}
+          noValidate
+          onSubmit={handleSubmit}
+          className="flex flex-col gap-[12px]"
         >
-          <CardInput
-            id="address-label"
-            name="label"
-            defaultValue={address?.label ?? ""}
-          />
-        </CardField>
+          <CardField
+            label="Label"
+            htmlFor="address-label"
+            hint="Optional. e.g. Home or Work."
+          >
+            <CardInput
+              id="address-label"
+              name="label"
+              defaultValue={address?.label ?? ""}
+            />
+          </CardField>
 
-        <CardField
-          label="Address"
-          htmlFor="address-details"
-          error={errors.addressDetails}
-        >
-          <CardInput
-            id="address-details"
-            name="addressDetails"
-            defaultValue={address?.addressDetails ?? ""}
-            invalid={Boolean(errors.addressDetails)}
-          />
-        </CardField>
+          <CardField
+            label="Address"
+            htmlFor="address-details"
+            error={errors.addressDetails}
+          >
+            <CardInput
+              id="address-details"
+              name="addressDetails"
+              defaultValue={address?.addressDetails ?? ""}
+              invalid={Boolean(errors.addressDetails)}
+            />
+          </CardField>
 
-        <CardField
-          label="Delivery note"
-          htmlFor="address-note"
-          hint="Optional. e.g. Beside the blue gate."
-        >
-          <CardInput
-            id="address-note"
-            name="deliveryNote"
-            defaultValue={address?.deliveryNote ?? ""}
-          />
-        </CardField>
-      </form>
+          <CardField
+            label="Delivery note"
+            htmlFor="address-note"
+            hint="Optional. e.g. Beside the blue gate."
+          >
+            <CardInput
+              id="address-note"
+              name="deliveryNote"
+              defaultValue={address?.deliveryNote ?? ""}
+            />
+          </CardField>
+        </form>
+      ) : null}
     </Dialog>
   );
 }

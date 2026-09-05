@@ -4,6 +4,26 @@ import * as React from "react";
 import type { z } from "zod";
 
 /**
+ * First message per field wins — a field with two failing rules should say
+ * one thing, not stack them.
+ *
+ * Exported so a dialog form whose open/close isn't owned by this hook (the
+ * delivery-address form, opened and closed by its parent's own dialog state)
+ * can still use the same field-error mapping `useCardEditor` uses, rather
+ * than an independently-maintained copy of this loop drifting from it.
+ */
+export function fieldErrorsFrom<Values>(
+  issues: z.ZodIssue[],
+): Partial<Record<keyof Values, string>> {
+  const next: Partial<Record<keyof Values, string>> = {};
+  for (const issue of issues) {
+    const key = issue.path[0] as keyof Values;
+    next[key] ??= issue.message;
+  }
+  return next;
+}
+
+/**
  * The behaviour every read/edit card on the profile screen shares: which
  * state it is in, the field errors from its last submit, and what happens
  * when it is cancelled.
@@ -46,14 +66,7 @@ export function useCardEditor<Values extends Record<string, unknown>>({
     const result = schema.safeParse(read(new FormData(event.currentTarget)));
 
     if (!result.success) {
-      const next: Partial<Record<keyof Values, string>> = {};
-      for (const issue of result.error.issues) {
-        // First message per field wins — a field with two failing rules
-        // should say one thing, not stack them.
-        const key = issue.path[0] as keyof Values;
-        next[key] ??= issue.message;
-      }
-      setErrors(next);
+      setErrors(fieldErrorsFrom<Values>(result.error.issues));
       return;
     }
 

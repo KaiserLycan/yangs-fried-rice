@@ -1,3 +1,8 @@
+import {
+  PH_MOBILE_GROUPS_PATTERN,
+  PHONE_SEPARATORS,
+} from "@/lib/validation/signup";
+
 /**
  * The customer's mobile number, in the grouping the profile frames draw.
  *
@@ -8,12 +13,13 @@
  * separators before matching, and sign-up's own note already hands
  * normalisation to whoever persists the number — but it does mean this
  * function can reshape what reaches the backend, so it stays lossless.
+ *
+ * `PH_MOBILE_GROUPS_PATTERN` is imported rather than restated: it is the
+ * exact shape `customerMobileSchema` validates against, with capturing
+ * groups added for this one extra job. A second, independently-written
+ * regex here is how validation and display formatting would end up
+ * disagreeing about what a Philippine mobile number looks like.
  */
-
-/** The canonical shapes `customerMobileSchema` accepts, minus separators. */
-const LOCAL_MOBILE = /^09(\d{2})(\d{3})(\d{4})$/;
-const INTERNATIONAL_MOBILE = /^\+?639(\d{2})(\d{3})(\d{4})$/;
-const SEPARATORS = /[\s().-]/g;
 
 /**
  * "0917 402 8851", the grouping the frames draw, from whatever shape the
@@ -33,9 +39,8 @@ const SEPARATORS = /[\s().-]/g;
 export function formatMobileNumber(stored: string | null | undefined): string {
   if (!stored) return "";
 
-  const compact = stored.replace(SEPARATORS, "");
-  const groups =
-    compact.match(LOCAL_MOBILE) ?? compact.match(INTERNATIONAL_MOBILE);
+  const compact = stored.replace(PHONE_SEPARATORS, "");
+  const groups = compact.match(PH_MOBILE_GROUPS_PATTERN);
 
   if (!groups) return stored;
 

@@ -34,14 +34,23 @@ export type CustomerProfile = {
   /** ISO timestamp of when the account was created, or null. */
   memberSince: string | null;
   orderCount: number;
-  /** Free-text detail of the customer's first saved address, or null. */
+  /**
+   * Free-text detail of one of the customer's saved addresses, or null.
+   * Today that's the only meaningful choice — sign-up writes exactly one —
+   * but see `addresses`' own comment on what "first" means once there's more
+   * than one.
+   */
   deliverToAddress: string | null;
   /**
-   * Every address the customer has saved, in the order `customer_address`
-   * returns them. A sign-up writes exactly one today, but the addresses card
-   * renders this as a list that happens to contain one entry rather than a
-   * single fixed row, because a second address is a confirmed upcoming
-   * feature.
+   * Every address the customer has saved, ordered by `address_id` for a
+   * result that's at least stable across renders. That is **not** creation
+   * order: `address_id` is a random UUID, not a sequence, so it says nothing
+   * about which address was actually saved first. `customer_address` has no
+   * timestamp column to order by — see
+   * `docs/reference/profile-page-handoff.md` for the ask. Until one lands,
+   * treat "first" (here and in `deliverToAddress`) as "whichever this
+   * function happens to return first," not as a claim about history — true
+   * today only because a sign-up writes exactly one address.
    */
   addresses: CustomerAddress[];
 };
@@ -101,6 +110,9 @@ export async function readCustomerProfile(): Promise<CustomerProfile | null> {
       .from("customer_address")
       .select("address_id, label, address_details")
       .eq("customer_id", user.id)
+      // Ordered for a stable result, not a chronological one — see the
+      // `addresses` type's own comment on why `address_id` can't tell us
+      // which address came first.
       .order("address_id"),
   ]);
 
@@ -134,9 +146,10 @@ export async function readCustomerProfile(): Promise<CustomerProfile | null> {
     email: user.email ?? "",
     memberSince: user.created_at ?? null,
     orderCount: orderCountResult.count ?? 0,
-    // The nav bar's "Deliver to" affordance only ever names the first saved
-    // address — it has room for a street and nothing else — so it reads the
-    // same list the addresses card does rather than a separate query.
+    // The nav bar's "Deliver to" affordance has room for a street and
+    // nothing else, so it names one address rather than a separate query —
+    // see the `addresses` type comment for what "first" does and doesn't
+    // mean here.
     deliverToAddress: addresses[0]?.addressDetails ?? null,
     addresses,
   };
