@@ -28,9 +28,17 @@ import { customerEmailSchema, customerPasswordSchema } from "./login";
  * BACKEND: the number is validated but not normalised here. Whoever persists
  * it should store one canonical form — otherwise the same customer's number
  * is three different strings depending on how they typed it.
+ *
+ * Both exported: `lib/profile/mobile-number.ts` needs the same separators
+ * stripped and the same shape matched to *group* a stored number for
+ * display, not just to validate it. Two independent copies of "what a PH
+ * mobile number looks like" is how validation and display formatting end up
+ * disagreeing about what's valid — the capturing groups live here, on the
+ * one pattern, rather than in a second regex that has to be kept in sync.
  */
-const PHONE_SEPARATORS = /[\s().-]/g;
-const PH_MOBILE_PATTERN = /^(?:0|(?:\+?63))9\d{9}$/;
+export const PHONE_SEPARATORS = /[\s().-]/g;
+export const PH_MOBILE_GROUPS_PATTERN =
+  /^(?:0|(?:\+?63))9(\d{2})(\d{3})(\d{4})$/;
 
 /**
  * Exported so the profile screen's contact-details card validates the number
@@ -41,7 +49,8 @@ const PH_MOBILE_PATTERN = /^(?:0|(?:\+?63))9\d{9}$/;
 export const customerMobileSchema = z
   .string()
   .refine(
-    (value) => PH_MOBILE_PATTERN.test(value.replace(PHONE_SEPARATORS, "")),
+    (value) =>
+      PH_MOBILE_GROUPS_PATTERN.test(value.replace(PHONE_SEPARATORS, "")),
     "Enter a valid mobile number.",
   );
 
