@@ -7,6 +7,7 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { ShowHideToggle } from "@/components/ui/show-hide-toggle";
 import {
   employeeLoginSchema,
   EMPLOYEE_SIGN_IN_FAILED,
@@ -127,13 +128,10 @@ export function EmployeeLoginForm() {
           htmlFor="password"
           error={errors.password}
           action={
-            <button
-              type="button"
-              onClick={() => setShowPassword((shown) => !shown)}
-              className="text-[12px] text-primary"
-            >
-              {showPassword ? "Hide" : "Show"}
-            </button>
+            <ShowHideToggle
+              shown={showPassword}
+              onToggle={() => setShowPassword((shown) => !shown)}
+            />
           }
         >
           <Input

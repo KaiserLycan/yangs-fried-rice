@@ -8,6 +8,7 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { ShowHideToggle } from "@/components/ui/show-hide-toggle";
 import { Textarea } from "@/components/ui/textarea";
 import { AuthTabs } from "@/components/auth/auth-tabs";
 import { signupSchema, type SignupField } from "@/lib/validation/signup";
@@ -155,13 +156,10 @@ function SignupFormInner() {
           htmlFor="password"
           error={errors.password}
           action={
-            <button
-              type="button"
-              onClick={() => setShowPassword((shown) => !shown)}
-              className="text-[12px] text-primary"
-            >
-              {showPassword ? "Hide" : "Show"}
-            </button>
+            <ShowHideToggle
+              shown={showPassword}
+              onToggle={() => setShowPassword((shown) => !shown)}
+            />
           }
         >
           <Input

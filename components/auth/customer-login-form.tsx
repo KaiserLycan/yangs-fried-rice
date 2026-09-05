@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { ShowHideToggle } from "@/components/ui/show-hide-toggle";
 import { AuthTabs } from "@/components/auth/auth-tabs";
 import { loginSchema, type LoginField } from "@/lib/validation/login";
 import { loginCustomer } from "@/app/(auth)/actions";
@@ -118,13 +119,10 @@ function LoginFormInner() {
           htmlFor="password"
           error={errors.password}
           action={
-            <button
-              type="button"
-              onClick={() => setShowPassword((shown) => !shown)}
-              className="text-[12px] text-primary"
-            >
-              {showPassword ? "Hide" : "Show"}
-            </button>
+            <ShowHideToggle
+              shown={showPassword}
+              onToggle={() => setShowPassword((shown) => !shown)}
+            />
           }
         >
           <Input

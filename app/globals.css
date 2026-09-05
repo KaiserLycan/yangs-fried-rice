@@ -66,6 +66,17 @@
     --error-surface: 9 71% 95%; /* #FBEAE7  error banner fill */
     --error-border: 6 63% 46%; /* #C0392B  invalid field border */
 
+    /* --- Added by the profile screen -----------------------------------
+       Two more colours the collection does not define. Same request to the
+       designer as the groups above: name them in Figma and bind them.
+
+       --muted-strong is a second, darker muted foreground. It is NOT
+       --muted-foreground (#7A6A60): the dialogs use this warmer brown for
+       their body copy, and the two sit side by side on the profile screen,
+       so collapsing them would be a visible change rather than a tidy-up. */
+    --muted-strong: 19 19% 35%; /* #6A5348  body copy inside dialogs */
+    --card: 40 100% 98%; /* #FFFCF6  raised surface on cream */
+
     --radius: 0.75rem; /* radius/12 */
   }
 }
