@@ -13,6 +13,24 @@ import { createClient } from "@/lib/supabase/server";
 export type CustomerProfile = {
   /** May be empty — see the fallback in `readCustomerProfile`. */
   name: string;
+  /**
+   * ISO `YYYY-MM-DD`, or null — which today is always. There is no
+   * date-of-birth column on the customer record yet; it is confirmed as
+   * coming and confirmed as optional when it does, so the field is modelled
+   * here and reads null until the column lands. The alternative, leaving it
+   * out until then, would mean the card that displays it has nothing to read
+   * and no empty state to draw.
+   */
+  dateOfBirth: string | null;
+  /** As stored, in whatever shape it was typed — see `formatMobileNumber`. */
+  mobile: string | null;
+  /**
+   * The customer's sign-in identity, read from the authenticated user rather
+   * than the customer row. The two are written separately at registration and
+   * only the auth copy is the one they actually log in with, so that is the
+   * one the screen shows.
+   */
+  email: string;
   /** ISO timestamp of when the account was created, or null. */
   memberSince: string | null;
   orderCount: number;
@@ -44,7 +62,7 @@ export async function readCustomerProfile(): Promise<CustomerProfile | null> {
   const [customerResult, orderCountResult, addressResult] = await Promise.all([
     supabase
       .from("customer")
-      .select("name")
+      .select("name, phone_number")
       .eq("customer_id", user.id)
       .maybeSingle(),
     supabase
@@ -70,6 +88,12 @@ export async function readCustomerProfile(): Promise<CustomerProfile | null> {
 
   return {
     name,
+    // Nothing writes this yet. Named rather than omitted so the card that
+    // draws its empty state is reading a real field, and so the day the
+    // column lands this file is the only one that changes.
+    dateOfBirth: null,
+    mobile: customerResult.data?.phone_number ?? null,
+    email: user.email ?? "",
     memberSince: user.created_at ?? null,
     orderCount: orderCountResult.count ?? 0,
     deliverToAddress: addressResult.data?.address_details ?? null,

@@ -33,6 +33,28 @@ const PHONE_SEPARATORS = /[\s().-]/g;
 const PH_MOBILE_PATTERN = /^(?:0|(?:\+?63))9\d{9}$/;
 
 /**
+ * Exported so the profile screen's contact-details card validates the number
+ * with this rule rather than restating it, the same way this file takes its
+ * email and password rules from `login.ts`. Two copies of a phone pattern is
+ * how sign-up and profile end up disagreeing about what a valid number is.
+ */
+export const customerMobileSchema = z
+  .string()
+  .refine(
+    (value) => PH_MOBILE_PATTERN.test(value.replace(PHONE_SEPARATORS, "")),
+    "Enter a valid mobile number.",
+  );
+
+/**
+ * Also shared with the profile screen, for the same reason: the name a
+ * customer signs up with and the name they later correct are the same field
+ * and take the same rule.
+ */
+export const customerNameSchema = z
+  .string()
+  .refine((value) => value.trim().length > 0, "Enter your name.");
+
+/**
  * The address is one free-text field, and the form's only multi-line one. The
  * address table stores a single detail string plus a label, so there is no
  * structured street/city/postcode breakdown to validate against.
@@ -53,16 +75,9 @@ const addressSchema = z
 export const DEFAULT_ADDRESS_LABEL = "Home";
 
 export const signupSchema = z.object({
-  name: z
-    .string()
-    .refine((value) => value.trim().length > 0, "Enter your name."),
+  name: customerNameSchema,
   email: customerEmailSchema,
-  phone: z
-    .string()
-    .refine(
-      (value) => PH_MOBILE_PATTERN.test(value.replace(PHONE_SEPARATORS, "")),
-      "Enter a valid mobile number.",
-    ),
+  phone: customerMobileSchema,
   password: customerPasswordSchema,
   address: addressSchema,
 });

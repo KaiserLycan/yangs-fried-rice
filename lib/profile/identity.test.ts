@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { formatMemberSince, formatOrderCount, initialsFrom } from "./identity";
+import {
+  formatDateOfBirth,
+  formatMemberSince,
+  formatOrderCount,
+  initialsFrom,
+} from "./identity";
 
 describe("initialsFrom", () => {
   it("takes the first letter of the first and last name", () => {
@@ -57,6 +62,29 @@ describe("formatMemberSince", () => {
   it("returns an empty string when the date is missing entirely", () => {
     expect(formatMemberSince(undefined)).toBe("");
     expect(formatMemberSince(null)).toBe("");
+  });
+});
+
+describe("formatDateOfBirth", () => {
+  it("renders the day, month name and year the frame draws", () => {
+    expect(formatDateOfBirth("1996-06-14")).toBe("14 June 1996");
+  });
+
+  // Read west of UTC, a date stamped at midnight would otherwise roll back a
+  // day and report the wrong birthday.
+  it("reads the date in UTC rather than the server's timezone", () => {
+    expect(formatDateOfBirth("1996-06-01")).toBe("1 June 1996");
+  });
+
+  it("returns an empty string for a date it cannot parse", () => {
+    expect(formatDateOfBirth("not a date")).toBe("");
+  });
+
+  // Every customer has no date of birth today, so this is the normal path.
+  it("returns an empty string when the date is missing entirely", () => {
+    expect(formatDateOfBirth(null)).toBe("");
+    expect(formatDateOfBirth(undefined)).toBe("");
+    expect(formatDateOfBirth("")).toBe("");
   });
 });
 
