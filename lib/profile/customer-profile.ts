@@ -36,6 +36,34 @@ export type CustomerProfile = {
   orderCount: number;
   /** Free-text detail of the customer's first saved address, or null. */
   deliverToAddress: string | null;
+  /**
+   * Every address the customer has saved, in the order `customer_address`
+   * returns them. A sign-up writes exactly one today, but the addresses card
+   * renders this as a list that happens to contain one entry rather than a
+   * single fixed row, because a second address is a confirmed upcoming
+   * feature.
+   */
+  addresses: CustomerAddress[];
+};
+
+export type CustomerAddress = {
+  id: string;
+  /** Free text ("Home", "Work"), or null if the customer never set one. */
+  label: string | null;
+  addressDetails: string;
+  /**
+   * No column exists yet. Confirmed as coming — see
+   * `.scratch/profile-page/issues/05-backend-handoff.md` — so this reads
+   * null rather than being left out, and the card renders its empty state
+   * instead of inventing a note.
+   */
+  deliveryNote: string | null;
+  /**
+   * No column exists yet either. Always false today: a default is only
+   * meaningful once a customer has more than one address, and nothing yet
+   * records which one that would be.
+   */
+  isDefault: boolean;
 };
 
 /**
@@ -59,7 +87,7 @@ export async function readCustomerProfile(): Promise<CustomerProfile | null> {
 
   if (!user) return null;
 
-  const [customerResult, orderCountResult, addressResult] = await Promise.all([
+  const [customerResult, orderCountResult, addressesResult] = await Promise.all([
     supabase
       .from("customer")
       .select("name, phone_number")
@@ -71,11 +99,21 @@ export async function readCustomerProfile(): Promise<CustomerProfile | null> {
       .eq("customer_id", user.id),
     supabase
       .from("customer_address")
-      .select("address_details")
+      .select("address_id, label, address_details")
       .eq("customer_id", user.id)
-      .limit(1)
-      .maybeSingle(),
+      .order("address_id"),
   ]);
+
+  const addresses: CustomerAddress[] = (addressesResult.data ?? []).map(
+    (row) => ({
+      id: row.address_id,
+      label: row.label,
+      addressDetails: row.address_details,
+      // Neither column exists yet — see the type's own comments.
+      deliveryNote: null,
+      isDefault: false,
+    }),
+  );
 
   // Registration writes the customer row separately from creating the auth
   // user and can leave the second write undone, so a name is not guaranteed.
@@ -96,6 +134,10 @@ export async function readCustomerProfile(): Promise<CustomerProfile | null> {
     email: user.email ?? "",
     memberSince: user.created_at ?? null,
     orderCount: orderCountResult.count ?? 0,
-    deliverToAddress: addressResult.data?.address_details ?? null,
+    // The nav bar's "Deliver to" affordance only ever names the first saved
+    // address — it has room for a street and nothing else — so it reads the
+    // same list the addresses card does rather than a separate query.
+    deliverToAddress: addresses[0]?.addressDetails ?? null,
+    addresses,
   };
 }

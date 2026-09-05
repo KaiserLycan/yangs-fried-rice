@@ -44,3 +44,24 @@ export type PersonalDetailsValues = z.infer<typeof personalDetailsSchema>;
 export type PersonalDetailsField = keyof PersonalDetailsValues;
 export type ContactDetailsValues = z.infer<typeof contactDetailsSchema>;
 export type ContactDetailsField = keyof ContactDetailsValues;
+
+/**
+ * The add/edit address form (Cust4, Order7). One dialog serves both: they
+ * differ only in which values seed the fields, not in what is valid.
+ *
+ * The address is a single free-text control — the stored model has no
+ * street/city/postcode breakdown to validate against — so the only real rule
+ * is that it isn't empty. The label and delivery note are unconstrained: a
+ * customer can leave either blank, and nothing here invents a shape for
+ * fields the design leaves free text.
+ */
+export const deliveryAddressSchema = z.object({
+  label: z.string(),
+  addressDetails: z
+    .string()
+    .refine((value) => value.trim().length > 0, "Enter an address."),
+  deliveryNote: z.string(),
+});
+
+export type DeliveryAddressValues = z.infer<typeof deliveryAddressSchema>;
+export type DeliveryAddressField = keyof DeliveryAddressValues;
