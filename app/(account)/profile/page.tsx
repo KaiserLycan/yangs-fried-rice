@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { AccountActions } from "@/components/profile/account-actions";
 import { ContactDetailsCard } from "@/components/profile/contact-details-card";
+import { DeliveryAddressesCard } from "@/components/profile/delivery-addresses-card";
 import { PersonalDetailsCard } from "@/components/profile/personal-details-card";
 import { ProfileAvatarCard } from "@/components/profile/profile-avatar-card";
 import { ProfileHeader } from "@/components/profile/profile-header";
@@ -13,9 +14,9 @@ import { initialsFrom } from "@/lib/profile/identity";
 /**
  * Customer profile (Cust3, Cust4, Cust5).
  *
- * The shell, log out and delete account came first; personal and contact
- * details followed. The address and password sections land in later tickets
- * and slot into the marked gap below.
+ * The shell, log out and delete account came first; personal, contact and
+ * delivery addresses followed. The password section lands in a later ticket
+ * and slots into the marked gap below.
  *
  * Reads are real; writes are not. Everything displayed here comes from live
  * data so the screen can be reviewed against the design, but every mutation
@@ -67,8 +68,10 @@ export default async function ProfilePage() {
 
               <ContactDetailsCard profile={profile} />
 
-              {/* The addresses and password sections land here. Their anchor
-                  ids are what the sidebar links already point at. */}
+              <DeliveryAddressesCard addresses={profile.addresses} />
+
+              {/* The password section lands here. Its anchor id is what the
+                  sidebar link already points at. */}
 
               <AccountActions />
             </div>

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { z } from "zod";
-import { contactDetailsSchema, personalDetailsSchema } from "./profile";
+import {
+  contactDetailsSchema,
+  deliveryAddressSchema,
+  personalDetailsSchema,
+} from "./profile";
 
 /** The message zod reports for one field, or undefined if that field passed. */
 function messageFor(
@@ -90,5 +94,50 @@ describe("contactDetailsSchema", () => {
     expect(messageFor(contactDetailsSchema, { mobile: "0917123456" }, "mobile")).toBe(
       "Enter a valid mobile number.",
     );
+  });
+});
+
+describe("deliveryAddressSchema", () => {
+  it("accepts a full address with a label and a note", () => {
+    expect(
+      deliveryAddressSchema.safeParse({
+        label: "Home",
+        addressDetails: "128 Paseo del Congreso, Malolos, Bulacan",
+        deliveryNote: "Beside the blue gate",
+      }).success,
+    ).toBe(true);
+  });
+
+  // The label and the note are confirmed-upcoming columns with no shape of
+  // their own yet, so a customer must be able to save an address without
+  // either.
+  it("accepts a blank label and a blank note", () => {
+    expect(
+      deliveryAddressSchema.safeParse({
+        label: "",
+        addressDetails: "128 Paseo del Congreso, Malolos, Bulacan",
+        deliveryNote: "",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects an empty address", () => {
+    expect(
+      messageFor(
+        deliveryAddressSchema,
+        { label: "Home", addressDetails: "", deliveryNote: "" },
+        "addressDetails",
+      ),
+    ).toBe("Enter an address.");
+  });
+
+  it("rejects a whitespace-only address", () => {
+    expect(
+      messageFor(
+        deliveryAddressSchema,
+        { label: "Home", addressDetails: "   ", deliveryNote: "" },
+        "addressDetails",
+      ),
+    ).toBe("Enter an address.");
   });
 });
