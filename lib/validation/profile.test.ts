@@ -3,6 +3,7 @@ import type { z } from "zod";
 import {
   contactDetailsSchema,
   deliveryAddressSchema,
+  passwordChangeSchema,
   personalDetailsSchema,
 } from "./profile";
 
@@ -139,5 +140,58 @@ describe("deliveryAddressSchema", () => {
         "addressDetails",
       ),
     ).toBe("Enter an address.");
+  });
+});
+
+describe("passwordChangeSchema", () => {
+  const valid = {
+    currentPassword: "oldpassword1",
+    newPassword: "newpassword1",
+    confirmPassword: "newpassword1",
+  };
+
+  it("accepts a current password, a valid new one, and a matching confirmation", () => {
+    expect(passwordChangeSchema.safeParse(valid).success).toBe(true);
+  });
+
+  it("rejects an empty current password", () => {
+    expect(
+      messageFor(
+        passwordChangeSchema,
+        { ...valid, currentPassword: "" },
+        "currentPassword",
+      ),
+    ).toBe("Enter your current password.");
+  });
+
+  it("rejects a whitespace-only current password", () => {
+    expect(
+      messageFor(
+        passwordChangeSchema,
+        { ...valid, currentPassword: "   " },
+        "currentPassword",
+      ),
+    ).toBe("Enter your current password.");
+  });
+
+  // Mirrors login and sign-up on purpose — same schema, same message.
+  it("rejects a new password under the shared minimum length", () => {
+    expect(
+      messageFor(
+        passwordChangeSchema,
+        { ...valid, newPassword: "short1", confirmPassword: "short1" },
+        "newPassword",
+      ),
+    ).toBe("Password must be at least 8 characters.");
+  });
+
+  it("rejects a confirmation that doesn't match the new password", () => {
+    expect(
+      messageFor(
+        passwordChangeSchema,
+        { ...valid, confirmPassword: "somethingelse1" },
+        "confirmPassword",
+      ),
+    ).toBe("Passwords don’t match.");
   });
 });

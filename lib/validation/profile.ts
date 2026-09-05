@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { customerPasswordSchema } from "./login";
 import { customerMobileSchema, customerNameSchema } from "./signup";
 
 /**
@@ -65,3 +66,35 @@ export const deliveryAddressSchema = z.object({
 
 export type DeliveryAddressValues = z.infer<typeof deliveryAddressSchema>;
 export type DeliveryAddressField = keyof DeliveryAddressValues;
+
+/**
+ * The password card (Cust4). The new password borrows
+ * `customerPasswordSchema` from `login.ts` rather than restating the
+ * minimum length — the same relationship this file already has with
+ * `signup.ts` for the name and mobile rules — so login, sign-up and this
+ * screen cannot disagree about what a valid password is.
+ *
+ * The current password has no format of its own to check here: whether it
+ * is *correct* is a server-side question, not this schema's. The only thing
+ * a client can verify is that the customer typed something.
+ *
+ * The mismatch check is a whole-object refinement rather than a per-field
+ * rule, because whether confirmation matches depends on the new password
+ * too. Its `path` points the error at `confirmPassword`, which is the field
+ * the frame actually annotates.
+ */
+export const passwordChangeSchema = z
+  .object({
+    currentPassword: z
+      .string()
+      .refine((value) => value.trim().length > 0, "Enter your current password."),
+    newPassword: customerPasswordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((values) => values.newPassword === values.confirmPassword, {
+    message: "Passwords don’t match.",
+    path: ["confirmPassword"],
+  });
+
+export type PasswordChangeValues = z.infer<typeof passwordChangeSchema>;
+export type PasswordChangeField = keyof PasswordChangeValues;
