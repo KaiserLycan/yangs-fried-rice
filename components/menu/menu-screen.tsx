@@ -5,6 +5,7 @@ import { SiteNavBar } from "@/components/nav/site-nav-bar";
 import { BottomTabBar } from "@/components/nav/bottom-tab-bar";
 import { CategorySidebar } from "@/components/menu/category-sidebar";
 import { CategoryChips } from "@/components/menu/category-chips";
+import { DesktopCartRail } from "@/components/cart/desktop-cart-rail";
 import { ItemDetailModal } from "@/components/menu/item-detail-modal";
 import { MenuEmptyState } from "@/components/menu/menu-empty-state";
 import { MobileMenuHeader } from "@/components/menu/mobile-menu-header";
@@ -12,6 +13,7 @@ import { ProductCard } from "@/components/menu/product-card";
 import { ProductRow } from "@/components/menu/product-row";
 import { SearchField } from "@/components/menu/search-field";
 import { fetchCategories, fetchProducts, type CategoryOption } from "@/lib/menu/fetch-menu";
+import { cartItemCount, type CartLine } from "@/lib/menu/cart-totals";
 import type { ProductListing } from "@/lib/menu/product-listing";
 import type { CustomerProfile } from "@/lib/profile/customer-profile";
 import { createClient } from "@/lib/supabase/client";
@@ -34,12 +36,12 @@ export function MenuScreen({
   profile,
   initialProducts,
   initialCategories,
-  cartCount,
+  cartLines,
 }: {
   profile: CustomerProfile | null;
   initialProducts: ProductListing[];
   initialCategories: CategoryOption[];
-  cartCount: number;
+  cartLines: CartLine[];
 }) {
   const [search, setSearch] = React.useState("");
   const [selectedCategory, setSelectedCategory] = React.useState<string | null>(
@@ -121,7 +123,11 @@ export function MenuScreen({
         onSelect={setSelectedCategory}
       />
 
-      <div className="flex flex-1 md:px-[24px] md:py-0">
+      {/* No gap between these three columns — the frame (133:734) has the
+          sidebar, the centre content and the cart rail sitting flush against
+          each other, each with its own internal padding rather than an
+          outer gap between them. */}
+      <div className="flex flex-1">
         <CategorySidebar
           categories={categories}
           selected={selectedCategory}
@@ -163,9 +169,11 @@ export function MenuScreen({
             </>
           )}
         </main>
+
+        <DesktopCartRail lines={cartLines} />
       </div>
 
-      <BottomTabBar current="menu" cartCount={cartCount} />
+      <BottomTabBar current="menu" cartCount={cartItemCount(cartLines)} />
 
       <ItemDetailModal
         product={selectedProduct}
