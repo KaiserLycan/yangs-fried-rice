@@ -6,10 +6,24 @@ import { ProductPhotoPlaceholder } from "@/components/menu/product-photo-placeho
  * content as `ProductCard`, laid out as a photo-left / text-right row
  * instead of a stacked column. See that component's comment for why no
  * star rating renders.
+ *
+ * The whole row is the click target here, unlike the desktop card — the
+ * frame draws this row itself as a `button`, and unlike the desktop card it
+ * has no separate Add control to be nested inside it.
  */
-export function ProductRow({ product }: { product: ProductListing }) {
+export function ProductRow({
+  product,
+  onSelect,
+}: {
+  product: ProductListing;
+  onSelect: (product: ProductListing) => void;
+}) {
   return (
-    <div className="flex gap-[13px] border-b border-field-border px-[20px] py-[12px] last:border-b-0">
+    <button
+      type="button"
+      onClick={() => onSelect(product)}
+      className="flex gap-[13px] border-b border-field-border px-[20px] py-[12px] text-left last:border-b-0"
+    >
       <ProductPhotoPlaceholder className="size-[74px] shrink-0 rounded-md" />
 
       <div className="flex min-w-0 flex-1 flex-col gap-[6px]">
@@ -23,6 +37,6 @@ export function ProductRow({ product }: { product: ProductListing }) {
           {formatPeso(product.price)}
         </span>
       </div>
-    </div>
+    </button>
   );
 }
