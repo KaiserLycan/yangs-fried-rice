@@ -27,6 +27,12 @@ import { cn } from "@/lib/utils";
  * space and the gap the frame draws, and does not know what a search box
  * looks like or does. Building the actual control belongs to whichever
  * ticket introduces its first real consumer.
+ *
+ * `profile` accepts `null` because `/menu` — this component's second real
+ * consumer — is public (see `middleware.ts`'s matcher, which does not
+ * include it): a guest can browse without signing in. No frame draws a
+ * signed-out nav bar, so the treatment below is a derived decision, not a
+ * traced one — see `.scratch/ordering-flow/issues/02-menu-browse.md`.
  */
 
 export type NavSection = "menu" | "track-order" | "orders" | "account";
@@ -52,12 +58,12 @@ export function SiteNavBar({
   currentSection,
   search,
 }: {
-  profile: CustomerProfile;
+  profile: CustomerProfile | null;
   currentSection: NavSection;
   search?: React.ReactNode;
 }) {
-  const deliverTo = shortAddressLabel(profile.deliverToAddress);
-  const initials = initialsFrom(profile.name);
+  const deliverTo = profile ? shortAddressLabel(profile.deliverToAddress) : "";
+  const initials = profile ? initialsFrom(profile.name) : "";
 
   return (
     <nav className="hidden h-[58px] items-center gap-[26px] bg-primary px-[22px] md:flex">
@@ -111,10 +117,19 @@ export function SiteNavBar({
               </span>
             </div>
           ) : null}
-          <AvatarButton
-            initials={initials}
-            className="size-[32px] bg-accent text-[12px] font-bold text-white"
-          />
+          {profile ? (
+            <AvatarButton
+              initials={initials}
+              className="size-[32px] bg-accent text-[12px] font-bold text-white"
+            />
+          ) : (
+            <Link
+              href="/login"
+              className="text-[13px] font-bold text-white hover:underline"
+            >
+              Log in
+            </Link>
+          )}
         </div>
       </div>
     </nav>
