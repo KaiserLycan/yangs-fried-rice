@@ -39,7 +39,7 @@ function scoreOf(password: string): number {
 }
 
 /**
- * An empty password scores "Weak" at 0%, which is a fact about the input
+ * An empty password scores "Weak" at 25%, which is a fact about the input
  * rather than a judgement — callers that don't want to show the meter on an
  * untouched field should check for an empty string themselves rather than
  * this function inventing a fifth "no opinion" state.
