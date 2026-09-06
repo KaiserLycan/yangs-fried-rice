@@ -19,33 +19,49 @@ const SAVE_TOAST =
 const MOBILE_HINT = "We text this number about your delivery.";
 
 /**
- * Why the email field is read-only. It is the customer's sign-in identity as
- * well as a stored column, so changing it is a write to two systems with an
- * asynchronous verification step in between — its own ticket, not this one.
- * The note names something a customer can actually do today rather than
- * pointing at an unbuilt screen.
+ * What the email is for, shown while the card is only displaying values. It
+ * explains why this particular field is worth being careful with — it is the
+ * customer's sign-in identity, not just somewhere to send a receipt.
  */
-const EMAIL_NOTE = "This is your sign-in email. Ask us if you need it changed.";
+const EMAIL_NOTE = "This is the email you sign in with.";
+
+/**
+ * What changing it actually costs, shown only while editing. Taken verbatim
+ * from the frame.
+ *
+ * The card must not imply the new address takes effect on submit. Changing a
+ * sign-in identity sends a confirmation link, and the address does not switch
+ * until that link is followed — until then the *old* one is still what signs
+ * the customer in. Saying "saved" at the moment of submission would be a lie
+ * the frontend told on the backend's behalf, so the field promises
+ * verification instead.
+ */
+const EMAIL_EDITING_HINT = "A new email needs verifying before your next order.";
 
 /**
  * Mobile number and email address (Cust4).
  *
- * The mobile number validates against the same rule the sign-up screen uses —
- * imported from `lib/validation/signup.ts` rather than restated, so the two
- * screens cannot drift apart about what a valid number is.
+ * Both fields validate against the rules the auth screens already use —
+ * sign-up's for the number, login's for the address — imported rather than
+ * restated, so no two screens can drift apart about what a valid value is.
  *
  * The frame's typo helper ("gmial.com looks like a typo") is cut: no
  * requirement asks for it, and a heuristic that second-guesses a customer's
  * own address is a guess that will be wrong for somebody.
  *
- * Saving raises a toast and writes nothing. See
- * `.scratch/profile-page/issues/05-backend-handoff.md`.
+ * Saving raises a toast and writes nothing. The email is the more involved of
+ * the two writes waiting behind this card — it lands on the customer record
+ * and on the authentication record, and the second half completes
+ * asynchronously. See `.scratch/profile-page/issues/05-backend-handoff.md`.
  */
 export function ContactDetailsCard({ profile }: { profile: CustomerProfile }) {
   const showToast = useToast();
   const { isEditing, edit, cancel, errors, handleSubmit } = useCardEditor({
     schema: contactDetailsSchema,
-    read: (form) => ({ mobile: String(form.get("mobile") ?? "") }),
+    read: (form) => ({
+      mobile: String(form.get("mobile") ?? ""),
+      email: String(form.get("email") ?? ""),
+    }),
     onValid: () => showToast(SAVE_TOAST),
   });
 
@@ -83,17 +99,23 @@ export function ContactDetailsCard({ profile }: { profile: CustomerProfile }) {
               />
             </CardField>
 
-            <CardField label="Email address" hint={EMAIL_NOTE}>
-              {/* Disabled rather than readOnly: readOnly still takes focus
-                  and still submits, and the requirement is that this field
-                  can do neither. It has no `name` either, so even a hand-made
-                  submission cannot carry an email through this form. */}
+            <CardField
+              label="Email address"
+              htmlFor="email"
+              hint={EMAIL_EDITING_HINT}
+              error={errors.email}
+            >
+              {/* Uncontrolled and seeded from the stored address, matching the
+                  mobile number beside it — that is what makes Cancel restore
+                  the original value without this card holding any state of
+                  its own. */}
               <CardInput
+                id="email"
+                name="email"
                 type="email"
-                value={profile.email}
-                disabled
-                aria-label="Email address"
-                className="bg-background text-foreground"
+                autoComplete="email"
+                defaultValue={profile.email}
+                invalid={Boolean(errors.email)}
               />
             </CardField>
           </div>

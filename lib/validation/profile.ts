@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { customerPasswordSchema } from "./login";
+import { customerEmailSchema, customerPasswordSchema } from "./login";
 import { customerMobileSchema, customerNameSchema } from "./signup";
 
 /**
@@ -32,13 +32,23 @@ export const personalDetailsSchema = z.object({
 });
 
 /**
- * Only the mobile number. Email is displayed read-only on this card: it is
- * the customer's sign-in identity as well as a stored column, so changing it
- * is a two-system write with an asynchronous verification step and belongs to
- * its own ticket. A field the form never submits has nothing to validate.
+ * The mobile number and the email address.
+ *
+ * The email borrows `customerEmailSchema` from `login.ts` for exactly the
+ * reason the mobile number borrows sign-up's rule: this address is the one
+ * the customer signs in with, so the screen that *changes* it and the screen
+ * that *accepts* it cannot be allowed to disagree about what a valid address
+ * looks like. Trimming comes with that rule rather than being added here — a
+ * pasted address often carries a trailing space, and that is a transcription
+ * artefact rather than a mistake worth stopping someone for.
+ *
+ * No typo heuristic. The frame drew one ("gmial.com looks like a typo") and
+ * it stays cut: no requirement asks for it, and a guess about somebody's own
+ * address is a guess that will be wrong for somebody.
  */
 export const contactDetailsSchema = z.object({
   mobile: customerMobileSchema,
+  email: customerEmailSchema,
 });
 
 export type PersonalDetailsValues = z.infer<typeof personalDetailsSchema>;
