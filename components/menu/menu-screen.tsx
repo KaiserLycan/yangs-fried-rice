@@ -5,6 +5,7 @@ import { SiteNavBar } from "@/components/nav/site-nav-bar";
 import { BottomTabBar } from "@/components/nav/bottom-tab-bar";
 import { CategorySidebar } from "@/components/menu/category-sidebar";
 import { CategoryChips } from "@/components/menu/category-chips";
+import { ItemDetailModal } from "@/components/menu/item-detail-modal";
 import { MenuEmptyState } from "@/components/menu/menu-empty-state";
 import { MobileMenuHeader } from "@/components/menu/mobile-menu-header";
 import { ProductCard } from "@/components/menu/product-card";
@@ -46,6 +47,9 @@ export function MenuScreen({
   );
   const [products, setProducts] = React.useState(initialProducts);
   const [categories, setCategories] = React.useState(initialCategories);
+  const [selectedProduct, setSelectedProduct] = React.useState<ProductListing | null>(
+    null,
+  );
 
   const reload = React.useCallback(async () => {
     const [nextProducts, nextCategories] = await Promise.all([
@@ -140,12 +144,20 @@ export function MenuScreen({
             <>
               <div className="hidden gap-[16px] pt-[24px] md:grid md:grid-cols-3">
                 {products.map((product) => (
-                  <ProductCard key={product.id} product={product} />
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onSelect={setSelectedProduct}
+                  />
                 ))}
               </div>
               <div className="flex flex-col md:hidden">
                 {products.map((product) => (
-                  <ProductRow key={product.id} product={product} />
+                  <ProductRow
+                    key={product.id}
+                    product={product}
+                    onSelect={setSelectedProduct}
+                  />
                 ))}
               </div>
             </>
@@ -154,6 +166,11 @@ export function MenuScreen({
       </div>
 
       <BottomTabBar current="menu" cartCount={cartCount} />
+
+      <ItemDetailModal
+        product={selectedProduct}
+        onClose={() => setSelectedProduct(null)}
+      />
     </div>
   );
 }

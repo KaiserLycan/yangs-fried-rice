@@ -13,10 +13,18 @@ import { ProductPhotoPlaceholder } from "@/components/menu/product-photo-placeho
  * fabricated, so it's left out rather than invented. See this ticket's
  * "Derived during implementation" note.
  *
- * Add does nothing yet — wiring it to the item detail view is ticket 03's
- * job (`.scratch/ordering-flow/issues/03-item-detail.md`), not this one's.
+ * Only "Add" is a click target here, not the whole card — the frame draws
+ * it that way (the card itself is a plain `div`, only the Add control is
+ * typed `button`), and it's also what keeps this a single `<button>` rather
+ * than one nested inside a card that might itself become clickable later.
  */
-export function ProductCard({ product }: { product: ProductListing }) {
+export function ProductCard({
+  product,
+  onSelect,
+}: {
+  product: ProductListing;
+  onSelect: (product: ProductListing) => void;
+}) {
   return (
     <div className="flex flex-col overflow-hidden rounded-md border border-field-border bg-card">
       <ProductPhotoPlaceholder className="h-[138px] w-full" />
@@ -36,6 +44,7 @@ export function ProductCard({ product }: { product: ProductListing }) {
           </span>
           <button
             type="button"
+            onClick={() => onSelect(product)}
             className="rounded-md bg-accent px-[16px] py-[9px] text-[13px] font-bold text-white"
           >
             Add
