@@ -1,7 +1,7 @@
 # Profile screen: backend handoff
 
 For the backend developer (and any AI assistant reading this repo on their
-behalf). Written by the frontend developer, last updated 2026-09-05. Read
+behalf). Written by the frontend developer, last updated 2026-09-06. Read
 `docs/reference/frontend-integration.md` first if you haven't — this file
 assumes its conventions (Supabase clients, route map, `customer` vs.
 `Employee` split) and doesn't repeat them.
@@ -39,7 +39,7 @@ and what a successful call should do from the customer's point of view.
 | Control | Where | Needs | On success |
 |---|---|---|---|
 | Save personal details | `components/profile/personal-details-card.tsx` | Update `customer.name`, and `customer.date_of_birth` once §3 lands | Card closes, values on screen reflect the save (today they already do, since the page reads fresh on every load) |
-| Save contact details | `components/profile/contact-details-card.tsx` | Update `customer.phone_number` | Same as above |
+| Save contact details | `components/profile/contact-details-card.tsx` | Update `customer.phone_number`, and change the email address — see §2.1, it's the one write here that touches two systems | Card closes; the number reflects the save immediately, the email does **not** — see §2.1 |
 | Change photo (the avatar itself, everywhere it renders) | `components/profile/avatar-button.tsx` | An upload path plus `customer.profile_photo_url` (or equivalent) from §3 | Avatar swaps from initials to the uploaded image |
 | Add / Edit a delivery address | `components/profile/delivery-addresses-card.tsx` (`AddressFormDialog`) | Insert or update a `customer_address` row (`label`, `address_details`, and `delivery_note` once it exists) | Dialog closes, the new/edited row appears in the list |
 | Delete a delivery address | Same file, delete confirmation dialog | Delete the `customer_address` row — the confirmation dialog already gates this, nothing more to add on the frontend | Row disappears from the list, header count updates |
@@ -51,6 +51,44 @@ Every one of these is gated the same way the design asks: the delete flows
 sit behind a confirmation dialog (`components/ui/dialog.tsx`), and the new
 password has to pass the same minimum-length rule login and sign-up already
 share before it would even reach the network in a wired version.
+
+### 2.1 Changing the email address — the one two-system write
+
+The email field on the contact details card **used to be read-only**, and an
+earlier version of this document told you not to wire a save path for it. That
+has changed: the field is now editable and submits with the rest of the card.
+This section replaces that instruction.
+
+It is called out separately because it is not the same shape as the others.
+Every other write on this screen updates one row and is done. This one is the
+customer's **sign-in identity**, so it lands in two places:
+
+1. **The authentication record** — via Supabase Auth's own update, which does
+   not take effect immediately. It emails a confirmation link to the new
+   address, and the change only completes when that link is followed. Until
+   then the *old* address is still the one that signs the customer in.
+2. **The `customer` record's own email column**, so the rest of the app reads
+   the same address the customer signs in with.
+
+Those two must not be allowed to disagree. Which one leads, and whether the
+`customer` row is written up front or only once verification completes, is
+your call — but if the `customer` row is updated first, a customer who never
+follows the link ends up with a profile showing an address they cannot sign in
+with. The frontend has no way to detect or repair that state.
+
+**What the screen already promises.** While the field is being edited it shows
+*"A new email needs verifying before your next order."* The copy is
+deliberate: it is there so the customer is not told the change is done when it
+isn't. Whatever the implementation ends up doing, it needs to be consistent
+with that sentence — if the real flow turns out not to involve a verification
+step, the hint needs changing, not quietly leaving in place.
+
+**What the frontend sends.** A trimmed address that has already passed the
+same validation rule the login and sign-up screens use
+(`customerEmailSchema` in `lib/validation/login.ts`). Client-side validation
+only checks the shape — whether the address is *already taken by another
+account* is a server-side question this screen cannot answer, so that error
+needs to come back from you and will need a message on the field.
 
 ## 3. Columns the design needs that don't exist yet
 
@@ -85,10 +123,10 @@ today and renders its empty state until the column lands.
 
 ## 4. Decisions already made that constrain your side
 
-- **Email is deliberately read-only on this screen.** It's the customer's
-  sign-in identity as well as a stored column, so changing it is a write to
-  two systems with an asynchronous verification step in between — that's its
-  own ticket, not this screen's. Don't wire a save path for it here.
+- **The email address is editable, and the screen promises verification
+  rather than an immediate save.** See §2.1 for what that constrains on your
+  side. (This reverses the earlier decision recorded here, which said the
+  field was read-only and asked you not to wire a save path for it.)
 - **Account deletion's semantics are yours to decide** — cascade rules,
   whether anything is soft-deleted for order history, all of that is a
   database-side call. The one constraint: the customer has already been told,
