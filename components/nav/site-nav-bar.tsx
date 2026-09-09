@@ -26,7 +26,8 @@ import { cn } from "@/lib/utils";
  * `search` is a slot, not a built-in field: this component only reserves the
  * space and the gap the frame draws, and does not know what a search box
  * looks like or does. Building the actual control belongs to whichever
- * ticket introduces its first real consumer.
+ * ticket introduces its first real consumer. Because it renders `AvatarButton`,
+ * this component must be mounted under a `ToastProvider`.
  */
 
 export type NavSection = "menu" | "track-order" | "orders" | "account";
