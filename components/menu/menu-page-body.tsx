@@ -2,6 +2,7 @@ import { MenuScreen } from "@/components/menu/menu-screen";
 import { ToastProvider } from "@/components/ui/toast";
 import { readCart } from "@/lib/cart/read-cart";
 import { getCategories, getProducts } from "@/lib/actions/menu";
+import type { Fulfilment } from "@/lib/menu/cart-totals";
 import { mapProductRow } from "@/lib/menu/product-listing";
 import { readCustomerProfile } from "@/lib/profile/customer-profile";
 
@@ -32,12 +33,18 @@ import { readCustomerProfile } from "@/lib/profile/customer-profile";
  * category changes after that go through the API route from inside
  * `MenuScreen`, which is the interactive part of this screen.
  *
+ * `fulfilment` is threaded in rather than read here because only one of the
+ * two routes has it to give: checkout links back as `/menu?fulfilment=pickup`
+ * so a customer returning to add an item keeps the choice they made, while `/`
+ * is a front door nobody arrives at carrying one. Omitted, it reads as
+ * delivery — see `lib/checkout/fulfilment-param.ts`.
+ *
  * The desktop cart rail (ticket 04) lives inside this body rather than at
  * `/cart` — that route is mobile's own placement for the same contents. Both
  * read from `readCart()`, so the rail's item count and the mobile tab bar's
  * count (derived from the same rows) can't drift apart from each other.
  */
-export async function MenuPageBody() {
+export async function MenuPageBody({ fulfilment }: { fulfilment?: Fulfilment }) {
   const [profile, productsResult, categoriesResult, cartLines] =
     await Promise.all([
       readCustomerProfile(),
@@ -59,6 +66,7 @@ export async function MenuPageBody() {
         initialProducts={initialProducts}
         initialCategories={initialCategories}
         cartLines={cartLines}
+        initialFulfilment={fulfilment}
       />
     </ToastProvider>
   );
