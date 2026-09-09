@@ -33,6 +33,8 @@ import { cn } from "@/lib/utils";
  * include it): a guest can browse without signing in. No frame draws a
  * signed-out nav bar, so the treatment below is a derived decision, not a
  * traced one — see `.scratch/ordering-flow/issues/02-menu-browse.md`.
+ * ticket introduces its first real consumer. Because it renders `AvatarButton`,
+ * this component must be mounted under a `ToastProvider`.
  */
 
 export type NavSection = "menu" | "track-order" | "orders" | "account";
