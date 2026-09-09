@@ -12,7 +12,12 @@ import { MobileMenuHeader } from "@/components/menu/mobile-menu-header";
 import { ProductCard } from "@/components/menu/product-card";
 import { ProductRow } from "@/components/menu/product-row";
 import { SearchField } from "@/components/menu/search-field";
-import { fetchCategories, fetchProducts, type CategoryOption } from "@/lib/menu/fetch-menu";
+import { useToast } from "@/components/ui/toast";
+import {
+  fetchCategories,
+  fetchProducts,
+  type CategoryOption,
+} from "@/lib/menu/fetch-menu";
 import { cartItemCount, type CartLine } from "@/lib/menu/cart-totals";
 import type { ProductListing } from "@/lib/menu/product-listing";
 import type { CustomerProfile } from "@/lib/profile/customer-profile";
@@ -20,6 +25,15 @@ import { createClient } from "@/lib/supabase/client";
 
 /** Debounce for the search field, so every keystroke doesn't fire a request. */
 const SEARCH_DEBOUNCE_MS = 250;
+
+/**
+ * Said when a refetch fails, whether it came from typing or from a live
+ * update. Deliberately not "something went wrong": it names what did not
+ * happen, so a customer can tell that the dishes still on screen may be out
+ * of date rather than wondering what broke.
+ */
+const MENU_REFRESH_FAILED =
+  "The menu couldn't be updated. Showing the last version we loaded.";
 
 /**
  * `/menu` (`133:734` desktop, `132:88` mobile), issue #3's last acceptance
@@ -49,36 +63,84 @@ export function MenuScreen({
   );
   const [products, setProducts] = React.useState(initialProducts);
   const [categories, setCategories] = React.useState(initialCategories);
-  const [selectedProduct, setSelectedProduct] = React.useState<ProductListing | null>(
-    null,
-  );
+  const [selectedProduct, setSelectedProduct] =
+    React.useState<ProductListing | null>(null);
+
+  const showToast = useToast();
+
+  /**
+   * The current filters, readable without being a dependency.
+   *
+   * The Realtime subscription below needs to know what to refetch, but it
+   * must not tear itself down and rebuild every time a keystroke changes the
+   * search text. Reading the filters through a ref keeps `reload` stable, so
+   * the effect that owns the channel depends on nothing that changes while
+   * someone is typing.
+   */
+  const filtersRef = React.useRef({ search, selectedCategory });
+  React.useEffect(() => {
+    filtersRef.current = { search, selectedCategory };
+  }, [search, selectedCategory]);
 
   const reload = React.useCallback(async () => {
-    const [nextProducts, nextCategories] = await Promise.all([
-      fetchProducts({ search, categoryName: selectedCategory }),
-      fetchCategories(),
-    ]);
-    setProducts(nextProducts);
-    setCategories(nextCategories);
-  }, [search, selectedCategory]);
+    const current = filtersRef.current;
+    try {
+      const [nextProducts, nextCategories] = await Promise.all([
+        fetchProducts({
+          search: current.search,
+          categoryName: current.selectedCategory,
+        }),
+        fetchCategories(),
+      ]);
+      setProducts(nextProducts);
+      setCategories(nextCategories);
+    } catch {
+      showToast(MENU_REFRESH_FAILED);
+    }
+  }, [showToast]);
 
   // Search and category changes both go through the same debounced fetch —
   // typing a keyword and picking a category are the same kind of request to
   // the same route, just with different parameters.
+  //
+  // `stale` is what stops a slow request for an old keyword from landing on
+  // top of a fast one for the current keyword: React runs this cleanup before
+  // the next run, so any request still in flight is disowned at the moment
+  // its filters stop being the current ones. Without it the list can end up
+  // showing results for something the customer has already typed past.
   React.useEffect(() => {
+    let stale = false;
+
     const timeout = setTimeout(() => {
-      fetchProducts({ search, categoryName: selectedCategory }).then(
-        setProducts,
-      );
+      fetchProducts({ search, categoryName: selectedCategory })
+        .then((nextProducts) => {
+          if (!stale) setProducts(nextProducts);
+        })
+        .catch(() => {
+          // A failed refresh leaves the current results up rather than
+          // blanking the menu — the dishes already on screen are still the
+          // best answer we have, and an empty column would read as "nothing
+          // matched" rather than "the request failed".
+          if (!stale) showToast(MENU_REFRESH_FAILED);
+        });
     }, SEARCH_DEBOUNCE_MS);
-    return () => clearTimeout(timeout);
-  }, [search, selectedCategory]);
+
+    return () => {
+      stale = true;
+      clearTimeout(timeout);
+    };
+  }, [search, selectedCategory, showToast]);
 
   // Live menu updates (issue #3's last unticked criterion). Refetching on
   // any change is simpler and far less error-prone than patching the two
   // tables' rows into local state by hand, and a product/category table
   // changes rarely enough that the extra round trip costs nothing a
   // customer would notice.
+  //
+  // `reload` is deliberately stable, so this opens one channel for the life
+  // of the screen instead of closing and reopening a WebSocket on every
+  // keystroke — churn that also risks dropping an event in the gap between
+  // the two subscriptions.
   React.useEffect(() => {
     const supabase = createClient();
     const channel = supabase
