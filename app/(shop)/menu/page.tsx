@@ -1,56 +1,16 @@
-import { MenuScreen } from "@/components/menu/menu-screen";
-import { ToastProvider } from "@/components/ui/toast";
-import { readCart } from "@/lib/cart/read-cart";
-import { getCategories, getProducts } from "@/lib/actions/menu";
-import { mapProductRow } from "@/lib/menu/product-listing";
-import { readCustomerProfile } from "@/lib/profile/customer-profile";
+import { MenuPageBody } from "@/components/menu/menu-page-body";
 
 /**
- * Menu browse (Browsing1-16, SFR1-2, Menu5), public — `middleware.ts`'s
- * matcher deliberately excludes `/menu`, so this renders for a guest as well
- * as a signed-in customer. `readCustomerProfile()` returning `null` for a
- * guest is exactly the behaviour this page wants, unlike `/profile`, which
- * redirects on the same null.
+ * Menu browse (Browsing1-16, SFR1-2, Menu5), public.
  *
- * The initial, unfiltered list is fetched here with the existing
- * `getProducts()`/`getCategories()` server actions rather than this page's
- * own `GET /api/menu/products` route — reusing the read jmv0111/LleytonFlores
- * already built rather than a self-fetch for the first paint. Search and
- * category changes after that go through the API route from inside
- * `MenuScreen`, which is the interactive part of this screen.
+ * The canonical menu URL — the one `SiteNavBar` and `BottomTabBar` link to,
+ * and the one the team has already shared. `/` renders the same body (see
+ * `app/(shop)/page.tsx`); everything this page does lives in `MenuPageBody`
+ * so the two routes can't drift apart.
  *
- * Reads are real; the Add to cart button on every card is not wired — that's
- * ticket 03 (`.scratch/ordering-flow/issues/03-item-detail.md`), not this
- * screen's job.
- *
- * The desktop cart rail (ticket 04) lives inside this page rather than
- * `/cart` — that route is mobile's own placement for the same contents. Both
- * read from `readCart()`, so the rail's item count and the mobile tab bar's
- * count (derived from the same rows) can't drift apart from each other.
+ * Reads are real; the Add to cart button on every card opens the item detail
+ * modal (ticket 03) rather than writing anything.
  */
-export default async function MenuPage() {
-  const [profile, productsResult, categoriesResult, cartLines] =
-    await Promise.all([
-      readCustomerProfile(),
-      getProducts(),
-      getCategories(),
-      readCart(),
-    ]);
-
-  const initialProducts = (productsResult.data ?? []).map(mapProductRow);
-  const initialCategories = (categoriesResult.data ?? []).map((category) => ({
-    id: category.category_id,
-    name: category.category_name,
-  }));
-
-  return (
-    <ToastProvider>
-      <MenuScreen
-        profile={profile}
-        initialProducts={initialProducts}
-        initialCategories={initialCategories}
-        cartLines={cartLines}
-      />
-    </ToastProvider>
-  );
+export default function MenuPage() {
+  return <MenuPageBody />;
 }
