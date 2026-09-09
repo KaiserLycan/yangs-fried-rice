@@ -1,6 +1,6 @@
 import { MenuScreen } from "@/components/menu/menu-screen";
 import { ToastProvider } from "@/components/ui/toast";
-import { readCartItemCount } from "@/lib/cart/cart-count";
+import { readCart } from "@/lib/cart/read-cart";
 import { getCategories, getProducts } from "@/lib/actions/menu";
 import { mapProductRow } from "@/lib/menu/product-listing";
 import { readCustomerProfile } from "@/lib/profile/customer-profile";
@@ -22,14 +22,19 @@ import { readCustomerProfile } from "@/lib/profile/customer-profile";
  * Reads are real; the Add to cart button on every card is not wired — that's
  * ticket 03 (`.scratch/ordering-flow/issues/03-item-detail.md`), not this
  * screen's job.
+ *
+ * The desktop cart rail (ticket 04) lives inside this page rather than
+ * `/cart` — that route is mobile's own placement for the same contents. Both
+ * read from `readCart()`, so the rail's item count and the mobile tab bar's
+ * count (derived from the same rows) can't drift apart from each other.
  */
 export default async function MenuPage() {
-  const [profile, productsResult, categoriesResult, cartCount] =
+  const [profile, productsResult, categoriesResult, cartLines] =
     await Promise.all([
       readCustomerProfile(),
       getProducts(),
       getCategories(),
-      readCartItemCount(),
+      readCart(),
     ]);
 
   const initialProducts = (productsResult.data ?? []).map(mapProductRow);
@@ -44,7 +49,7 @@ export default async function MenuPage() {
         profile={profile}
         initialProducts={initialProducts}
         initialCategories={initialCategories}
-        cartCount={cartCount}
+        cartLines={cartLines}
       />
     </ToastProvider>
   );
