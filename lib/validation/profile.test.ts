@@ -55,46 +55,93 @@ describe("personalDetailsSchema", () => {
 });
 
 describe("contactDetailsSchema", () => {
+  const valid = { mobile: "09171234567", email: "liza@example.com" };
+
   // These mirror signup.test.ts on purpose. The card shares sign-up's rule
   // rather than restating it, and these cases are what proves the sharing is
   // real: if one screen ever starts accepting a number the other rejects,
   // one of the two is wrong.
   it("accepts the local form a customer types", () => {
-    expect(contactDetailsSchema.safeParse({ mobile: "09171234567" }).success).toBe(
-      true,
-    );
+    expect(contactDetailsSchema.safeParse(valid).success).toBe(true);
   });
 
   it("accepts the dashed form", () => {
     expect(
-      contactDetailsSchema.safeParse({ mobile: "0917-123-4567" }).success,
+      contactDetailsSchema.safeParse({ ...valid, mobile: "0917-123-4567" })
+        .success,
     ).toBe(true);
   });
 
   it("accepts the international form with spaces", () => {
     expect(
-      contactDetailsSchema.safeParse({ mobile: "+63 917 123 4567" }).success,
+      contactDetailsSchema.safeParse({ ...valid, mobile: "+63 917 123 4567" })
+        .success,
     ).toBe(true);
   });
 
   // Mobile-only is the point: this number exists so a rider can reach the
   // customer at the door, and a landline cannot take an SMS.
   it("rejects a landline", () => {
-    expect(messageFor(contactDetailsSchema, { mobile: "0288123456" }, "mobile")).toBe(
-      "Enter a valid mobile number.",
-    );
+    expect(
+      messageFor(contactDetailsSchema, { ...valid, mobile: "0288123456" }, "mobile"),
+    ).toBe("Enter a valid mobile number.");
   });
 
   it("rejects an empty number", () => {
-    expect(messageFor(contactDetailsSchema, { mobile: "" }, "mobile")).toBe(
-      "Enter a valid mobile number.",
-    );
+    expect(
+      messageFor(contactDetailsSchema, { ...valid, mobile: "" }, "mobile"),
+    ).toBe("Enter a valid mobile number.");
   });
 
   it("rejects a number that is one digit short", () => {
-    expect(messageFor(contactDetailsSchema, { mobile: "0917123456" }, "mobile")).toBe(
-      "Enter a valid mobile number.",
-    );
+    expect(
+      messageFor(contactDetailsSchema, { ...valid, mobile: "0917123456" }, "mobile"),
+    ).toBe("Enter a valid mobile number.");
+  });
+
+  // The email borrows login's rule for the same reason the mobile number
+  // borrows sign-up's: a customer signs in with this address, so the screen
+  // that changes it and the screen that accepts it must agree on what a
+  // valid one is. These mirror login.test.ts.
+  it("accepts a valid email address", () => {
+    expect(
+      contactDetailsSchema.safeParse({ ...valid, email: "liza.reyes@gmail.com" })
+        .success,
+    ).toBe(true);
+  });
+
+  it("rejects an address with no domain, with login's message", () => {
+    expect(
+      messageFor(contactDetailsSchema, { ...valid, email: "liza@" }, "email"),
+    ).toBe("Enter a valid email address.");
+  });
+
+  it("rejects an empty email", () => {
+    expect(
+      messageFor(contactDetailsSchema, { ...valid, email: "" }, "email"),
+    ).toBe("Enter a valid email address.");
+  });
+
+  // Trimmed rather than rejected: a pasted address often carries a trailing
+  // space, and that is a transcription artefact rather than a mistake worth
+  // stopping the customer for.
+  it("trims surrounding whitespace off the email", () => {
+    const result = contactDetailsSchema.safeParse({
+      ...valid,
+      email: "  liza@example.com  ",
+    });
+    expect(result.success && result.data.email).toBe("liza@example.com");
+  });
+
+  // The frame drew a "gmial.com looks like a typo" helper and it was cut on
+  // purpose: no requirement asks for it, and a heuristic second-guessing a
+  // customer's own address will be wrong for somebody. Making the field
+  // editable is not a reason to bring it back.
+  it("accepts an address whose domain merely looks like a typo", () => {
+    expect(
+      contactDetailsSchema.safeParse({ ...valid, email: "liza@gmial.com" })
+        .success,
+    ).toBe(true);
   });
 });
 
