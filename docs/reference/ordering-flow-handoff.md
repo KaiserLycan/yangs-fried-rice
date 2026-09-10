@@ -102,11 +102,12 @@ create them.
 1. Create the order from the customer's current cart — header row plus one
    line per `cart_item`, carrying quantity, unit price at time of order, and
    `special_instructions`.
-2. Record the fulfilment type. **There is no column for this anywhere** —
-   not on `cart`, not on `cart_item`, and nothing in the order tables covers
-   it either. This is the one item here that needs a schema change, and it
-   is blocking: without it, an order cannot record whether it is to be
-   delivered or collected. See §3.
+2. Record the fulfilment type on `order.order_type`, which already exists —
+   please confirm that column is what it sounds like, and tell us the exact
+   two values you expect. The frontend calls them `"delivery"` and
+   `"pickup"`; if your column uses different strings, say so and the frontend
+   will send yours. No migration needed for this, but see §3 for the gap that
+   remains on the *cart* side.
 3. Record the payment method on `transaction.payment_method`, which already
    exists. `payment_status` should reflect that nothing has been charged —
    this screen selects a method and takes no money.
@@ -123,14 +124,16 @@ payment method is a stated intention, nothing more.
 
 ## 3. What's missing or uncertain
 
-- **There is no fulfilment column anywhere, and this one blocks Place
-  order.** Delivery versus Pickup is a real choice the customer makes on the
-  cart and sees again at checkout, and it changes what they pay (₱95), but
-  nothing in the schema can store it. The frontend currently carries the
-  choice between the two screens in the URL
-  (`/checkout?fulfilment=pickup`), which works for browsing and cannot work
-  for an order. Please add a column on the order header and tell us what to
-  send.
+- **The cart cannot store Delivery versus Pickup.** `order.order_type` covers
+  it once an order exists, so placing an order is *not* blocked — but neither
+  `cart` nor `cart_item` has anywhere to hold the choice while the customer is
+  still shopping. The frontend works around this by carrying it in the URL
+  between the cart and checkout (`/checkout?fulfilment=pickup`), which is
+  fine for browsing but means the choice is lost if a customer closes the tab
+  and comes back. Not blocking; worth a column on `cart` if you'd rather it
+  survived. Also please confirm what `order.order_type` actually holds and
+  which two strings you expect — the frontend uses `"delivery"` and
+  `"pickup"`.
 - **Nothing computes an arrival estimate.** Both checkout frames print
   "Estimated arrival 35–45 min based on current kitchen queue and delivery
   distance." There is no kitchen queue to read and no distance calculation,
