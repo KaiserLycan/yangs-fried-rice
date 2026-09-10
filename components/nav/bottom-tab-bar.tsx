@@ -37,7 +37,14 @@ export function BottomTabBar({
   return (
     <nav
       aria-label="Primary"
-      className="flex h-[79px] items-center justify-around border-t border-field-border bg-card md:hidden"
+      // Pinned to the viewport, not the end of the document. In flow it was
+      // the last child of the screen's `min-h-screen` column, which only puts
+      // it on the bottom edge when the page is shorter than the screen — the
+      // menu never is, so the PM had to scroll the whole list to find it
+      // (PR #32). A fixed element takes up no layout height, so anything that
+      // renders this bar has to reserve `--tab-bar-height` at the foot of its
+      // scrolling content or the last row sits underneath it.
+      className="fixed inset-x-0 bottom-0 z-40 flex h-[var(--tab-bar-height)] items-center justify-around border-t border-field-border bg-card md:hidden"
     >
       {TABS.map(({ id, href, icon, label }) => {
         const isCurrent = id === current;

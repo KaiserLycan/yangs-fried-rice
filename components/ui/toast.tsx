@@ -26,7 +26,20 @@ const ToastContext = React.createContext<((message: string) => void) | null>(
 /** How long a message stays up before removing itself. */
 const DISMISS_AFTER_MS = 4000;
 
-export function ToastProvider({ children }: { children: React.ReactNode }) {
+export function ToastProvider({
+  children,
+  aboveTabBar = false,
+}: {
+  children: React.ReactNode;
+  /**
+   * Set this on a screen that renders `BottomTabBar`. That bar is fixed to
+   * the bottom edge on mobile, and a toast sitting `16px` from the same edge
+   * lands on top of it — covering the tabs for the four seconds it is up.
+   * Off by default: most screens have no bar, and lifting the toast on those
+   * would leave it floating over empty space.
+   */
+  aboveTabBar?: boolean;
+}) {
   const [toasts, setToasts] = React.useState<Toast[]>([]);
   const nextId = React.useRef(0);
 
@@ -53,7 +66,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       <div
         role="status"
         aria-live="polite"
-        className="pointer-events-none fixed inset-x-4 bottom-4 z-50 flex flex-col items-center gap-2 md:inset-x-auto md:right-6 md:items-end"
+        className={cn(
+          "pointer-events-none fixed inset-x-4 z-50 flex flex-col items-center gap-2 md:inset-x-auto md:right-6 md:items-end",
+          // Clears the bar by the same 16px this sits from the screen edge
+          // everywhere else. Desktop has no bar to clear.
+          aboveTabBar
+            ? "bottom-[calc(var(--tab-bar-height)_+_1rem)] md:bottom-4"
+            : "bottom-4",
+        )}
       >
         {toasts.map((toast) => (
           <div

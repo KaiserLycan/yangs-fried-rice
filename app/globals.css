@@ -78,6 +78,15 @@
     --card: 40 100% 98%; /* #FFFCF6  raised surface on cream */
 
     --radius: 0.75rem; /* radius/12 */
+
+    /* The mobile bottom tab bar (`components/nav/bottom-tab-bar.tsx`) is
+       fixed to the viewport, so it takes up no layout height of its own.
+       Three separate things need this number — the bar's own height, the foot
+       padding each screen that renders it must reserve, and the offset that
+       keeps a toast from landing on top of it — and they have to agree. A
+       token is how they agree: Tailwind cannot read a TypeScript constant in
+       an arbitrary value, but it consumes `var()` without trouble. */
+    --tab-bar-height: 79px;
   }
 }
 

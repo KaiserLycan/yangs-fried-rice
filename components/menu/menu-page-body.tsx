@@ -53,7 +53,7 @@ export async function MenuPageBody() {
   }));
 
   return (
-    <ToastProvider>
+    <ToastProvider aboveTabBar>
       <MenuScreen
         profile={profile}
         initialProducts={initialProducts}
