@@ -189,7 +189,11 @@ export function MenuScreen({
           sidebar, the centre content and the cart rail sitting flush against
           each other, each with its own internal padding rather than an
           outer gap between them. */}
-      <div className="flex flex-1">
+      {/* The foot padding is the space `BottomTabBar` used to occupy before it
+          became fixed — without it the last dish in the list sits underneath
+          the bar and cannot be scrolled clear of it. Mobile only, since the
+          bar is `md:hidden`. */}
+      <div className="flex flex-1 pb-[var(--tab-bar-height)] md:pb-0">
         <CategorySidebar
           categories={categories}
           selected={selectedCategory}
