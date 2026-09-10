@@ -17,9 +17,16 @@ import type { Database } from "@/types/database.types";
  * browser bundle.
  */
 export function createAdminClient() {
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceRoleKey || serviceRoleKey.trim() === "") {
+    throw new Error(
+      "SUPABASE_SERVICE_ROLE_KEY is not set in .env.local. Please add your Supabase service_role key to .env.local to create/delete employee Auth accounts."
+    );
+  }
+
   return createSupabaseClient<Database, "public">(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    serviceRoleKey,
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
 }
