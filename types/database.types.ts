@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -160,20 +160,29 @@ export type Database = {
         Row: {
           customer_id: string
           email: string | null
+          is_account_disabled: boolean
           name: string
+          password_last_updated: string | null
           phone_number: string | null
+          profileImage_URL: string | null
         }
         Insert: {
           customer_id?: string
           email?: string | null
+          is_account_disabled?: boolean
           name: string
+          password_last_updated?: string | null
           phone_number?: string | null
+          profileImage_URL?: string | null
         }
         Update: {
           customer_id?: string
           email?: string | null
+          is_account_disabled?: boolean
           name?: string
+          password_last_updated?: string | null
           phone_number?: string | null
+          profileImage_URL?: string | null
         }
         Relationships: []
       }
@@ -181,19 +190,25 @@ export type Database = {
         Row: {
           address_details: string
           address_id: string
+          address_note: string | null
           customer_id: string | null
+          is_default: boolean
           label: string | null
         }
         Insert: {
           address_details: string
           address_id?: string
+          address_note?: string | null
           customer_id?: string | null
+          is_default?: boolean
           label?: string | null
         }
         Update: {
           address_details?: string
           address_id?: string
+          address_note?: string | null
           customer_id?: string | null
+          is_default?: boolean
           label?: string | null
         }
         Relationships: [
@@ -267,24 +282,33 @@ export type Database = {
           employee_id: string
           last_access_log: string | null
           name: string
+          password_last_updated: string | null
+          profileImage_URL: string | null
           role: string | null
           schedule_shift: string | null
+          is_account_disabled?: boolean | null
         }
         Insert: {
           email: string
           employee_id?: string
           last_access_log?: string | null
           name: string
+          password_last_updated?: string | null
+          profileImage_URL?: string | null
           role?: string | null
           schedule_shift?: string | null
+          is_account_disabled?: boolean | null
         }
         Update: {
           email?: string
           employee_id?: string
           last_access_log?: string | null
           name?: string
+          password_last_updated?: string | null
+          profileImage_URL?: string | null
           role?: string | null
           schedule_shift?: string | null
+          is_account_disabled?: boolean | null
         }
         Relationships: []
       }
