@@ -3,7 +3,7 @@ import {
   canChangeRole,
   canAccessManage,
   canAccessAdminOnly,
-  isAdminOrManager,
+  isManager,
   isEmployeeRole,
   canDisableEmployee,
   canResetEmployeePassword,
@@ -20,6 +20,7 @@ describe("isEmployeeRole", () => {
     expect(isEmployeeRole("superadmin")).toBe(false);
     expect(isEmployeeRole("")).toBe(false);
     expect(isEmployeeRole("admin")).toBe(false);
+    expect(isEmployeeRole("ADMIN")).toBe(false);
   });
 
   it("rejects non-strings", () => {
@@ -30,34 +31,28 @@ describe("isEmployeeRole", () => {
 });
 
 describe("ROLE_HIERARCHY ordering", () => {
-  it("ADMIN > MANAGER > STAFF > RIDER", () => {
-    expect(ROLE_HIERARCHY.ADMIN).toBeGreaterThan(ROLE_HIERARCHY.MANAGER);
+  it("MANAGER > STAFF > RIDER", () => {
     expect(ROLE_HIERARCHY.MANAGER).toBeGreaterThan(ROLE_HIERARCHY.STAFF);
     expect(ROLE_HIERARCHY.STAFF).toBeGreaterThan(ROLE_HIERARCHY.RIDER);
   });
 });
 
-describe("isAdminOrManager", () => {
-  it("returns true for ADMIN", () => {
-    expect(isAdminOrManager("ADMIN")).toBe(true);
-  });
-
+describe("isManager", () => {
   it("returns true for MANAGER", () => {
-    expect(isAdminOrManager("MANAGER")).toBe(true);
+    expect(isManager("MANAGER")).toBe(true);
   });
 
   it("returns false for STAFF", () => {
-    expect(isAdminOrManager("STAFF")).toBe(false);
+    expect(isManager("STAFF")).toBe(false);
   });
 
   it("returns false for RIDER", () => {
-    expect(isAdminOrManager("RIDER")).toBe(false);
+    expect(isManager("RIDER")).toBe(false);
   });
 });
 
 describe("canAccessManage", () => {
-  it("allows ADMIN, MANAGER, STAFF", () => {
-    expect(canAccessManage("ADMIN")).toBe(true);
+  it("allows MANAGER, STAFF", () => {
     expect(canAccessManage("MANAGER")).toBe(true);
     expect(canAccessManage("STAFF")).toBe(true);
   });
@@ -68,8 +63,7 @@ describe("canAccessManage", () => {
 });
 
 describe("canAccessAdminOnly", () => {
-  it("allows ADMIN, MANAGER", () => {
-    expect(canAccessAdminOnly("ADMIN")).toBe(true);
+  it("allows MANAGER", () => {
     expect(canAccessAdminOnly("MANAGER")).toBe(true);
   });
 
@@ -80,51 +74,22 @@ describe("canAccessAdminOnly", () => {
 });
 
 describe("canChangeRole", () => {
-  // ---- ADMIN caller ----
-  describe("ADMIN caller", () => {
-    it("can promote STAFF to MANAGER", () => {
-      expect(canChangeRole("ADMIN", "STAFF", "MANAGER")).toBe(true);
-    });
-
-    it("can promote STAFF to ADMIN", () => {
-      expect(canChangeRole("ADMIN", "STAFF", "ADMIN")).toBe(true);
-    });
-
-    it("can demote MANAGER to STAFF", () => {
-      expect(canChangeRole("ADMIN", "MANAGER", "STAFF")).toBe(true);
-    });
-
-    it("can change another ADMIN's role", () => {
-      expect(canChangeRole("ADMIN", "ADMIN", "STAFF")).toBe(true);
-    });
-
-    it("can change RIDER to STAFF", () => {
-      expect(canChangeRole("ADMIN", "RIDER", "STAFF")).toBe(true);
-    });
-  });
-
   // ---- MANAGER caller ----
   describe("MANAGER caller", () => {
-    it("can promote STAFF to MANAGER", () => {
-      expect(canChangeRole("MANAGER", "STAFF", "MANAGER")).toBe(true);
-    });
-
-    it("can demote MANAGER to STAFF", () => {
-      expect(canChangeRole("MANAGER", "MANAGER", "STAFF")).toBe(true);
+    it("can change STAFF to RIDER", () => {
+      expect(canChangeRole("MANAGER", "STAFF", "RIDER")).toBe(true);
     });
 
     it("can change RIDER to STAFF", () => {
       expect(canChangeRole("MANAGER", "RIDER", "STAFF")).toBe(true);
     });
 
-    it("cannot promote anyone to ADMIN", () => {
-      expect(canChangeRole("MANAGER", "STAFF", "ADMIN")).toBe(false);
-      expect(canChangeRole("MANAGER", "MANAGER", "ADMIN")).toBe(false);
+    it("can promote STAFF to MANAGER", () => {
+      expect(canChangeRole("MANAGER", "STAFF", "MANAGER")).toBe(true);
     });
 
-    it("cannot change an ADMIN's role", () => {
-      expect(canChangeRole("MANAGER", "ADMIN", "STAFF")).toBe(false);
-      expect(canChangeRole("MANAGER", "ADMIN", "MANAGER")).toBe(false);
+    it("can demote MANAGER to STAFF", () => {
+      expect(canChangeRole("MANAGER", "MANAGER", "STAFF")).toBe(true);
     });
   });
 
@@ -147,17 +112,7 @@ describe("canChangeRole", () => {
 
 describe("canDisableEmployee", () => {
   it("never allows self-disable", () => {
-    expect(canDisableEmployee("ADMIN", "ADMIN", true)).toBe(false);
     expect(canDisableEmployee("MANAGER", "MANAGER", true)).toBe(false);
-  });
-
-  describe("ADMIN caller", () => {
-    it("can disable any other employee", () => {
-      expect(canDisableEmployee("ADMIN", "ADMIN", false)).toBe(true);
-      expect(canDisableEmployee("ADMIN", "MANAGER", false)).toBe(true);
-      expect(canDisableEmployee("ADMIN", "STAFF", false)).toBe(true);
-      expect(canDisableEmployee("ADMIN", "RIDER", false)).toBe(true);
-    });
   });
 
   describe("MANAGER caller", () => {
@@ -166,9 +121,8 @@ describe("canDisableEmployee", () => {
       expect(canDisableEmployee("MANAGER", "RIDER", false)).toBe(true);
     });
 
-    it("cannot disable MANAGER or ADMIN", () => {
+    it("cannot disable another MANAGER", () => {
       expect(canDisableEmployee("MANAGER", "MANAGER", false)).toBe(false);
-      expect(canDisableEmployee("MANAGER", "ADMIN", false)).toBe(false);
     });
   });
 
@@ -182,19 +136,9 @@ describe("canDisableEmployee", () => {
 
 describe("canResetEmployeePassword", () => {
   it("allows self-reset for any role", () => {
-    expect(canResetEmployeePassword("ADMIN", "ADMIN", true)).toBe(true);
     expect(canResetEmployeePassword("MANAGER", "MANAGER", true)).toBe(true);
     expect(canResetEmployeePassword("STAFF", "STAFF", true)).toBe(true);
     expect(canResetEmployeePassword("RIDER", "RIDER", true)).toBe(true);
-  });
-
-  describe("ADMIN caller", () => {
-    it("can reset password for any employee", () => {
-      expect(canResetEmployeePassword("ADMIN", "ADMIN", false)).toBe(true);
-      expect(canResetEmployeePassword("ADMIN", "MANAGER", false)).toBe(true);
-      expect(canResetEmployeePassword("ADMIN", "STAFF", false)).toBe(true);
-      expect(canResetEmployeePassword("ADMIN", "RIDER", false)).toBe(true);
-    });
   });
 
   describe("MANAGER caller", () => {
@@ -203,9 +147,8 @@ describe("canResetEmployeePassword", () => {
       expect(canResetEmployeePassword("MANAGER", "RIDER", false)).toBe(true);
     });
 
-    it("cannot reset password for MANAGER or ADMIN", () => {
+    it("cannot reset password for another MANAGER", () => {
       expect(canResetEmployeePassword("MANAGER", "MANAGER", false)).toBe(false);
-      expect(canResetEmployeePassword("MANAGER", "ADMIN", false)).toBe(false);
     });
   });
 

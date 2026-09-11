@@ -49,7 +49,7 @@ describe("createEmployeeSchema", () => {
     ).toBe(false);
   });
 
-  it.each(["ADMIN", "MANAGER", "STAFF", "RIDER"] as const)(
+  it.each(["MANAGER", "STAFF", "RIDER"] as const)(
     "accepts role '%s'",
     (role) => {
       expect(
