@@ -18,6 +18,7 @@
     "@supabase/supabase-js": "^2.90.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
+    "jose": "^6.2.12",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "lucide-react": "^0.400.0",
