@@ -402,22 +402,30 @@ export function Sidebar() {
             : "items-center gap-2.5"
         }`}
       >
-        {/* Avatar circle with initials */}
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f0b27a]">
-          <span className="text-[13px] font-bold text-[#3a2e2c]">
-            {user.initials}
-          </span>
-        </div>
+        {/* User profile link (Added to navigate to /manage/profile when avatar/name is clicked) */}
+        <Link 
+          href="/manage/profile"
+          className={`flex items-center gap-2.5 transition-opacity hover:opacity-80 ${
+            isCollapsed ? "flex-col gap-3" : ""
+          }`}
+        >
+          {/* Avatar circle with initials */}
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f0b27a]">
+            <span className="text-[13px] font-bold text-[#3a2e2c]">
+              {user.initials}
+            </span>
+          </div>
 
-        {/* Display name — hidden when collapsed */}
-        {!isCollapsed && (
-          <>
+          {/* Display name — hidden when collapsed */}
+          {!isCollapsed && (
             <span className="text-[13px] font-bold text-[#fbf6ec]">
               {user.displayName}
             </span>
-            <div className="flex-1" />
-          </>
-        )}
+          )}
+        </Link>
+
+        {/* Spacer to push logout button to the right */}
+        {!isCollapsed && <div className="flex-1" />}
 
         {/* Logout button */}
         <button
