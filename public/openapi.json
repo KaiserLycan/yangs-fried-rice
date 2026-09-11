@@ -30,19 +30,19 @@
     },
     {
       "name": "Admin - Employees",
-      "description": "Employee account management and role hierarchy operations (Admin/Manager)"
+      "description": "Employee account management and role hierarchy operations (Manager)"
     },
     {
       "name": "Admin - Customers",
-      "description": "Customer account oversight, disable/enable, and management (Admin/Manager)"
+      "description": "Customer account oversight, disable/enable, and management (Manager)"
     },
     {
       "name": "Orders",
-      "description": "Remote order oversight and lifecycle status progression (Admin/Manager/Staff)"
+      "description": "Remote order oversight and lifecycle status progression (Manager/Staff)"
     },
     {
       "name": "Reports",
-      "description": "Financial analytics, daily sales aggregates, and PDF report export (Admin/Manager)"
+      "description": "Financial analytics, daily sales aggregates, and PDF report export (Manager)"
     }
   ],
   "paths": {
@@ -933,7 +933,7 @@
           "Admin - Employees"
         ],
         "summary": "Get all employees",
-        "description": "Lists all registered employee accounts. Requires admin or manager role.",
+        "description": "Lists all registered employee accounts. Requires manager role.",
         "operationId": "getEmployees",
         "responses": {
           "200": {
@@ -985,7 +985,7 @@
           "Admin - Employees"
         ],
         "summary": "Create employee",
-        "description": "Creates a Supabase Auth user and corresponding employee record. Requires admin or manager role.",
+        "description": "Creates a Supabase Auth user and corresponding employee record. Requires manager role.",
         "operationId": "createEmployee",
         "requestBody": {
           "required": true,
@@ -1056,7 +1056,7 @@
           "Admin - Employees"
         ],
         "summary": "Delete employee by ID",
-        "description": "Deletes the employee record and Auth user. Prevents self-deletion. Requires admin role.",
+        "description": "Deletes the employee record and Auth user. Prevents self-deletion. Requires manager role.",
         "operationId": "deleteEmployee",
         "parameters": [
           {
@@ -1135,7 +1135,7 @@
           "Admin - Employees"
         ],
         "summary": "Change employee role",
-        "description": "Updates employee role with role hierarchy enforcement (admin > manager > staff > rider). Requires admin or manager.",
+        "description": "Updates employee role with role hierarchy enforcement (manager > staff > rider). Requires manager.",
         "operationId": "changeEmployeeRole",
         "parameters": [
           {
@@ -1228,7 +1228,7 @@
           "Admin - Customers"
         ],
         "summary": "Get all customers",
-        "description": "Lists all registered customer accounts including active and disabled status. Requires admin or manager.",
+        "description": "Lists all registered customer accounts including active and disabled status. Requires manager.",
         "operationId": "getCustomers",
         "responses": {
           "200": {
@@ -1282,7 +1282,7 @@
           "Admin - Customers"
         ],
         "summary": "Update customer or toggle disabled",
-        "description": "Updates customer details or enables/disables the account via is_account_disabled. Requires admin or manager.",
+        "description": "Updates customer details or enables/disables the account via is_account_disabled. Requires manager.",
         "operationId": "updateCustomer",
         "parameters": [
           {
@@ -1363,7 +1363,7 @@
           "Admin - Customers"
         ],
         "summary": "Delete customer by ID",
-        "description": "Deletes customer record and associated Auth user. Requires admin role.",
+        "description": "Deletes customer record and associated Auth user. Requires manager role.",
         "operationId": "deleteCustomer",
         "parameters": [
           {
@@ -2058,7 +2058,7 @@
           "Reports"
         ],
         "summary": "Save report snapshot",
-        "description": "Persists a report record into the database reports table. Requires admin or manager.",
+        "description": "Persists a report record into the database reports table. Requires manager.",
         "operationId": "saveReport",
         "requestBody": {
           "required": false,
@@ -2246,7 +2246,7 @@
           "Admin - Employees"
         ],
         "summary": "Disable or enable employee account",
-        "description": "Temporarily disables or re-enables an employee account. Enforces role hierarchy: Admin can disable any employee (except self); Manager can disable Staff and Rider; Staff/Rider cannot disable anyone.",
+        "description": "Temporarily disables or re-enables an employee account. Enforces role hierarchy: Manager can disable Staff and Rider (except self); Staff/Rider cannot disable anyone.",
         "operationId": "toggleEmployeeDisabled",
         "parameters": [
           {
@@ -2348,7 +2348,7 @@
           "Auth"
         ],
         "summary": "Change own password",
-        "description": "Allows any authenticated employee (ADMIN, MANAGER, STAFF, RIDER) to update their own password.",
+        "description": "Allows any authenticated employee (MANAGER, STAFF, RIDER) to update their own password.",
         "operationId": "changeOwnPassword",
         "requestBody": {
           "required": true,
@@ -2406,7 +2406,7 @@
           "Admin - Employees"
         ],
         "summary": "Reset employee password",
-        "description": "Allows higher-ups to reset another employee's password with role hierarchy enforcement: ADMIN can reset any employee; MANAGER can reset STAFF and RIDER; STAFF/RIDER cannot reset others.",
+        "description": "Allows higher-ups to reset another employee's password with role hierarchy enforcement: MANAGER can reset STAFF and RIDER; STAFF/RIDER cannot reset others.",
         "operationId": "resetEmployeePassword",
         "parameters": [
           {
@@ -2764,12 +2764,11 @@
           "role": {
             "type": "string",
             "enum": [
-              "ADMIN",
               "MANAGER",
               "STAFF",
               "RIDER"
             ],
-            "example": "ADMIN"
+            "example": "MANAGER"
           },
           "last_access_log": {
             "type": "string",
@@ -2811,12 +2810,11 @@
           "role": {
             "type": "string",
             "enum": [
-              "ADMIN",
               "MANAGER",
               "STAFF",
               "RIDER"
             ],
-            "example": "ADMIN"
+            "example": "MANAGER"
           }
         }
       },
@@ -2829,7 +2827,6 @@
           "new_role": {
             "type": "string",
             "enum": [
-              "ADMIN",
               "MANAGER",
               "STAFF",
               "RIDER"
@@ -3104,7 +3101,7 @@
           "email": {
             "type": "string",
             "format": "email",
-            "example": "admin@yangsfriedrice.com"
+            "example": "manager@yangsfriedrice.com"
           },
           "password": {
             "type": "string",
@@ -3133,11 +3130,11 @@
               "email": {
                 "type": "string",
                 "format": "email",
-                "example": "admin@yangsfriedrice.com"
+                "example": "manager@yangsfriedrice.com"
               },
               "role": {
                 "type": "string",
-                "example": "ADMIN"
+                "example": "MANAGER"
               }
             }
           }

@@ -121,7 +121,7 @@ export async function getMe() {
  * POST /api/auth/change-password
  * Change current employee's own password.
  * Body: { new_password: string }
- * Available to ALL roles: ADMIN, MANAGER, STAFF, RIDER.
+ * Available to ALL roles: MANAGER, STAFF, RIDER.
  */
 export async function changeOwnPassword(request: Request) {
   let body: unknown;

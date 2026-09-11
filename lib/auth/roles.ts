@@ -6,19 +6,18 @@
  * in exactly one place.
  *
  * Hierarchy (highest → lowest):
- *   admin  >  manager  >  staff  >  rider
+ *   manager  >  staff  >  rider
  */
 
 // ---------------------------------------------------------------------------
 // Vocabulary
 // ---------------------------------------------------------------------------
 
-export const EMPLOYEE_ROLES = ["ADMIN", "MANAGER", "STAFF", "RIDER"] as const;
+export const EMPLOYEE_ROLES = ["MANAGER", "STAFF", "RIDER"] as const;
 export type EmployeeRole = (typeof EMPLOYEE_ROLES)[number];
 
 /** Numeric weight — higher number = more authority. */
 export const ROLE_HIERARCHY: Record<EmployeeRole, number> = {
-  ADMIN: 3,
   MANAGER: 2,
   STAFF: 1,
   RIDER: 0,
@@ -36,22 +35,22 @@ export function isEmployeeRole(value: unknown): value is EmployeeRole {
   );
 }
 
-/** ADMIN or MANAGER. */
-export function isAdminOrManager(role: EmployeeRole): boolean {
-  return role === "ADMIN" || role === "MANAGER";
+/** MANAGER — the highest-privilege employee role. */
+export function isManager(role: EmployeeRole): boolean {
+  return role === "MANAGER";
 }
 
-/** ADMIN, MANAGER, or STAFF — everyone except riders. */
+/** MANAGER or STAFF — everyone except riders. */
 export function canAccessManage(role: EmployeeRole): boolean {
-  return role === "ADMIN" || role === "MANAGER" || role === "STAFF";
+  return role === "MANAGER" || role === "STAFF";
 }
 
 /**
- * Routes that are restricted to ADMIN + MANAGER only (reports, staff
+ * Routes that are restricted to MANAGER only (reports, staff
  * management). STAFF can still reach orders and menu.
  */
 export function canAccessAdminOnly(role: EmployeeRole): boolean {
-  return isAdminOrManager(role);
+  return isManager(role);
 }
 
 // ---------------------------------------------------------------------------
@@ -63,8 +62,7 @@ export function canAccessAdminOnly(role: EmployeeRole): boolean {
  * `targetCurrentRole` to `newRole`?
  *
  * Rules:
- *  - ADMIN  → can change anyone to any role
- *  - MANAGER → can change STAFF ↔ MANAGER, cannot touch ADMIN
+ *  - MANAGER → can change anyone to any role
  *  - STAFF / RIDER → never
  */
 export function canChangeRole(
@@ -75,15 +73,8 @@ export function canChangeRole(
   // Staff and riders can never change roles.
   if (callerRole === "STAFF" || callerRole === "RIDER") return false;
 
-  // Admin can do anything.
-  if (callerRole === "ADMIN") return true;
-
-  // Manager: cannot touch admins, and cannot promote anyone to admin.
-  if (callerRole === "MANAGER") {
-    if (targetCurrentRole === "ADMIN") return false;
-    if (newRole === "ADMIN") return false;
-    return true;
-  }
+  // Manager can do anything.
+  if (callerRole === "MANAGER") return true;
 
   return false;
 }
@@ -93,8 +84,7 @@ export function canChangeRole(
  *
  * Rules:
  *  - Cannot disable own account
- *  - ADMIN   → can disable/enable any other employee
- *  - MANAGER → can disable/enable STAFF and RIDER only (cannot touch MANAGER or ADMIN)
+ *  - MANAGER → can disable/enable STAFF and RIDER only (cannot touch other MANAGERs)
  *  - STAFF / RIDER → never
  */
 export function canDisableEmployee(
@@ -103,7 +93,6 @@ export function canDisableEmployee(
   isSelf: boolean = false,
 ): boolean {
   if (isSelf) return false;
-  if (callerRole === "ADMIN") return true;
   if (callerRole === "MANAGER") {
     return targetRole === "STAFF" || targetRole === "RIDER";
   }
@@ -115,8 +104,7 @@ export function canDisableEmployee(
  *
  * Rules:
  *  - Anyone can change their own password
- *  - ADMIN   → can change any other employee's password
- *  - MANAGER → can change STAFF and RIDER passwords only (cannot touch MANAGER or ADMIN)
+ *  - MANAGER → can change STAFF and RIDER passwords only (cannot touch other MANAGERs)
  *  - STAFF / RIDER → cannot change anyone else's password
  */
 export function canResetEmployeePassword(
@@ -125,7 +113,6 @@ export function canResetEmployeePassword(
   isSelf: boolean = false,
 ): boolean {
   if (isSelf) return true;
-  if (callerRole === "ADMIN") return true;
   if (callerRole === "MANAGER") {
     return targetRole === "STAFF" || targetRole === "RIDER";
   }

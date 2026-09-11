@@ -41,7 +41,7 @@ function errorToStatus(error: string): number {
 /**
  * GET /api/admin/employees
  * List all employee accounts.
- * Requires: admin or manager.
+ * Requires: manager.
  */
 export async function getEmployees() {
   const result = await getEmployeesAction();
@@ -62,7 +62,7 @@ export async function getEmployees() {
  * POST /api/admin/employees
  * Create a new employee account.
  * Body: { name, email, password, role }
- * Requires: admin or manager.
+ * Requires: manager.
  */
 export async function createEmployee(request: Request) {
   let body: unknown;
@@ -93,7 +93,7 @@ export async function createEmployee(request: Request) {
  * PATCH /api/admin/employees/[id]/role
  * Update employee role.
  * Body: { new_role }
- * Requires: admin or manager (hierarchy enforced).
+ * Requires: manager (hierarchy enforced).
  */
 export async function changeEmployeeRole(
   request: Request,
@@ -131,7 +131,7 @@ export async function changeEmployeeRole(
 /**
  * DELETE /api/admin/employees/[id]
  * Delete employee account.
- * Requires: admin only.
+ * Requires: manager only.
  */
 export async function deleteEmployee(
   _request: Request,
@@ -155,7 +155,7 @@ export async function deleteEmployee(
  * PATCH /api/admin/employees/[id]/disable
  * Enable or disable an employee account.
  * Body: { is_account_disabled: boolean }
- * Requires: ADMIN or MANAGER (hierarchy enforced).
+ * Requires: MANAGER (hierarchy enforced).
  */
 export async function toggleEmployeeDisabled(
   request: Request,
@@ -197,7 +197,7 @@ export async function toggleEmployeeDisabled(
  * PATCH /api/admin/employees/[id]/password
  * Reset another employee's password.
  * Body: { new_password: string }
- * Requires: ADMIN or MANAGER (hierarchy enforced).
+ * Requires: MANAGER (hierarchy enforced).
  */
 export async function resetEmployeePassword(
   request: Request,
@@ -236,7 +236,7 @@ export async function resetEmployeePassword(
 /**
  * GET /api/admin/customers
  * List all customer accounts.
- * Requires: admin or manager.
+ * Requires: manager.
  */
 export async function getCustomers() {
   const result = await getCustomersAction();
@@ -257,7 +257,7 @@ export async function getCustomers() {
  * PATCH /api/admin/customers/[id]
  * Update customer details or toggle disabled status.
  * Body: { name?, email?, phone_number?, is_account_disabled? }
- * Requires: admin or manager.
+ * Requires: manager.
  */
 export async function updateCustomer(
   request: Request,
@@ -313,7 +313,7 @@ export async function updateCustomer(
 /**
  * DELETE /api/admin/customers/[id]
  * Delete customer account and Auth user.
- * Requires: admin only.
+ * Requires: manager only.
  */
 export async function deleteCustomer(
   _request: Request,

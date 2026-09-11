@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { isEmployeeRole, isAdminOrManager, type EmployeeRole } from "@/lib/auth/roles";
+import { isEmployeeRole, isManager, type EmployeeRole } from "@/lib/auth/roles";
 import { reportDateRangeSchema, type ReportDateRange } from "@/lib/validation/orders";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -60,7 +60,7 @@ async function requireReportAccess(): Promise<
   }
 
   const role = employee.role;
-  if (!role || !isEmployeeRole(role) || !isAdminOrManager(role)) {
+  if (!role || !isEmployeeRole(role) || !isManager(role)) {
     return {
       data: null,
       error: "Only admin and manager can access reports.",

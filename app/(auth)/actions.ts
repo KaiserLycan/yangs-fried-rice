@@ -155,16 +155,14 @@ type EmployeeLoginResult =
 /**
  * Confirmed Employee.role values and their post-login destinations.
  *
- * Hierarchy: admin > manager > staff > rider
- *  - admin, manager, and staff all land in /manage (the back office)
+ * Hierarchy: manager > staff > rider
+ *  - manager and staff all land in /manage (the back office)
  *  - rider lands in /deliver (the delivery queue)
  */
 const EMPLOYEE_ROLE_REDIRECTS: Record<string, string> = {
-  ADMIN: "/manage",
   MANAGER: "/manage",
   STAFF: "/manage",
   RIDER: "/deliver",
-  admin: "/manage",
   manager: "/manage",
   staff: "/manage",
   rider: "/deliver",

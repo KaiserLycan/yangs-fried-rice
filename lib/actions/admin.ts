@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   isEmployeeRole,
-  isAdminOrManager,
+  isManager,
   canChangeRole,
   canDisableEmployee,
   canResetEmployeePassword,
@@ -94,10 +94,10 @@ async function requireRole(
 
 /**
  * List all employee accounts.
- * Requires: admin or manager.
+ * Requires: manager.
  */
 export async function getAllEmployees(): Promise<ActionResult<Employee[]>> {
-  const auth = await requireRole("ADMIN", "MANAGER");
+  const auth = await requireRole("MANAGER");
   if (!auth.data) return { data: null, error: auth.error };
 
   const supabase = createClient();
@@ -117,12 +117,12 @@ export async function getAllEmployees(): Promise<ActionResult<Employee[]>> {
  * using the Auth user's ID as employee_id — same pattern as customer
  * registration in registerCustomer().
  *
- * Requires: admin or manager.
+ * Requires: manager.
  */
 export async function createEmployee(
   input: CreateEmployeeInput,
 ): Promise<ActionResult<Employee>> {
-  const auth = await requireRole("ADMIN", "MANAGER");
+  const auth = await requireRole("MANAGER");
   if (!auth.data) return { data: null, error: auth.error };
 
   const parsed = createEmployeeSchema.safeParse(input);
@@ -182,16 +182,15 @@ export async function createEmployee(
  * Change an employee's role.
  *
  * Enforces hierarchy via canChangeRole():
- *  - admin  → can change anyone to any role
- *  - manager → staff ↔ manager only, cannot touch admin
+ *  - manager → can change anyone to any role
  *  - staff/rider → never
  *
- * Requires: admin or manager.
+ * Requires: manager.
  */
 export async function changeEmployeeRole(
   input: ChangeRoleInput,
 ): Promise<ActionResult<Employee>> {
-  const auth = await requireRole("ADMIN", "MANAGER");
+  const auth = await requireRole("MANAGER");
   if (!auth.data) return { data: null, error: auth.error };
 
   const parsed = changeRoleSchema.safeParse(input);
@@ -241,15 +240,14 @@ export async function changeEmployeeRole(
  * Enable or disable an employee account.
  * Enforces role hierarchy via canDisableEmployee:
  *  - Cannot disable self
- *  - ADMIN can disable any employee
  *  - MANAGER can disable STAFF and RIDER only
- * Requires: ADMIN or MANAGER.
+ * Requires: MANAGER.
  */
 export async function toggleEmployeeDisabled(
   employeeId: string,
   disabled: boolean,
 ): Promise<ActionResult<Employee>> {
-  const auth = await requireRole("ADMIN", "MANAGER");
+  const auth = await requireRole("MANAGER");
   if (!auth.data) return { data: null, error: auth.error };
 
   const callerRole = auth.data.role as EmployeeRole;
@@ -289,7 +287,7 @@ export async function toggleEmployeeDisabled(
 
 /**
  * Change the signed-in employee's own password.
- * Available to ALL roles: ADMIN, MANAGER, STAFF, RIDER.
+ * Available to ALL roles: MANAGER, STAFF, RIDER.
  */
 export async function changeOwnPassword(
   input: ChangePasswordInput,
@@ -318,16 +316,15 @@ export async function changeOwnPassword(
  * Reset/change another employee's password.
  * Enforces role hierarchy via canResetEmployeePassword:
  *  - Self: allowed
- *  - ADMIN: can change any employee's password
  *  - MANAGER: can change STAFF and RIDER passwords only
  *  - STAFF / RIDER: cannot change anyone else's password
- * Requires: ADMIN or MANAGER.
+ * Requires: MANAGER.
  */
 export async function resetEmployeePassword(
   employeeId: string,
   input: ChangePasswordInput,
 ): Promise<ActionResult<{ employee_id: string }>> {
-  const auth = await requireRole("ADMIN", "MANAGER");
+  const auth = await requireRole("MANAGER");
   if (!auth.data) return { data: null, error: auth.error };
 
   const parsed = changePasswordSchema.safeParse(input);
@@ -390,12 +387,12 @@ export async function resetEmployeePassword(
 
 /**
  * Delete an employee account and their Supabase Auth user.
- * Requires: admin only.
+ * Requires: manager only.
  */
 export async function deleteEmployee(
   employeeId: string,
 ): Promise<ActionResult<{ employee_id: string }>> {
-  const auth = await requireRole("ADMIN");
+  const auth = await requireRole("MANAGER");
   if (!auth.data) return { data: null, error: auth.error };
 
   // Prevent self-deletion.
@@ -426,10 +423,10 @@ export async function deleteEmployee(
 
 /**
  * List all customer accounts.
- * Requires: admin or manager.
+ * Requires: manager.
  */
 export async function getAllCustomers(): Promise<ActionResult<Customer[]>> {
-  const auth = await requireRole("ADMIN", "MANAGER");
+  const auth = await requireRole("MANAGER");
   if (!auth.data) return { data: null, error: auth.error };
 
   const supabase = createClient();
@@ -444,13 +441,13 @@ export async function getAllCustomers(): Promise<ActionResult<Customer[]>> {
 
 /**
  * Update customer details.
- * Requires: admin or manager.
+ * Requires: manager.
  */
 export async function updateCustomer(
   customerId: string,
   input: UpdateCustomerInput,
 ): Promise<ActionResult<Customer>> {
-  const auth = await requireRole("ADMIN", "MANAGER");
+  const auth = await requireRole("MANAGER");
   if (!auth.data) return { data: null, error: auth.error };
 
   const parsed = updateCustomerSchema.safeParse(input);
@@ -472,13 +469,13 @@ export async function updateCustomer(
 
 /**
  * Enable or disable a customer account.
- * Requires: admin or manager.
+ * Requires: manager.
  */
 export async function toggleCustomerDisabled(
   customerId: string,
   disabled: boolean,
 ): Promise<ActionResult<Customer>> {
-  const auth = await requireRole("ADMIN", "MANAGER");
+  const auth = await requireRole("MANAGER");
   if (!auth.data) return { data: null, error: auth.error };
 
   const supabase = createClient();
@@ -495,12 +492,12 @@ export async function toggleCustomerDisabled(
 
 /**
  * Delete a customer account and their Supabase Auth user.
- * Requires: admin only.
+ * Requires: manager only.
  */
 export async function deleteCustomer(
   customerId: string,
 ): Promise<ActionResult<{ customer_id: string }>> {
-  const auth = await requireRole("ADMIN");
+  const auth = await requireRole("MANAGER");
   if (!auth.data) return { data: null, error: auth.error };
 
   const supabase = createClient();
