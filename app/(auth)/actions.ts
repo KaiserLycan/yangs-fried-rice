@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createSession, deleteSession } from "@/lib/auth/session";
 import {
   signupSchema,
   DEFAULT_ADDRESS_LABEL,
@@ -145,6 +146,9 @@ export async function logout(): Promise<ActionResult> {
     return { success: false, error: "Could not log out. Please try again." };
   }
 
+  // Clear the custom JWT session too
+  deleteSession();
+
   return { success: true };
 }
 
@@ -159,15 +163,24 @@ type EmployeeLoginResult =
  *  - manager and staff all land in /manage (the back office)
  *  - rider lands in /deliver (the delivery queue)
  */
+/**
+ * TODO: BACKEND INTEGRATION — Role-based redirects after employee login.
+ *
+ * MANAGER (Business Owner) → /manage/dashboard (full back-office access)
+ * STAFF (server, kitchen, etc.) → /manage/orders (no dashboard access)
+ * RIDER → /deliver (delivery queue, separate app area)
+ *
+ * If additional roles are added, register their redirect here.
+ */
 const EMPLOYEE_ROLE_REDIRECTS: Record<string, string> = {
-  MANAGER: "/manage",
-  STAFF: "/manage",
+  MANAGER: "/manage/dashboard",
+  STAFF: "/manage/orders",
   RIDER: "/deliver",
-  manager: "/manage",
-  staff: "/manage",
+  manager: "/manage/dashboard",
+  staff: "/manage/orders",
   rider: "/deliver",
 };
-const DEFAULT_EMPLOYEE_REDIRECT = "/manage";
+const DEFAULT_EMPLOYEE_REDIRECT = "/manage/dashboard";
 
 /**
  * SAS1: authenticate an employee (Staff, Business Owner, or Rider).
@@ -240,6 +253,9 @@ export async function loginEmployee(
 
   const redirectTo =
     EMPLOYEE_ROLE_REDIRECTS[employee.role ?? ""] ?? DEFAULT_EMPLOYEE_REDIRECT;
+
+  // Create the fast local session cookie for middleware
+  await createSession(authData.user.id, employee.role ?? "");
 
   return { success: true, redirectTo };
 }
