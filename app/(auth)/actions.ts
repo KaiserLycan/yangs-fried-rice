@@ -153,14 +153,18 @@ type EmployeeLoginResult =
   | { success: false; error: string };
 
 /**
- * Placeholder Employee.role values — NOT yet confirmed with the PM (see
- * the TODO originally left in employee-login-form.tsx). Update these
- * three strings, and only these, once real values are settled; nothing
- * else about this action depends on the exact strings chosen.
+ * Confirmed Employee.role values and their post-login destinations.
+ *
+ * Hierarchy: manager > staff > rider
+ *  - manager and staff all land in /manage (the back office)
+ *  - rider lands in /deliver (the delivery queue)
  */
 const EMPLOYEE_ROLE_REDIRECTS: Record<string, string> = {
+  MANAGER: "/manage",
+  STAFF: "/manage",
+  RIDER: "/deliver",
+  manager: "/manage",
   staff: "/manage",
-  business_owner: "/manage",
   rider: "/deliver",
 };
 const DEFAULT_EMPLOYEE_REDIRECT = "/manage";
@@ -213,7 +217,7 @@ export async function loginEmployee(
 
   const { data: employee, error: employeeError } = await supabase
     .from("employee")
-    .select("role")
+    .select("role, is_account_disabled")
     .eq("employee_id", authData.user.id)
     .single();
 
@@ -224,6 +228,14 @@ export async function loginEmployee(
     // session with nowhere valid to go.
     await supabase.auth.signOut();
     return { success: false, error: EMPLOYEE_SIGN_IN_FAILED };
+  }
+
+  if (employee.is_account_disabled) {
+    await supabase.auth.signOut();
+    return {
+      success: false,
+      error: "Your account has been disabled. Please contact an administrator.",
+    };
   }
 
   const redirectTo =
