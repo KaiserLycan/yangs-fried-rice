@@ -1,9 +1,9 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Yang's Fried Rice - Menu Management API",
+    "title": "Yang's Fried Rice - System API",
     "version": "1.0.0",
-    "description": "Interactive Swagger/OpenAPI documentation for Menu Management & Database Setup (US-02). Use 'Try it out' to execute live requests against the PostgreSQL database."
+    "description": "Interactive Swagger/OpenAPI documentation for Menu Management, Administration, Order Oversight, and Reporting. Use 'Try it out' to execute live requests."
   },
   "servers": [
     {
@@ -12,6 +12,10 @@
     }
   ],
   "tags": [
+    {
+      "name": "Auth",
+      "description": "Employee session authentication for interactive Swagger testing"
+    },
     {
       "name": "Categories",
       "description": "CRUD operations on menu categories"
@@ -23,12 +27,30 @@
     {
       "name": "Address",
       "description": "Address validation using Nominatim geocoding with text-based fallback"
+    },
+    {
+      "name": "Admin - Employees",
+      "description": "Employee account management and role hierarchy operations (Manager)"
+    },
+    {
+      "name": "Admin - Customers",
+      "description": "Customer account oversight, disable/enable, and management (Manager)"
+    },
+    {
+      "name": "Orders",
+      "description": "Remote order oversight and lifecycle status progression (Manager/Staff)"
+    },
+    {
+      "name": "Reports",
+      "description": "Financial analytics, daily sales aggregates, and PDF report export (Manager)"
     }
   ],
   "paths": {
     "/api/menu/categories": {
       "get": {
-        "tags": ["Categories"],
+        "tags": [
+          "Categories"
+        ],
         "summary": "Get all categories",
         "description": "Fetches all categories from the database, sorted alphabetically.",
         "operationId": "getCategories",
@@ -71,7 +93,9 @@
         }
       },
       "post": {
-        "tags": ["Categories"],
+        "tags": [
+          "Categories"
+        ],
         "summary": "Create a new category",
         "description": "Inserts a new category record. You may supply a custom UUID `category_id` (e.g. `c0000000-0000-0000-0000-000000000001`). If the ID is duplicate, a 409 Conflict error is returned.",
         "operationId": "createCategory",
@@ -153,7 +177,9 @@
     },
     "/api/menu/categories/{id}": {
       "get": {
-        "tags": ["Categories"],
+        "tags": [
+          "Categories"
+        ],
         "summary": "Get category by UUID",
         "description": "Fetches a single category record by its UUID.",
         "operationId": "getCategoryById",
@@ -228,7 +254,9 @@
         }
       },
       "put": {
-        "tags": ["Categories"],
+        "tags": [
+          "Categories"
+        ],
         "summary": "Update category by UUID",
         "description": "Renames an existing category.",
         "operationId": "updateCategory",
@@ -320,7 +348,9 @@
         }
       },
       "delete": {
-        "tags": ["Categories"],
+        "tags": [
+          "Categories"
+        ],
         "summary": "Delete category by UUID",
         "description": "Permanently removes a category. The category cannot be deleted if products are still assigned to it (returns 400 Bad Request).",
         "operationId": "deleteCategory",
@@ -401,7 +431,9 @@
     },
     "/api/menu/products": {
       "get": {
-        "tags": ["Products"],
+        "tags": [
+          "Products"
+        ],
         "summary": "Search & filter products",
         "description": "Fetches all products joined with their category. Supports keyword search via `?search=<keyword>` (case-insensitive, partial match on product_name) and category filter by name via `?category=<name>` (case-insensitive, partial match). Both can be combined.",
         "operationId": "getProducts",
@@ -467,7 +499,9 @@
         }
       },
       "post": {
-        "tags": ["Products"],
+        "tags": [
+          "Products"
+        ],
         "summary": "Create a new product (with custom product_id)",
         "description": "Inserts a new product into the PostgreSQL database. Testers can add their own `product_id` (must be a valid UUID, e.g. `00000000-0000-0000-0000-000000000001`). If the same `product_id` is used again, PostgreSQL unique constraint detects it and returns a 409 Conflict error.",
         "operationId": "createProduct",
@@ -481,7 +515,7 @@
               "example": {
                 "product_id": "00000000-0000-0000-0000-000000000001",
                 "product_name": "Yang Special Fried Rice",
-                "product_price": 185.0,
+                "product_price": 185,
                 "product_details": "House special with char siu, egg, and scallions",
                 "category_id": "c0000000-0000-0000-0000-000000000001",
                 "is_available": true
@@ -553,7 +587,9 @@
     },
     "/api/menu/products/{id}": {
       "get": {
-        "tags": ["Products"],
+        "tags": [
+          "Products"
+        ],
         "summary": "Get product by UUID",
         "description": "Fetches a single product record by its UUID.",
         "operationId": "getProductById",
@@ -615,7 +651,9 @@
         }
       },
       "put": {
-        "tags": ["Products"],
+        "tags": [
+          "Products"
+        ],
         "summary": "Update product fields / toggle availability",
         "description": "Updates fields on an existing product (partial update). Send only the properties you want to modify.",
         "operationId": "updateProduct",
@@ -641,7 +679,7 @@
               },
               "example": {
                 "product_name": "Yang Special Fried Rice (Large)",
-                "product_price": 195.0,
+                "product_price": 195,
                 "product_details": "Updated recipe with extra scrambled eggs and scallions",
                 "category_id": "c0000000-0000-0000-0000-000000000001",
                 "is_available": true
@@ -711,7 +749,9 @@
         }
       },
       "delete": {
-        "tags": ["Products"],
+        "tags": [
+          "Products"
+        ],
         "summary": "Delete product by UUID",
         "description": "Permanently removes a product from the database.",
         "operationId": "deleteProduct",
@@ -792,7 +832,9 @@
     },
     "/api/address/validate": {
       "post": {
-        "tags": ["Address"],
+        "tags": [
+          "Address"
+        ],
         "summary": "Validate a customer address",
         "description": "Validates an address using Nominatim (OpenStreetMap) geocoding. If Nominatim is unreachable, falls back to simple text-based validation (checks length and presence of a house number).",
         "operationId": "validateAddress",
@@ -884,13 +926,1588 @@
           }
         }
       }
+    },
+    "/api/admin/employees": {
+      "get": {
+        "tags": [
+          "Admin - Employees"
+        ],
+        "summary": "Get all employees",
+        "description": "Lists all registered employee accounts. Requires manager role.",
+        "operationId": "getEmployees",
+        "responses": {
+          "200": {
+            "description": "List of employees",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "count": {
+                      "type": "integer",
+                      "example": 3
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Employee"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin - Employees"
+        ],
+        "summary": "Create employee",
+        "description": "Creates a Supabase Auth user and corresponding employee record. Requires manager role.",
+        "operationId": "createEmployee",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEmployeeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Employee created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Employee created successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Employee"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/employees/{id}": {
+      "delete": {
+        "tags": [
+          "Admin - Employees"
+        ],
+        "summary": "Delete employee by ID",
+        "description": "Deletes the employee record and Auth user. Prevents self-deletion. Requires manager role.",
+        "operationId": "deleteEmployee",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Employee ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Employee deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Employee deleted successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "employee_id": {
+                          "type": "string",
+                          "format": "uuid"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/employees/{id}/role": {
+      "patch": {
+        "tags": [
+          "Admin - Employees"
+        ],
+        "summary": "Change employee role",
+        "description": "Updates employee role with role hierarchy enforcement (manager > staff > rider). Requires manager.",
+        "operationId": "changeEmployeeRole",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Employee ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeRoleInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Role updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Employee role updated successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Employee"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Employee not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/customers": {
+      "get": {
+        "tags": [
+          "Admin - Customers"
+        ],
+        "summary": "Get all customers",
+        "description": "Lists all registered customer accounts including active and disabled status. Requires manager.",
+        "operationId": "getCustomers",
+        "responses": {
+          "200": {
+            "description": "List of customers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "count": {
+                      "type": "integer",
+                      "example": 10
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Customer"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/customers/{id}": {
+      "patch": {
+        "tags": [
+          "Admin - Customers"
+        ],
+        "summary": "Update customer or toggle disabled",
+        "description": "Updates customer details or enables/disables the account via is_account_disabled. Requires manager.",
+        "operationId": "updateCustomer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Customer ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCustomerInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Customer updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Customer updated successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Customer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Admin - Customers"
+        ],
+        "summary": "Delete customer by ID",
+        "description": "Deletes customer record and associated Auth user. Requires manager role.",
+        "operationId": "deleteCustomer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Customer ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Customer deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Customer deleted successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "customer_id": {
+                          "type": "string",
+                          "format": "uuid"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Customer not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/orders": {
+      "get": {
+        "tags": [
+          "Orders"
+        ],
+        "summary": "Get all remote orders",
+        "description": "Lists orders with joined customer name, item details, delivery info, and transaction status. Filterable by status and date range. Requires admin, manager, or staff.",
+        "operationId": "getOrders",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "received",
+                "preparing",
+                "out_for_delivery",
+                "completed",
+                "cancelled"
+              ]
+            },
+            "description": "Filter by order status"
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Filter orders created on or after this date (YYYY-MM-DD)"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Filter orders created on or before this date (YYYY-MM-DD)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            },
+            "description": "Pagination limit"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            },
+            "description": "Pagination offset"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of orders",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "count": {
+                      "type": "integer",
+                      "example": 5
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Order"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/orders/stats": {
+      "get": {
+        "tags": [
+          "Orders"
+        ],
+        "summary": "Get order status statistics",
+        "description": "Returns order counts grouped by status (received, preparing, out_for_delivery, completed, cancelled, total). Requires admin, manager, or staff.",
+        "operationId": "getOrderStats",
+        "responses": {
+          "200": {
+            "description": "Order statistics counts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/OrderStats"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/orders/{id}": {
+      "get": {
+        "tags": [
+          "Orders"
+        ],
+        "summary": "Get order details",
+        "description": "Retrieves complete order detail including customer info, product line items, payment transaction, and delivery record. Requires admin, manager, or staff.",
+        "operationId": "getOrderDetail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Order ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Order"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Order not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/orders/{id}/status": {
+      "patch": {
+        "tags": [
+          "Orders"
+        ],
+        "summary": "Update order status",
+        "description": "Updates order status through stages: received -> preparing -> out_for_delivery -> completed (or cancelled from any non-completed stage). Requires admin, manager, or staff.",
+        "operationId": "updateOrderStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Order ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderStatusUpdateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Status updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Order status updated successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Order"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid status transition or validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Order not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports/sales": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Get daily sales metrics",
+        "description": "Returns daily total revenue and order counts for the date range. Defaults to today. Requires admin or manager.",
+        "operationId": "getDailySales",
+        "parameters": [
+          {
+            "name": "start_date",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Start date (YYYY-MM-DD). Defaults to today."
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "End date (YYYY-MM-DD). Defaults to today."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Daily sales data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/DailySalesRow"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports/summary": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Get platform performance summary",
+        "description": "Returns aggregate revenue, total orders, and average order value. Defaults to today. Requires admin or manager.",
+        "operationId": "getPlatformSummary",
+        "parameters": [
+          {
+            "name": "start_date",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Start date (YYYY-MM-DD)"
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "End date (YYYY-MM-DD)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Platform summary data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PlatformSummary"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports/preview": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Get sales report preview",
+        "description": "Combines summary metrics and daily breakdown for UI preview prior to PDF download. Requires admin or manager.",
+        "operationId": "getReportPreview",
+        "parameters": [
+          {
+            "name": "start_date",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Start date (YYYY-MM-DD)"
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "End date (YYYY-MM-DD)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Report preview data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReportPreviewResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports/pdf": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Generate PDF sales report",
+        "description": "Generates formatted PDF report. Returns JSON with base64 data URI by default, or application/pdf binary file when ?format=raw. Requires admin or manager.",
+        "operationId": "generateReportPDF",
+        "parameters": [
+          {
+            "name": "start_date",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Start date (YYYY-MM-DD)"
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "End date (YYYY-MM-DD)"
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "json",
+                "raw"
+              ],
+              "default": "json"
+            },
+            "description": "Output format: 'json' (datauri base64) or 'raw' (binary PDF download)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Generated PDF report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "pdf": {
+                          "type": "string",
+                          "description": "Base64 data URI string"
+                        },
+                        "format": {
+                          "type": "string",
+                          "example": "datauristring"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports": {
+      "post": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Save report snapshot",
+        "description": "Persists a report record into the database reports table. Requires manager.",
+        "operationId": "saveReport",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveReportInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Report snapshot saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Report saved successfully"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/employee-login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Employee login",
+        "description": "Authenticates an employee and sets session cookies in the browser. After executing this in Swagger, all protected endpoints will have your employee session automatically.",
+        "operationId": "employeeLogin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmployeeLoginInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Logged in successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmployeeLoginResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing email or password",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Account is not an employee",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Get current signed-in employee",
+        "description": "Returns the employee profile and role of the currently authenticated session.",
+        "operationId": "getMe",
+        "responses": {
+          "200": {
+            "description": "Current session employee data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Employee"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Logout current session",
+        "description": "Signs out the current session and clears the session cookies.",
+        "operationId": "employeeLogout",
+        "responses": {
+          "200": {
+            "description": "Logged out successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Logged out successfully"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/employees/{id}/disable": {
+      "patch": {
+        "tags": [
+          "Admin - Employees"
+        ],
+        "summary": "Disable or enable employee account",
+        "description": "Temporarily disables or re-enables an employee account. Enforces role hierarchy: Manager can disable Staff and Rider (except self); Staff/Rider cannot disable anyone.",
+        "operationId": "toggleEmployeeDisabled",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Employee ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "is_account_disabled"
+                ],
+                "properties": {
+                  "is_account_disabled": {
+                    "type": "boolean",
+                    "example": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Employee disabled/enabled successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Employee account disabled successfully"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Employee"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden by hierarchy or self-disable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Employee not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/change-password": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Change own password",
+        "description": "Allows any authenticated employee (MANAGER, STAFF, RIDER) to update their own password.",
+        "operationId": "changeOwnPassword",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password changed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Password changed successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error or invalid password",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/employees/{id}/password": {
+      "patch": {
+        "tags": [
+          "Admin - Employees"
+        ],
+        "summary": "Reset employee password",
+        "description": "Allows higher-ups to reset another employee's password with role hierarchy enforcement: MANAGER can reset STAFF and RIDER; STAFF/RIDER cannot reset others.",
+        "operationId": "resetEmployeePassword",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Employee ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Employee password reset successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Employee password updated successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "employee_id": {
+                          "type": "string",
+                          "format": "uuid"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden by role hierarchy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Employee not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
       "Category": {
         "type": "object",
-        "required": ["category_id", "category_name"],
+        "required": [
+          "category_id",
+          "category_name"
+        ],
         "properties": {
           "category_id": {
             "type": "string",
@@ -905,7 +2522,9 @@
       },
       "CategoryInput": {
         "type": "object",
-        "required": ["category_name"],
+        "required": [
+          "category_name"
+        ],
         "properties": {
           "category_name": {
             "type": "string",
@@ -923,7 +2542,11 @@
       },
       "Product": {
         "type": "object",
-        "required": ["product_id", "product_name", "product_price"],
+        "required": [
+          "product_id",
+          "product_name",
+          "product_price"
+        ],
         "properties": {
           "product_id": {
             "type": "string",
@@ -937,7 +2560,7 @@
           "product_price": {
             "type": "number",
             "format": "float",
-            "example": 185.0
+            "example": 185
           },
           "product_details": {
             "type": "string",
@@ -968,7 +2591,10 @@
       },
       "ProductInput": {
         "type": "object",
-        "required": ["product_name", "product_price"],
+        "required": [
+          "product_name",
+          "product_price"
+        ],
         "properties": {
           "product_id": {
             "type": "string",
@@ -986,7 +2612,7 @@
             "type": "number",
             "minimum": 0.01,
             "maximum": 99999.99,
-            "example": 185.0
+            "example": 185
           },
           "product_details": {
             "type": "string",
@@ -1020,7 +2646,7 @@
             "type": "number",
             "minimum": 0.01,
             "maximum": 99999.99,
-            "example": 195.0
+            "example": 195
           },
           "product_details": {
             "type": "string",
@@ -1042,7 +2668,9 @@
       },
       "ErrorResponse": {
         "type": "object",
-        "required": ["error"],
+        "required": [
+          "error"
+        ],
         "properties": {
           "error": {
             "type": "string",
@@ -1058,7 +2686,9 @@
       },
       "AddressInput": {
         "type": "object",
-        "required": ["address"],
+        "required": [
+          "address"
+        ],
         "properties": {
           "address": {
             "type": "string",
@@ -1099,9 +2729,427 @@
           },
           "source": {
             "type": "string",
-            "enum": ["nominatim", "fallback"],
+            "enum": [
+              "nominatim",
+              "fallback"
+            ],
             "description": "Which validation method was used",
             "example": "nominatim"
+          }
+        }
+      },
+      "Employee": {
+        "type": "object",
+        "required": [
+          "employee_id",
+          "name",
+          "email",
+          "role"
+        ],
+        "properties": {
+          "employee_id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "e0000000-0000-0000-0000-000000000001"
+          },
+          "name": {
+            "type": "string",
+            "example": "Juan Dela Cruz"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "juan@yangsfriedrice.com"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "MANAGER",
+              "STAFF",
+              "RIDER"
+            ],
+            "example": "MANAGER"
+          },
+          "last_access_log": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": "2026-09-10T08:30:00Z"
+          },
+          "is_account_disabled": {
+            "type": "boolean",
+            "example": false
+          }
+        }
+      },
+      "CreateEmployeeInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "email",
+          "password",
+          "role"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "example": "Maria Santos"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "maria@yangsfriedrice.com"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "example": "SecurePass123!"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "MANAGER",
+              "STAFF",
+              "RIDER"
+            ],
+            "example": "MANAGER"
+          }
+        }
+      },
+      "ChangeRoleInput": {
+        "type": "object",
+        "required": [
+          "new_role"
+        ],
+        "properties": {
+          "new_role": {
+            "type": "string",
+            "enum": [
+              "MANAGER",
+              "STAFF",
+              "RIDER"
+            ],
+            "example": "MANAGER"
+          }
+        }
+      },
+      "Customer": {
+        "type": "object",
+        "required": [
+          "customer_id",
+          "name",
+          "email"
+        ],
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "c0000000-0000-0000-0000-000000000001"
+          },
+          "name": {
+            "type": "string",
+            "example": "Maria Clara"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "maria.clara@example.com"
+          },
+          "phone_number": {
+            "type": "string",
+            "nullable": true,
+            "example": "+639171234567"
+          },
+          "is_account_disabled": {
+            "type": "boolean",
+            "example": false
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-09-01T12:00:00Z"
+          }
+        }
+      },
+      "UpdateCustomerInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "example": "Maria Clara Updated"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "maria.updated@example.com"
+          },
+          "phone_number": {
+            "type": "string",
+            "nullable": true,
+            "example": "+639171234567"
+          },
+          "is_account_disabled": {
+            "type": "boolean",
+            "example": false
+          }
+        }
+      },
+      "Order": {
+        "type": "object",
+        "required": [
+          "order_id",
+          "customer_id",
+          "order_status"
+        ],
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "o0000000-0000-0000-0000-000000000001"
+          },
+          "customer_id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "c0000000-0000-0000-0000-000000000001"
+          },
+          "order_status": {
+            "type": "string",
+            "enum": [
+              "received",
+              "preparing",
+              "out_for_delivery",
+              "completed",
+              "cancelled"
+            ],
+            "example": "received"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-09-10T09:00:00Z"
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": null
+          },
+          "cancelled_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": null
+          },
+          "special_instructions": {
+            "type": "string",
+            "nullable": true,
+            "example": "Less oil please"
+          }
+        }
+      },
+      "OrderStatusUpdateInput": {
+        "type": "object",
+        "required": [
+          "new_status"
+        ],
+        "properties": {
+          "new_status": {
+            "type": "string",
+            "enum": [
+              "received",
+              "preparing",
+              "out_for_delivery",
+              "completed",
+              "cancelled"
+            ],
+            "example": "preparing"
+          }
+        }
+      },
+      "OrderStats": {
+        "type": "object",
+        "required": [
+          "received",
+          "preparing",
+          "out_for_delivery",
+          "completed",
+          "cancelled",
+          "total"
+        ],
+        "properties": {
+          "received": {
+            "type": "integer",
+            "example": 4
+          },
+          "preparing": {
+            "type": "integer",
+            "example": 2
+          },
+          "out_for_delivery": {
+            "type": "integer",
+            "example": 3
+          },
+          "completed": {
+            "type": "integer",
+            "example": 45
+          },
+          "cancelled": {
+            "type": "integer",
+            "example": 1
+          },
+          "total": {
+            "type": "integer",
+            "example": 55
+          }
+        }
+      },
+      "DailySalesRow": {
+        "type": "object",
+        "required": [
+          "date",
+          "totalRevenue",
+          "totalOrders"
+        ],
+        "properties": {
+          "date": {
+            "type": "string",
+            "example": "2026-09-10"
+          },
+          "totalRevenue": {
+            "type": "number",
+            "example": 8450.5
+          },
+          "totalOrders": {
+            "type": "integer",
+            "example": 24
+          }
+        }
+      },
+      "PlatformSummary": {
+        "type": "object",
+        "required": [
+          "totalRevenue",
+          "totalOrders",
+          "averageOrderValue"
+        ],
+        "properties": {
+          "totalRevenue": {
+            "type": "number",
+            "example": 42350
+          },
+          "totalOrders": {
+            "type": "integer",
+            "example": 120
+          },
+          "averageOrderValue": {
+            "type": "number",
+            "example": 352.92
+          }
+        }
+      },
+      "ReportPreviewResponse": {
+        "type": "object",
+        "properties": {
+          "dateRange": {
+            "type": "object",
+            "properties": {
+              "start_date": {
+                "type": "string",
+                "example": "2026-09-01"
+              },
+              "end_date": {
+                "type": "string",
+                "example": "2026-09-10"
+              }
+            }
+          },
+          "summary": {
+            "$ref": "#/components/schemas/PlatformSummary"
+          },
+          "dailyBreakdown": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DailySalesRow"
+            }
+          }
+        }
+      },
+      "SaveReportInput": {
+        "type": "object",
+        "properties": {
+          "start_date": {
+            "type": "string",
+            "example": "2026-09-01"
+          },
+          "end_date": {
+            "type": "string",
+            "example": "2026-09-10"
+          }
+        }
+      },
+      "EmployeeLoginInput": {
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "manager@yangsfriedrice.com"
+          },
+          "password": {
+            "type": "string",
+            "example": "Password123!"
+          }
+        }
+      },
+      "EmployeeLoginResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Logged in successfully as employee"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "employee_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string",
+                "example": "Juan Dela Cruz"
+              },
+              "email": {
+                "type": "string",
+                "format": "email",
+                "example": "manager@yangsfriedrice.com"
+              },
+              "role": {
+                "type": "string",
+                "example": "MANAGER"
+              }
+            }
+          }
+        }
+      },
+      "ChangePasswordInput": {
+        "type": "object",
+        "required": [
+          "new_password"
+        ],
+        "properties": {
+          "new_password": {
+            "type": "string",
+            "minLength": 8,
+            "example": "NewSecurePass123!"
           }
         }
       }
