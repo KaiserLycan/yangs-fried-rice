@@ -47,10 +47,6 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
   const pathname = request.nextUrl.pathname;
   const isCustomerArea = ["/cart", "/checkout", "/orders", "/profile"].some(
     (path) => pathname.startsWith(path)
@@ -59,34 +55,43 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith(path)
   );
 
+  // ========================================================================
+  // FAST PATH: Employee Areas (No Supabase network requests)
+  // ========================================================================
+  if (isEmployeeArea) {
+    const sessionCookie = request.cookies.get("yfr_employee_session")?.value;
+    let isValidEmployee = false;
+
+    if (sessionCookie) {
+      // Dynamic import to avoid edge runtime issues if any
+      const { decrypt } = await import("@/lib/auth/session");
+      const payload = await decrypt(sessionCookie);
+      if (payload?.employee_id) {
+        isValidEmployee = true;
+      }
+    }
+
+    if (!isValidEmployee) {
+      const redirectUrl = new URL("/employee/login", request.url);
+      redirectUrl.searchParams.set("next", pathname);
+      return NextResponse.redirect(redirectUrl);
+    }
+
+    // Still return the response so Supabase cookies are passed through if needed
+    return response;
+  }
+
+  // ========================================================================
+  // SLOW PATH: Customer Areas (Validates against Supabase Auth API)
+  // ========================================================================
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   if (isCustomerArea && !user) {
     const redirectUrl = new URL("/login", request.url);
     redirectUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(redirectUrl);
-  }
-
-  if (isEmployeeArea) {
-    const redirectToEmployeeLogin = () => {
-      const redirectUrl = new URL("/employee/login", request.url);
-      redirectUrl.searchParams.set("next", pathname);
-      return NextResponse.redirect(redirectUrl);
-    };
-
-    if (!user) {
-      return redirectToEmployeeLogin();
-    }
-
-    const { data: employee } = await supabase
-      .from("employee")
-      .select("employee_id")
-      .eq("employee_id", user.id)
-      .single();
-
-    // Authenticated but not an employee (e.g. a customer session trying
-    // /manage directly) — same destination as signed-out.
-    if (!employee) {
-      return redirectToEmployeeLogin();
-    }
   }
 
   return response;
