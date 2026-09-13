@@ -177,7 +177,7 @@ export default function ManageOrdersPage() {
         order={selectedOrder} 
         onAction={(type, order) => setConfirmAction({ type, order })}
       />
-      // ... Dialog logic
+
 
       <Dialog 
         open={confirmAction !== null}
