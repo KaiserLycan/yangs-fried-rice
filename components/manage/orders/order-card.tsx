@@ -10,11 +10,28 @@ export type OrderData = {
     quantity: number;
     name: string;
     addons?: string;
+    price: number;
   }[];
+  contactInfo: {
+    name: string;
+    address: string;
+    phone: string;
+  };
+  orderInfo: {
+    type: string;
+    specialInstructions?: string;
+  };
+  deliveryFee: number;
+  total: number;
 };
 
 interface OrderCardProps {
   order: OrderData;
+  // The onClick handler allows the parent to open the OrderDetailModal when the card itself is clicked.
+  onClick?: () => void;
+  // The onAction callback handles specific button interactions (Cancel, Deliver, Confirm)
+  // independent of the card's main click handler. This triggers the confirmation dialog.
+  onAction?: (type: 'Cancel' | 'Deliver' | 'Confirm', order: OrderData) => void;
 }
 
 const statusConfig = {
@@ -40,11 +57,14 @@ const statusConfig = {
   },
 };
 
-export function OrderCard({ order }: OrderCardProps) {
+export function OrderCard({ order, onClick, onAction }: OrderCardProps) {
   const config = statusConfig[order.status];
 
   return (
-    <div className="flex flex-col rounded-xl overflow-hidden shadow-sm bg-[#FAF7F0] border border-gray-200/50 h-full">
+    <button 
+      onClick={onClick}
+      className="flex flex-col text-left w-full rounded-xl overflow-hidden shadow-sm bg-[#FAF7F0] border border-gray-200/50 h-full transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CD7D39]"
+    >
       {/* Header */}
       <div className={cn("flex justify-between items-start p-4 text-white", config.headerBg)}>
         <div>
@@ -84,14 +104,30 @@ export function OrderCard({ order }: OrderCardProps) {
       {/* Footer Actions */}
       {(order.status === "QUEUE" || order.status === "PREP") && (
         <div className="flex w-full mt-auto">
-          <button className="flex-1 py-3 bg-[#C73926] hover:bg-red-800 transition-colors text-white text-sm font-semibold text-center">
+          <button 
+            onClick={(e) => {
+              // e.stopPropagation() prevents the click event from bubbling up to the card's main <button> container.
+              // This ensures that clicking "Cancel" only triggers the onAction callback (opening the confirmation dialog),
+              // and does not also trigger the onClick callback (opening the details modal).
+              e.stopPropagation();
+              onAction?.("Cancel", order);
+            }}
+            className="flex-1 py-3 bg-[#C73926] hover:bg-red-800 transition-colors text-white text-sm font-semibold text-center"
+          >
             Cancel
           </button>
-          <button className="flex-1 py-3 bg-[#48995F] hover:bg-green-700 transition-colors text-white text-sm font-semibold text-center">
+          <button 
+            onClick={(e) => {
+              // StopPropagation logic isolates button clicks from card clicks.
+              e.stopPropagation();
+              onAction?.(order.status === "QUEUE" ? "Confirm" : "Deliver", order);
+            }}
+            className="flex-1 py-3 bg-[#48995F] hover:bg-green-700 transition-colors text-white text-sm font-semibold text-center"
+          >
             {order.status === "QUEUE" ? "Confirm" : "Deliver"}
           </button>
         </div>
       )}
-    </div>
+    </button>
   );
 }
