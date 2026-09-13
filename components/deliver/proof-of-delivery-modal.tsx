@@ -73,6 +73,7 @@ export function ProofOfDeliveryModal({ isOpen, onClose, deliveryId, customerName
               className="hidden"
             />
             {proofPreview ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
               <img src={proofPreview} alt="Proof" className="w-full h-full object-cover" />
             ) : (
               <div className="flex flex-col items-center text-[#A2938A] group-hover:text-[#E8541F] transition-colors">
