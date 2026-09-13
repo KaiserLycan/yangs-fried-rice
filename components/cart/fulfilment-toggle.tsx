@@ -49,9 +49,7 @@ function ToggleOption({
       onClick={onClick}
       className={cn(
         "flex-1 rounded-md p-[9px] text-[12px] font-bold md:p-[11px] md:text-[13px]",
-        isSelected
-          ? "bg-foreground text-background"
-          : "text-muted-foreground",
+        isSelected ? "bg-foreground text-background" : "text-muted-foreground",
       )}
     >
       {label}

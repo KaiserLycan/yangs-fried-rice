@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { formatPeso } from "@/lib/menu/product-listing";
-import type { CartTotals } from "@/lib/menu/cart-totals";
+import type { CartTotals, Fulfilment } from "@/lib/menu/cart-totals";
 
 /**
  * Subtotal, delivery fee, Total, and the call to action — `133:990` desktop
@@ -10,15 +10,22 @@ import type { CartTotals } from "@/lib/menu/cart-totals";
  * control: choosing to check out isn't a write, it's navigation, the same
  * way `SiteNavBar`'s "Track order" link already points at a route ahead of
  * that route's own ticket landing. Ticket 05 builds what's actually there.
+ *
+ * The link carries the fulfilment choice because nothing persists it — there
+ * is no fulfilment column on `cart` or `cart_item`. Without it, a customer
+ * who picked Pickup here would arrive at a checkout quoting a delivery fee
+ * they had just opted out of.
  */
 export function CartTotalsSummary({
   totals,
   ctaLabel,
   showEstimate,
+  fulfilment,
 }: {
   totals: CartTotals;
   ctaLabel: string;
   showEstimate: boolean;
+  fulfilment: Fulfilment;
 }) {
   return (
     <div className="flex flex-col gap-[8px] border-t border-field-border pt-[14px]">
@@ -37,7 +44,7 @@ export function CartTotalsSummary({
       ) : null}
 
       <Link
-        href="/checkout"
+        href={`/checkout?fulfilment=${fulfilment}`}
         className="mt-[6px] flex items-center justify-center rounded-[12px] bg-foreground p-[15px] text-[14px] font-bold text-background"
       >
         {ctaLabel}

@@ -40,11 +40,19 @@ export function CartLineRow({ line }: { line: CartLine }) {
       ) : null}
 
       <div className="flex items-center gap-[8px]">
-        <StepButton glyph="−" label="Decrease quantity" onClick={() => showToast(CART_WRITE_TOAST)} />
+        <StepButton
+          glyph="−"
+          label="Decrease quantity"
+          onClick={() => showToast(CART_WRITE_TOAST)}
+        />
         <span className="min-w-[14px] px-[3px] text-center text-[13px] font-bold text-foreground">
           {line.quantity}
         </span>
-        <StepButton glyph="+" label="Increase quantity" onClick={() => showToast(CART_WRITE_TOAST)} />
+        <StepButton
+          glyph="+"
+          label="Increase quantity"
+          onClick={() => showToast(CART_WRITE_TOAST)}
+        />
 
         <button
           type="button"
