@@ -2,19 +2,8 @@ import { useState, useRef } from "react";
 import { MenuItem, MenuCategory, MOCK_CATEGORIES } from "@/components/manage/menu/mock-menu";
 import { cn } from "@/lib/utils";
 import { Camera, ChevronDown, ChevronRight } from "lucide-react";
-
-// Shared Modal Backdrop
-function ModalBackdrop({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1a1210]/40 p-4">
-      {/* Click outside to close (optional, but good UX) */}
-      <div className="absolute inset-0" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-[440px]">
-        {children}
-      </div>
-    </div>
-  );
-}
+import { Dialog, DialogRoot } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 // 1. Update Confirmation Modal
 interface ConfirmationModalProps {
@@ -30,50 +19,27 @@ export function ConfirmationModal({
   onConfirm,
   productName,
 }: ConfirmationModalProps) {
-  if (!isOpen) return null;
-
   return (
-    <ModalBackdrop onClose={onClose}>
-      <div className="flex w-full flex-col gap-[12px] rounded-[20px] bg-[#fbf6ec] p-[26px] shadow-[0px_30px_35px_rgba(26,18,16,0.26)]">
-        {/* Header */}
-        <div className="w-full">
-          <h2 className="font-display text-[26px] leading-none text-[#1a1210]">
-            Are you sure?
-          </h2>
-        </div>
-
-        {/* Message */}
-        <div className="w-full">
-          <p className="whitespace-pre-wrap font-sans text-[13px] leading-[19.5px] text-[#6a5348]">
-            {`Updating this ${productName} from the menu will instantly reflect to customers. Meanwhile, ongoing orders with ${productName} will remain unchanged. Do you want to update it?`}
-          </p>
-        </div>
-
-        {/* Actions */}
-        <div className="mt-[6px] flex w-full justify-center gap-[10px]">
-          <button
-            onClick={onClose}
-            className="flex w-full flex-1 flex-col items-center justify-center rounded-[12px] border border-[#ddcdb8] bg-transparent p-[14px] transition-colors hover:bg-black/5"
-          >
-            <span className="font-sans text-[14px] font-bold leading-none text-[#1a1210]">
-              Cancel
-            </span>
-          </button>
-          
-          <button
+    <Dialog
+      open={isOpen}
+      onClose={onClose}
+      title="Are you sure?"
+      description={`Updating this ${productName} from the menu will instantly reflect to customers. Meanwhile, ongoing orders with ${productName} will remain unchanged. Do you want to update it?`}
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button 
+            variant="primary" 
             onClick={() => {
               onConfirm();
               onClose();
             }}
-            className="flex w-full flex-1 flex-col items-center justify-center rounded-[12px] bg-[#ca762d] px-[14px] py-[15px] transition-opacity hover:opacity-90"
           >
-            <span className="font-sans text-[14px] font-bold leading-none text-white">
-              Update
-            </span>
-          </button>
-        </div>
-      </div>
-    </ModalBackdrop>
+            Update
+          </Button>
+        </>
+      }
+    />
   );
 }
 
@@ -91,8 +57,8 @@ export function MenuItemModal({
   onSave,
   categories,
 }: MenuItemModalProps) {
-  // CHANGED: Redesigned the modal to match the Figma design (node 2102-5225).
-  // WHY: Needed image upload, custom category dropdown, and availability toggle for new items.
+  // Redesigned the modal to match the Figma design (node 2102-5225).
+  // Needed image upload, custom category dropdown, and availability toggle for new items.
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [category, setCategory] = useState("");
@@ -146,8 +112,12 @@ export function MenuItemModal({
   const displayCategory = category || selectableCategories[0] || "Select";
 
   return (
-    <ModalBackdrop onClose={onClose}>
-      <div className="flex w-full flex-col overflow-hidden rounded-[20px] bg-[#fbf6ec] shadow-[0px_30px_35px_rgba(26,18,16,0.26)]">
+    <DialogRoot
+      open={isOpen}
+      onClose={onClose}
+      className="max-w-[440px] overflow-hidden rounded-[20px] bg-[#fbf6ec] shadow-[0px_30px_35px_rgba(26,18,16,0.26)]"
+    >
+      <div className="flex w-full flex-col">
         {/* ──────────────────────────────────── Image upload area */}
         <div className="group relative w-full">
           <div className="relative h-[220px] w-full overflow-hidden bg-[#e7d7c1]">
@@ -336,7 +306,7 @@ export function MenuItemModal({
           </div>
         </div>
       </div>
-    </ModalBackdrop>
+    </DialogRoot>
   );
 }
 
