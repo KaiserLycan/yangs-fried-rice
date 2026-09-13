@@ -297,3 +297,78 @@ never asks the customer for a reason, so nothing needs adding.
 **Not in scope here:** cancelling on the staff or rider side, refunds, and
 notifying the kitchen. Those belong to their own tickets and none of them
 have a customer-facing frame yet.
+
+## 8. Reorder a past order (ticket 11) — build a cart from an old order
+
+**Where:** `components/orders/past-order-card.tsx`, the "Reorder" action on
+each card of `/orders`. Pressing it raises the not-implemented toast and
+writes nothing.
+
+**What the frontend has when this fires:** the `order_id` of the past order,
+and the signed-in customer. Nothing else — there is no quantity editor or
+item picker on the card, so the customer is asking for "that order again",
+not for a modified version of it.
+
+**What it needs to do:**
+1. Read the past order's `order_item` rows.
+2. Put the equivalent lines in the customer's current cart, using the same
+   write §2's "Add to cart" describes. One call that does the whole order is
+   better than the frontend looping — the customer pressed one button and a
+   half-built cart after a partial failure is worse than no cart.
+3. Carry `order_item.special_instructions` across. It is the customer's own
+   note and dropping it silently changes their order.
+
+**Two things only you can decide, and the answer changes the UI:**
+
+- **A product that is no longer available.** `product.is_available` can be
+  false, and a product row can be gone entirely — the frontend already renders
+  "Item no longer on the menu" for a missing one. Say whether reorder should
+  skip those lines and report which, or refuse the whole reorder. The frontend
+  needs to tell the customer either way.
+- **Price changes.** `order_item.subtotal` is what the customer paid then, not
+  what the item costs now. Reorder should price at today's `product_price` —
+  please confirm, because the alternative honours a stale price.
+
+**On success, from the customer's point of view:** the cart holds the lines
+and they are taken to `/cart` to look at it before committing. Reordering must
+not place an order on its own — that would turn one press into a purchase.
+
+**Not in scope here:** reordering a cancelled order is the same operation, and
+nothing special needs to happen for it. The frontend offers it, because
+nothing about a cancellation makes the food less orderable.
+
+## 9. Rate a past order (ticket 12) — OHF2
+
+**Where:** `components/orders/order-rating.tsx`, the row of stars on an
+unrated order in `/orders`. Choosing a star raises the not-implemented toast
+and writes nothing.
+
+**What the frontend has when this fires:** the `order_id`, the signed-in
+customer, and an integer score from 1 to 5. No comment — `review.comment`
+exists in the schema and no frame asks for one, so nothing collects it.
+
+**What it needs to do:**
+1. Insert a `review` row with `order_id`, `customer_id`, `rating` and
+   `created_at`. Every one of those columns already exists — no migration.
+2. Leave `comment` null.
+
+**The conditions you must enforce server-side:**
+
+- **One review per order per customer.** The frontend shows the stars only
+  while `review.rating` is null for that order and turns the row read-only
+  afterwards, but that check is a courtesy; a unique constraint on
+  `(order_id, customer_id)` is what actually holds it.
+- **Only the customer who placed the order may review it**, and only once the
+  order is finished. A rating on an order still in the kitchen is not
+  something the screen can produce, but the endpoint should not accept it.
+
+**Good news on the schema, and a correction worth propagating.** `CLAUDE.md`
+warns that reviews are attached to an *item* while requirement OHF2 attaches
+them to an *order*. That is true of `supabase/schema.sql` and **not** of the
+live database: `types/database.types.ts` shows `review` carrying `order_id`,
+which is what OHF2 asks for. The requirement and the database already agree —
+it is only the checked-in SQL file that is stale. Worth fixing there so nobody
+builds against it.
+
+**On success, from the customer's point of view:** the stars fill and stop
+being pressable, and the card's action becomes Reorder. No toast, no redirect.
