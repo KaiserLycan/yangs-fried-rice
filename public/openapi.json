@@ -1757,8 +1757,8 @@
         "tags": [
           "Reports"
         ],
-        "summary": "Get daily sales metrics",
-        "description": "Returns daily total revenue and order counts for the date range. Defaults to today. Requires admin or manager.",
+        "summary": "Get sales metrics by frequency",
+        "description": "Returns sales revenue, order counts, period averages, and breakdown grouped by frequency (daily, weekly, monthly, yearly). Requires admin or manager.",
         "operationId": "getDailySales",
         "parameters": [
           {
@@ -1778,23 +1778,40 @@
               "format": "date"
             },
             "description": "End date (YYYY-MM-DD). Defaults to today."
+          },
+          {
+            "name": "frequency",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "daily",
+                "weekly",
+                "monthly",
+                "yearly"
+              ],
+              "default": "daily"
+            },
+            "description": "Grouping frequency: daily, weekly, monthly, or yearly (default: daily)"
           }
         ],
         "responses": {
           "200": {
-            "description": "Daily sales data",
+            "description": "Sales report data",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/DailySalesRow"
-                      }
-                    }
-                  }
+                  "$ref": "#/components/schemas/SalesReportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -1822,148 +1839,14 @@
         }
       }
     },
-    "/api/reports/summary": {
-      "get": {
-        "tags": [
-          "Reports"
-        ],
-        "summary": "Get platform performance summary",
-        "description": "Returns aggregate revenue, total orders, and average order value. Defaults to today. Requires admin or manager.",
-        "operationId": "getPlatformSummary",
-        "parameters": [
-          {
-            "name": "start_date",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "format": "date"
-            },
-            "description": "Start date (YYYY-MM-DD)"
-          },
-          {
-            "name": "end_date",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "format": "date"
-            },
-            "description": "End date (YYYY-MM-DD)"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Platform summary data",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "$ref": "#/components/schemas/PlatformSummary"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/reports/preview": {
-      "get": {
-        "tags": [
-          "Reports"
-        ],
-        "summary": "Get sales report preview",
-        "description": "Combines summary metrics and daily breakdown for UI preview prior to PDF download. Requires admin or manager.",
-        "operationId": "getReportPreview",
-        "parameters": [
-          {
-            "name": "start_date",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "format": "date"
-            },
-            "description": "Start date (YYYY-MM-DD)"
-          },
-          {
-            "name": "end_date",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "format": "date"
-            },
-            "description": "End date (YYYY-MM-DD)"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Report preview data",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "$ref": "#/components/schemas/ReportPreviewResponse"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/reports/pdf": {
+    "/api/reports/sales/pdf": {
       "get": {
         "tags": [
           "Reports"
         ],
         "summary": "Generate PDF sales report",
-        "description": "Generates formatted PDF report. Returns JSON with base64 data URI by default, or application/pdf binary file when ?format=raw. Requires admin or manager.",
-        "operationId": "generateReportPDF",
+        "description": "Generates formatted PDF sales report grouped by frequency. Returns base64 data URI by default, or application/pdf binary file when ?format=raw. Requires admin or manager.",
+        "operationId": "generateSalesPDF",
         "parameters": [
           {
             "name": "start_date",
@@ -1982,6 +1865,21 @@
               "format": "date"
             },
             "description": "End date (YYYY-MM-DD)"
+          },
+          {
+            "name": "frequency",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "daily",
+                "weekly",
+                "monthly",
+                "yearly"
+              ],
+              "default": "daily"
+            },
+            "description": "Grouping frequency: daily, weekly, monthly, or yearly (default: daily)"
           },
           {
             "name": "format",
@@ -2025,6 +1923,216 @@
                 "schema": {
                   "type": "string",
                   "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports/performance": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Get platform performance metrics",
+        "description": "Returns platform operational & growth metrics: registered customer growth, completion/cancellation rates, revenue trend vs previous period, and top selling products. Requires admin or manager.",
+        "operationId": "getPlatformPerformance",
+        "parameters": [
+          {
+            "name": "start_date",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Start date (YYYY-MM-DD). Defaults to 30 days ago."
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "End date (YYYY-MM-DD). Defaults to today."
+          },
+          {
+            "name": "top_products",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 5
+            },
+            "description": "Number of top selling products to return (1-50, default 5)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Platform performance metrics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformPerformanceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports/performance/pdf": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Generate PDF platform performance report",
+        "description": "Generates formatted PDF platform performance report including platform KPIs, revenue trend, and top selling products. Returns base64 data URI by default, or application/pdf binary file when ?format=raw. Requires admin or manager.",
+        "operationId": "generatePerformancePDF",
+        "parameters": [
+          {
+            "name": "start_date",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Start date (YYYY-MM-DD)"
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "End date (YYYY-MM-DD)"
+          },
+          {
+            "name": "top_products",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 5
+            },
+            "description": "Number of top selling products to include (1-50, default 5)"
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "json",
+                "raw"
+              ],
+              "default": "json"
+            },
+            "description": "Output format: 'json' (datauri base64) or 'raw' (binary PDF download)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Generated PDF performance report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "pdf": {
+                          "type": "string",
+                          "description": "Base64 data URI string"
+                        },
+                        "format": {
+                          "type": "string",
+                          "example": "datauristring"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -3029,55 +3137,6 @@
           }
         }
       },
-      "PlatformSummary": {
-        "type": "object",
-        "required": [
-          "totalRevenue",
-          "totalOrders",
-          "averageOrderValue"
-        ],
-        "properties": {
-          "totalRevenue": {
-            "type": "number",
-            "example": 42350
-          },
-          "totalOrders": {
-            "type": "integer",
-            "example": 120
-          },
-          "averageOrderValue": {
-            "type": "number",
-            "example": 352.92
-          }
-        }
-      },
-      "ReportPreviewResponse": {
-        "type": "object",
-        "properties": {
-          "dateRange": {
-            "type": "object",
-            "properties": {
-              "start_date": {
-                "type": "string",
-                "example": "2026-09-01"
-              },
-              "end_date": {
-                "type": "string",
-                "example": "2026-09-10"
-              }
-            }
-          },
-          "summary": {
-            "$ref": "#/components/schemas/PlatformSummary"
-          },
-          "dailyBreakdown": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/DailySalesRow"
-            }
-          }
-        }
-      },
       "SaveReportInput": {
         "type": "object",
         "properties": {
@@ -3150,6 +3209,209 @@
             "type": "string",
             "minLength": 8,
             "example": "NewSecurePass123!"
+          }
+        }
+      },
+      "SalesRow": {
+        "type": "object",
+        "required": [
+          "period",
+          "totalRevenue",
+          "totalOrders"
+        ],
+        "properties": {
+          "period": {
+            "type": "string",
+            "example": "2026-W36"
+          },
+          "totalRevenue": {
+            "type": "number",
+            "example": 68200.0
+          },
+          "totalOrders": {
+            "type": "integer",
+            "example": 598
+          }
+        }
+      },
+      "SalesReportSummary": {
+        "type": "object",
+        "required": [
+          "totalRevenue",
+          "totalOrders",
+          "averageOrderValue",
+          "averageRevenuePerPeriod",
+          "averageOrdersPerPeriod"
+        ],
+        "properties": {
+          "totalRevenue": {
+            "type": "number",
+            "example": 142500.0
+          },
+          "totalOrders": {
+            "type": "integer",
+            "example": 1245
+          },
+          "averageOrderValue": {
+            "type": "number",
+            "example": 114.46
+          },
+          "averageRevenuePerPeriod": {
+            "type": "number",
+            "example": 71250.0
+          },
+          "averageOrdersPerPeriod": {
+            "type": "number",
+            "example": 622.5
+          }
+        }
+      },
+      "SalesReportResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "dateRange": {
+                "type": "object",
+                "properties": {
+                  "start_date": {
+                    "type": "string",
+                    "example": "2026-09-01"
+                  },
+                  "end_date": {
+                    "type": "string",
+                    "example": "2026-09-13"
+                  }
+                }
+              },
+              "frequency": {
+                "type": "string",
+                "enum": [
+                  "daily",
+                  "weekly",
+                  "monthly",
+                  "yearly"
+                ],
+                "example": "weekly"
+              },
+              "summary": {
+                "$ref": "#/components/schemas/SalesReportSummary"
+              },
+              "breakdown": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/SalesRow"
+                }
+              }
+            }
+          }
+        }
+      },
+      "TopSellingProduct": {
+        "type": "object",
+        "required": [
+          "rank",
+          "productName",
+          "quantitySold"
+        ],
+        "properties": {
+          "rank": {
+            "type": "integer",
+            "example": 1
+          },
+          "productName": {
+            "type": "string",
+            "example": "Yangzhou Special"
+          },
+          "quantitySold": {
+            "type": "integer",
+            "example": 142
+          },
+          "totalRevenue": {
+            "type": "number",
+            "example": 25560.0
+          }
+        }
+      },
+      "RevenueTrend": {
+        "type": "object",
+        "properties": {
+          "previousPeriodRevenue": {
+            "type": "number",
+            "example": 126800.0
+          },
+          "percentChange": {
+            "type": "number",
+            "example": 12.38
+          }
+        }
+      },
+      "PlatformPerformanceResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "dateRange": {
+                "type": "object",
+                "properties": {
+                  "start_date": {
+                    "type": "string",
+                    "example": "2026-09-01"
+                  },
+                  "end_date": {
+                    "type": "string",
+                    "example": "2026-09-13"
+                  }
+                }
+              },
+              "totalRegisteredCustomers": {
+                "type": "integer",
+                "example": 342
+              },
+              "totalOrdersInRange": {
+                "type": "integer",
+                "example": 1245
+              },
+              "completedOrders": {
+                "type": "integer",
+                "example": 1100
+              },
+              "cancelledOrders": {
+                "type": "integer",
+                "example": 45
+              },
+              "completionRate": {
+                "type": "number",
+                "example": 88.35
+              },
+              "cancellationRate": {
+                "type": "number",
+                "example": 3.61
+              },
+              "totalRevenue": {
+                "type": "number",
+                "example": 142500.0
+              },
+              "averageOrderValue": {
+                "type": "number",
+                "example": 114.46
+              },
+              "revenueTrend": {
+                "$ref": "#/components/schemas/RevenueTrend"
+              },
+              "topSellingProducts": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/TopSellingProduct"
+                }
+              },
+              "totalAvailableProducts": {
+                "type": "integer",
+                "example": 2
+              }
+            }
           }
         }
       }
