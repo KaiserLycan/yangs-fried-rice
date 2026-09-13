@@ -1,29 +1,6 @@
 import { cn } from "@/lib/utils";
 
-export type OrderData = {
-  id: string;
-  orderNumber: string;
-  time: string;
-  status: "QUEUE" | "PREP" | "DELIVERY" | "COMPLETED" | "CANCELED";
-  timer?: string;
-  items: {
-    quantity: number;
-    name: string;
-    addons?: string;
-    price: number;
-  }[];
-  contactInfo: {
-    name: string;
-    address: string;
-    phone: string;
-  };
-  orderInfo: {
-    type: string;
-    specialInstructions?: string;
-  };
-  deliveryFee: number;
-  total: number;
-};
+import { OrderData } from "@/lib/mock-orders";
 
 interface OrderCardProps {
   order: OrderData;
@@ -61,8 +38,16 @@ export function OrderCard({ order, onClick, onAction }: OrderCardProps) {
   const config = statusConfig[order.status];
 
   return (
-    <button 
+    <div 
       onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick?.();
+        }
+      }}
       className="flex flex-col text-left w-full rounded-xl overflow-hidden shadow-sm bg-[#FAF7F0] border border-gray-200/50 h-full transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CD7D39]"
     >
       {/* Header */}
@@ -106,7 +91,7 @@ export function OrderCard({ order, onClick, onAction }: OrderCardProps) {
         <div className="flex w-full mt-auto">
           <button 
             onClick={(e) => {
-              // e.stopPropagation() prevents the click event from bubbling up to the card's main <button> container.
+              // e.stopPropagation() prevents the click event from bubbling up to the card's main container.
               // This ensures that clicking "Cancel" only triggers the onAction callback (opening the confirmation dialog),
               // and does not also trigger the onClick callback (opening the details modal).
               e.stopPropagation();
@@ -128,6 +113,6 @@ export function OrderCard({ order, onClick, onAction }: OrderCardProps) {
           </button>
         </div>
       )}
-    </button>
+    </div>
   );
 }
