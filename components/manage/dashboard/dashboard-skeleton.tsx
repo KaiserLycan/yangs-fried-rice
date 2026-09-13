@@ -71,35 +71,28 @@ export function DashboardSkeleton() {
   return (
     <div className="flex flex-col gap-5">
       {/* Header skeleton */}
-      <div className="flex items-baseline gap-3.5">
-        <SkeletonBox className="h-8 w-56" />
-        <SkeletonBox className="h-4 w-48" />
+      <div className="flex flex-col md:flex-row md:items-baseline gap-2 md:gap-3.5">
+        <SkeletonBox className="h-6 md:h-8 w-48 md:w-56" />
+        <SkeletonBox className="h-4 w-40 md:w-48" />
       </div>
 
       {/* Stat cards row */}
-      <div className="flex gap-3.5">
+      <div className="flex flex-col md:flex-row gap-3.5">
         <StatCardSkeleton />
         <StatCardSkeleton />
         <StatCardSkeleton />
       </div>
 
       {/* Grid: Chart + Top Sellers / Top Rated */}
-      <div className="grid grid-cols-[1.4fr_1fr] grid-rows-[262px_262px] gap-4">
-        {/* Sales chart — spans both rows */}
-        <div className="row-span-1">
+      <div className="flex flex-col md:grid md:grid-cols-[1.4fr_1fr] md:grid-rows-[262px_262px] gap-4">
+        <div className="md:row-span-1">
           <ChartSkeleton />
         </div>
-
-        {/* Top Sellers */}
-        <div className="row-span-1">
+        <div className="md:row-span-1">
           <RankingSkeleton />
         </div>
-
-        {/* Empty space below chart (the chart card doesn't span two rows in Figma) */}
-        <div />
-
-        {/* Top Rated */}
-        <div className="row-span-1">
+        <div className="hidden md:block" />
+        <div className="md:row-span-1">
           <RankingSkeleton />
         </div>
       </div>
