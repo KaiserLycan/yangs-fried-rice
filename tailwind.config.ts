@@ -55,6 +55,21 @@ const config: Config = {
           faint: "hsl(var(--on-console-faint))",
           rule: "hsl(var(--on-console-rule))",
         },
+        "on-ink": {
+          DEFAULT: "hsl(var(--on-ink))",
+          muted: "hsl(var(--on-ink-muted))",
+          faint: "hsl(var(--on-ink-faint))",
+        },
+        timeline: {
+          pending: "hsl(var(--timeline-pending))",
+          meta: "hsl(var(--timeline-meta))",
+        },
+        map: {
+          surface: "hsl(var(--map-surface))",
+          grid: "hsl(var(--map-grid))",
+          label: "hsl(var(--map-label))",
+          border: "hsl(var(--map-border))",
+        },
         rule: "hsl(var(--rule))",
         track: "hsl(var(--track))",
         "field-border": "hsl(var(--field-border))",
