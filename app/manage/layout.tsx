@@ -1,3 +1,6 @@
+"use client";
+
+import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/manage/sidebar";
 
 /**
@@ -40,13 +43,16 @@ export default function ManageLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+  const isKds = pathname === "/manage/kds";
+
   return (
     <div className="flex h-screen bg-[#fbf6ec]">
       {/* TODO: BACKEND INTEGRATION — Pass the employee role and user
           data to the Sidebar so it can filter nav items by role and
           display the real user name/initials instead of mock data. */}
-      <Sidebar />
-      <main className="flex-1 overflow-y-auto px-[30px] py-[26px]">
+      {!isKds && <Sidebar />}
+      <main className={`flex-1 overflow-y-auto ${isKds ? "" : "px-[30px] py-[26px]"}`}>
         {children}
       </main>
     </div>
