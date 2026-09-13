@@ -1,7 +1,11 @@
 # Previewing order states without placing an order
 
-For whoever is reviewing the order tracking screen — PM, tester, anyone
-opening the Vercel preview link.
+For whoever is reviewing the order screens — PM, tester, anyone opening the
+Vercel preview link.
+
+Two screens use this: **the tracking screen** (`/orders/<id>`) and **the order
+history** (`/orders`). Both work the same way — add `?example=` to the URL —
+but each has its own list of words, below.
 
 ## The problem this solves
 
@@ -13,7 +17,9 @@ Figma frame either, so there is no picture of them to compare against.
 So the screen renders a stand-in order, and **you pick which state it is in by
 typing a word into the address bar**.
 
-## How to use it
+## The tracking screen — `/orders/<id>`
+
+### How to use it
 
 Open the tracking screen and add `?example=` plus a state name:
 
@@ -23,7 +29,7 @@ Open the tracking screen and add `?example=` plus a state name:
 
 The number in the URL (`1042`) is ignored — put anything there.
 
-## The six states
+### The six states
 
 | Add to the URL | What you should see |
 |---|---|
@@ -46,6 +52,47 @@ oversights — a cancellation is a real thing that happens, and `unknown` is
 what the screen shows when the stored status is a word it does not recognise
 or is empty, which the database currently allows. If either looks wrong to
 you, that is worth raising: nobody has designed them.
+
+## The order history — `/orders`
+
+The same trick on the list of past orders. Nothing has ever been ordered, so
+without it the screen would be permanently empty.
+
+```
+/orders?example=empty
+```
+
+| Add to the URL | What you should see |
+|---|---|
+| `?example=populated` | The three cards the Figma frame draws — a delivered order rated five stars, a delivered order not yet rated, and a picked-up order rated four. This is also what you get with no `?example=` at all. |
+| `?example=cancelled` | The same three, with a **cancelled** order added at the top. It shows "Cancelled" instead of "Delivered", has no stars, and offers Reorder. |
+| `?example=empty` | "No past orders yet." and a link back to the menu. |
+
+**Two of these have no Figma frame**: `cancelled` and `empty`. They are not
+oversights. Ticket 07 built cancelling an order, so a cancelled order in the
+history is the ordinary consequence of using it; and an empty history is what
+every new customer sees on their first visit. If either looks wrong to you,
+that is worth raising — nobody has designed them.
+
+### The one action per card is a decision, not a trace
+
+The Figma frame draws three different actions across its three cards —
+Reorder, Rate order, View receipt — and nothing in the data says which card
+gets which. So the screen uses a rule instead: **an order you have not rated
+offers "Rate order", and everything else offers "Reorder"**. "View receipt" is
+reached by pressing the items line, which opens that order's detail screen —
+that screen already is the receipt.
+
+**PM: this is the bit most worth a second opinion.** If View receipt is meant
+to be a visible third action, say what decides when it appears and it goes
+back on the card.
+
+### Rating does not rate anything
+
+Pressing a star raises a message saying the feature is not built yet. That is
+the expected behaviour today, not a bug — inserting the `review` row belongs
+to the backend developer and is written up in `ordering-flow-handoff.md` §9.
+Reordering behaves the same way (§8).
 
 ## Things worth knowing before filing a bug
 
@@ -70,9 +117,10 @@ you, that is worth raising: nobody has designed them.
 
 The moment placing an order writes a real row, a real order takes priority and
 `?example=` stops having any effect on it — the switch only applies when the
-screen looked for a genuine order and found none. At that point the stand-in
-file is deleted and these URLs stop working. Nothing else has to change.
+screen looked for genuine orders and found none. At that point the stand-in
+files are deleted and these URLs stop working. Nothing else has to change.
 
-For developers: everything above lives in `lib/orders/mock-tracked-order.ts`.
-Deleting that one file is the off switch — the page stops compiling and
-TypeScript points at the single line to remove.
+For developers: the tracking states live in `lib/orders/mock-tracked-order.ts`
+and the history in `lib/orders/mock-past-orders.ts`. Deleting those two files
+is the off switch — each page stops compiling and TypeScript points at the
+single line to remove.
