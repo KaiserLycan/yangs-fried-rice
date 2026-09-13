@@ -36,15 +36,6 @@ const ROLES = ["All Roles", "Manager", "Server", "Cook", "Cashier", "Delivery"];
 // 3. Pagination: Modify the `ManagePagination` to fetch offset/limit chunks from the server.
 // 4. Mutations: Implement the "Add Employee" modal and wire it to the backend endpoint.
 
-/**
- * ManageEmployeePage
- * 
- * Added a fully responsive employee management table with:
- * - Search filtering by name, email, and contact.
- * - Interactive column sorting on Name (Asc/Desc/None).
- * - Pagination controls via ManagePagination.
- * - "+ Add Employee" stub button for adding new staff.
- */
 export default function ManageEmployeePage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
@@ -81,39 +72,41 @@ export default function ManageEmployeePage() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full gap-4 md:gap-0">
       {/* Header */}
-      <div className="flex items-center justify-between pb-[10px] mb-8 gap-4">
-        <h1 className="font-display text-[30px] leading-normal text-[#1a1210]">
+      <div className="flex flex-col md:flex-row md:items-center justify-between pb-[10px] md:mb-8 gap-4 md:gap-4">
+        <h1 className="font-display text-[24px] md:text-[30px] leading-normal text-[#1a1210]">
           EMPLOYEE MANAGEMENT
         </h1>
-        <div className="flex items-center gap-[20px]">
-          <div className="relative">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 md:gap-[20px]">
+          <div className="relative w-full sm:w-auto">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-[#A2938A]" />
             <input 
               type="text"
               placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-[280px] h-[45px] pl-11 pr-4 rounded-xl border border-[#DDCDB8] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#E8541F] placeholder:text-[#A2938A]"
+              className="w-full sm:w-[280px] h-[45px] pl-11 pr-4 rounded-xl border border-[#DDCDB8] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#E8541F] placeholder:text-[#A2938A]"
             />
           </div>
           
           {/* Role Filter */}
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <button
               onClick={() => setRoleFilterOpen(!roleFilterOpen)}
-              className="h-[45px] px-4 rounded-xl border border-[#DDCDB8] bg-white text-sm flex items-center gap-2 hover:bg-[#FAF5EB] transition-colors focus:outline-none focus:ring-2 focus:ring-[#E8541F]"
+              className="w-full sm:w-auto h-[45px] px-4 rounded-xl border border-[#DDCDB8] bg-white text-sm flex items-center justify-between sm:justify-start gap-2 hover:bg-[#FAF5EB] transition-colors focus:outline-none focus:ring-2 focus:ring-[#E8541F]"
             >
-              <Filter className="w-[16px] h-[16px] text-[#A2938A]" />
-              <span className="text-[#1A1210] font-medium min-w-[70px] text-left">{roleFilter}</span>
+              <div className="flex items-center gap-2">
+                <Filter className="w-[16px] h-[16px] text-[#A2938A]" />
+                <span className="text-[#1A1210] font-medium min-w-[70px] text-left">{roleFilter}</span>
+              </div>
               <ChevronDown className="w-4 h-4 text-[#A2938A]" />
             </button>
             
             {roleFilterOpen && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setRoleFilterOpen(false)} />
-                <div className="absolute right-0 top-[calc(100%+8px)] z-20 w-[160px] bg-white border border-[#DDCDB8] rounded-xl p-1 shadow-[0_8px_20px_rgba(26,18,16,0.08)]">
+                <div className="absolute left-0 sm:left-auto sm:right-0 top-[calc(100%+8px)] z-20 w-full sm:w-[160px] bg-white border border-[#DDCDB8] rounded-xl p-1 shadow-[0_8px_20px_rgba(26,18,16,0.08)]">
                   {ROLES.map(role => (
                     <button
                       key={role}
@@ -133,7 +126,7 @@ export default function ManageEmployeePage() {
             )}
           </div>
           <button 
-            className="bg-[#E8541F] text-white font-bold text-[13px] px-[18px] py-[11px] rounded-[10px] hover:bg-[#E8541F]/90 transition-colors whitespace-nowrap"
+            className="w-full sm:w-auto bg-[#E8541F] text-white font-bold text-[13px] px-[18px] py-[11px] rounded-[10px] hover:bg-[#E8541F]/90 transition-colors whitespace-nowrap"
             onClick={() => setIsAddModalOpen(true)}
           >
             + Add Employee
@@ -145,8 +138,8 @@ export default function ManageEmployeePage() {
       <div className="flex-1 flex flex-col min-h-0">
         
         <div className="bg-white rounded-[12px] overflow-hidden flex flex-col min-h-0 border border-[#F0E6D8] shadow-[0_2px_10px_rgba(26,18,16,0.02)]">
-          {/* Table Head */}
-          <div className="grid grid-cols-[1.5fr_1.5fr_1fr_1fr] px-8 py-5 border-b border-[#F0E6D8] bg-[#EAE0D5] text-[12px] font-bold text-[#7A6A60] uppercase tracking-[1px]">
+          {/* Table Head - Hidden on Mobile */}
+          <div className="hidden md:grid grid-cols-[1.5fr_1.5fr_1fr_1fr] px-8 py-5 border-b border-[#F0E6D8] bg-[#EAE0D5] text-[12px] font-bold text-[#7A6A60] uppercase tracking-[1px]">
             <button 
               className="flex items-center gap-2 hover:text-[#4A3D36] transition-colors focus:outline-none w-fit"
               onClick={() => setNameSort(prev => prev === 'none' ? 'asc' : prev === 'asc' ? 'desc' : 'none')}
@@ -169,15 +162,18 @@ export default function ManageEmployeePage() {
               filteredEmployees.map((employee, index) => (
                 <div 
                   key={employee.id}
-                  className={`grid grid-cols-[1.5fr_1.5fr_1fr_1fr] px-8 py-5 cursor-pointer transition-colors hover:bg-[#FAF7F0] ${
+                  className={`flex flex-col md:grid md:grid-cols-[1.5fr_1.5fr_1fr_1fr] px-5 md:px-8 py-4 md:py-5 cursor-pointer transition-colors hover:bg-[#FAF7F0] gap-1 md:gap-0 ${
                     index !== filteredEmployees.length - 1 ? "border-b border-[#F0E6D8]" : ""
                   }`}
                   onClick={() => setSelectedEmployee(employee)}
                 >
-                  <div className="font-bold text-[#1A1210] flex items-center text-[15px]">{employee.name}</div>
-                  <div className="font-bold text-[#1A1210] flex items-center text-[15px]">{employee.email}</div>
-                  <div className="font-bold text-[#1A1210] flex items-center text-[15px]">{employee.contact}</div>
-                  <div className="font-bold text-[#1A1210] flex items-center text-[15px]">{employee.role}</div>
+                  <div className="font-bold text-[#1A1210] flex items-center justify-between text-[15px]">
+                    {employee.name}
+                    <span className="md:hidden text-[11px] font-bold tracking-wide uppercase bg-[#f6e9d9] text-[#8c1c13] px-2 py-1 rounded-md">{employee.role}</span>
+                  </div>
+                  <div className="text-[#7A6A60] md:font-bold md:text-[#1A1210] flex items-center text-[13px] md:text-[15px]">{employee.email}</div>
+                  <div className="text-[#7A6A60] md:font-bold md:text-[#1A1210] flex items-center text-[13px] md:text-[15px]">{employee.contact}</div>
+                  <div className="hidden md:flex font-bold text-[#1A1210] items-center text-[15px]">{employee.role}</div>
                 </div>
               ))
             )}
@@ -185,7 +181,7 @@ export default function ManageEmployeePage() {
         </div>
 
         {/* Pagination */}
-        <div className="mt-8 mb-4 flex justify-end">
+        <div className="mt-4 md:mt-8 mb-4 flex justify-center md:justify-end">
           <ManagePagination 
             currentPage={currentPage}
             totalPages={3}
@@ -194,6 +190,7 @@ export default function ManageEmployeePage() {
         </div>
       </div>
 
+      {/* Modals and Dialogs remain exactly the same */}
       <EmployeeModal 
         isOpen={isAddModalOpen || selectedEmployee !== null} 
         onClose={() => {
@@ -203,10 +200,8 @@ export default function ManageEmployeePage() {
         employee={selectedEmployee}
         onSave={(data) => {
           if (selectedEmployee) {
-            // Edit action (requires confirmation)
             setEmployeeToEdit(data);
           } else {
-            // Add action (requires confirmation)
             setEmployeeToAdd(data);
           }
         }}
