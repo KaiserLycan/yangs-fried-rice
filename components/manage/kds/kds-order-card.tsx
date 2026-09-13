@@ -36,8 +36,8 @@ export function KdsOrderCard({ order }: { order: OrderData }) {
 
       {/* Order Items List */}
       <div className="flex-1 flex flex-col overflow-y-auto px-[13px] py-[12px] gap-[10px]">
-        {order.items.map((item) => (
-          <div key={item.id} className="flex flex-col w-full">
+        {order.items.map((item, index) => (
+          <div key={index} className="flex flex-col w-full">
             <div className="flex gap-[10px] items-start text-[#1a1210]">
               <span className="font-bold text-[14px] shrink-0">
                 {item.quantity}x
