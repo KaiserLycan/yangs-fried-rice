@@ -85,8 +85,62 @@ Remove control on each cart line.
 **On success:** the line updates or disappears from the cart the next time
 it's read — again, see §5.
 
+### Place order
+
+**Where:** `components/checkout/order-summary-card.tsx`, the
+"Place order · ₱545" button on `/checkout` (both breakpoints).
+
+**What the frontend already has when this fires:** the signed-in customer,
+their cart lines (`cart_item_id`, `product_id` via the join, `quantity`,
+`special_instructions`), the fulfilment type (`"delivery"` or `"pickup"`),
+the selected payment method (one of `card`, `wallet`, `cash-on-delivery`,
+`pay-in-store`), and the computed total. It does **not** have an order id,
+an order status, or a placement timestamp — none of those exist until you
+create them.
+
+**What it needs to do:**
+1. Create the order from the customer's current cart — header row plus one
+   line per `cart_item`, carrying quantity, unit price at time of order, and
+   `special_instructions`.
+2. Record the fulfilment type on `order.order_type`, which already exists —
+   please confirm that column is what it sounds like, and tell us the exact
+   two values you expect. The frontend calls them `"delivery"` and
+   `"pickup"`; if your column uses different strings, say so and the frontend
+   will send yours. No migration needed for this, but see §3 for the gap that
+   remains on the *cart* side.
+3. Record the payment method on `transaction.payment_method`, which already
+   exists. `payment_status` should reflect that nothing has been charged —
+   this screen selects a method and takes no money.
+4. Empty or close the customer's cart, so the next read doesn't offer the
+   same lines again.
+
+**On success, from the customer's point of view:** they should land on the
+confirmation screen (`/checkout/confirmation`, not built yet) with the
+order's own id, and the cart should read empty afterwards.
+
+**Not in scope for this write:** taking payment. No card details are
+collected anywhere on the screen, and no processor is integrated. The
+payment method is a stated intention, nothing more.
+
 ## 3. What's missing or uncertain
 
+- **The cart cannot store Delivery versus Pickup.** `order.order_type` covers
+  it once an order exists, so placing an order is *not* blocked — but neither
+  `cart` nor `cart_item` has anywhere to hold the choice while the customer is
+  still shopping. The frontend works around this by carrying it in the URL
+  between the cart and checkout (`/checkout?fulfilment=pickup`), which is
+  fine for browsing but means the choice is lost if a customer closes the tab
+  and comes back. Not blocking; worth a column on `cart` if you'd rather it
+  survived. Also please confirm what `order.order_type` actually holds and
+  which two strings you expect — the frontend uses `"delivery"` and
+  `"pickup"`.
+- **Nothing computes an arrival estimate.** Both checkout frames print
+  "Estimated arrival 35–45 min based on current kitchen queue and delivery
+  distance." There is no kitchen queue to read and no distance calculation,
+  so that range is the designer's copy rendered as a constant, not a number
+  the frontend worked out. If a real estimate is wanted, it needs a source —
+  this is worth raising with the PM as well, since the copy currently claims
+  an input the system does not have.
 - **Where the delivery fee comes from.** The frontend computes it from a
   flat ₱95 constant (`lib/menu/cart-totals.ts`). Nothing says whether that's
   fixed, per-branch, or distance-derived. Not blocking — just don't be

@@ -5,7 +5,11 @@ import { CartEmptyState } from "@/components/cart/cart-empty-state";
 import { CartLineRow } from "@/components/cart/cart-line-row";
 import { CartTotalsSummary } from "@/components/cart/cart-totals-summary";
 import { FulfilmentToggle } from "@/components/cart/fulfilment-toggle";
-import { computeCartTotals, type CartLine, type Fulfilment } from "@/lib/menu/cart-totals";
+import {
+  computeCartTotals,
+  type CartLine,
+  type Fulfilment,
+} from "@/lib/menu/cart-totals";
 
 /**
  * The part of the cart that is identical whether it's the desktop rail or
@@ -20,14 +24,24 @@ export function CartContents({
   lines,
   ctaLabel,
   showEstimate,
+  initialFulfilment = "delivery",
 }: {
   lines: CartLine[];
   ctaLabel: string;
   showEstimate: boolean;
+  /**
+   * Where the toggle starts. Defaults to Delivery, which is what the frames
+   * draw, but a customer arriving back from checkout carries their choice in
+   * the URL — otherwise going back to change a line and continuing again
+   * would silently put them back on delivery and add the ₱95 fee with
+   * nothing on screen saying it had changed.
+   */
+  initialFulfilment?: Fulfilment;
 }) {
   // Not persisted — see FulfilmentToggle's own comment on why this is plain
   // component state rather than a value read from and written to the cart.
-  const [fulfilment, setFulfilment] = React.useState<Fulfilment>("delivery");
+  const [fulfilment, setFulfilment] =
+    React.useState<Fulfilment>(initialFulfilment);
 
   if (lines.length === 0) {
     return <CartEmptyState />;
@@ -51,6 +65,7 @@ export function CartContents({
         totals={totals}
         ctaLabel={ctaLabel}
         showEstimate={showEstimate}
+        fulfilment={fulfilment}
       />
     </div>
   );

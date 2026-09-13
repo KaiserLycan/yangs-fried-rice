@@ -18,7 +18,11 @@ import {
   fetchProducts,
   type CategoryOption,
 } from "@/lib/menu/fetch-menu";
-import { cartItemCount, type CartLine } from "@/lib/menu/cart-totals";
+import {
+  cartItemCount,
+  type CartLine,
+  type Fulfilment,
+} from "@/lib/menu/cart-totals";
 import type { ProductListing } from "@/lib/menu/product-listing";
 import type { CustomerProfile } from "@/lib/profile/customer-profile";
 import { createClient } from "@/lib/supabase/client";
@@ -51,11 +55,18 @@ export function MenuScreen({
   initialProducts,
   initialCategories,
   cartLines,
+  initialFulfilment,
 }: {
   profile: CustomerProfile | null;
   initialProducts: ProductListing[];
   initialCategories: CategoryOption[];
   cartLines: CartLine[];
+  /**
+   * Passed straight through to the cart rail. Set when a customer comes back
+   * here from checkout, so the Delivery/Pickup toggle they left on is the one
+   * they return to — see `lib/checkout/fulfilment-param.ts`.
+   */
+  initialFulfilment?: Fulfilment;
 }) {
   const [search, setSearch] = React.useState("");
   const [selectedCategory, setSelectedCategory] = React.useState<string | null>(
@@ -236,7 +247,10 @@ export function MenuScreen({
           )}
         </main>
 
-        <DesktopCartRail lines={cartLines} />
+        <DesktopCartRail
+          lines={cartLines}
+          initialFulfilment={initialFulfilment}
+        />
       </div>
 
       <BottomTabBar current="menu" cartCount={cartItemCount(cartLines)} />
