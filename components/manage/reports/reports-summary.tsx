@@ -2,7 +2,7 @@ import { StatCard } from "@/components/manage/dashboard/stat-card";
 
 export function ReportsSummary() {
   return (
-    <div className="flex gap-3.5">
+    <div className="flex flex-col md:flex-row gap-3.5">
       <StatCard
         label="Total Revenue"
         value="₱ 142,500"
