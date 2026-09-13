@@ -132,18 +132,18 @@ export default function ManageOrdersPage() {
       });
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full gap-4 md:gap-0">
       {/* Header */}
-      <div className="flex items-center justify-between pb-[10px] mb-8">
-        <h1 className="font-display text-[30px] leading-normal text-[#1a1210]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-[10px] md:mb-8 gap-4 sm:gap-0">
+        <h1 className="font-display text-[24px] md:text-[30px] leading-normal text-[#1a1210]">
           ORDER MANAGEMENT
         </h1>
-        <Link href="/manage/kds" className="bg-[#CD7D39] hover:bg-orange-600 text-white px-6 py-2.5 rounded-lg font-semibold shadow-sm transition-colors">
+        <Link href="/manage/kds" className="bg-[#CD7D39] hover:bg-orange-600 text-white px-6 py-2.5 rounded-lg font-semibold shadow-sm transition-colors text-center w-full sm:w-auto">
           View KDS
         </Link>
       </div>
 
-      <div className="flex gap-8 flex-1 min-h-0">
+      <div className="flex flex-col md:flex-row gap-4 md:gap-8 flex-1 min-h-0">
         <OrderSidebar activeStatus={activeStatus} onStatusChange={setActiveStatus} />
         
         <div className="flex-1 flex flex-col min-h-0">
@@ -170,12 +170,14 @@ export default function ManageOrdersPage() {
         </div>
       </div>
       
+      {/* Modal and Dialog logic remains exactly the same below */}
       <OrderDetailModal 
         isOpen={selectedOrder !== null} 
         onClose={() => setSelectedOrder(null)} 
         order={selectedOrder} 
         onAction={(type, order) => setConfirmAction({ type, order })}
       />
+      // ... Dialog logic
 
       <Dialog 
         open={confirmAction !== null}

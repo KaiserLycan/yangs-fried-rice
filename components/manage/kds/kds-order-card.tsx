@@ -6,7 +6,7 @@ export function KdsOrderCard({ order }: { order: OrderData }) {
   const isConfirmed = order.status === "PREP";
 
   return (
-    <div className={`bg-[#fbf6ec] border border-[#3a2e2c] flex flex-col overflow-hidden rounded-[14px] w-full shadow-sm ${isConfirmed ? "h-[316px]" : "h-[359px]"}`}>
+    <div className="bg-[#fbf6ec] border border-[#3a2e2c] flex flex-col overflow-hidden rounded-[14px] w-full h-full min-h-[320px] shadow-sm">
       
       {/* Header Area */}
       <div className={`flex flex-col p-[12px] shrink-0 w-full ${isConfirmed ? "bg-[#ca762d]" : "bg-[#c0392b]"}`}>
@@ -56,7 +56,7 @@ export function KdsOrderCard({ order }: { order: OrderData }) {
       </div>
 
       {/* Footer Buttons */}
-      <div className="flex w-full shrink-0">
+      <div className="flex w-full shrink-0 mt-auto">
         <button className="bg-[#c0392b] flex-1 flex justify-center py-[13px] hover:brightness-110 transition-all border-t border-[#3a2e2c]/20">
           <span className="font-bold text-[13px] text-white tracking-[0.52px] uppercase">Cancel</span>
         </button>
