@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, screen } from "@testing-library/react";
 import { TrackOrderScreen } from "@/components/orders/track-order-screen";
+import { ToastProvider } from "@/components/ui/toast";
 import type { TrackedOrder } from "@/lib/orders/read-tracked-order";
 
 /**
@@ -70,6 +71,15 @@ function trackedOrder(over: Partial<TrackedOrder> = {}): TrackedOrder {
   };
 }
 
+/**
+ * The screen renders the cancel control, whose toast throws rather than
+ * no-oping when no provider is above it — so every render here gets one, the
+ * same way the page does.
+ */
+function renderScreen(order: TrackedOrder) {
+  return render(<TrackOrderScreen order={order} />, { wrapper: ToastProvider });
+}
+
 /** The Done / Now / — line under each stage label, in timeline order. */
 function stageStates() {
   return screen
@@ -84,7 +94,7 @@ beforeEach(() => {
 
 describe("TrackOrderScreen", () => {
   it("renders the order number, the stage headline and the arrival line", () => {
-    render(<TrackOrderScreen order={trackedOrder()} />);
+    renderScreen(trackedOrder());
 
     expect(screen.getByText("Order #0AE7")).toBeInTheDocument();
     expect(
@@ -96,7 +106,7 @@ describe("TrackOrderScreen", () => {
   });
 
   it("renders all four stages exactly once, at both breakpoints", () => {
-    render(<TrackOrderScreen order={trackedOrder()} />);
+    renderScreen(trackedOrder());
 
     // One DOM tree, not one per breakpoint — a second copy would read the
     // whole order twice to a screen reader.
@@ -106,14 +116,14 @@ describe("TrackOrderScreen", () => {
   });
 
   it("says something deliberate when the status is NULL rather than going blank", () => {
-    render(<TrackOrderScreen order={trackedOrder({ orderStatus: null })} />);
+    renderScreen(trackedOrder({ orderStatus: null }));
 
     expect(screen.getByRole("heading", { level: 1 }).textContent).not.toBe("");
     expect(stageStates()).toEqual(["—", "—", "—", "—"]);
   });
 
   it("falls back to a neutral arrival line when nothing has been estimated", () => {
-    render(<TrackOrderScreen order={trackedOrder({ arrivalWindow: null })} />);
+    renderScreen(trackedOrder({ arrivalWindow: null }));
 
     expect(
       screen.getByText("Arrival time to be confirmed · Delivery to 21 Mabini St"),
@@ -121,7 +131,7 @@ describe("TrackOrderScreen", () => {
   });
 
   it("moves the screen when the order row changes, with no refetch", () => {
-    render(<TrackOrderScreen order={trackedOrder()} />);
+    renderScreen(trackedOrder());
     expect(stageStates()).toEqual(["Now", "—", "—", "—"]);
 
     emit("order", { order_status: "preparing", cancelled_at: null });
@@ -133,7 +143,7 @@ describe("TrackOrderScreen", () => {
   });
 
   it("moves the screen when the delivery row changes", () => {
-    render(<TrackOrderScreen order={trackedOrder({ orderStatus: "preparing" })} />);
+    renderScreen(trackedOrder({ orderStatus: "preparing" }));
 
     // The realistic case: completing a delivery deliberately leaves
     // order_status alone, so only the delivery row moves.
@@ -143,7 +153,7 @@ describe("TrackOrderScreen", () => {
   });
 
   it("reacts to a cancellation arriving over the subscription", () => {
-    render(<TrackOrderScreen order={trackedOrder()} />);
+    renderScreen(trackedOrder());
 
     emit("order", {
       order_status: "cancelled",
@@ -153,31 +163,35 @@ describe("TrackOrderScreen", () => {
     expect(stageStates()).toEqual(["—", "—", "—", "—"]);
   });
 
-  it("tells the cancel slot whether cancelling is still allowed", () => {
-    const slot = vi.fn(() => <button type="button">Cancel order</button>);
-
-    const { rerender } = render(
-      <TrackOrderScreen order={trackedOrder()} cancelSlot={slot} />,
-    );
-    expect(slot).toHaveBeenLastCalledWith(true);
+  it("offers the cancel control only while the kitchen has not confirmed", () => {
+    const { rerender } = renderScreen(trackedOrder());
+    expect(
+      screen.getByRole("button", { name: "Cancel order" }),
+    ).toBeInTheDocument();
 
     rerender(
-      <TrackOrderScreen
-        order={trackedOrder({ orderStatus: "preparing" })}
-        cancelSlot={slot}
-      />,
+      <TrackOrderScreen order={trackedOrder({ orderStatus: "preparing" })} />,
     );
-    expect(slot).toHaveBeenLastCalledWith(false);
+    expect(
+      screen.queryByRole("button", { name: "Cancel order" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(/no longer be changed or cancelled/)).toBeInTheDocument();
   });
 
-  it("leaves no cancel slot rendered when the ticket that owns it passes none", () => {
-    render(<TrackOrderScreen order={trackedOrder()} />);
+  it("withdraws the cancel control when the kitchen confirms over the subscription", () => {
+    renderScreen(trackedOrder());
 
-    expect(screen.queryByText("Cancel order")).not.toBeInTheDocument();
+    emit("order", { order_status: "preparing", cancelled_at: null });
+
+    // The whole reason this screen subscribes: the control has to go away
+    // without a refresh, not stay pressable until the customer reloads.
+    expect(
+      screen.queryByRole("button", { name: "Cancel order" }),
+    ).not.toBeInTheDocument();
   });
 
   it("closes its channel when the screen goes away", () => {
-    const { unmount } = render(<TrackOrderScreen order={trackedOrder()} />);
+    const { unmount } = renderScreen(trackedOrder());
     unmount();
 
     expect(channelsRemoved).toBe(1);

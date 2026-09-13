@@ -198,3 +198,48 @@ This split is not incidental: `lib/actions/delivery.ts` says marking a
 delivery delivered "deliberately does NOT touch order.order_status — that
 field is shared." The screen takes whichever of the two rows is further
 along, so that behaviour is fine and needs no change.
+
+## 7. Cancel an order (ticket 07) — the one write on the tracking screen
+
+**Where:** `components/orders/cancel-order-control.tsx`, the "Yes, cancel
+order" button inside the confirmation. Pressing it closes the confirmation
+and raises the not-implemented toast; it writes nothing.
+
+**What the frontend has when this fires:** the `order_id` from the URL
+(`/orders/[orderId]`), and the fact that the screen considered the order
+cancellable at that moment. Nothing else — there is no reason field in the
+design, so the customer gives no reason.
+
+**What it needs to do:**
+1. Set `order.order_status` to whatever your vocabulary's cancelled value is
+   — see §6a, which is still open. The screen already treats a status
+   containing "cancel" as cancelled, so any spelling of it works today.
+2. Set `order.cancelled_at` to now.
+3. Set `order.cancelled_by` to the customer who did it. The column is a
+   `String?` in `storage_draft.md`, so please say whether it holds a customer
+   id, an employee id, or a role word — the frontend does not write it and
+   does not read it, but a rider- or staff-initiated cancellation later will
+   need the same column to mean something consistent.
+
+**The condition you must enforce server-side.** Cancel only if the kitchen
+has not confirmed the order. The frontend hides the control once the order
+reaches Preparing, but that check is a courtesy: the customer can have the
+confirmation open at the exact moment the kitchen confirms, and only the
+server can settle that race. **Reject the cancellation if `order_status` has
+moved past the received stage**, and treat a rejection as an ordinary
+outcome, not an error — a message the screen can show is enough.
+
+**On success, from the customer's point of view:** nothing else is needed.
+The tracking screen is subscribed to the `order` row (§6c), so the status
+change arrives on its own — the timeline empties, the headline changes, and
+the Cancel order control is replaced by the note. No redirect, no refetch,
+no success screen.
+
+**One correction to the ticket.** `.scratch/ordering-flow/issues/07-cancel-order.md`
+names a `cancellation_reason` column. There is no such column in
+`storage_draft.md` — it has `cancelled_at` and `cancelled_by` — and the design
+never asks the customer for a reason, so nothing needs adding.
+
+**Not in scope here:** cancelling on the staff or rider side, refunds, and
+notifying the kitchen. Those belong to their own tickets and none of them
+have a customer-facing frame yet.
