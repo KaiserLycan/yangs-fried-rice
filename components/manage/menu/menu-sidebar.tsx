@@ -48,7 +48,6 @@ export function MenuSidebar({
   }, [editingCategory]);
 
   const startEditing = (category: string) => {
-    // "All" is a virtual filter — it can't be renamed.
     if (category === "All") return;
     setEditingCategory(category);
     setEditValue(category);
@@ -78,16 +77,16 @@ export function MenuSidebar({
   };
 
   return (
-    <div className="flex w-[202px] shrink-0 flex-col gap-[6px] overflow-hidden p-[10px]">
-      {/* Header */}
-      <div className="flex w-full shrink-0 flex-col items-start justify-center rounded-[10px] py-[5px]">
+    <div className="flex w-full md:w-[202px] shrink-0 flex-row md:flex-col gap-2 md:gap-[6px] overflow-x-auto md:overflow-hidden p-2 md:p-[10px] scrollbar-hide">
+      {/* Header - Hidden on mobile to save horizontal space */}
+      <div className="hidden md:flex w-full shrink-0 flex-col items-start justify-center rounded-[10px] py-[5px]">
         <span className="text-[13px] font-bold text-[#7a6a60]">
           Categories
         </span>
       </div>
 
       {/* Categories List */}
-      <div className="flex shrink-0 flex-col gap-[6px]">
+      <div className="flex flex-row md:flex-col shrink-0 gap-2 md:gap-[6px]">
         {categories.map((category) => {
           const isAll = category === "All";
           const isEditing = editingCategory === category;
@@ -104,7 +103,7 @@ export function MenuSidebar({
                   onChange={(e) => setEditValue(e.target.value)}
                   onKeyDown={handleKeyDown}
                   onBlur={commitRename}
-                  className="min-w-0 flex-1 bg-transparent text-[13px] font-bold text-[#1a1210] outline-none"
+                  className="min-w-[100px] flex-1 bg-transparent text-[13px] font-bold text-[#1a1210] outline-none"
                 />
                 <button
                   type="button"
@@ -131,12 +130,11 @@ export function MenuSidebar({
               <button
                 onClick={() => onSelectCategory(category)}
                 onDoubleClick={() => startEditing(category)}
-                className="flex flex-1 items-start justify-start py-[10px] pl-[12px] pr-[4px]"
+                className="flex flex-1 items-start justify-start py-[8px] md:py-[10px] px-3 md:pl-[12px] md:pr-[4px] whitespace-nowrap"
               >
                 <span className="text-[13px] font-bold">{category}</span>
               </button>
 
-              {/* Delete button — hidden for "All", shown on hover for others */}
               {!isAll && (
                 <button
                   type="button"
@@ -144,7 +142,7 @@ export function MenuSidebar({
                     e.stopPropagation();
                     onDeleteCategory(category);
                   }}
-                  className="mr-[8px] flex h-5 w-5 shrink-0 items-center justify-center rounded opacity-0 transition-opacity group-hover:opacity-100 text-[#7a6a60] hover:text-[#bf4342] hover:bg-[#bf4342]/10"
+                  className="mr-[8px] hidden md:flex h-5 w-5 shrink-0 items-center justify-center rounded opacity-0 transition-opacity group-hover:opacity-100 text-[#7a6a60] hover:text-[#bf4342] hover:bg-[#bf4342]/10"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -156,7 +154,7 @@ export function MenuSidebar({
         {/* Add Category */}
         <button
           onClick={onAddCategory}
-          className="flex shrink-0 items-center gap-[6px] rounded-[10px] border border-dashed border-[#ddcdb8] py-[10px] pl-[12px] pr-[16px] text-[#7a6a60] transition-colors hover:bg-black/5 hover:text-[#5a4a42]"
+          className="flex shrink-0 items-center gap-[6px] rounded-[10px] border border-dashed border-[#ddcdb8] py-[8px] md:py-[10px] px-3 md:pl-[12px] md:pr-[16px] text-[#7a6a60] transition-colors hover:bg-black/5 hover:text-[#5a4a42] whitespace-nowrap"
         >
           <Plus className="h-3.5 w-3.5" />
           <span className="text-[13px] font-bold">Add Category</span>
