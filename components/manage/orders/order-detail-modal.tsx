@@ -1,5 +1,5 @@
 import * as React from "react";
-import { OrderData } from "./order-card";
+import { OrderData } from "@/lib/mock-orders";
 import { cn } from "@/lib/utils";
 import { DialogRoot } from "@/components/ui/dialog";
 
