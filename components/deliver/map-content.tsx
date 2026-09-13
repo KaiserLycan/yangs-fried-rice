@@ -70,9 +70,10 @@ function RoutingMachine({ origin, destination }: { origin: DeliveryLocation, des
         },
         show: false, // Hide the turn-by-turn instruction box
         addWaypoints: false,
+        // @ts-ignore - draggableWaypoints is a valid option but missing from some type definitions
         draggableWaypoints: false,
         fitSelectedRoutes: true,
-        createMarker: (i, waypoint, n) => {
+        createMarker: (i: number, waypoint: any, n: number) => {
           return L.marker(waypoint.latLng, {
             icon: createMarkerIcon(i === 0)
           });
