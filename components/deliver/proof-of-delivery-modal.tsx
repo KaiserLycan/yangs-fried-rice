@@ -114,7 +114,6 @@ export function ProofOfDeliveryModal({ isOpen, onClose, deliveryId, customerName
           <div className="pt-2">
             <Button 
               className="w-full py-6 text-[16px]" 
-              size="lg"
               onClick={handleComplete}
               disabled={!proofPreview}
             >

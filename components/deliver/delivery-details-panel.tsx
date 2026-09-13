@@ -60,7 +60,7 @@ export function DeliveryDetailsPanel({ deliveryId }: { deliveryId: string }) {
               Instructions
             </p>
             <p className="text-[14px] text-[#1A1210] italic">
-              "{delivery.notes}"
+              &quot;{delivery.notes}&quot;
             </p>
           </div>
         </div>
@@ -85,7 +85,6 @@ export function DeliveryDetailsPanel({ deliveryId }: { deliveryId: string }) {
         <div className="mt-auto pt-4">
           <Button 
             className="w-full py-6 text-[16px]" 
-            size="lg"
             onClick={() => setIsProofModalOpen(true)}
           >
             Arrived & Upload Proof
