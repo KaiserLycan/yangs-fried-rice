@@ -40,19 +40,19 @@ export default function ManageCustomersPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [showCount, setShowCount] = useState(10);
-  
+
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerData | null>(null);
   const [customerToDelete, setCustomerToDelete] = useState<CustomerData | null>(null);
   const [nameSort, setNameSort] = useState<"asc" | "desc" | "none">("none");
 
   // Derive filtered and sorted customers
   let filteredCustomers = [...dummyCustomers];
-  
+
   if (searchQuery) {
     const q = searchQuery.toLowerCase();
-    filteredCustomers = filteredCustomers.filter(c => 
-      c.name.toLowerCase().includes(q) || 
-      c.email.toLowerCase().includes(q) || 
+    filteredCustomers = filteredCustomers.filter(c =>
+      c.name.toLowerCase().includes(q) ||
+      c.email.toLowerCase().includes(q) ||
       c.contact.includes(q)
     );
   }
@@ -72,7 +72,7 @@ export default function ManageCustomersPage() {
         </h1>
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-[#A2938A]" />
-          <input 
+          <input
             type="text"
             placeholder="Search..."
             value={searchQuery}
@@ -84,11 +84,11 @@ export default function ManageCustomersPage() {
 
       {/* Table Container */}
       <div className="flex-1 flex flex-col min-h-0">
-        
+
         <div className="bg-white rounded-[12px] overflow-hidden flex flex-col min-h-0 border border-[#F0E6D8] shadow-[0_2px_10px_rgba(26,18,16,0.02)]">
           {/* Table Head */}
           <div className="grid grid-cols-[1.5fr_1.5fr_1fr_1fr] px-8 py-5 border-b border-[#F0E6D8] bg-[#EAE0D5] text-[12px] font-bold text-[#7A6A60] uppercase tracking-[1px]">
-            <button 
+            <button
               className="flex items-center gap-2 hover:text-[#4A3D36] transition-colors focus:outline-none w-fit"
               onClick={() => setNameSort(prev => prev === 'none' ? 'asc' : prev === 'asc' ? 'desc' : 'none')}
             >
@@ -108,12 +108,11 @@ export default function ManageCustomersPage() {
               </div>
             ) : (
               filteredCustomers.map((customer, index) => (
-                <div 
+                <div
                   key={customer.id}
                   onClick={() => setSelectedCustomer(customer)}
-                  className={`grid grid-cols-[1.5fr_1.5fr_1fr_1fr] px-8 py-5 cursor-pointer transition-colors hover:bg-[#FAF7F0] ${
-                    index !== filteredCustomers.length - 1 ? "border-b border-[#F0E6D8]" : ""
-                  }`}
+                  className={`grid grid-cols-[1.5fr_1.5fr_1fr_1fr] px-8 py-5 cursor-pointer transition-colors hover:bg-[#FAF7F0] ${index !== filteredCustomers.length - 1 ? "border-b border-[#F0E6D8]" : ""
+                    }`}
                 >
                   <div className="font-bold text-[#1A1210] flex items-center text-[15px]">{customer.name}</div>
                   <div className="font-bold text-[#1A1210] flex items-center text-[15px]">{customer.email}</div>
@@ -127,7 +126,7 @@ export default function ManageCustomersPage() {
 
         {/* Pagination */}
         <div className="mt-8 mb-4 flex justify-end">
-          <ManagePagination 
+          <ManagePagination
             currentPage={currentPage}
             totalPages={3}
             onPageChange={setCurrentPage}
@@ -136,7 +135,7 @@ export default function ManageCustomersPage() {
       </div>
 
       {/* Customer Detail Modal */}
-      <CustomerModal 
+      <CustomerModal
         isOpen={selectedCustomer !== null}
         onClose={() => setSelectedCustomer(null)}
         customer={selectedCustomer}
@@ -157,7 +156,7 @@ export default function ManageCustomersPage() {
         footer={
           <>
             <Button variant="outline" onClick={() => setCustomerToDelete(null)}>Cancel</Button>
-            <Button 
+            <Button
               variant="confirm"
               onClick={() => {
                 console.log("Deleting customer:", customerToDelete?.id);

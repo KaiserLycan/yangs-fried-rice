@@ -15,23 +15,23 @@ export function ManagePagination({ currentPage, totalPages, onPageChange, classN
       <div className="flex h-[36px] w-[56px] items-center justify-center rounded-full border border-[#DDCDB8] bg-white">
         <span className="text-[13px] font-bold text-[#1A1210]">10</span>
       </div>
-      
+
       <div className="flex items-center gap-1 ml-4">
-        <button 
+        <button
           onClick={() => onPageChange(1)}
           disabled={currentPage === 1}
           className="flex h-[36px] w-[36px] items-center justify-center rounded-full bg-white text-[#DDCDB8] transition-colors hover:bg-black/5 disabled:opacity-50 disabled:pointer-events-none"
         >
           <ChevronsLeft className="h-4 w-4" />
         </button>
-        <button 
+        <button
           onClick={() => onPageChange(Math.max(1, currentPage - 1))}
           disabled={currentPage === 1}
           className="flex h-[36px] w-[36px] items-center justify-center rounded-full bg-white text-[#DDCDB8] transition-colors hover:bg-black/5 disabled:opacity-50 disabled:pointer-events-none"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
-        
+
         {Array.from({ length: totalPages }).map((_, i) => {
           const page = i + 1;
           const isActive = currentPage === page;
@@ -41,7 +41,7 @@ export function ManagePagination({ currentPage, totalPages, onPageChange, classN
               onClick={() => onPageChange(page)}
               className={cn(
                 "flex h-[36px] w-[36px] items-center justify-center rounded-full transition-colors hover:bg-black/5 text-[14px]",
-                isActive 
+                isActive
                   ? "bg-white text-[#1A1210] font-bold border border-[#DDCDB8]"
                   : "text-[#7A6A60] font-medium"
               )}
@@ -50,15 +50,15 @@ export function ManagePagination({ currentPage, totalPages, onPageChange, classN
             </button>
           );
         })}
-        
-        <button 
+
+        <button
           onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
           disabled={currentPage === totalPages}
           className="flex h-[36px] w-[36px] items-center justify-center rounded-full bg-white text-[#1A1210] transition-colors hover:bg-black/5 disabled:opacity-50 disabled:pointer-events-none disabled:text-[#DDCDB8]"
         >
           <ChevronRight className="h-4 w-4" />
         </button>
-        <button 
+        <button
           onClick={() => onPageChange(totalPages)}
           disabled={currentPage === totalPages}
           className="flex h-[36px] w-[36px] items-center justify-center rounded-full bg-white text-[#1A1210] transition-colors hover:bg-black/5 disabled:opacity-50 disabled:pointer-events-none disabled:text-[#DDCDB8]"
