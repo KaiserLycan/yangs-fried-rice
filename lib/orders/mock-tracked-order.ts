@@ -1,7 +1,8 @@
 import type { TrackedOrder } from "@/lib/orders/read-tracked-order";
 
 /**
- * A stand-in order so the tracking screen renders before any order exists.
+ * Stand-in orders so the tracking screen renders before any order exists,
+ * one per state the screen can be in.
  *
  * Nothing writes an `order` row yet — placing an order is still a stubbed
  * write — so `readTrackedOrder` returns null for every customer and the page
@@ -11,33 +12,118 @@ import type { TrackedOrder } from "@/lib/orders/read-tracked-order";
  * `components/manage/dashboard/mock-data.ts`): commit the fixture so the
  * screen demonstrates itself.
  *
- * It is a *fallback*, not a replacement. The real read runs first, so a
- * genuine order renders genuinely the moment one exists — see
+ * These are *fallbacks*, not replacements. The real read runs first, so a
+ * genuine order renders genuinely and no URL can override it — see
  * `app/(account)/orders/[orderId]/page.tsx`.
  *
- * TODO: delete this file and drop the fallback once placing an order writes
- * a real row. Tracked as the "Place an order" write in
- * `docs/reference/ordering-flow-handoff.md`.
+ * ## Picking a state from the URL
  *
- * The values mirror frame `132:481` so the screen matches the design when
- * there is nothing else to show: order #1042, an order the kitchen has not
- * confirmed, arriving in 35–45 minutes, going to 21 Mabini St.
+ * `/orders/1042?example=cancelled` renders the cancelled state. That exists
+ * so the PM and the tester can see every state from the preview link without
+ * running the project or asking for a code change — two of these states
+ * (`cancelled`, `unknown`) have no frame at all and were otherwise
+ * unreachable outside the tests.
+ *
+ * ## Turning it off
+ *
+ * Delete this file. The page's `?? mockTrackedOrder(...)` then stops
+ * compiling and TypeScript points at the one line to remove. There is no
+ * runtime flag to remember, and nothing keeps working silently.
+ *
+ * TODO: do exactly that once placing an order writes a real row. Tracked as
+ * the "Place an order" write in `docs/reference/ordering-flow-handoff.md`.
  */
-export function mockTrackedOrder(orderId: string): TrackedOrder {
+
+export const EXAMPLE_STATES = [
+  "received",
+  "preparing",
+  "out_for_delivery",
+  "delivered",
+  "cancelled",
+  "unknown",
+] as const;
+
+export type ExampleState = (typeof EXAMPLE_STATES)[number];
+
+export const DEFAULT_EXAMPLE_STATE: ExampleState = "received";
+
+/**
+ * The fields every example shares. Mirrors frame `132:481`: order #1042,
+ * arriving in 35–45 minutes, going to 21 Mabini St, with Ariel S. riding —
+ * the desktop frame names a rider even at the first stage, so these do too.
+ */
+const BASE = {
+  orderNumber: "1042",
+  orderStatus: null as string | null,
+  cancelledAt: null as string | null,
+  deliveryStatus: null as string | null,
+  deliveryId: null as string | null,
+  orderType: "Delivery",
+  arrivalWindow: "35–45 min" as string | null,
+  destination: "21 Mabini St" as string | null,
+  riderName: "Ariel S." as string | null,
+};
+
+/**
+ * Only the status fields differ between examples, which is the point: they
+ * are the only fields the screen resolves a stage from.
+ *
+ * The last three deserve a note, because they are not arbitrary. Both
+ * `out_for_delivery` and `delivered` leave `orderStatus` on "preparing" on
+ * purpose — `lib/actions/delivery.ts` deliberately does not touch
+ * `order_status`, so a real order in those states genuinely looks like this,
+ * and an example that tidied it up would hide the exact disagreement
+ * `lib/orders/order-stage.ts` exists to resolve. `unknown` is a NULL status,
+ * which a nullable free-text column produces for real.
+ */
+const EXAMPLES: Record<ExampleState, Partial<typeof BASE>> = {
+  received: { orderStatus: "received" },
+  preparing: { orderStatus: "preparing" },
+  out_for_delivery: {
+    orderStatus: "preparing",
+    deliveryStatus: "out_for_delivery",
+  },
+  delivered: {
+    orderStatus: "preparing",
+    deliveryStatus: "delivered",
+  },
+  cancelled: {
+    orderStatus: "cancelled",
+    cancelledAt: "2026-09-13T02:00:00Z",
+  },
+  unknown: {
+    orderStatus: null,
+    // Nothing is known about this order, so the arrival line and the rider
+    // are absent too — which is also the only place the "Arrival time to be
+    // confirmed" fallback can be seen.
+    arrivalWindow: null,
+    riderName: null,
+  },
+};
+
+/**
+ * Folded the same way `order-stage.ts` folds a status, so `?example=Out For
+ * Delivery` and `?example=out-for-delivery` both land on the same example
+ * rather than silently falling back.
+ */
+function normaliseExample(value: string | string[] | undefined): ExampleState {
+  // A repeated query parameter (`?example=a&example=b`) arrives as an array.
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (raw === undefined) return DEFAULT_EXAMPLE_STATE;
+
+  const folded = raw.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return (EXAMPLE_STATES as readonly string[]).includes(folded)
+    ? (folded as ExampleState)
+    : DEFAULT_EXAMPLE_STATE;
+}
+
+export function mockTrackedOrder(
+  orderId: string,
+  example?: string | string[],
+): TrackedOrder {
   return {
+    ...BASE,
+    ...EXAMPLES[normaliseExample(example)],
     orderId,
-    orderNumber: "1042",
-    orderStatus: "received",
-    cancelledAt: null,
-    deliveryStatus: null,
-    deliveryId: null,
-    orderType: "Delivery",
-    arrivalWindow: "35–45 min",
-    destination: "21 Mabini St",
-    // The frame captions the map "Rider Ariel S. · 2.4 km away". The distance
-    // has no column anywhere and is left out of the real read, so it is left
-    // out here too rather than making the fixture promise something the live
-    // screen cannot deliver.
-    riderName: "Ariel S.",
   };
 }

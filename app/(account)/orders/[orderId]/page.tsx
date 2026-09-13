@@ -25,8 +25,15 @@ import { readCustomerProfile } from "@/lib/profile/customer-profile";
  */
 export default async function OrderDetailPage({
   params,
+  searchParams,
 }: {
   params: { orderId: string };
+  /**
+   * `?example=cancelled` picks which stand-in state to show, and is read
+   * only when the real read found nothing — see `mockTrackedOrder`. It
+   * cannot override a genuine order.
+   */
+  searchParams: { example?: string | string[] };
 }) {
   const [profile, order] = await Promise.all([
     readCustomerProfile(),
@@ -42,7 +49,9 @@ export default async function OrderDetailPage({
           order control and the note that replaces it; this ticket only has to
           leave the slot, and the screen already computes whether cancelling
           is still allowed. */}
-      <TrackOrderScreen order={order ?? mockTrackedOrder(params.orderId)} />
+      <TrackOrderScreen
+        order={order ?? mockTrackedOrder(params.orderId, searchParams.example)}
+      />
     </ToastProvider>
   );
 }
