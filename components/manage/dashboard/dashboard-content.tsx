@@ -46,15 +46,9 @@ export function DashboardContent() {
 
   return (
     <div className="flex flex-col gap-5">
-      {/* ----------------------------------------------------------------
-       * Page header
-       * TODO: BACKEND INTEGRATION — Replace MOCK_DATE and MOCK_BRANCH
-       * with real values from the server. MOCK_DATE should use the
-       * server's timezone; MOCK_BRANCH should reflect the employee's
-       * assigned branch or a branch selector.
-       * --------------------------------------------------------------- */}
-      <div className="flex items-baseline gap-3.5">
-        <h1 className="font-display text-[30px] leading-normal text-[#1a1210]">
+      {/* Page header */}
+      <div className="flex flex-col md:flex-row md:items-baseline gap-1 md:gap-3.5">
+        <h1 className="font-display text-[24px] md:text-[30px] leading-normal text-[#1a1210]">
           Today at a glance
         </h1>
         <span className="text-[13px] text-[#7a6a60]">
@@ -62,12 +56,8 @@ export function DashboardContent() {
         </span>
       </div>
 
-      {/* ----------------------------------------------------------------
-       * KPI stat cards row
-       * TODO: BACKEND INTEGRATION — Replace MOCK_STATS with real-time
-       * data. See mock-data.ts for the expected Supabase queries.
-       * --------------------------------------------------------------- */}
-      <div className="flex gap-3.5">
+      {/* KPI stat cards row */}
+      <div className="flex flex-col md:flex-row gap-3.5">
         <StatCard
           label="Sales today"
           value={MOCK_STATS.salesToday.amount}
@@ -88,35 +78,23 @@ export function DashboardContent() {
         />
       </div>
 
-      {/* ----------------------------------------------------------------
-       * Grid: Sales Chart + Top Sellers / Top Rated
-       *
-       * Layout matches Figma exactly:
-       *   - 2-column grid: left 1.4fr (chart), right 1fr (rankings)
-       *   - 2 rows of 262px each
-       *   - Chart sits in row 1, col 1
-       *   - Top Sellers sits in row 1, col 2
-       *   - Top Rated sits in row 2, col 2
-       *
-       * TODO: BACKEND INTEGRATION — Replace MOCK_WEEKLY_SALES,
-       * MOCK_TOP_SELLERS, and MOCK_TOP_RATED with real data.
-       * --------------------------------------------------------------- */}
-      <div className="grid grid-cols-[1.4fr_1fr] grid-rows-[262px_262px] gap-4">
-        {/* Sales chart — row 1, col 1 */}
-        <div className="row-span-1">
+      {/* Grid: Sales Chart + Top Sellers / Top Rated */}
+      <div className="flex flex-col md:grid md:grid-cols-[1.4fr_1fr] md:grid-rows-[262px_262px] gap-4">
+        {/* Sales chart */}
+        <div className="md:row-span-1">
           <SalesChart data={MOCK_WEEKLY_SALES} />
         </div>
 
-        {/* Top Sellers — row 1, col 2 */}
-        <div className="row-span-1">
+        {/* Top Sellers */}
+        <div className="md:row-span-1">
           <ProductRanking title="Top sellers" items={MOCK_TOP_SELLERS} />
         </div>
 
-        {/* Empty space — row 2, col 1 (chart doesn't span two rows) */}
-        <div />
+        {/* Empty space — hide on mobile so it doesn't create a massive gap */}
+        <div className="hidden md:block" />
 
-        {/* Top Rated — row 2, col 2 */}
-        <div className="row-span-1">
+        {/* Top Rated */}
+        <div className="md:row-span-1">
           <ProductRanking title="Top rated" items={MOCK_TOP_RATED} />
         </div>
       </div>
