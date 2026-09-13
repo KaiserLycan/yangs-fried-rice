@@ -1,5 +1,5 @@
 import { MOCK_MENU_ITEMS, MenuItem } from "@/components/manage/menu/mock-menu";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { ManagePagination } from "@/components/manage/manage-pagination";
 import Image from "next/image";
 
 interface MenuGridProps {
@@ -72,37 +72,12 @@ export function MenuGrid({ searchText, selectedCategory, onEditItem }: MenuGridP
       </div>
 
       {/* Pagination (Static Mock for now, matching Figma) */}
-      <div className="flex items-center justify-end gap-2 pb-[10px] pr-[10px]">
-        <span className="text-[13px] text-[#7a6a60]">Show</span>
-        <div className="flex h-8 w-[50px] items-center justify-center rounded-[8px] border border-[#ddcdb8] bg-white">
-          <span className="text-[13px] font-bold text-[#1a1210]">10</span>
-        </div>
-        
-        <div className="flex items-center gap-1 ml-4">
-          <button className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-white text-[#ddcdb8] transition-colors hover:bg-black/5">
-            <ChevronsLeft className="h-4 w-4" />
-          </button>
-          <button className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-white text-[#ddcdb8] transition-colors hover:bg-black/5">
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          
-          <button className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-white text-[#1a1210] font-bold transition-colors hover:bg-black/5 border border-[#ddcdb8]">
-            1
-          </button>
-          <button className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[#7a6a60] transition-colors hover:bg-black/5">
-            2
-          </button>
-          <button className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[#7a6a60] transition-colors hover:bg-black/5">
-            3
-          </button>
-          
-          <button className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-white text-[#1a1210] transition-colors hover:bg-black/5">
-            <ChevronRight className="h-4 w-4" />
-          </button>
-          <button className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-white text-[#1a1210] transition-colors hover:bg-black/5">
-            <ChevronsRight className="h-4 w-4" />
-          </button>
-        </div>
+      <div className="pb-[10px] pr-[10px]">
+        <ManagePagination 
+          currentPage={1} 
+          totalPages={3} 
+          onPageChange={() => {}} 
+        />
       </div>
     </div>
   );
