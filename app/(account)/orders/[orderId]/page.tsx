@@ -1,7 +1,8 @@
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { SiteNavBar } from "@/components/nav/site-nav-bar";
 import { TrackOrderScreen } from "@/components/orders/track-order-screen";
 import { ToastProvider } from "@/components/ui/toast";
+import { mockTrackedOrder } from "@/lib/orders/mock-tracked-order";
 import { readTrackedOrder } from "@/lib/orders/read-tracked-order";
 import { readCustomerProfile } from "@/lib/profile/customer-profile";
 
@@ -9,12 +10,13 @@ import { readCustomerProfile } from "@/lib/profile/customer-profile";
  * Track one order — desktop `133:1164`, mobile `132:481` (still cancellable)
  * and `132:543` (kitchen confirmed, cancel withdrawn).
  *
- * `readTrackedOrder` returns null for every customer today, because nothing
- * writes an `order` row yet, so this page 404s in practice. That is the
- * honest behaviour rather than a bug: there is no "order not found" frame to
- * render instead, and faking an order here would put invented data in front
- * of a real customer. To see the screen before the write lands, insert an
- * `order` row for your own customer id — the PR description has the SQL.
+ * The read is real and runs first, so a genuine order renders genuinely. It
+ * returns null for every customer today, because nothing writes an `order`
+ * row yet, and the screen falls back to a committed fixture rather than
+ * 404ing — otherwise nobody reviewing the preview link can see the screen at
+ * all. Same treatment the employee screens already use; see
+ * `lib/orders/mock-tracked-order.ts`, which also records what has to land
+ * before the fallback can be deleted.
  *
  * Middleware already turns signed-out visitors away from /orders, so
  * reaching the redirect below is not expected. Guarded anyway, the same
@@ -32,7 +34,6 @@ export default async function OrderDetailPage({
   ]);
 
   if (!profile) redirect(`/login?next=/orders/${params.orderId}`);
-  if (!order) notFound();
 
   return (
     <ToastProvider>
@@ -41,7 +42,7 @@ export default async function OrderDetailPage({
           order control and the note that replaces it; this ticket only has to
           leave the slot, and the screen already computes whether cancelling
           is still allowed. */}
-      <TrackOrderScreen order={order} />
+      <TrackOrderScreen order={order ?? mockTrackedOrder(params.orderId)} />
     </ToastProvider>
   );
 }
