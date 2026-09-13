@@ -66,23 +66,23 @@ export default function ManageMenuPage() {
   );
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col gap-4 md:gap-0">
       {/* Header Row */}
-      <div className="flex items-center justify-between pb-[10px]">
-        <h1 className="font-display text-[30px] leading-normal text-[#1a1210]">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-0 pb-[10px]">
+        <h1 className="font-display text-[24px] md:text-[30px] leading-normal text-[#1a1210]">
           MENU MANAGEMENT
         </h1>
         
-        <div className="flex items-center gap-[20px]">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 md:gap-[20px]">
           {/* Search Input */}
-          <div className="flex w-[442px] items-center gap-[10px] rounded-[10px] border border-[#ddcdb8] bg-white px-[14px] py-[10px]">
+          <div className="flex w-full md:w-[442px] items-center gap-[10px] rounded-[10px] border border-[#ddcdb8] bg-white px-[14px] py-[10px]">
             <Search className="h-4 w-4 text-[#7a6a60]" />
             <input
               type="text"
               placeholder="Search..."
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
-              className="w-full bg-transparent text-[13px] text-[#7a6a60] outline-none placeholder:text-[#7a6a60]"
+              className="w-full bg-transparent text-[13px] md:text-[15px] text-[#7a6a60] outline-none placeholder:text-[#7a6a60]"
             />
           </div>
           
@@ -91,7 +91,7 @@ export default function ManageMenuPage() {
             onClick={() => setIsAddModalOpen(true)}
             className="flex items-center justify-center rounded-[10px] bg-[#e8541f] px-[18px] py-[11px] transition-opacity hover:opacity-90"
           >
-            <span className="text-[13px] font-bold text-white">
+            <span className="text-[13px] md:text-[15px] font-bold text-white whitespace-nowrap">
               + Add item
             </span>
           </button>
@@ -99,7 +99,7 @@ export default function ManageMenuPage() {
       </div>
 
       {/* Main Content: Sidebar + Grid */}
-      <div className="flex flex-1 gap-[10px] overflow-hidden pt-[10px]">
+      <div className="flex flex-col md:flex-row flex-1 gap-4 md:gap-[10px] overflow-hidden pt-[10px]">
         {/* Sidebar */}
         <MenuSidebar 
           categories={categories}
