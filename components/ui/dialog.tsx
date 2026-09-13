@@ -28,6 +28,7 @@ export function Dialog({
   title,
   description,
   tone = "default",
+  placement = "center",
   children,
   footer,
 }: {
@@ -36,10 +37,23 @@ export function Dialog({
   title: string;
   description?: React.ReactNode;
   tone?: "default" | "danger";
+  /**
+   * Where the panel sits on a small screen. `center` is the profile screen's
+   * dialog, centred at every width. `sheet` is the cancel-order frames
+   * (`132:603`, `133:1251`): anchored to the bottom edge on mobile, and the
+   * same centred 440px modal from `md` up.
+   *
+   * One component with a placement rather than a second Sheet component:
+   * everything a confirmation has to get right — Escape, focus, inertness,
+   * top-layer stacking — is identical either way, and only the panel's
+   * position, radius, padding and heading size move.
+   */
+  placement?: "center" | "sheet";
   /** Optional body between the description and the footer. */
   children?: React.ReactNode;
   footer: React.ReactNode;
 }) {
+  const sheet = placement === "sheet";
   const ref = React.useRef<HTMLDialogElement>(null);
   const titleId = React.useId();
 
@@ -75,13 +89,22 @@ export function Dialog({
       // outside it — which is the whole of the panel's glow and drop shadow.
       // Without this the modal renders as a flat rectangle on a dimmed page.
       className={cn(
-        "m-auto w-[calc(100%-2rem)] max-w-[440px] overflow-visible bg-transparent p-0",
+        "max-w-[440px] overflow-visible bg-transparent p-0",
+        // A sheet is pushed to the bottom edge by the auto margin above it,
+        // and inset 18px from the three edges it touches. From `md` up it is
+        // the centred modal again, so the desktop frame is unaffected.
+        sheet
+          ? "mx-auto mb-[18px] mt-auto w-[calc(100%-36px)] md:my-auto md:w-[calc(100%-2rem)]"
+          : "m-auto w-[calc(100%-2rem)]",
         "backdrop:bg-foreground/40",
       )}
     >
       <div
         className={cn(
-          "flex flex-col gap-[12px] rounded-[20px] bg-background p-[26px]",
+          "flex flex-col gap-[12px] bg-background",
+          sheet
+            ? "rounded-[22px] p-[22px] md:rounded-[20px] md:p-[26px]"
+            : "rounded-[20px] p-[26px]",
           tone === "danger"
             ? "border border-primary shadow-[0_0_10px_hsl(var(--primary))]"
             : "shadow-[0_30px_35px_rgba(26,18,16,0.26)]",
@@ -90,7 +113,8 @@ export function Dialog({
         <h2
           id={titleId}
           className={cn(
-            "font-display text-[26px] leading-normal",
+            "font-display leading-normal",
+            sheet ? "text-[22px] md:text-[26px]" : "text-[26px]",
             tone === "danger" ? "text-primary" : "text-foreground",
           )}
         >
@@ -105,7 +129,16 @@ export function Dialog({
 
         {children}
 
-        <div className="flex justify-center gap-[10px] pt-[6px]">{footer}</div>
+        {/* The sheet stacks its buttons because a 390px screen has no room
+            for two side by side; the desktop modal keeps them in a row. */}
+        <div
+          className={cn(
+            "flex justify-center gap-[10px] pt-[6px]",
+            sheet && "flex-col md:flex-row",
+          )}
+        >
+          {footer}
+        </div>
       </div>
     </dialog>
   );

@@ -5,11 +5,11 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import {
   headlineFor,
-  isCancellable,
   resolveOrderProgress,
   timelineStages,
 } from "@/lib/orders/order-stage";
 import type { TrackedOrder } from "@/lib/orders/read-tracked-order";
+import { CancelOrderControl } from "@/components/orders/cancel-order-control";
 import { LiveMapPanel } from "@/components/orders/live-map-panel";
 import { OrderTimeline } from "@/components/orders/order-timeline";
 
@@ -33,18 +33,7 @@ import { OrderTimeline } from "@/components/orders/order-timeline";
  * interactivity — the page around it stays a Server Component and does the
  * reading.
  */
-export function TrackOrderScreen({
-  order,
-  cancelSlot,
-}: {
-  order: TrackedOrder;
-  /**
-   * Ticket 07 owns the Cancel order control and the note that replaces it.
-   * This screen only reserves the space and says whether cancelling is still
-   * allowed.
-   */
-  cancelSlot?: (cancellable: boolean) => React.ReactNode;
-}) {
+export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
   const serverStatus = {
     orderStatus: order.orderStatus,
     cancelledAt: order.cancelledAt,
@@ -140,7 +129,6 @@ export function TrackOrderScreen({
 
   const progress = resolveOrderProgress(status);
   const stages = timelineStages(progress);
-  const cancellable = isCancellable(progress);
 
   const arrival = order.arrivalWindow
     ? `Arriving ${order.arrivalWindow}`
@@ -181,11 +169,18 @@ export function TrackOrderScreen({
 
         <div className="flex flex-col items-start p-[20px] md:col-start-1 md:row-start-2 md:rounded-lg md:border md:border-rule md:bg-white md:p-[20px]">
           <OrderTimeline stages={stages} />
-          {cancelSlot ? (
-            <div className="w-full pt-[6px] md:pt-0">
-              {cancelSlot(cancellable)}
-            </div>
-          ) : null}
+          {/* Ticket 06 left this as a render-prop slot for ticket 07 to fill.
+              A function prop cannot cross the server/client boundary, and the
+              page that renders this screen is a Server Component, so the
+              control is rendered here instead — it needs the live
+              `cancellable` this component already computes, and nothing else
+              renders this screen. */}
+          <div className="w-full pt-[6px] md:pt-0">
+            <CancelOrderControl
+              orderNumber={order.orderNumber}
+              progress={progress}
+            />
+          </div>
         </div>
       </div>
     </div>

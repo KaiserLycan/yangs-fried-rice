@@ -45,10 +45,6 @@ export default async function OrderDetailPage({
   return (
     <ToastProvider>
       <SiteNavBar profile={profile} currentSection="track-order" />
-      {/* `cancelSlot` is left unpassed on purpose. Ticket 07 owns the Cancel
-          order control and the note that replaces it; this ticket only has to
-          leave the slot, and the screen already computes whether cancelling
-          is still allowed. */}
       <TrackOrderScreen
         order={order ?? mockTrackedOrder(params.orderId, searchParams.example)}
       />
