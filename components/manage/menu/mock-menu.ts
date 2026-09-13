@@ -8,6 +8,10 @@ export interface MenuItem {
   rating: number;
   category: MenuCategory;
   image: string;
+  // CHANGED: Added `available` field to track stock status.
+  // WHY: The Figma design includes an "Available?" toggle for managing items.
+  // TODO (Backend): Ensure the `menu_items` DB table has an `is_available` boolean column.
+  available: boolean;
 }
 
 export const MOCK_MENU_ITEMS: MenuItem[] = [
@@ -19,6 +23,7 @@ export const MOCK_MENU_ITEMS: MenuItem[] = [
     rating: 4.9,
     category: "Fried Rice",
     image: "/mock/yangzhou-special.png", // We will use placeholder images if real ones are missing
+    available: true,
   },
   {
     id: "2",
@@ -28,6 +33,7 @@ export const MOCK_MENU_ITEMS: MenuItem[] = [
     rating: 4.9,
     category: "Fried Rice",
     image: "/mock/chili-garlic.png",
+    available: true,
   },
   {
     id: "3",
@@ -37,6 +43,7 @@ export const MOCK_MENU_ITEMS: MenuItem[] = [
     rating: 4.9,
     category: "Fried Rice",
     image: "/mock/salted-fish-shrimp.png",
+    available: true,
   },
   {
     id: "4",
@@ -46,6 +53,7 @@ export const MOCK_MENU_ITEMS: MenuItem[] = [
     rating: 4.9,
     category: "Fried Rice",
     image: "/mock/beef-tapa.png",
+    available: true,
   },
   {
     id: "5",
@@ -55,6 +63,7 @@ export const MOCK_MENU_ITEMS: MenuItem[] = [
     rating: 4.9,
     category: "Chicken",
     image: "/mock/fried-chicken.png",
+    available: true,
   },
   {
     id: "6",
@@ -64,6 +73,7 @@ export const MOCK_MENU_ITEMS: MenuItem[] = [
     rating: 4.9,
     category: "Chicken",
     image: "/mock/chicken-chop.png",
+    available: true,
   },
   {
     id: "7",
@@ -73,6 +83,7 @@ export const MOCK_MENU_ITEMS: MenuItem[] = [
     rating: 4.9,
     category: "Sides",
     image: "/mock/lumpia.png",
+    available: true,
   },
   {
     id: "8",
@@ -82,6 +93,7 @@ export const MOCK_MENU_ITEMS: MenuItem[] = [
     rating: 4.9,
     category: "Sides",
     image: "/mock/salted-egg-tofu.png",
+    available: true,
   },
   {
     id: "9",
@@ -91,6 +103,7 @@ export const MOCK_MENU_ITEMS: MenuItem[] = [
     rating: 4.9,
     category: "Drinks",
     image: "/mock/iced-tea.png",
+    available: true,
   },
 ];
 
