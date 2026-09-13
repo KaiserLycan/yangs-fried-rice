@@ -11,7 +11,96 @@ import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-
+const dummyOrders: OrderData[] = [
+  {
+    id: "1",
+    orderNumber: "2000",
+    time: "12:00AM",
+    status: "PREP",
+    timer: "5:00",
+    contactInfo: { name: "Liza Reyes", address: "21 Mabini St., Malate, Manila. Gate on the left, ring twice.", phone: "+63 976 202 8873" },
+    orderInfo: { type: "Take-Out", specialInstructions: "On delivery hand the package to the guard and he'll pay for me." },
+    deliveryFee: 95.00,
+    total: 565.00,
+    items: [
+      { quantity: 2, name: "Yangzhou Special", price: 380.00 },
+      { quantity: 1, name: "Lumpia (12pc)", price: 90.00 }
+    ]
+  },
+  {
+    id: "2",
+    orderNumber: "0000",
+    time: "12:00AM",
+    status: "PREP",
+    timer: "5:00",
+    contactInfo: { name: "Liza Reyes", address: "21 Mabini St., Malate, Manila. Gate on the left, ring twice.", phone: "+63 976 202 8873" },
+    orderInfo: { type: "Take-Out" },
+    deliveryFee: 95.00,
+    total: 565.00,
+    items: [
+      { quantity: 2, name: "Yangzhou Special", price: 380.00 },
+      { quantity: 1, name: "Lumpia (12pc)", price: 90.00 }
+    ]
+  },
+  {
+    id: "3",
+    orderNumber: "0000",
+    time: "12:00AM",
+    status: "CANCELED",
+    contactInfo: { name: "Liza Reyes", address: "21 Mabini St., Malate, Manila. Gate on the left, ring twice.", phone: "+63 976 202 8873" },
+    orderInfo: { type: "Take-Out" },
+    deliveryFee: 95.00,
+    total: 565.00,
+    items: [
+      { quantity: 2, name: "Yangzhou Special", price: 380.00 },
+      { quantity: 1, name: "Lumpia (12pc)", price: 90.00 }
+    ]
+  },
+  {
+    id: "4",
+    orderNumber: "0000",
+    time: "12:00AM",
+    status: "DELIVERY",
+    timer: "5:00",
+    contactInfo: { name: "Liza Reyes", address: "21 Mabini St., Malate, Manila. Gate on the left, ring twice.", phone: "+63 976 202 8873" },
+    orderInfo: { type: "Take-Out" },
+    deliveryFee: 95.00,
+    total: 565.00,
+    items: [
+      { quantity: 2, name: "Yangzhou Special", price: 380.00 },
+      { quantity: 1, name: "Lumpia (12pc)", price: 90.00 }
+    ]
+  },
+  {
+    id: "5",
+    orderNumber: "0000",
+    time: "12:00AM",
+    status: "COMPLETED",
+    contactInfo: { name: "Liza Reyes", address: "21 Mabini St., Malate, Manila. Gate on the left, ring twice.", phone: "+63 976 202 8873" },
+    orderInfo: { type: "Take-Out" },
+    deliveryFee: 95.00,
+    total: 565.00,
+    items: [
+      { quantity: 2, name: "Yangzhou Special", price: 380.00 },
+      { quantity: 1, name: "Lumpia (12pc)", price: 90.00 }
+    ]
+  },
+  {
+    id: "6",
+    orderNumber: "0000",
+    time: "12:00AM",
+    status: "QUEUE",
+    timer: "5:00",
+    contactInfo: { name: "Liza Reyes", address: "21 Mabini St., Malate, Manila. Gate on the left, ring twice.", phone: "+63 976 202 8873" },
+    orderInfo: { type: "Take-Out" },
+    deliveryFee: 95.00,
+    total: 565.00,
+    items: [
+      { quantity: 2, name: "Yangzhou Special", price: 380.00 },
+      { quantity: 1, name: "Lumpia (12pc)", price: 90.00 }
+    ]
+  },
+];
 
 // TODO (Backend): Integration Checklist for Order Management
 // 1. Data Fetching & State: Replace `dummyOrders` with a real Supabase/API fetch. 
@@ -36,8 +125,8 @@ export default function ManageOrdersPage() {
   const [showCancelError, setShowCancelError] = useState(false);
 
   const filteredOrders = activeStatus === "All" 
-    ? MOCK_ORDERS 
-    : MOCK_ORDERS.filter(o => {
+    ? dummyOrders 
+    : dummyOrders.filter(o => {
         if (activeStatus === "Preparation") return o.status === "PREP";
         return o.status.toUpperCase() === activeStatus.toUpperCase();
       });
