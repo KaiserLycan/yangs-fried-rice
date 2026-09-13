@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { OrderSidebar, OrderStatus } from "@/components/manage/orders/order-sidebar";
-import { OrderCard, OrderData } from "@/components/manage/orders/order-card";
+import { OrderCard } from "@/components/manage/orders/order-card";
+import { OrderData, MOCK_ORDERS } from "@/lib/mock-orders";
 import { OrderDetailModal } from "@/components/manage/orders/order-detail-modal";
 import { ManagePagination } from "@/components/manage/manage-pagination";
 import { Dialog } from "@/components/ui/dialog";
@@ -136,9 +138,9 @@ export default function ManageOrdersPage() {
         <h1 className="font-display text-[30px] leading-normal text-[#1a1210]">
           ORDER MANAGEMENT
         </h1>
-        <button className="bg-[#CD7D39] hover:bg-orange-600 text-white px-6 py-2.5 rounded-lg font-semibold shadow-sm transition-colors">
+        <Link href="/manage/kds" className="bg-[#CD7D39] hover:bg-orange-600 text-white px-6 py-2.5 rounded-lg font-semibold shadow-sm transition-colors">
           View KDS
-        </button>
+        </Link>
       </div>
 
       <div className="flex gap-8 flex-1 min-h-0">
