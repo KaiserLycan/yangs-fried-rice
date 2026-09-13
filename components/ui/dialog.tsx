@@ -22,6 +22,48 @@ import { cn } from "@/lib/utils";
  * band across a cream panel — so it is not reproduced. Flagged for the
  * designer.
  */
+export function DialogRoot({
+  open,
+  onClose,
+  children,
+  className,
+}: {
+  open: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const ref = React.useRef<HTMLDialogElement>(null);
+
+  React.useEffect(() => {
+    const dialog = ref.current;
+    if (!dialog) return;
+
+    if (open && !dialog.open) dialog.showModal();
+    if (!open && dialog.open) dialog.close();
+  }, [open]);
+
+  return (
+    <dialog
+      ref={ref}
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
+      onClick={(event) => {
+        if (event.target === ref.current) onClose();
+      }}
+      className={cn(
+        "m-auto w-[calc(100%-2rem)] max-w-[440px] overflow-visible bg-transparent p-0",
+        "backdrop:bg-foreground/40",
+        className
+      )}
+    >
+      {children}
+    </dialog>
+  );
+}
+
 export function Dialog({
   open,
   onClose,
@@ -40,45 +82,10 @@ export function Dialog({
   children?: React.ReactNode;
   footer: React.ReactNode;
 }) {
-  const ref = React.useRef<HTMLDialogElement>(null);
   const titleId = React.useId();
 
-  React.useEffect(() => {
-    const dialog = ref.current;
-    if (!dialog) return;
-
-    if (open && !dialog.open) dialog.showModal();
-    if (!open && dialog.open) dialog.close();
-  }, [open]);
-
   return (
-    <dialog
-      ref={ref}
-      aria-labelledby={titleId}
-      // Escape closes the dialog natively, but React still owns `open`, so
-      // the default is prevented and the same handler runs as every other
-      // dismissal. Without this the element closes while state says it is
-      // open, and it cannot be reopened.
-      onCancel={(event) => {
-        event.preventDefault();
-        onClose();
-      }}
-      // A click that lands on the dialog element itself rather than on the
-      // panel inside it is a backdrop click. This works only because the
-      // element carries no padding of its own.
-      onClick={(event) => {
-        if (event.target === ref.current) onClose();
-      }}
-      // overflow-visible undoes the `overflow: auto` the browser's own
-      // stylesheet puts on every <dialog>. That default makes the element a
-      // scroll container, and a scroll container clips whatever is painted
-      // outside it — which is the whole of the panel's glow and drop shadow.
-      // Without this the modal renders as a flat rectangle on a dimmed page.
-      className={cn(
-        "m-auto w-[calc(100%-2rem)] max-w-[440px] overflow-visible bg-transparent p-0",
-        "backdrop:bg-foreground/40",
-      )}
-    >
+    <DialogRoot open={open} onClose={onClose}>
       <div
         className={cn(
           "flex flex-col gap-[12px] rounded-[20px] bg-background p-[26px]",
@@ -107,6 +114,6 @@ export function Dialog({
 
         <div className="flex justify-center gap-[10px] pt-[6px]">{footer}</div>
       </div>
-    </dialog>
+    </DialogRoot>
   );
 }
