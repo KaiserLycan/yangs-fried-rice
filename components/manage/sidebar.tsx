@@ -66,7 +66,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Menu", href: "/manage/menu", icon: MenuIcon },
   { label: "Orders", href: "/manage/orders", icon: OrdersIcon },
   { label: "Customers", href: "/manage/customers", icon: CustomersIcon },
-  { label: "Employees", href: "/manage/staff", icon: EmployeesIcon },
+  { label: "Employees", href: "/manage/employee", icon: EmployeesIcon },
 ];
 
 // ---------------------------------------------------------------------------
