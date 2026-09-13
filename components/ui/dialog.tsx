@@ -83,7 +83,7 @@ export function Dialog({
         className={cn(
           "flex flex-col gap-[12px] rounded-[20px] bg-background p-[26px]",
           tone === "danger"
-            ? "border border-primary shadow-[0_0_10px_hsl(var(--primary))]"
+            ? "border border-primary shadow-[0_30px_35px_rgba(26,18,16,0.26)]"
             : "shadow-[0_30px_35px_rgba(26,18,16,0.26)]",
         )}
       >

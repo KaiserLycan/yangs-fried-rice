@@ -1,10 +1,10 @@
-import { MOCK_MENU_ITEMS, MenuCategory } from "@/components/manage/menu/mock-menu";
+import { MOCK_MENU_ITEMS, MenuItem } from "@/components/manage/menu/mock-menu";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import Image from "next/image";
 
 interface MenuGridProps {
   searchText: string;
-  selectedCategory: MenuCategory;
+  selectedCategory: string;
   onEditItem: (item: MenuItem) => void;
 }
 
