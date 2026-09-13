@@ -24,6 +24,10 @@ import type { TrackedOrder } from "@/lib/orders/read-tracked-order";
  * (`cancelled`, `unknown`) have no frame at all and were otherwise
  * unreachable outside the tests.
  *
+ * `docs/reference/preview-scenarios.md` is the version of this written for
+ * them: the six URLs, what each should look like, and what is a placeholder
+ * rather than a bug. Keep the two in step when a state is added or removed.
+ *
  * ## Turning it off
  *
  * Delete this file. The page's `?? mockTrackedOrder(...)` then stops
