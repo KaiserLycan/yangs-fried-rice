@@ -93,7 +93,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee }: E
     <DialogRoot
       open={isOpen}
       onClose={onClose}
-      className="max-w-[480px] w-full overflow-hidden rounded-[20px] bg-[#FBF6EC] shadow-[0_30px_70px_rgba(26,18,16,0.26)] border-0 p-0"
+      className="m-auto max-w-[480px] w-[calc(100%-2rem)] md:w-full overflow-hidden rounded-[20px] bg-[#FBF6EC] shadow-[0_30px_70px_rgba(26,18,16,0.26)] border-0 p-0"
     >
       <div className="flex flex-col w-full max-h-[90vh]">
         
