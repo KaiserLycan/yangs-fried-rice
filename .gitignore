@@ -5,6 +5,9 @@
 
 # testing
 /coverage
+# playwright, once it's added
+/test-results/
+/playwright-report/
 
 # next.js
 /.next/
@@ -13,10 +16,29 @@
 # production
 /build
 
+# deployment
+.vercel
+
 # env files — never commit real secrets
 .env
 .env.local
 .env.*.local
+
+# tooling caches
+.eslintcache
+.prettiercache
+
+# vite/vitest write these next to the config while loading it
+vitest.config.*.timestamp-*
+vite.config.*.timestamp-*
+
+# editors — share workspace settings, keep personal ones local
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
 
 # misc
 .DS_Store

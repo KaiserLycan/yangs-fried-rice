@@ -2,24 +2,82 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Palette mirrors "Collection 1" in the Figma file. Comments name the
+   Figma variable each slot comes from, so the two stay traceable. */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 20 14% 4%;
-    --primary: 24 90% 50%;
-    --primary-foreground: 60 9% 98%;
-    --secondary: 60 5% 96%;
-    --secondary-foreground: 24 10% 10%;
-    --muted: 60 5% 96%;
-    --muted-foreground: 25 5% 45%;
-    --accent: 60 5% 96%;
-    --accent-foreground: 24 10% 10%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 60 9% 98%;
-    --border: 20 6% 90%;
-    --input: 20 6% 90%;
-    --ring: 24 90% 50%;
-    --radius: 0.5rem;
+    --background: 40 65% 95%; /* surface/cream  #FBF6EC */
+    --foreground: 12 24% 8%; /* neutral/ink    #1A1210 */
+    --primary: 4 76% 31%; /* brand/red      #8C1C13 */
+    --primary-foreground: 0 0% 100%; /* surface/white  #FFFFFF */
+    --secondary: 35 44% 83%; /* surface/sand   #E7D7C1 */
+    --secondary-foreground: 12 24% 8%; /* neutral/ink */
+    --muted: 35 44% 83%; /* surface/sand */
+    --muted-foreground: 23 12% 43%; /* neutral/muted  #7A6A60 */
+    --accent: 16 81% 52%; /* brand/flame    #E8541F */
+    --accent-foreground: 0 0% 100%; /* surface/white */
+    --destructive: 0 49% 50%; /* brand/brick    #BF4342 */
+    --destructive-foreground: 0 0% 100%; /* surface/white */
+    --border: 35 44% 83%; /* surface/sand */
+    --input: 35 44% 83%; /* surface/sand */
+    --ring: 16 81% 52%; /* brand/flame */
+
+    /* Status colours. Grouped under `surface` in Figma, but they read as
+       semantic states rather than surfaces — no ShadCN slot covers them. */
+    --success: 135 26% 33%; /* surface/green  #3F6B4A */
+    --warning: 33 77% 44%; /* surface/amber  #C8791A */
+
+    /* --- Not in Collection 1 ------------------------------------------
+       The login screens use eleven colours the Figma collection does not
+       define. The first five are foreground tints that sit on top of the
+       brand red, which Collection 1 has no group for at all; the rest are
+       form-control and error-state values. Send this list to the designer
+       so Collection 1 can absorb them and go back to being the source of
+       truth. Until then, these are the design's values, not invented ones. */
+    --on-brand: 38 54% 93%; /* #F7F0E4  headings on red */
+    --on-brand-accent: 28 80% 71%; /* #F0B27A  accent word, stat figures */
+    --on-brand-muted: 9 46% 83%; /* #E7C4BE  body copy on red */
+    --on-brand-subtle: 8 50% 75%; /* #E0A9A1  stat labels */
+    --on-brand-rule: 5 57% 42%; /* #A8382E  divider on red */
+
+    --track: 37 42% 89%; /* #EFE6D8  segmented-control track */
+    --field-border: 34 35% 79%; /* #DDCDB8  input border */
+    --placeholder: 22 11% 59%; /* #A2938A  placeholder text */
+
+    /* --- The employee console brand ------------------------------------
+       A second brand, not a dark variant of the red one. The employee login
+       frames (206:15, 206:74, 206:183, 206:229) bind NO Figma variables at
+       all — every value in them is raw — so this group mirrors the "on brand"
+       group above and names them here instead.
+
+       DESIGNER: none of these six exist in Collection 1. Only --console has a
+       name anywhere in the file ("color/red/brown", visible inline on the
+       mobile frame); the rest are unnamed hexes. Please add and bind them. */
+    --console: 8 13% 13%; /* #241D1C  employee panel surface */
+    /* Same value as --placeholder above, but a different job: body copy on
+       the dark panel, not the empty state of an input. Named separately so
+       the designer can move one without silently moving the other. */
+    --on-console-muted: 22 11% 59%; /* #A2938A  body copy on the panel */
+    --on-console-subtle: 20 9% 50%; /* #8C7C74  stat labels */
+    --on-console-faint: 19 11% 39%; /* #6E5F58  eyebrow label, mobile footer */
+    --on-console-rule: 11 14% 16%; /* #2E2523  divider on the panel */
+    --rule: 36 36% 83%; /* #E3D6C3  hairline divider on cream */
+
+    --error-surface: 9 71% 95%; /* #FBEAE7  error banner fill */
+    --error-border: 6 63% 46%; /* #C0392B  invalid field border */
+
+    /* --- Added by the profile screen -----------------------------------
+       Two more colours the collection does not define. Same request to the
+       designer as the groups above: name them in Figma and bind them.
+
+       --muted-strong is a second, darker muted foreground. It is NOT
+       --muted-foreground (#7A6A60): the dialogs use this warmer brown for
+       their body copy, and the two sit side by side on the profile screen,
+       so collapsing them would be a visible change rather than a tidy-up. */
+    --muted-strong: 19 19% 35%; /* #6A5348  body copy inside dialogs */
+    --card: 40 100% 98%; /* #FFFCF6  raised surface on cream */
+
+    --radius: 0.75rem; /* radius/12 */
   }
 }
 
