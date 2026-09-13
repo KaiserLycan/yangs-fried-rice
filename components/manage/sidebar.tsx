@@ -334,9 +334,8 @@ export function Sidebar() {
 
   return (
     <aside
-      className={`flex h-full shrink-0 flex-col gap-[6px] border-r border-[#7a6a60] bg-[#b8352a] py-[22px] transition-all duration-300 ease-in-out ${
-        isCollapsed ? "w-[64px] px-2" : "w-[232px] px-4"
-      }`}
+      className={`flex h-full shrink-0 flex-col gap-[6px] border-r border-[#7a6a60] bg-[#b8352a] py-[22px] transition-all duration-300 ease-in-out ${isCollapsed ? "w-[64px] px-2" : "w-[232px] px-4"
+        }`}
     >
       {/* Wordmark + collapse toggle */}
       <div
@@ -374,13 +373,11 @@ export function Sidebar() {
             key={item.href}
             href={item.href}
             title={isCollapsed ? item.label : undefined}
-            className={`flex items-center gap-2.5 rounded-[10px] py-[11px] text-[13px] font-bold transition-colors ${
-              isCollapsed ? "justify-center px-0" : "px-3"
-            } ${
-              isActive
+            className={`flex items-center gap-2.5 rounded-[10px] py-[11px] text-[13px] font-bold transition-colors ${isCollapsed ? "justify-center px-0" : "px-3"
+              } ${isActive
                 ? "bg-[#f0b27a] text-[#1b1615]"
                 : "text-[#fbf6ec] hover:bg-[#a02e24]"
-            }`}
+              }`}
           >
             <Icon className="shrink-0" />
             {!isCollapsed && <span>{item.label}</span>}
@@ -396,18 +393,16 @@ export function Sidebar() {
           and the logout button. This should be in flex column where user first
           then logout." */}
       <div
-        className={`flex rounded-[10px] px-3 py-[11px] ${
-          isCollapsed
+        className={`flex rounded-[10px] px-3 py-[11px] ${isCollapsed
             ? "flex-col items-center gap-3"
             : "items-center gap-2.5"
-        }`}
+          }`}
       >
         {/* User profile link (Added to navigate to /manage/profile when avatar/name is clicked) */}
-        <Link 
+        <Link
           href="/manage/profile"
-          className={`flex items-center gap-2.5 transition-opacity hover:opacity-80 ${
-            isCollapsed ? "flex-col gap-3" : ""
-          }`}
+          className={`flex items-center gap-2.5 transition-opacity hover:opacity-80 ${isCollapsed ? "flex-col gap-3" : ""
+            }`}
         >
           {/* Avatar circle with initials */}
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f0b27a]">

@@ -29,7 +29,7 @@ export default function ProfilePage() {
     mobile: "0917 402 8851",
     email: "liza.reyes@gmial.com",
   };
-  
+
   // Mock manager status to demonstrate conditional editing
   const isManager = true; // Set to true to test the manager role
 
@@ -47,7 +47,7 @@ export default function ProfilePage() {
         </div>
 
         <div className="flex flex-col gap-[20px] flex-1 overflow-y-auto min-h-0 pb-10">
-          
+
           {/* Top Row: Avatar & Personal Details */}
           <div className="flex flex-col gap-[12px] md:flex-row md:items-start md:gap-[18px]">
             <EmployeeAvatarCard initials="LR" />
