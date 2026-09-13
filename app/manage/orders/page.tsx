@@ -3,7 +3,11 @@
 import { useState } from "react";
 import { OrderSidebar, OrderStatus } from "@/components/manage/orders/order-sidebar";
 import { OrderCard, OrderData } from "@/components/manage/orders/order-card";
-import { OrderPagination } from "@/components/manage/orders/order-pagination";
+import { OrderDetailModal } from "@/components/manage/orders/order-detail-modal";
+import { ManagePagination } from "@/components/manage/manage-pagination";
+import { Dialog } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const dummyOrders: OrderData[] = [
   {
@@ -12,8 +16,13 @@ const dummyOrders: OrderData[] = [
     time: "12:00AM",
     status: "PREP",
     timer: "5:00",
+    contactInfo: { name: "Liza Reyes", address: "21 Mabini St., Malate, Manila. Gate on the left, ring twice.", phone: "+63 976 202 8873" },
+    orderInfo: { type: "Take-Out", specialInstructions: "On delivery hand the package to the guard and he'll pay for me." },
+    deliveryFee: 95.00,
+    total: 565.00,
     items: [
-      { quantity: 0, name: "Ordered Item", addons: "Addons" }
+      { quantity: 2, name: "Yangzhou Special", price: 380.00 },
+      { quantity: 1, name: "Lumpia (12pc)", price: 90.00 }
     ]
   },
   {
@@ -22,8 +31,13 @@ const dummyOrders: OrderData[] = [
     time: "12:00AM",
     status: "PREP",
     timer: "5:00",
+    contactInfo: { name: "Liza Reyes", address: "21 Mabini St., Malate, Manila. Gate on the left, ring twice.", phone: "+63 976 202 8873" },
+    orderInfo: { type: "Take-Out" },
+    deliveryFee: 95.00,
+    total: 565.00,
     items: [
-      { quantity: 0, name: "Ordered Item", addons: "Addons" }
+      { quantity: 2, name: "Yangzhou Special", price: 380.00 },
+      { quantity: 1, name: "Lumpia (12pc)", price: 90.00 }
     ]
   },
   {
@@ -31,8 +45,13 @@ const dummyOrders: OrderData[] = [
     orderNumber: "0000",
     time: "12:00AM",
     status: "CANCELED",
+    contactInfo: { name: "Liza Reyes", address: "21 Mabini St., Malate, Manila. Gate on the left, ring twice.", phone: "+63 976 202 8873" },
+    orderInfo: { type: "Take-Out" },
+    deliveryFee: 95.00,
+    total: 565.00,
     items: [
-      { quantity: 0, name: "Ordered Item", addons: "Addons" }
+      { quantity: 2, name: "Yangzhou Special", price: 380.00 },
+      { quantity: 1, name: "Lumpia (12pc)", price: 90.00 }
     ]
   },
   {
@@ -41,8 +60,13 @@ const dummyOrders: OrderData[] = [
     time: "12:00AM",
     status: "DELIVERY",
     timer: "5:00",
+    contactInfo: { name: "Liza Reyes", address: "21 Mabini St., Malate, Manila. Gate on the left, ring twice.", phone: "+63 976 202 8873" },
+    orderInfo: { type: "Take-Out" },
+    deliveryFee: 95.00,
+    total: 565.00,
     items: [
-      { quantity: 0, name: "Ordered Item", addons: "Addons" }
+      { quantity: 2, name: "Yangzhou Special", price: 380.00 },
+      { quantity: 1, name: "Lumpia (12pc)", price: 90.00 }
     ]
   },
   {
@@ -50,8 +74,13 @@ const dummyOrders: OrderData[] = [
     orderNumber: "0000",
     time: "12:00AM",
     status: "COMPLETED",
+    contactInfo: { name: "Liza Reyes", address: "21 Mabini St., Malate, Manila. Gate on the left, ring twice.", phone: "+63 976 202 8873" },
+    orderInfo: { type: "Take-Out" },
+    deliveryFee: 95.00,
+    total: 565.00,
     items: [
-      { quantity: 0, name: "Ordered Item", addons: "Addons" }
+      { quantity: 2, name: "Yangzhou Special", price: 380.00 },
+      { quantity: 1, name: "Lumpia (12pc)", price: 90.00 }
     ]
   },
   {
@@ -60,8 +89,13 @@ const dummyOrders: OrderData[] = [
     time: "12:00AM",
     status: "QUEUE",
     timer: "5:00",
+    contactInfo: { name: "Liza Reyes", address: "21 Mabini St., Malate, Manila. Gate on the left, ring twice.", phone: "+63 976 202 8873" },
+    orderInfo: { type: "Take-Out" },
+    deliveryFee: 95.00,
+    total: 565.00,
     items: [
-      { quantity: 0, name: "Ordered Item", addons: "Addons" }
+      { quantity: 2, name: "Yangzhou Special", price: 380.00 },
+      { quantity: 1, name: "Lumpia (12pc)", price: 90.00 }
     ]
   },
 ];
@@ -69,6 +103,15 @@ const dummyOrders: OrderData[] = [
 export default function ManageOrdersPage() {
   const [activeStatus, setActiveStatus] = useState<OrderStatus>("All");
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedOrder, setSelectedOrder] = useState<OrderData | null>(null);
+  
+  // State to manage the visibility and data context of the generic confirmation dialog.
+  // This allows us to reuse one Dialog component for Cancel, Deliver, and Confirm actions.
+  const [confirmAction, setConfirmAction] = useState<{ type: 'Cancel' | 'Deliver' | 'Confirm', order: OrderData } | null>(null);
+  
+  // State to capture the cancellation reason and manage validation errors.
+  const [cancelReason, setCancelReason] = useState("");
+  const [showCancelError, setShowCancelError] = useState(false);
 
   const filteredOrders = activeStatus === "All" 
     ? dummyOrders 
@@ -97,13 +140,17 @@ export default function ManageOrdersPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
               {filteredOrders.map(order => (
                 <div key={order.id} className="h-[280px]">
-                  <OrderCard order={order} />
+                  <OrderCard 
+                    order={order} 
+                    onClick={() => setSelectedOrder(order)} 
+                    onAction={(type, order) => setConfirmAction({ type, order })}
+                  />
                 </div>
               ))}
             </div>
           </div>
-          <div className="mt-auto pt-4 border-t border-gray-200">
-            <OrderPagination 
+          <div className="mt-auto pt-4">
+            <ManagePagination 
               currentPage={currentPage} 
               totalPages={3} 
               onPageChange={setCurrentPage} 
@@ -111,6 +158,80 @@ export default function ManageOrdersPage() {
           </div>
         </div>
       </div>
+      
+      <OrderDetailModal 
+        isOpen={selectedOrder !== null} 
+        onClose={() => setSelectedOrder(null)} 
+        order={selectedOrder} 
+        onAction={(type, order) => setConfirmAction({ type, order })}
+      />
+
+      <Dialog 
+        open={confirmAction !== null}
+        onClose={() => {
+          setConfirmAction(null);
+          setCancelReason("");
+          setShowCancelError(false);
+        }}
+        title={confirmAction?.type === "Cancel" ? "Cancel this order?" : `Confirm ${confirmAction?.type}`}
+        description={
+          confirmAction?.type === "Cancel" 
+            ? "Canceling this order will notify the customer. Do you want to cancel this order?"
+            : `Are you sure you want to mark order #${confirmAction?.order.orderNumber} as ${confirmAction?.type === "Deliver" ? "delivered" : "confirmed"}?`
+        }
+        tone="default"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => {
+              setConfirmAction(null);
+              setCancelReason("");
+              setShowCancelError(false);
+            }}>Back</Button>
+            <Button 
+              variant={confirmAction?.type === "Cancel" ? "confirm" : "primary"}
+              onClick={() => {
+                // Validation check for the Cancel action.
+                // If the user tries to confirm a cancellation without providing a reason,
+                // we block the action and show the inline error message.
+                if (confirmAction?.type === "Cancel" && !cancelReason.trim()) {
+                  setShowCancelError(true);
+                  return;
+                }
+                console.log(`${confirmAction?.type} order`, confirmAction?.order.id, cancelReason);
+                setConfirmAction(null);
+                setSelectedOrder(null);
+                setCancelReason("");
+                setShowCancelError(false);
+              }}
+            >
+              {confirmAction?.type === "Cancel" ? "Confirm" : `Yes, ${confirmAction?.type}`}
+            </Button>
+          </>
+        }
+      >
+        {confirmAction?.type === "Cancel" && (
+          <div className="flex flex-col gap-2 mt-4">
+            <label className="text-[11px] font-bold text-gray-500 tracking-wider uppercase">
+              Reason <span className="text-red-500">*</span>
+            </label>
+            <textarea 
+              placeholder="Why do you want to cancel this order?"
+              value={cancelReason}
+              onChange={(e) => {
+                setCancelReason(e.target.value);
+                if (e.target.value.trim()) setShowCancelError(false);
+              }}
+              className={cn(
+                "w-full min-h-[100px] p-3 rounded-lg border bg-white text-sm text-foreground focus:outline-none focus:ring-2 placeholder:text-[#A2938A] resize-none transition-colors",
+                showCancelError ? "border-red-500 focus:ring-red-500" : "border-[#DDCDB8] focus:ring-[#E8541F]"
+              )}
+            />
+            {showCancelError && (
+              <span className="text-[13px] text-red-500 font-medium">Please provide a reason for cancellation.</span>
+            )}
+          </div>
+        )}
+      </Dialog>
     </div>
   );
 }
