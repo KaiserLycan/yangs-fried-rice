@@ -100,16 +100,25 @@ const dummyOrders: OrderData[] = [
   },
 ];
 
+// TODO (Backend): Integration Checklist for Order Management
+// 1. Data Fetching & State: Replace `dummyOrders` with a real Supabase/API fetch. 
+//    Subscribe to real-time updates (Supabase channels) to receive new orders and status changes instantly.
+// 2. Mutations: Wire up the confirmation button in the dialog to hit endpoints that update the order status
+//    (e.g., to PREP, DELIVERY, COMPLETED, or CANCELED). Make sure to pass `cancelReason` when canceling.
+// 3. Pagination & Filtering: Update the `activeStatus` filter and `currentPage` to query the database
+//    using skip/limit and WHERE clauses, rather than relying on client-side array filtering.
+// 4. UX: Add toast notifications (success/error) and button loading states while waiting for API mutations to resolve.
+
 export default function ManageOrdersPage() {
   const [activeStatus, setActiveStatus] = useState<OrderStatus>("All");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedOrder, setSelectedOrder] = useState<OrderData | null>(null);
   
-  // State to manage the visibility and data context of the generic confirmation dialog.
+  // ADDED: State to manage the visibility and data context of the generic confirmation dialog.
   // This allows us to reuse one Dialog component for Cancel, Deliver, and Confirm actions.
   const [confirmAction, setConfirmAction] = useState<{ type: 'Cancel' | 'Deliver' | 'Confirm', order: OrderData } | null>(null);
   
-  // State to capture the cancellation reason and manage validation errors.
+  // ADDED: State to capture the cancellation reason and manage validation errors.
   const [cancelReason, setCancelReason] = useState("");
   const [showCancelError, setShowCancelError] = useState(false);
 
@@ -190,7 +199,7 @@ export default function ManageOrdersPage() {
             <Button 
               variant={confirmAction?.type === "Cancel" ? "confirm" : "primary"}
               onClick={() => {
-                // Validation check for the Cancel action.
+                // ADDED: Validation check for the Cancel action.
                 // If the user tries to confirm a cancellation without providing a reason,
                 // we block the action and show the inline error message.
                 if (confirmAction?.type === "Cancel" && !cancelReason.trim()) {
