@@ -1,5 +1,9 @@
 import { CartContents } from "@/components/cart/cart-contents";
-import { cartItemCount, type CartLine } from "@/lib/menu/cart-totals";
+import {
+  cartItemCount,
+  type CartLine,
+  type Fulfilment,
+} from "@/lib/menu/cart-totals";
 
 /**
  * The desktop cart (`133:945`): a 328px column pinned to the right of
@@ -7,7 +11,14 @@ import { cartItemCount, type CartLine } from "@/lib/menu/cart-totals";
  * one structural difference in the whole ordering flow — mobile's cart is
  * its own route instead, built by `app/(shop)/cart/page.tsx`.
  */
-export function DesktopCartRail({ lines }: { lines: CartLine[] }) {
+export function DesktopCartRail({
+  lines,
+  initialFulfilment,
+}: {
+  lines: CartLine[];
+  /** Carried back from checkout — see `CartContents`. */
+  initialFulfilment?: Fulfilment;
+}) {
   const count = cartItemCount(lines);
 
   return (
@@ -19,7 +30,12 @@ export function DesktopCartRail({ lines }: { lines: CartLine[] }) {
         </span>
       </div>
 
-      <CartContents lines={lines} ctaLabel="Checkout" showEstimate />
+      <CartContents
+        lines={lines}
+        ctaLabel="Checkout"
+        showEstimate
+        initialFulfilment={initialFulfilment}
+      />
     </aside>
   );
 }

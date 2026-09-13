@@ -22,40 +22,19 @@ import { cn } from "@/lib/utils";
  * band across a cream panel — so it is not reproduced. Flagged for the
  * designer.
  */
-export function Dialog({
+export function DialogRoot({
   open,
   onClose,
-  title,
-  description,
-  tone = "default",
-  placement = "center",
   children,
-  footer,
+  className,
 }: {
   open: boolean;
   onClose: () => void;
-  title: string;
-  description?: React.ReactNode;
-  tone?: "default" | "danger";
-  /**
-   * Where the panel sits on a small screen. `center` is the profile screen's
-   * dialog, centred at every width. `sheet` is the cancel-order frames
-   * (`132:603`, `133:1251`): anchored to the bottom edge on mobile, and the
-   * same centred 440px modal from `md` up.
-   *
-   * One component with a placement rather than a second Sheet component:
-   * everything a confirmation has to get right — Escape, focus, inertness,
-   * top-layer stacking — is identical either way, and only the panel's
-   * position, radius, padding and heading size move.
-   */
-  placement?: "center" | "sheet";
-  /** Optional body between the description and the footer. */
-  children?: React.ReactNode;
-  footer: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
 }) {
   const sheet = placement === "sheet";
   const ref = React.useRef<HTMLDialogElement>(null);
-  const titleId = React.useId();
 
   React.useEffect(() => {
     const dialog = ref.current;
@@ -68,26 +47,13 @@ export function Dialog({
   return (
     <dialog
       ref={ref}
-      aria-labelledby={titleId}
-      // Escape closes the dialog natively, but React still owns `open`, so
-      // the default is prevented and the same handler runs as every other
-      // dismissal. Without this the element closes while state says it is
-      // open, and it cannot be reopened.
       onCancel={(event) => {
         event.preventDefault();
         onClose();
       }}
-      // A click that lands on the dialog element itself rather than on the
-      // panel inside it is a backdrop click. This works only because the
-      // element carries no padding of its own.
       onClick={(event) => {
         if (event.target === ref.current) onClose();
       }}
-      // overflow-visible undoes the `overflow: auto` the browser's own
-      // stylesheet puts on every <dialog>. That default makes the element a
-      // scroll container, and a scroll container clips whatever is painted
-      // outside it — which is the whole of the panel's glow and drop shadow.
-      // Without this the modal renders as a flat rectangle on a dimmed page.
       className={cn(
         "max-w-[440px] overflow-visible bg-transparent p-0",
         // A sheet is pushed to the bottom edge by the auto margin above it,
@@ -97,8 +63,36 @@ export function Dialog({
           ? "mx-auto mb-[18px] mt-auto w-[calc(100%-36px)] md:my-auto md:w-[calc(100%-2rem)]"
           : "m-auto w-[calc(100%-2rem)]",
         "backdrop:bg-foreground/40",
+        className
       )}
     >
+      {children}
+    </dialog>
+  );
+}
+
+export function Dialog({
+  open,
+  onClose,
+  title,
+  description,
+  tone = "default",
+  children,
+  footer,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  description?: React.ReactNode;
+  tone?: "default" | "danger";
+  /** Optional body between the description and the footer. */
+  children?: React.ReactNode;
+  footer: React.ReactNode;
+}) {
+  const titleId = React.useId();
+
+  return (
+    <DialogRoot open={open} onClose={onClose}>
       <div
         className={cn(
           "flex flex-col gap-[12px] bg-background",
@@ -106,7 +100,7 @@ export function Dialog({
             ? "rounded-[22px] p-[22px] md:rounded-[20px] md:p-[26px]"
             : "rounded-[20px] p-[26px]",
           tone === "danger"
-            ? "border border-primary shadow-[0_0_10px_hsl(var(--primary))]"
+            ? "border border-primary shadow-[0_30px_35px_rgba(26,18,16,0.26)]"
             : "shadow-[0_30px_35px_rgba(26,18,16,0.26)]",
         )}
       >
@@ -140,6 +134,6 @@ export function Dialog({
           {footer}
         </div>
       </div>
-    </dialog>
+    </DialogRoot>
   );
 }

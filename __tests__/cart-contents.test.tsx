@@ -97,12 +97,35 @@ describe("CartContents", () => {
 
   it("uses the ctaLabel passed in for the checkout link", () => {
     renderCart(
-      <CartContents lines={lines} ctaLabel="Continue to checkout" showEstimate={false} />,
+      <CartContents
+        lines={lines}
+        ctaLabel="Continue to checkout"
+        showEstimate={false}
+      />,
     );
 
     expect(
       screen.getByRole("link", { name: "Continue to checkout" }),
-    ).toHaveAttribute("href", "/checkout");
+    ).toHaveAttribute("href", "/checkout?fulfilment=delivery");
+  });
+
+  // Nothing persists the fulfilment choice — there is no column for it — so
+  // the link carries it. Without this, picking Pickup here would land on a
+  // checkout still charging the ₱95 delivery fee.
+  it("carries the fulfilment choice through to checkout", () => {
+    renderCart(
+      <CartContents
+        lines={lines}
+        ctaLabel="Continue to checkout"
+        showEstimate={false}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Pickup" }));
+
+    expect(
+      screen.getByRole("link", { name: "Continue to checkout" }),
+    ).toHaveAttribute("href", "/checkout?fulfilment=pickup");
   });
 
   // The −, + and Remove controls raise a toast rather than changing what's
@@ -111,11 +134,11 @@ describe("CartContents", () => {
   it("raises a toast without changing the displayed quantity when − is pressed", () => {
     renderCart(<CartContents lines={lines} ctaLabel="Checkout" showEstimate />);
 
-    fireEvent.click(screen.getAllByRole("button", { name: "Decrease quantity" })[0]);
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "Decrease quantity" })[0],
+    );
 
-    expect(
-      screen.getByText(/isn.t available yet/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/isn.t available yet/i)).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument(); // quantity unchanged
   });
 });

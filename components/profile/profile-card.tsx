@@ -25,6 +25,7 @@ export function ProfileCard({
   isEditing,
   onEdit,
   onCancel,
+  showEditButton,
   children,
 }: {
   /** Anchor target for the sidebar's in-page links. */
@@ -40,6 +41,7 @@ export function ProfileCard({
   isEditing: boolean;
   onEdit: () => void;
   onCancel: () => void;
+  showEditButton?: boolean;
   children: React.ReactNode;
 }) {
   // Ties the header's controls to the body they open and close, so assistive
@@ -51,11 +53,11 @@ export function ProfileCard({
       id={id}
       aria-label={title}
       className={cn(
-        "overflow-hidden rounded-sm border bg-card",
+        "rounded-sm border bg-card",
         isEditing ? "border-accent" : "border-rule",
       )}
     >
-      <div className="flex items-center gap-[10px] border-b border-rule bg-background px-[14px] py-[12px] md:gap-[12px] md:px-[18px] md:py-[14px]">
+      <div className="flex items-center gap-[10px] rounded-t-sm border-b border-rule bg-background px-[14px] py-[12px] md:gap-[12px] md:px-[18px] md:py-[14px]">
         <h2 className="font-display text-[15px] tracking-[0.3px] text-foreground md:text-[17px] md:tracking-[0.34px]">
           {title}
         </h2>
@@ -72,21 +74,23 @@ export function ProfileCard({
           </span>
         ) : null}
 
-        <div className="ml-auto">
-          {/* One control that swaps label and handler, rather than two that
-              take turns being hidden — the frames draw them in the same slot
-              at the same size, and a single button keeps focus where it was
-              when the card changes state. */}
-          <button
-            type="button"
-            onClick={isEditing ? onCancel : onEdit}
-            aria-expanded={isEditing}
-            aria-controls={bodyId}
-            className="rounded-sm border border-rule bg-card px-[15px] py-[11px] text-[13px] font-bold text-foreground hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 md:py-[8px]"
-          >
-            {isEditing ? "Cancel" : "Edit"}
-          </button>
-        </div>
+        {showEditButton !== false && (
+          <div className="ml-auto">
+            {/* One control that swaps label and handler, rather than two that
+                take turns being hidden — the frames draw them in the same slot
+                at the same size, and a single button keeps focus where it was
+                when the card changes state. */}
+            <button
+              type="button"
+              onClick={isEditing ? onCancel : onEdit}
+              aria-expanded={isEditing}
+              aria-controls={bodyId}
+              className="rounded-sm border border-rule bg-card px-[15px] py-[11px] text-[13px] font-bold text-foreground hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 md:py-[8px]"
+            >
+              {isEditing ? "Cancel" : "Edit"}
+            </button>
+          </div>
+        )}
       </div>
 
       <div id={bodyId} className="p-[14px] md:p-[18px]">

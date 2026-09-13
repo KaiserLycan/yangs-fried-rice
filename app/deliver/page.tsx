@@ -1,11 +1,17 @@
-import { RoutePlaceholder } from "@/components/route-placeholder";
+import { Bike } from "lucide-react";
 
 export default function DeliverHomePage() {
   return (
-    <RoutePlaceholder
-      title="Deliveries"
-      description="A Rider's assigned deliveries. Riders receive dispatches here and open one to see the full delivery detail. Built for a phone screen — this is used in the field, not at a desk."
-      requirements={["Order5"]}
-    />
+    <div className="flex flex-col items-center justify-center h-full w-full bg-[#FAF5EB]/50 p-8 text-center">
+      <div className="bg-white p-6 rounded-full shadow-sm mb-6 border border-[#DDCDB8]">
+        <Bike className="w-12 h-12 text-[#E8541F]" />
+      </div>
+      <h2 className="font-display text-[24px] text-[#1A1210] mb-2">
+        Ready to ride?
+      </h2>
+      <p className="text-[15px] text-[#7A6A60] max-w-[300px]">
+        Select a delivery from the queue to see the map, route instructions, and complete the drop-off.
+      </p>
+    </div>
   );
 }

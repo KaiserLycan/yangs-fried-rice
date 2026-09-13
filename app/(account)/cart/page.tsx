@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CartContents } from "@/components/cart/cart-contents";
 import { ToastProvider } from "@/components/ui/toast";
+import { fulfilmentFromParam } from "@/lib/checkout/fulfilment-param";
 import { readCart } from "@/lib/cart/read-cart";
 import { readCustomerProfile } from "@/lib/profile/customer-profile";
 
@@ -17,8 +18,15 @@ import { readCustomerProfile } from "@/lib/profile/customer-profile";
  * its own height accounts for exactly the header, the list and the totals,
  * with no room left for one.
  */
-export default async function CartPage() {
-  const [profile, lines] = await Promise.all([readCustomerProfile(), readCart()]);
+export default async function CartPage({
+  searchParams,
+}: {
+  searchParams: { fulfilment?: string };
+}) {
+  const [profile, lines] = await Promise.all([
+    readCustomerProfile(),
+    readCart(),
+  ]);
 
   // Middleware already turns signed-out visitors away from /cart, so
   // reaching this is not expected. Guarded anyway, the same reasoning
@@ -36,7 +44,9 @@ export default async function CartPage() {
           >
             ←
           </Link>
-          <h1 className="font-display text-[24px] text-foreground">YOUR CART</h1>
+          <h1 className="font-display text-[24px] text-foreground">
+            YOUR CART
+          </h1>
         </div>
 
         <div className="flex flex-1 flex-col px-[20px] pb-[24px]">
@@ -44,6 +54,7 @@ export default async function CartPage() {
             lines={lines}
             ctaLabel="Continue to checkout"
             showEstimate={false}
+            initialFulfilment={fulfilmentFromParam(searchParams.fulfilment)}
           />
         </div>
       </div>
