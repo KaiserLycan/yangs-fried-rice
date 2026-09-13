@@ -27,11 +27,13 @@ export function DialogRoot({
   onClose,
   children,
   className,
+  placement = "modal",
 }: {
   open: boolean;
   onClose: () => void;
   children: React.ReactNode;
   className?: string;
+  placement?: "sheet" | "modal";
 }) {
   const sheet = placement === "sheet";
   const ref = React.useRef<HTMLDialogElement>(null);
@@ -79,6 +81,7 @@ export function Dialog({
   tone = "default",
   children,
   footer,
+  placement = "modal",
 }: {
   open: boolean;
   onClose: () => void;
@@ -88,11 +91,13 @@ export function Dialog({
   /** Optional body between the description and the footer. */
   children?: React.ReactNode;
   footer: React.ReactNode;
+  placement?: "sheet" | "modal";
 }) {
   const titleId = React.useId();
+  const sheet = placement === "sheet";
 
   return (
-    <DialogRoot open={open} onClose={onClose}>
+    <DialogRoot open={open} onClose={onClose} placement={placement}>
       <div
         className={cn(
           "flex flex-col gap-[12px] bg-background",
