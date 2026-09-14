@@ -68,18 +68,97 @@ export type OrderFilters = z.infer<typeof orderFilterSchema>;
 // Report date range
 // ---------------------------------------------------------------------------
 
-export const reportDateRangeSchema = z.object({
-  start_date: z
-    .string()
-    .min(1, "Start date cannot be empty.")
-    .optional()
-    .default(() => new Date().toISOString().split("T")[0]),
-  end_date: z
-    .string()
-    .min(1, "End date cannot be empty.")
-    .optional()
-    .default(() => new Date().toISOString().split("T")[0]),
-});
+export const reportDateRangeSchema = z
+  .object({
+    start_date: z
+      .string()
+      .min(1, "Start date cannot be empty.")
+      .optional()
+      .default(() => new Date().toISOString().split("T")[0]),
+    end_date: z
+      .string()
+      .min(1, "End date cannot be empty.")
+      .optional()
+      .default(() => new Date().toISOString().split("T")[0]),
+  })
+  .refine((data) => data.end_date >= data.start_date, {
+    message: "end_date must be greater than or equal to start_date.",
+    path: ["end_date"],
+  });
 
 export type ReportDateRange = z.infer<typeof reportDateRangeSchema>;
+
+// ---------------------------------------------------------------------------
+// Report frequency (grouping period for sales reports)
+// ---------------------------------------------------------------------------
+
+export const REPORT_FREQUENCIES = [
+  "daily",
+  "weekly",
+  "monthly",
+  "yearly",
+] as const;
+
+export type ReportFrequency = (typeof REPORT_FREQUENCIES)[number];
+
+export const reportFrequencySchema = z.enum(REPORT_FREQUENCIES, {
+  errorMap: () => ({
+    message: `frequency must be one of: ${REPORT_FREQUENCIES.join(", ")}.`,
+  }),
+});
+
+// ---------------------------------------------------------------------------
+// Sales report query schema (date range + frequency)
+// ---------------------------------------------------------------------------
+
+export const salesReportQuerySchema = z
+  .object({
+    start_date: z
+      .string()
+      .min(1, "Start date cannot be empty.")
+      .optional()
+      .default(() => new Date().toISOString().split("T")[0]),
+    end_date: z
+      .string()
+      .min(1, "End date cannot be empty.")
+      .optional()
+      .default(() => new Date().toISOString().split("T")[0]),
+    frequency: reportFrequencySchema.default("daily"),
+  })
+  .refine((data) => data.end_date >= data.start_date, {
+    message: "end_date must be greater than or equal to start_date.",
+    path: ["end_date"],
+  });
+
+export type SalesReportQuery = z.infer<typeof salesReportQuerySchema>;
+
+// ---------------------------------------------------------------------------
+// Performance report query schema (date range + top_products)
+// ---------------------------------------------------------------------------
+
+export const performanceReportQuerySchema = z
+  .object({
+    start_date: z
+      .string()
+      .min(1, "Start date cannot be empty.")
+      .optional()
+      .default(() => new Date().toISOString().split("T")[0]),
+    end_date: z
+      .string()
+      .min(1, "End date cannot be empty.")
+      .optional()
+      .default(() => new Date().toISOString().split("T")[0]),
+    top_products: z.coerce
+      .number()
+      .int("top_products must be an integer.")
+      .min(1, "top_products must be at least 1.")
+      .max(50, "top_products must be at most 50.")
+      .default(5),
+  })
+  .refine((data) => data.end_date >= data.start_date, {
+    message: "end_date must be greater than or equal to start_date.",
+    path: ["end_date"],
+  });
+
+export type PerformanceReportQuery = z.infer<typeof performanceReportQuerySchema>;
 
