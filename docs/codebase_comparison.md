@@ -32,7 +32,7 @@ Many of the "unimplemented" features actually have **frontend foundations** alre
 
 ### Issue #11: Driver Operations & Proof of Delivery
 - **Status in Codebase**: **Partially Implemented**
-- **Details**: The `app/deliver` directory exists with a layout and page for drivers. Server actions like `lib/actions/delivery.ts` exist. However, the specific UI for capturing "Proof of Delivery" (e.g., photo upload or signature) is missing.
+- **Details**: The `app/deliver` directory exists with a layout and page for drivers. Server actions like `lib/actions/delivery.ts` exist. However, the specific UI for capturing "Proof of .Delivery" (e.g., photo upload or signature) is missing.
 
 ### Issue #22 & #9: Payment Processing & Order Review
 - **Status in Codebase**: **Mostly Missing (Payment Integrations)**
