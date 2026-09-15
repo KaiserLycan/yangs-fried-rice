@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createSession, deleteSession } from "@/lib/auth/session";
+import { validateNcrAddress } from "@/lib/address/validate-ncr";
 import {
   signupSchema,
   DEFAULT_ADDRESS_LABEL,
@@ -39,6 +40,17 @@ export async function registerCustomer(
     };
   }
   const { name, email, phone, password, address } = parsed.data;
+
+  // Enforce delivery boundary: customer address must be within NCR
+  const ncrCheck = await validateNcrAddress(address);
+  if (!ncrCheck.valid) {
+    return {
+      success: false,
+      error:
+        ncrCheck.message ??
+        "Delivery is currently restricted to Metro Manila (NCR). Please provide an address within NCR.",
+    };
+  }
 
   const supabase = createClient();
 
