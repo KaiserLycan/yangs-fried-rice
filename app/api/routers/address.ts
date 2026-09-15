@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { addressSchema } from "@/lib/validation/address";
+import { isWithinNcrBoundary, MAX_DELIVERY_RADIUS_KM } from "@/lib/eta/engine";
 
 /** Nominatim API base URL (free, no key required) */
 const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
@@ -67,11 +68,28 @@ export async function validateAddress(request: Request) {
 
     if (Array.isArray(results) && results.length > 0) {
       const top = results[0];
+      const latitude = parseFloat(top.lat);
+      const longitude = parseFloat(top.lon);
+
+      // Verify coordinate is within NCR delivery radius (<= 25 km from Malate store)
+      const boundaryCheck = isWithinNcrBoundary({ latitude, longitude });
+      if (!boundaryCheck.isDeliverable) {
+        return NextResponse.json({
+          valid: false,
+          message: `Delivery is currently restricted to Metro Manila (NCR). This address is ${boundaryCheck.distanceKm} km away (maximum delivery radius: ${MAX_DELIVERY_RADIUS_KM} km).`,
+          latitude,
+          longitude,
+          distance_km: boundaryCheck.distanceKm,
+          source: "nominatim",
+        });
+      }
+
       return NextResponse.json({
         valid: true,
         formatted_address: top.display_name,
-        latitude: parseFloat(top.lat),
-        longitude: parseFloat(top.lon),
+        latitude,
+        longitude,
+        distance_km: boundaryCheck.distanceKm,
         source: "nominatim",
       });
     }
@@ -95,9 +113,13 @@ export async function validateAddress(request: Request) {
   });
 }
 
+/** Non-NCR province and region keywords to reject */
+const OUT_OF_NCR_PATTERN =
+  /\b(cebu|davao|iloilo|bacolod|baguio|pampanga|laguna|cavite|batangas|bulacan|rizal|bicol|zamboanga|cagayan|pangasinan|tarlac|nueva ecija|palawan|boracay|mindanao|visayas)\b/i;
+
 /**
  * Simple heuristic-based address validation.
- * Checks for minimum length and presence of a house number.
+ * Checks for minimum length, presence of a house number, and NCR locality.
  */
 function textBasedValidation(address: string): {
   valid: boolean;
@@ -117,6 +139,15 @@ function textBasedValidation(address: string): {
       valid: false,
       message:
         "Address should include a house or building number.",
+    };
+  }
+
+  // Check if address explicitly names a province/region outside NCR
+  if (OUT_OF_NCR_PATTERN.test(address)) {
+    return {
+      valid: false,
+      message:
+        "Delivery is currently restricted to Metro Manila (NCR). Addresses outside NCR cannot be accepted.",
     };
   }
 
