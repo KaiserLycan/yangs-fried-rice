@@ -690,7 +690,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_customer_order_history: {
+        Args: {
+          p_customer_id: string
+        }
+        Returns: Json
+      }
+      submit_order_review: {
+        Args: {
+          p_order_id: string
+          p_rating: number
+          p_comment?: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

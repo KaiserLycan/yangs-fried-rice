@@ -80,6 +80,82 @@ export async function employeeLogin(request: Request) {
 }
 
 /**
+ * POST /api/auth/customer-login
+ * Authenticate as a customer and set session cookies.
+ * Body: { email, password }
+ */
+export async function customerLogin(request: Request) {
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid JSON format in request body" },
+      { status: 400 }
+    );
+  }
+
+  const { email, password } = (body ?? {}) as {
+    email?: string;
+    password?: string;
+  };
+
+  if (!email || !password) {
+    return NextResponse.json(
+      { error: "Email and password are required." },
+      { status: 400 }
+    );
+  }
+
+  const supabase = createClient();
+  const { data: authData, error: authError } =
+    await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+  if (authError || !authData.user) {
+    return NextResponse.json(
+      { error: authError?.message || "Invalid credentials." },
+      { status: 401 }
+    );
+  }
+
+  // Verify the user exists in the customer table.
+  const { data: customer, error: customerError } = await supabase
+    .from("customer")
+    .select("customer_id, name, email, phone_number, is_account_disabled")
+    .eq("customer_id", authData.user.id)
+    .single();
+
+  if (customerError || !customer) {
+    await supabase.auth.signOut();
+    return NextResponse.json(
+      { error: "This account is not registered as a customer." },
+      { status: 403 }
+    );
+  }
+
+  if (customer.is_account_disabled) {
+    await supabase.auth.signOut();
+    return NextResponse.json(
+      { error: "Your account has been disabled. Please contact support." },
+      { status: 403 }
+    );
+  }
+
+  return NextResponse.json({
+    message: "Logged in successfully as customer",
+    data: {
+      customer_id: customer.customer_id,
+      name: customer.name,
+      email: customer.email,
+      phone_number: customer.phone_number,
+    },
+  });
+}
+
+/**
  * POST /api/auth/logout
  * Sign out of the current session and clear auth cookies.
  */
