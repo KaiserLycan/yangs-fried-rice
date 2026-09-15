@@ -79,7 +79,7 @@ async function requireCustomer(): Promise<
 
 export async function getActiveCart(): Promise<ActionResult<ActiveCart>> {
   const auth = await requireCustomer();
-  if (auth.error) return auth;
+  if (!auth.data) return { data: null, error: auth.error, code: auth.code };
 
   const supabase = createClient();
 
@@ -173,7 +173,7 @@ export async function addCartItem(
   rawInput: AddCartItemInput
 ): Promise<ActionResult<CartItemDetail>> {
   const auth = await requireCustomer();
-  if (auth.error) return auth;
+  if (!auth.data) return { data: null, error: auth.error, code: auth.code };
 
   const parsed = addCartItemSchema.safeParse(rawInput);
   if (!parsed.success) {
@@ -181,7 +181,7 @@ export async function addCartItem(
   }
 
   const activeCartResult = await getActiveCart();
-  if (activeCartResult.error) return activeCartResult;
+  if (!activeCartResult.data) return activeCartResult;
   const cart = activeCartResult.data;
 
   // STRICT LOCKING ENFORCEMENT: reject modifications if is_final
@@ -255,7 +255,7 @@ export async function updateCartItem(
   rawInput: UpdateCartItemInput
 ): Promise<ActionResult<CartItemDetail>> {
   const auth = await requireCustomer();
-  if (auth.error) return auth;
+  if (!auth.data) return { data: null, error: auth.error, code: auth.code };
 
   const parsed = updateCartItemSchema.safeParse(rawInput);
   if (!parsed.success) {
@@ -359,7 +359,7 @@ export async function removeCartItem(
   cartItemId: string
 ): Promise<ActionResult<{ success: true }>> {
   const auth = await requireCustomer();
-  if (auth.error) return auth;
+  if (!auth.data) return { data: null, error: auth.error, code: auth.code };
 
   const supabase = createClient();
 
@@ -425,10 +425,10 @@ export async function clearCart(): Promise<
   ActionResult<{ success: true; message: string }>
 > {
   const auth = await requireCustomer();
-  if (auth.error) return auth;
+  if (!auth.data) return { data: null, error: auth.error, code: auth.code };
 
   const activeCartResult = await getActiveCart();
-  if (activeCartResult.error) return activeCartResult;
+  if (!activeCartResult.data) return activeCartResult;
   const cart = activeCartResult.data;
 
   // STRICT LOCKING ENFORCEMENT
@@ -477,7 +477,7 @@ export async function submitCart(
   }>
 > {
   const auth = await requireCustomer();
-  if (auth.error) return auth;
+  if (!auth.data) return { data: null, error: auth.error, code: auth.code };
 
   const parsed = submitCartSchema.safeParse(rawInput);
   if (!parsed.success) {
@@ -617,7 +617,7 @@ export async function cancelCustomerOrder(
   }>
 > {
   const auth = await requireCustomer();
-  if (auth.error) return auth;
+  if (!auth.data) return { data: null, error: auth.error, code: auth.code };
 
   const parsed = cancelOrderSchema.safeParse(rawInput ?? {});
   if (!parsed.success) {
