@@ -1,6 +1,9 @@
 "use client";
 
-import { useToast } from "@/components/ui/toast";
+import { useRouter } from "next/navigation";
+import { submitCart } from "@/lib/actions/cart";
+import { useCartAction } from "@/lib/cart/use-cart-action";
+import { orderTypeFor } from "@/lib/checkout/fulfilment-param";
 import { formatPeso } from "@/lib/menu/product-listing";
 import {
   lineTotal,
@@ -26,9 +29,6 @@ import {
  * about what a customer owes.
  */
 
-const PLACE_ORDER_TOAST =
-  "Placing an order isn't available yet. We're still building it.";
-
 /**
  * What the frames print. Nothing computes it: there is no kitchen queue to
  * read and no distance calculation, so the range is the designer's copy
@@ -43,6 +43,7 @@ export function OrderSummaryCard({
   customerName,
   placedAtLabel,
   address,
+  cartId,
   fulfilment,
   lines,
   totals,
@@ -50,11 +51,31 @@ export function OrderSummaryCard({
   customerName: string;
   placedAtLabel: string;
   address: string | null;
+  cartId: string;
   fulfilment: Fulfilment;
   lines: CartLine[];
   totals: CartTotals;
 }) {
-  const showToast = useToast();
+  const router = useRouter();
+  const { run, pending } = useCartAction();
+
+  // `submitCart` locks the cart, creates the `order` and hands back its id.
+  // The fee is sent along because the backend has no fee rule of its own
+  // (see the handoff doc) — the ₱95 `computeCartTotals` already applied is
+  // the number the customer just read, so it is the number the order keeps.
+  // On success the receipt takes over at `/checkout/confirmation?order=`;
+  // a failure stays here with the backend's reason in a toast.
+  function handlePlaceOrder() {
+    run(
+      () =>
+        submitCart({
+          cart_id: cartId,
+          order_type: orderTypeFor(fulfilment),
+          delivery_fee: totals.deliveryFee,
+        }),
+      ({ order_id }) => router.push(`/checkout/confirmation?order=${order_id}`),
+    );
+  }
 
   return (
     <section className="flex flex-col gap-[11px] rounded-lg border border-rule bg-card p-[20px]">
@@ -99,14 +120,11 @@ export function OrderSummaryCard({
         kitchen queue and delivery distance.
       </p>
 
-      {/* Creating the order is the backend developer's write. The control
-          stays pressable and says so, rather than being disabled or silently
-          doing nothing — the same treatment every other stubbed write in
-          this flow gets. */}
       <button
         type="button"
-        onClick={() => showToast(PLACE_ORDER_TOAST)}
-        className="rounded-[13px] bg-accent p-[16px] text-[15px] font-bold text-accent-foreground"
+        onClick={handlePlaceOrder}
+        disabled={pending}
+        className="rounded-[13px] bg-accent p-[16px] text-[15px] font-bold text-accent-foreground disabled:opacity-60"
       >
         Place order · {formatPeso(totals.total)}
       </button>

@@ -23,7 +23,7 @@ export default async function CartPage({
 }: {
   searchParams: { fulfilment?: string };
 }) {
-  const [profile, lines] = await Promise.all([
+  const [profile, { lines }] = await Promise.all([
     readCustomerProfile(),
     readCart(),
   ]);

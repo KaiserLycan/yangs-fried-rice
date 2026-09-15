@@ -11,8 +11,9 @@ import { readCustomerProfile } from "@/lib/profile/customer-profile";
  * method selection.
  *
  * Reads are real: the customer's name, contact and address come from their
- * record, and the lines come from the same `readCart()` the cart screen uses.
- * The only write on the screen, placing the order, is stubbed with a toast.
+ * record, and the cart id and lines come from the same `readCart()` the cart
+ * screen uses. Placing the order calls the backend's `submitCart` (PR #68)
+ * from `OrderSummaryCard`.
  *
  * `fulfilment` arrives as a query parameter because the cart's Delivery /
  * Pickup toggle has nowhere to persist to — there is no fulfilment column on
@@ -27,7 +28,7 @@ export default async function CheckoutPage({
 }: {
   searchParams: { fulfilment?: string };
 }) {
-  const [profile, lines] = await Promise.all([
+  const [profile, { cartId, lines }] = await Promise.all([
     readCustomerProfile(),
     readCart(),
   ]);
@@ -42,6 +43,7 @@ export default async function CheckoutPage({
     <ToastProvider>
       <CheckoutScreen
         profile={profile}
+        cartId={cartId}
         lines={lines}
         fulfilment={fulfilment}
         placedAtLabel={formatOrderTime(new Date())}

@@ -1,35 +1,53 @@
 import { createClient } from "@/lib/supabase/server";
 import type { CartLine } from "@/lib/menu/cart-totals";
 
+export type CartRead = {
+  /** `null` when the customer has never had a cart, or is signed out. */
+  cartId: string | null;
+  lines: CartLine[];
+};
+
+const EMPTY: CartRead = { cartId: null, lines: [] };
+
 /**
- * The signed-in customer's real cart rows, joined with each line's product
- * for its name and price — `cart_item` only stores `product_id`, `quantity`
- * and `special_instructions`, not what the dish is called or costs.
+ * The signed-in customer's active cart: its id and its rows, joined with
+ * each line's product for its name and price — `cart_item` only stores
+ * `product_id`, `quantity` and `special_instructions`, not what the dish is
+ * called or costs.
  *
- * This will read empty for every customer today, and that's correct rather
- * than a bug to work around: nothing writes a `cart_item` row yet (adding to
- * cart is stubbed with a toast — see `.scratch/ordering-flow/issues/
- * 03-item-detail.md`), so there is no honest way for this to return
- * anything else. The read is built for real regardless, the same reasoning
- * `lib/cart/cart-count.ts` gives, so the moment the write lands, this starts
- * working with no frontend change.
+ * "Active" means `is_final = false`. `submitCart` in `lib/actions/cart.ts`
+ * flips the flag on the cart it turns into an order and creates a fresh one
+ * the next time the customer adds something, so a customer who has ordered
+ * before has several `cart` rows. Reading without the filter would pick the
+ * wrong one — or, with `maybeSingle`, none at all.
+ *
+ * The id comes back alongside the lines because `submitCart` needs it, and
+ * checkout is the one caller that does; the cart and menu screens ignore it.
  */
-export async function readCart(): Promise<CartLine[]> {
+export async function readCart(): Promise<CartRead> {
   const supabase = createClient();
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return [];
+  if (!user) return EMPTY;
 
+  // Newest first, one row: nothing in the schema stops two active carts
+  // existing (there is no unique index on `customer_id where is_final =
+  // false`, and `getActiveCart` does check-then-insert), and `maybeSingle`
+  // would treat that as an error and read the cart as empty. Recorded in the
+  // handoff doc as an index to add; until then, prefer the most recent.
   const { data: cart } = await supabase
     .from("cart")
     .select("cart_id")
     .eq("customer_id", user.id)
+    .eq("is_final", false)
+    .order("updated_at", { ascending: false, nullsFirst: false })
+    .limit(1)
     .maybeSingle();
 
-  if (!cart) return [];
+  if (!cart) return EMPTY;
 
   const { data: items } = await supabase
     .from("cart_item")
@@ -38,7 +56,7 @@ export async function readCart(): Promise<CartLine[]> {
     )
     .eq("cart_id", cart.cart_id);
 
-  return (items ?? [])
+  const lines = (items ?? [])
     .filter(
       (item): item is typeof item & { product: NonNullable<typeof item.product> } =>
         item.product !== null,
@@ -50,4 +68,6 @@ export async function readCart(): Promise<CartLine[]> {
       quantity: item.quantity,
       specialInstructions: item.special_instructions,
     }));
+
+  return { cartId: cart.cart_id, lines };
 }
