@@ -45,7 +45,7 @@ import { readCustomerProfile } from "@/lib/profile/customer-profile";
  * count (derived from the same rows) can't drift apart from each other.
  */
 export async function MenuPageBody({ fulfilment }: { fulfilment?: Fulfilment }) {
-  const [profile, productsResult, categoriesResult, cartLines] =
+  const [profile, productsResult, categoriesResult, { lines: cartLines }] =
     await Promise.all([
       readCustomerProfile(),
       getProducts(),

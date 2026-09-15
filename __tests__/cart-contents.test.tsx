@@ -1,17 +1,40 @@
-import { describe, expect, it } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { CartContents } from "@/components/cart/cart-contents";
 import { ToastProvider } from "@/components/ui/toast";
+import { removeCartItem, updateCartItem } from "@/lib/actions/cart";
 import type { CartLine } from "@/lib/menu/cart-totals";
 
 /**
- * `CartContents`' populated layout has no honest way to reach a real
- * browser today: every customer's cart is empty, because adding to one is
- * still a stubbed write (ticket 03). These fixture-backed tests are what the
- * ticket asks for instead — the same reasoning `site-nav-bar.test.tsx`
- * already uses for a screen behind an unavailable session.
+ * Fixture-backed, the same reasoning `site-nav-bar.test.tsx` uses: the
+ * populated layout depends on a signed-in customer with rows in `cart_item`,
+ * which a unit test has no business creating.
+ *
+ * The writes are mocked at the module boundary, so what these tests check is
+ * the contract between a control and its action — which function, with which
+ * arguments — not whether the backend then does the right thing with them.
  */
+const refresh = vi.fn();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), refresh }),
+}));
+
+vi.mock("@/lib/actions/cart", () => ({
+  updateCartItem: vi.fn(),
+  removeCartItem: vi.fn(),
+}));
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(updateCartItem).mockResolvedValue({ data: {} as never, error: null });
+  vi.mocked(removeCartItem).mockResolvedValue({
+    data: { success: true },
+    error: null,
+  });
+});
+
 function renderCart(ui: ReactElement) {
   return render(<ToastProvider>{ui}</ToastProvider>);
 }
@@ -128,17 +151,57 @@ describe("CartContents", () => {
     ).toHaveAttribute("href", "/checkout?fulfilment=pickup");
   });
 
-  // The −, + and Remove controls raise a toast rather than changing what's
-  // on screen — the displayed quantity is the persisted server value, and
-  // there is no write yet to persist a change to.
-  it("raises a toast without changing the displayed quantity when − is pressed", () => {
+});
+
+describe("CartLineRow writes", () => {
+  // The displayed quantity is the persisted server value. A control never
+  // edits it locally: it asks the backend, then re-reads the page.
+  it("sends the new quantity to the backend and re-reads the page on +", async () => {
     renderCart(<CartContents lines={lines} ctaLabel="Checkout" showEstimate />);
 
     fireEvent.click(
-      screen.getAllByRole("button", { name: "Decrease quantity" })[0],
+      screen.getAllByRole("button", { name: "Increase quantity" })[0],
     );
 
-    expect(screen.getByText(/isn.t available yet/i)).toBeInTheDocument();
-    expect(screen.getByText("2")).toBeInTheDocument(); // quantity unchanged
+    await waitFor(() =>
+      expect(updateCartItem).toHaveBeenCalledWith("1", { quantity: 3 }),
+    );
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+    expect(screen.getByText("2")).toBeInTheDocument(); // until the re-read lands
+  });
+
+  it("removes the line instead of sending quantity 0 when − is pressed on a single item", async () => {
+    renderCart(<CartContents lines={lines} ctaLabel="Checkout" showEstimate />);
+
+    // Line "2" (Lumpia) has quantity 1.
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "Decrease quantity" })[1],
+    );
+
+    await waitFor(() => expect(removeCartItem).toHaveBeenCalledWith("2"));
+    expect(updateCartItem).not.toHaveBeenCalled();
+  });
+
+  it("removes the line on Remove", async () => {
+    renderCart(<CartContents lines={lines} ctaLabel="Checkout" showEstimate />);
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Remove" })[0]);
+
+    await waitFor(() => expect(removeCartItem).toHaveBeenCalledWith("1"));
+  });
+
+  it("shows the backend's own message and does not re-read when a write fails", async () => {
+    vi.mocked(updateCartItem).mockResolvedValue({
+      data: null,
+      error: "Cart is locked.",
+    });
+    renderCart(<CartContents lines={lines} ctaLabel="Checkout" showEstimate />);
+
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "Increase quantity" })[0],
+    );
+
+    expect(await screen.findByText("Cart is locked.")).toBeInTheDocument();
+    expect(refresh).not.toHaveBeenCalled();
   });
 });
