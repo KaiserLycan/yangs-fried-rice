@@ -16,6 +16,7 @@ import {
   type DeliveryAddressField,
   type DeliveryAddressValues,
 } from "@/lib/validation/profile";
+import { addCustomerAddressAction } from "@/lib/actions/customer-address";
 
 const NOTE_EMPTY_STATE = "No delivery note added yet.";
 
@@ -59,9 +60,24 @@ export function DeliveryAddressesCard({
 
   const closeDialog = () => setDialog(null);
 
-  function handleSave() {
-    showToast(dialog?.mode === "edit" ? EDIT_TOAST : ADD_TOAST);
-    closeDialog();
+  async function handleSave(values?: DeliveryAddressValues) {
+    if (dialog?.mode === "add" && values) {
+      const result = await addCustomerAddressAction({
+        label: values.label,
+        addressDetails: values.addressDetails,
+        deliveryNote: values.deliveryNote,
+      });
+
+      if (!result.success) {
+        showToast(result.error ?? "Failed to save address.");
+        return;
+      }
+      showToast("Address saved successfully.");
+      closeDialog();
+    } else {
+      showToast(dialog?.mode === "edit" ? EDIT_TOAST : ADD_TOAST);
+      closeDialog();
+    }
   }
 
   function handleDelete() {
