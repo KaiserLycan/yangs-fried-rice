@@ -605,6 +605,59 @@ export async function submitCart(
 // 6. Cancel Customer Order (Strictly Enforces Pre-Confirmation Rule)
 // ---------------------------------------------------------------------------
 
+/**
+ * Maps each non-cancellable order status to a specific, human-readable explanation.
+ */
+function getCancellationErrorMessage(status: string | null): { message: string; code: string } {
+  switch (status?.toLowerCase()) {
+    case "cancelled":
+      return {
+        message: "Order is already cancelled.",
+        code: "ALREADY_CANCELLED",
+      };
+    case "completed":
+      return {
+        message: "Cannot cancel order: this order has already been completed.",
+        code: "ORDER_COMPLETED",
+      };
+    case "delivered":
+      return {
+        message: "Cannot cancel order: this order has already been delivered.",
+        code: "ORDER_DELIVERED",
+      };
+    case "out_for_delivery":
+      return {
+        message: "Cannot cancel order: your order is already out for delivery.",
+        code: "ORDER_IN_TRANSIT",
+      };
+    case "ready":
+      return {
+        message: "Cannot cancel order: your food is already prepared and ready for pickup.",
+        code: "ORDER_READY",
+      };
+    case "preparing":
+      return {
+        message: "Cannot cancel order: the kitchen has already started preparing your food.",
+        code: "ORDER_PREPARING",
+      };
+    case "received":
+      return {
+        message: "Cannot cancel order: restaurant staff has already received and accepted your order.",
+        code: "ORDER_RECEIVED",
+      };
+    case "confirmed":
+      return {
+        message: "Cannot cancel order: your order has already been confirmed by restaurant staff.",
+        code: "ORDER_CONFIRMED",
+      };
+    default:
+      return {
+        message: `Cannot cancel order: current order status is '${status ?? "unknown"}'. Only pending orders can be cancelled.`,
+        code: "ORDER_NOT_CANCELLABLE",
+      };
+  }
+}
+
 export async function cancelCustomerOrder(
   orderId: string,
   rawInput?: CancelOrderInput
@@ -662,16 +715,13 @@ export async function cancelCustomerOrder(
     return { data: null, error: "Access denied: this order does not belong to you.", code: "FORBIDDEN" };
   }
 
-  if (order.order_status === "cancelled") {
-    return { data: null, error: "Order is already cancelled.", code: "ALREADY_CANCELLED" };
-  }
-
-  // STRICT REQUIREMENT: Order can ONLY be cancelled before restaurant confirmation
+  // STRICT REQUIREMENT: Order can ONLY be cancelled before restaurant confirmation (when status is 'pending')
   if (order.order_status !== "pending") {
+    const errorInfo = getCancellationErrorMessage(order.order_status);
     return {
       data: null,
-      error: `Cannot cancel order: order has already been ${order.order_status} by restaurant staff.`,
-      code: "ORDER_CONFIRMED",
+      error: errorInfo.message,
+      code: errorInfo.code,
     };
   }
 

@@ -35,8 +35,8 @@ export async function POST(request: Request, { params }: RouteParams) {
     let status = 400;
     if (result.code === "UNAUTHORIZED") status = 401;
     else if (result.code === "FORBIDDEN") status = 403;
-    else if (result.code === "ORDER_CONFIRMED" || result.code === "ALREADY_CANCELLED") status = 409;
     else if (result.error.includes("not found")) status = 404;
+    else if (result.code && (result.code.startsWith("ORDER_") || result.code === "ALREADY_CANCELLED")) status = 409;
     return NextResponse.json({ error: result.error }, { status });
   }
 
