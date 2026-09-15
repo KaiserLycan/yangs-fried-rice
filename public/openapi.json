@@ -47,6 +47,10 @@
     {
       "name": "Customer - Orders & Reviews",
       "description": "Customer past order history, receipts, and order rating/reviews (OHF1, OHF2)"
+    },
+    {
+      "name": "Cart & Order Cancellation",
+      "description": "Cart modification, immediate locking upon submission, and pre-confirmation order cancellation (Browsing6, Browsing11, Browsing12, Browsing13, Browsing15)"
     }
   ],
   "paths": {
@@ -2880,6 +2884,422 @@
           }
         }
       }
+    },
+    "/api/cart": {
+      "get": {
+        "tags": [
+          "Cart & Order Cancellation"
+        ],
+        "summary": "Get active cart",
+        "description": "Retrieves the authenticated customer's active (unlocked) cart and items with itemised calculations. If no active cart exists, creates one automatically.",
+        "operationId": "getActiveCart",
+        "responses": {
+          "200": {
+            "description": "Active cart retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CartDetailResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — caller must be signed in as a customer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cart/items": {
+      "post": {
+        "tags": [
+          "Cart & Order Cancellation"
+        ],
+        "summary": "Add item to cart",
+        "description": "Adds a menu item instance with custom instructions and quantity to the customer's active cart. Rejects if cart is locked.",
+        "operationId": "addCartItem",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddCartItemInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Item added to cart successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Item added to cart successfully."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CartItemResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error (invalid UUID, quantity out of range)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict — cart is locked and cannot be modified",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Cart & Order Cancellation"
+        ],
+        "summary": "Clear all items from cart",
+        "description": "Removes all items from the customer's active cart. Rejects with 409 Conflict if the cart is locked.",
+        "operationId": "clearCart",
+        "responses": {
+          "200": {
+            "description": "All items removed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "All items removed from cart successfully."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — caller must be signed in as a customer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict — cart is locked and cannot be modified",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cart/items/{id}": {
+      "patch": {
+        "tags": [
+          "Cart & Order Cancellation"
+        ],
+        "summary": "Update cart item",
+        "description": "Updates the quantity and/or special instructions for a specific item instance in the active cart. Rejects if cart is locked.",
+        "operationId": "updateCartItem",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Cart item UUID to update",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCartItemInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cart item updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Cart item updated successfully."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CartItemResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Cart item not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict — cart is locked and cannot be modified",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Cart & Order Cancellation"
+        ],
+        "summary": "Remove item from cart",
+        "description": "Removes a specific item instance from the customer's active cart. Rejects if cart is locked.",
+        "operationId": "removeCartItem",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Cart item UUID to remove",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cart item removed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Cart item removed successfully."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Cart item not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict — cart is locked and cannot be modified",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cart/submit": {
+      "post": {
+        "tags": [
+          "Cart & Order Cancellation"
+        ],
+        "summary": "Submit order and lock cart",
+        "description": "Finalizes the cart, marks is_final = true, and generates a new pending order. Rejects if cart is empty or already locked.",
+        "operationId": "submitCart",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitCartInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Order submitted and cart locked successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Order submitted successfully. Cart is now locked."
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "order_id": { "type": "string", "format": "uuid" },
+                        "order_status": { "type": "string", "example": "pending" },
+                        "cart_id": { "type": "string", "format": "uuid" },
+                        "is_final": { "type": "boolean", "example": true }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request — empty cart or invalid inputs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict — cart is already submitted and locked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/customer/orders/{id}/cancel": {
+      "post": {
+        "tags": [
+          "Cart & Order Cancellation"
+        ],
+        "summary": "Cancel pending customer order",
+        "description": "Cancels a customer order before restaurant staff confirms it. Strictly rejects cancellation if the order is confirmed, preparing, ready, or completed.",
+        "operationId": "cancelCustomerOrder",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Order UUID to cancel",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelOrderInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Order cancelled successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Order cancelled successfully."
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "order_id": { "type": "string", "format": "uuid" },
+                        "order_status": { "type": "string", "example": "cancelled" },
+                        "cancelled_at": { "type": "string", "format": "date-time" },
+                        "cancellation_reason": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Order not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict — order has already been confirmed by staff or is already cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4059,6 +4479,73 @@
               "$ref": "#/components/schemas/ReviewRecord"
             }
           }
+        }
+      },
+      "CartItemResponse": {
+        "type": "object",
+        "properties": {
+          "cart_item_id": { "type": "string", "format": "uuid" },
+          "cart_id": { "type": "string", "format": "uuid" },
+          "product_id": { "type": "string", "format": "uuid" },
+          "product_name": { "type": "string", "example": "Yang Chow Fried Rice" },
+          "product_price": { "type": "number", "example": 180 },
+          "quantity": { "type": "integer", "example": 2 },
+          "special_instructions": { "type": "string", "nullable": true, "example": "Extra spicy, no onions" },
+          "subtotal": { "type": "number", "example": 360 }
+        }
+      },
+      "CartDetailResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "cart_id": { "type": "string", "format": "uuid" },
+              "customer_id": { "type": "string", "format": "uuid" },
+              "is_final": { "type": "boolean", "example": false },
+              "status": { "type": "string", "example": "active" },
+              "order_id": { "type": "string", "format": "uuid", "nullable": true },
+              "submitted_at": { "type": "string", "format": "date-time", "nullable": true },
+              "items": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/CartItemResponse" }
+              },
+              "total_items": { "type": "integer", "example": 2 },
+              "subtotal": { "type": "number", "example": 360 }
+            }
+          }
+        }
+      },
+      "AddCartItemInput": {
+        "type": "object",
+        "required": ["product_id", "quantity"],
+        "properties": {
+          "product_id": { "type": "string", "format": "uuid" },
+          "quantity": { "type": "integer", "minimum": 1, "maximum": 99, "example": 2 },
+          "special_instructions": { "type": "string", "maxLength": 500, "nullable": true, "example": "Extra spicy, no onions" }
+        }
+      },
+      "UpdateCartItemInput": {
+        "type": "object",
+        "properties": {
+          "quantity": { "type": "integer", "minimum": 1, "maximum": 99, "example": 3 },
+          "special_instructions": { "type": "string", "maxLength": 500, "nullable": true, "example": "Less spicy" }
+        }
+      },
+      "SubmitCartInput": {
+        "type": "object",
+        "required": ["cart_id"],
+        "properties": {
+          "cart_id": { "type": "string", "format": "uuid" },
+          "order_type": { "type": "string", "enum": ["dine_in", "take_out", "delivery"], "default": "take_out" },
+          "special_instructions": { "type": "string", "maxLength": 500, "nullable": true, "example": "Please pack utensils" },
+          "delivery_fee": { "type": "number", "minimum": 0, "default": 0 }
+        }
+      },
+      "CancelOrderInput": {
+        "type": "object",
+        "properties": {
+          "cancellation_reason": { "type": "string", "maxLength": 300, "default": "Customer requested cancellation" }
         }
       }
     }
