@@ -51,6 +51,14 @@
     {
       "name": "Cart & Order Cancellation",
       "description": "Cart modification, immediate locking upon submission, and pre-confirmation order cancellation (Browsing6, Browsing11, Browsing12, Browsing13, Browsing15)"
+    },
+    {
+      "name": "Customer - Addresses",
+      "description": "Customer delivery address management and NCR delivery zone validation"
+    },
+    {
+      "name": "Orders - Real-Time ETA",
+      "description": "Real-time ETA calculation engine factoring in kitchen queue traffic and delivery distance (Browsing16)"
     }
   ],
   "paths": {
@@ -3300,6 +3308,210 @@
           }
         }
       }
+    },
+    "/api/customer/addresses": {
+      "get": {
+        "tags": [
+          "Customer - Addresses"
+        ],
+        "summary": "List saved customer addresses",
+        "description": "Returns all saved delivery addresses for the currently authenticated customer.",
+        "operationId": "getCustomerAddresses",
+        "responses": {
+          "200": {
+            "description": "List of customer addresses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "addresses": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/CustomerAddress"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — customer session required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Customer - Addresses"
+        ],
+        "summary": "Add new customer address (NCR restricted)",
+        "description": "Adds a new delivery address for the authenticated customer. Strictly enforces NCR boundary check (maximum 25 km radius from Malate store). Rejects addresses outside Metro Manila.",
+        "operationId": "addCustomerAddress",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddCustomerAddressInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Address created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string", "example": "Address successfully added." },
+                    "address": { "$ref": "#/components/schemas/CustomerAddress" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error or outside NCR delivery zone",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/orders/{id}/eta": {
+      "get": {
+        "tags": [
+          "Orders - Real-Time ETA"
+        ],
+        "summary": "Calculate real-time ETA for order",
+        "description": "Calculates real-time ETA for an order factoring in kitchen queue traffic and delivery distance from the store. Persists arrival window to delivery.estimated_time.",
+        "operationId": "getOrderEta",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Order UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Calculated ETA breakdown",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderEtaBreakdown"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid order ID parameter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Order not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Orders - Real-Time ETA"
+        ],
+        "summary": "Recalculate order ETA with optional custom coordinates",
+        "description": "Forces real-time recalculation of order ETA. Optionally accepts custom coordinates for delivery distance estimation.",
+        "operationId": "recalculateOrderEta",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Order UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "latitude": { "type": "number", "example": 14.5547 },
+                  "longitude": { "type": "number", "example": 121.0244 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Recalculated ETA breakdown",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderEtaBreakdown"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Order not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4546,6 +4758,43 @@
         "type": "object",
         "properties": {
           "cancellation_reason": { "type": "string", "maxLength": 300, "default": "Customer requested cancellation" }
+        }
+      },
+      "CustomerAddress": {
+        "type": "object",
+        "properties": {
+          "address_id": { "type": "string", "example": "1" },
+          "label": { "type": "string", "example": "Home" },
+          "address_details": { "type": "string", "example": "Taft Avenue, Malate, Manila" },
+          "address_note": { "type": "string", "nullable": true, "example": "Leave at front desk" },
+          "is_default": { "type": "boolean", "example": true }
+        }
+      },
+      "AddCustomerAddressInput": {
+        "type": "object",
+        "required": ["address_details"],
+        "properties": {
+          "label": { "type": "string", "example": "Home" },
+          "address_details": { "type": "string", "example": "Taft Avenue, Malate, Manila" },
+          "address": { "type": "string", "description": "Alternative key for address_details" },
+          "delivery_note": { "type": "string", "nullable": true, "example": "Ring doorbell" },
+          "is_default": { "type": "boolean", "default": false }
+        }
+      },
+      "OrderEtaBreakdown": {
+        "type": "object",
+        "properties": {
+          "orderId": { "type": "string", "format": "uuid" },
+          "orderType": { "type": "string", "enum": ["delivery", "take_out", "dine_in"] },
+          "kitchenPrepMinutes": { "type": "integer", "example": 21 },
+          "transitMinutes": { "type": "integer", "example": 14 },
+          "totalEstimatedMinutes": { "type": "integer", "example": 35 },
+          "arrivalWindow": { "type": "string", "example": "30–40 mins" },
+          "estimatedArrivalTimestamp": { "type": "string", "format": "date-time" },
+          "distanceKm": { "type": "number", "nullable": true, "example": 3.12 },
+          "activeOrdersAhead": { "type": "integer", "example": 2 },
+          "isDeliverable": { "type": "boolean", "example": true },
+          "message": { "type": "string", "nullable": true }
         }
       }
     }
