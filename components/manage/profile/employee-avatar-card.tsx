@@ -31,7 +31,7 @@ export function EmployeeAvatarCard({ initials }: { initials: string }) {
 
   return (
     <div
-      className="group relative flex items-center justify-center shrink-0 size-[140px] rounded-full overflow-hidden bg-[#8c1c13] cursor-pointer"
+      className="group relative flex items-center justify-center shrink-0 size-[120px] md:size-[140px] rounded-full overflow-hidden bg-[#8c1c13] cursor-pointer"
       onClick={() => fileInputRef.current?.click()}
     >
       <input
@@ -50,14 +50,14 @@ export function EmployeeAvatarCard({ initials }: { initials: string }) {
           className="size-full object-cover"
         />
       ) : (
-        <span className="font-display text-[#fbf6ec] text-[60px] leading-none mt-2">
+        <span className="font-display text-[#fbf6ec] text-[48px] md:text-[60px] leading-none mt-2 md:mt-3">
           {initials}
         </span>
       )}
 
       {/* Hover Overlay */}
       <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-        <Camera className="w-10 h-10 text-white" />
+        <Camera className="w-8 h-8 md:w-10 md:h-10 text-white" />
       </div>
     </div>
   );
