@@ -161,7 +161,7 @@ export function EmployeeRoleDetailsCard({
             </CardField>
           </div>
 
-          <Button type="submit" variant="save" className="self-start">
+          <Button type="submit" variant="save" className="w-full md:w-auto self-start">
             Save changes
           </Button>
         </form>

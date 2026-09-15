@@ -26,16 +26,6 @@ const dummyCustomers: CustomerData[] = [
 // 3. Pagination: Modify the `ManagePagination` to fetch offset/limit chunks from the server.
 // 4. Mutations: Wire the Dialog "Delete Account" action to the backend deletion endpoint.
 
-/**
- * ManageCustomersPage
- * 
- * Added a fully responsive customer management table with:
- * - Search filtering by name, email, and contact.
- * - Interactive column sorting on Name (Asc/Desc/None).
- * - Pagination controls via ManagePagination.
- * - Integration with CustomerModal for viewing details and triggering account deletion.
- * - Deletion Confirmation using the shared Dialog component with danger tone.
- */
 export default function ManageCustomersPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
@@ -64,20 +54,20 @@ export default function ManageCustomersPage() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full gap-4 md:gap-0">
       {/* Header */}
-      <div className="flex items-center justify-between pb-[10px] mb-8">
-        <h1 className="font-display text-[30px] leading-normal text-[#1a1210]">
+      <div className="flex flex-col md:flex-row md:items-center justify-between pb-[10px] md:mb-8 gap-4 md:gap-0">
+        <h1 className="font-display text-[24px] md:text-[30px] leading-normal text-[#1a1210]">
           CUSTOMER MANAGEMENT
         </h1>
-        <div className="relative">
+        <div className="relative w-full md:w-auto">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-[#A2938A]" />
           <input
             type="text"
             placeholder="Search..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-[442px] h-[45px] pl-11 pr-4 rounded-xl border border-[#DDCDB8] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#E8541F] placeholder:text-[#A2938A]"
+            className="w-full md:w-[442px] h-[45px] pl-11 pr-4 rounded-xl border border-[#DDCDB8] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#E8541F] placeholder:text-[#A2938A]"
           />
         </div>
       </div>
@@ -86,8 +76,8 @@ export default function ManageCustomersPage() {
       <div className="flex-1 flex flex-col min-h-0">
 
         <div className="bg-white rounded-[12px] overflow-hidden flex flex-col min-h-0 border border-[#F0E6D8] shadow-[0_2px_10px_rgba(26,18,16,0.02)]">
-          {/* Table Head */}
-          <div className="grid grid-cols-[1.5fr_1.5fr_1fr_1fr] px-8 py-5 border-b border-[#F0E6D8] bg-[#EAE0D5] text-[12px] font-bold text-[#7A6A60] uppercase tracking-[1px]">
+          {/* Table Head - Hidden on Mobile */}
+          <div className="hidden md:grid grid-cols-[1.5fr_1.5fr_1fr_1fr] px-8 py-5 border-b border-[#F0E6D8] bg-[#EAE0D5] text-[12px] font-bold text-[#7A6A60] uppercase tracking-[1px]">
             <button
               className="flex items-center gap-2 hover:text-[#4A3D36] transition-colors focus:outline-none w-fit"
               onClick={() => setNameSort(prev => prev === 'none' ? 'asc' : prev === 'asc' ? 'desc' : 'none')}
@@ -111,13 +101,16 @@ export default function ManageCustomersPage() {
                 <div
                   key={customer.id}
                   onClick={() => setSelectedCustomer(customer)}
-                  className={`grid grid-cols-[1.5fr_1.5fr_1fr_1fr] px-8 py-5 cursor-pointer transition-colors hover:bg-[#FAF7F0] ${index !== filteredCustomers.length - 1 ? "border-b border-[#F0E6D8]" : ""
+                  className={`flex flex-col md:grid md:grid-cols-[1.5fr_1.5fr_1fr_1fr] px-5 md:px-8 py-4 md:py-5 cursor-pointer transition-colors hover:bg-[#FAF7F0] gap-1 md:gap-0 ${index !== filteredCustomers.length - 1 ? "border-b border-[#F0E6D8]" : ""
                     }`}
                 >
-                  <div className="font-bold text-[#1A1210] flex items-center text-[15px]">{customer.name}</div>
-                  <div className="font-bold text-[#1A1210] flex items-center text-[15px]">{customer.email}</div>
-                  <div className="font-bold text-[#1A1210] flex items-center text-[15px]">{customer.contact}</div>
-                  <div className="font-bold text-[#1A1210] flex items-center text-[15px]">{customer.customerSince}</div>
+                  <div className="font-bold text-[#1A1210] flex items-center justify-between text-[15px]">
+                    {customer.name}
+                    <span className="md:hidden text-[11px] font-bold tracking-wide uppercase bg-[#f6e9d9] text-[#8c1c13] px-2 py-1 rounded-md">Since {customer.customerSince}</span>
+                  </div>
+                  <div className="text-[#7A6A60] md:font-bold md:text-[#1A1210] flex items-center text-[13px] md:text-[15px]">{customer.email}</div>
+                  <div className="text-[#7A6A60] md:font-bold md:text-[#1A1210] flex items-center text-[13px] md:text-[15px]">{customer.contact}</div>
+                  <div className="hidden md:flex font-bold text-[#1A1210] items-center text-[15px]">{customer.customerSince}</div>
                 </div>
               ))
             )}
@@ -125,7 +118,7 @@ export default function ManageCustomersPage() {
         </div>
 
         {/* Pagination */}
-        <div className="mt-8 mb-4 flex justify-end">
+        <div className="mt-4 md:mt-8 mb-4 flex justify-center md:justify-end">
           <ManagePagination
             currentPage={currentPage}
             totalPages={3}

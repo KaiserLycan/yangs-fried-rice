@@ -52,7 +52,7 @@ export function CustomerModal({ customer, isOpen, onClose, onAction }: CustomerM
       open={isOpen}
       onClose={onClose}
       className={cn(
-        "max-w-[480px] w-full overflow-hidden rounded-[20px] border-0 shadow-[0_30px_70px_rgba(26,18,16,0.26)]",
+        "m-auto max-w-[480px] w-[calc(100%-2rem)] md:w-full overflow-hidden rounded-[20px] border-0 shadow-[0_30px_70px_rgba(26,18,16,0.26)]",
       )}
     >
       <div className="flex flex-col w-full bg-[#FBF6EC] max-h-[90vh]">
