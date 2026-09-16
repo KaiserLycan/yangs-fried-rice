@@ -13,14 +13,12 @@ import {
 } from "@/lib/profile/delete-confirmation";
 
 /**
- * The two account-level controls at the foot of the profile screen, and the
- * dialogs that guard them.
+ * The two account-level controls at the foot of the profile screen.
  *
- * Log out (Cust3) is the one control on this screen that really works — a
- * shared sign-out action already exists, so this wires to it rather than
- * stubbing it. Delete account (Cust5) stops at its dialog: what deletion
- * actually does to the customer's rows is the database side's decision, so
- * the frontend confirms intent and says the rest is not built yet.
+ * Log out (Cust3) was already wired. Delete account (Cust5) is now wired
+ * too, to DELETE /api/profile (lib/actions/profile.ts) — same pattern as
+ * logout: end the session, replace + refresh to /login so a browser Back
+ * can't flash the signed-in page after the account is gone.
  */
 export function AccountActions() {
   const router = useRouter();
@@ -31,6 +29,7 @@ export function AccountActions() {
   );
   const [confirmationText, setConfirmationText] = React.useState("");
   const [isSigningOut, startSigningOut] = React.useTransition();
+  const [isDeleting, startDeleting] = React.useTransition();
 
   const closeDialog = () => {
     setDialog("none");
@@ -48,11 +47,30 @@ export function AccountActions() {
       }
 
       closeDialog();
-      // refresh() clears the cached server-rendered payload for this route,
-      // so the signed-in page cannot flash back on a browser Back after the
-      // session has already gone.
       router.replace("/login");
       router.refresh();
+    });
+  }
+
+  function handleDeleteAccount() {
+    startDeleting(async () => {
+      try {
+        const res = await fetch("/api/profile", { method: "DELETE" });
+        const json = await res.json();
+
+        if (!res.ok) {
+          closeDialog();
+          showToast(json.error ?? "Could not delete your account.");
+          return;
+        }
+
+        closeDialog();
+        router.replace("/login");
+        router.refresh();
+      } catch {
+        closeDialog();
+        showToast("Could not delete your account. Check your connection.");
+      }
     });
   }
 
@@ -115,22 +133,17 @@ export function AccountActions() {
               variant="outline"
               className="flex-1 p-[14px]"
               onClick={closeDialog}
+              disabled={isDeleting}
             >
               Cancel
             </Button>
             <Button
               variant="confirm"
               className="flex-1"
-              // The gate: nothing but the exact word unlocks this.
-              disabled={!isDeleteConfirmed(confirmationText)}
-              onClick={() => {
-                closeDialog();
-                showToast(
-                  "Deleting your account isn’t available yet. We’re still building it.",
-                );
-              }}
+              disabled={!isDeleteConfirmed(confirmationText) || isDeleting}
+              onClick={handleDeleteAccount}
             >
-              Delete Account
+              {isDeleting ? "Deleting…" : "Delete Account"}
             </Button>
           </>
         }

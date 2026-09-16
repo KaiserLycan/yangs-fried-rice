@@ -7,16 +7,11 @@ import { ChevronDown, ChevronRight, Eye, EyeOff } from "lucide-react";
  * EmployeeModal
  * 
  * What's Added/Changed:
- * - Built the Employee Modal from Figma (node 2105-7252 / 2159-12055).
- * - Supported dual-mode: Add (no initial data) and Edit (prefilled employee data).
- * - Integrated "Show Password" toggle functionality with Eye/EyeOff icons.
- * - Added a full-width "Delete" button when in Edit mode.
- * - Changed modal close logic so it persists beneath the parent's confirmation dialogs.
+ * - Fixed `useEffect` state overrides: Password now clears securely in edit mode instead of passing literal asterisks.
+ * - Updated prop types to accept `shift` and `lastAccessLog` to prevent hardcoded resets.
  * 
  * TODO (Backend Integration & Improvements):
  * - [ ] Connect role and shift dropdowns to fetch live data from the backend.
- * - [ ] Remove dummy masked password and integrate secure password generation or auth reset flow.
- * - [ ] Replace Last Access Log dummy data with real `last_sign_in_at` from Supabase Auth.
  * - [ ] Validate required fields before allowing the "Add Employee" or "Edit" submission.
  * - [ ] Handle file uploading for a real employee avatar (replace "LR" initials).
  */
@@ -32,6 +27,8 @@ interface EmployeeModalProps {
     email: string;
     role: string;
     contact?: string;
+    shift?: string;
+    lastAccessLog?: string;
   } | null;
 }
 
@@ -57,9 +54,9 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee }: E
         setName(employee.name);
         setEmail(employee.email);
         setRole(employee.role || ROLES[1]);
-        setShift(SHIFTS[0]); // Dummy default since shift isn't in EmployeeData yet
-        setPassword("********"); // Masked dummy password
-        setLastAccessLog("Sep 9, 2024 at 14:02"); // Dummy log
+        setShift(employee.shift || SHIFTS[0]); 
+        setPassword(""); // Admin shouldn't see passwords. Leave blank unless changing it.
+        setLastAccessLog(employee.lastAccessLog || "No login history"); 
       } else {
         setName("");
         setEmail("");
@@ -219,7 +216,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee }: E
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                placeholder="Enter secure password"
+                placeholder={isEditMode ? "Leave blank to keep unchanged" : "Enter secure password"}
                 className="bg-white border border-[#DDCDB8] rounded-[12px] p-[14px] pr-[40px] w-full text-[15px] text-[#1A1210] focus:outline-none focus:ring-2 focus:ring-[#E8541F] placeholder:text-[#A2938A]"
               />
               <button 
@@ -238,10 +235,9 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee }: E
               Last Access Log
             </label>
             <input 
+              readOnly
               value={lastAccessLog}
-              onChange={e => setLastAccessLog(e.target.value)}
-              placeholder="e.g. Sep 9, 2024 at 14:02"
-              className="bg-white border border-[#DDCDB8] rounded-[12px] p-[14px] text-[15px] text-[#1A1210] focus:outline-none focus:ring-2 focus:ring-[#E8541F] placeholder:text-[#A2938A]"
+              className="bg-[#FAF5EB] border border-[#DDCDB8] rounded-[12px] p-[14px] text-[15px] text-[#7A6A60] focus:outline-none cursor-not-allowed"
             />
           </div>
 
@@ -258,7 +254,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee }: E
                 onClick={handleSave}
                 className="flex-1 bg-[#E8541F] rounded-[13px] py-[10px] font-bold text-white text-[14px] hover:bg-[#E8541F]/90 transition-colors"
               >
-                {isEditMode ? "Edit" : "Add Employee"}
+                {isEditMode ? "Save Changes" : "Add Employee"}
               </button>
             </div>
             
