@@ -37,21 +37,21 @@ export default function ProfilePage() {
     <ToastProvider>
       <div className="flex flex-col h-full w-full">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-[24px]">
-          <h1 className="font-display text-[32px] leading-none tracking-[0.32px] text-[#1a1210]">
+        <div className="flex flex-col md:flex-row md:items-end gap-1 md:gap-4 mb-[16px] md:mb-[24px]">
+          <h1 className="font-display text-[24px] md:text-[32px] leading-none tracking-[0.32px] text-[#1a1210]">
             MY PROFILE
           </h1>
-          <p className="font-sans text-[13px] text-[#7a6a60] pt-1">
+          <p className="font-sans text-[13px] text-[#7a6a60] pb-[2px]">
             name, contact, addresses and password
           </p>
         </div>
 
-        <div className="flex flex-col gap-[20px] flex-1 overflow-y-auto min-h-0 pb-10">
+        <div className="flex flex-col gap-[16px] md:gap-[20px] flex-1 overflow-y-auto min-h-0 pb-10">
 
           {/* Top Row: Avatar & Personal Details */}
-          <div className="flex flex-col gap-[12px] md:flex-row md:items-start md:gap-[18px]">
+          <div className="flex flex-col md:flex-row items-center md:items-start gap-[16px] md:gap-[18px]">
             <EmployeeAvatarCard initials="LR" />
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 w-full flex-1">
               <EmployeePersonalDetailsCard profile={profile} />
             </div>
           </div>

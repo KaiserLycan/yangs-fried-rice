@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
   CardField,
   CardInput,
@@ -13,22 +14,18 @@ import type { CustomerProfile } from "@/lib/profile/customer-profile";
 import { formatDateOfBirth } from "@/lib/profile/identity";
 import { personalDetailsSchema } from "@/lib/validation/profile";
 
-const SAVE_TOAST =
-  "Saving your personal details isn’t available yet. We’re still building it.";
-
 /**
  * Full name and date of birth (Cust4).
  *
- * The name is a real column and reads live. Date of birth has no column yet —
- * it is confirmed as coming and confirmed as optional when it lands — so it
- * renders with an empty state rather than being hidden, and nothing here
- * invents a value for it.
- *
- * Saving raises a toast and writes nothing. Server-side work on this screen
- * belongs to the backend developer; see
- * `.scratch/profile-page/issues/05-backend-handoff.md`.
+ * The name is a real column and reads live, and now writes live too, via
+ * PATCH /api/profile (lib/actions/profile.ts). Date of birth has no column
+ * yet — it's validated here so the request shape is already correct the
+ * day it lands, but it is NOT sent in the request body below: the backend
+ * has nowhere to put it yet, and sending a field it silently can't persist
+ * would be worse than just not sending it.
  */
 export function PersonalDetailsCard({ profile }: { profile: CustomerProfile }) {
+  const router = useRouter();
   const showToast = useToast();
   const { isEditing, edit, cancel, errors, handleSubmit } = useCardEditor({
     schema: personalDetailsSchema,
@@ -36,7 +33,26 @@ export function PersonalDetailsCard({ profile }: { profile: CustomerProfile }) {
       name: String(form.get("name") ?? ""),
       dateOfBirth: String(form.get("dateOfBirth") ?? ""),
     }),
-    onValid: () => showToast(SAVE_TOAST),
+    onValid: async (values) => {
+      try {
+        const res = await fetch("/api/profile", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: values.name }),
+        });
+        const json = await res.json();
+
+        if (!res.ok) {
+          showToast(json.error ?? "Could not save your details.");
+          return;
+        }
+
+        showToast("Personal details saved.");
+        router.refresh();
+      } catch {
+        showToast("Could not save your details. Check your connection.");
+      }
+    },
   });
 
   return (
