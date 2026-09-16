@@ -382,7 +382,57 @@ export async function resetEmployeePassword(
     };
   }
 }
+/**
+ * Update an employee's role, scheduled shift, and password.
+ * Requires: MANAGER.
+ */
+export async function updateEmployeeDetails(
+  employeeId: string,
+  input: { role?: string; shift?: string; password?: string }
+): Promise<ActionResult<Employee>> {
+  const auth = await requireRole("MANAGER");
+  if (!auth.data) return { data: null, error: auth.error };
 
+  const supabase = createClient();
+  const adminClient = createAdminClient();
+
+  // 1. Update Auth Password if a new one was provided
+  if (input.password && input.password.trim() !== "") {
+    const { error: authError } = await adminClient.auth.admin.updateUserById(employeeId, {
+      password: input.password,
+    });
+    if (authError) return { data: null, error: authError.message };
+  }
+
+  // 2. Update Employee Table (Role and Shift)
+  const updates: any = {};
+  if (input.role) updates.role = input.role;
+  if (input.shift) updates.schedule_shift = input.shift;
+
+  if (Object.keys(updates).length > 0) {
+    const { data, error } = await supabase
+      .from("employee")
+      .update(updates)
+      .eq("employee_id", employeeId)
+      .select()
+      .single();
+
+    if (error) return { data: null, error: error.message };
+    return { data, error: null };
+  }
+
+  // If only the password was updated, fetch and return the unmodified employee row
+  // If only the password was updated, fetch and return the unmodified employee row
+  const { data, error } = await supabase
+    .from("employee")
+    .select("*")
+    .eq("employee_id", employeeId)
+    .single();
+
+  if (error) return { data: null, error: error.message };
+  return { data, error: null };
+
+}
 
 
 /**
