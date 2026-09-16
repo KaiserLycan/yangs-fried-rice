@@ -1,135 +1,160 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { Loader2 } from "lucide-react";
 import { OrderSidebar, OrderStatus } from "@/components/manage/orders/order-sidebar";
 import { OrderCard } from "@/components/manage/orders/order-card";
-import { OrderData, MOCK_ORDERS } from "@/lib/mock-orders";
+import { OrderData } from "@/lib/mock-orders";
 import { OrderDetailModal } from "@/components/manage/orders/order-detail-modal";
 import { ManagePagination } from "@/components/manage/manage-pagination";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useToast, ToastProvider } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+import { getAllOrders, getOrderDetail, updateOrderStatus } from "@/lib/actions/orders";
 
-const dummyOrders: OrderData[] = [
-  {
-    id: "1",
-    orderNumber: "2000",
-    time: "12:00AM",
-    status: "PREP",
-    timer: "5:00",
-    contactInfo: { name: "Liza Reyes", address: "21 Mabini St., Malate, Manila. Gate on the left, ring twice.", phone: "+63 976 202 8873" },
-    orderInfo: { type: "Take-Out", specialInstructions: "On delivery hand the package to the guard and he'll pay for me." },
-    deliveryFee: 95.00,
-    total: 565.00,
-    items: [
-      { quantity: 2, name: "Yangzhou Special", price: 380.00 },
-      { quantity: 1, name: "Lumpia (12pc)", price: 90.00 }
-    ]
-  },
-  {
-    id: "2",
-    orderNumber: "0000",
-    time: "12:00AM",
-    status: "PREP",
-    timer: "5:00",
-    contactInfo: { name: "Liza Reyes", address: "21 Mabini St., Malate, Manila. Gate on the left, ring twice.", phone: "+63 976 202 8873" },
-    orderInfo: { type: "Take-Out" },
-    deliveryFee: 95.00,
-    total: 565.00,
-    items: [
-      { quantity: 2, name: "Yangzhou Special", price: 380.00 },
-      { quantity: 1, name: "Lumpia (12pc)", price: 90.00 }
-    ]
-  },
-  {
-    id: "3",
-    orderNumber: "0000",
-    time: "12:00AM",
-    status: "CANCELED",
-    contactInfo: { name: "Liza Reyes", address: "21 Mabini St., Malate, Manila. Gate on the left, ring twice.", phone: "+63 976 202 8873" },
-    orderInfo: { type: "Take-Out" },
-    deliveryFee: 95.00,
-    total: 565.00,
-    items: [
-      { quantity: 2, name: "Yangzhou Special", price: 380.00 },
-      { quantity: 1, name: "Lumpia (12pc)", price: 90.00 }
-    ]
-  },
-  {
-    id: "4",
-    orderNumber: "0000",
-    time: "12:00AM",
-    status: "DELIVERY",
-    timer: "5:00",
-    contactInfo: { name: "Liza Reyes", address: "21 Mabini St., Malate, Manila. Gate on the left, ring twice.", phone: "+63 976 202 8873" },
-    orderInfo: { type: "Take-Out" },
-    deliveryFee: 95.00,
-    total: 565.00,
-    items: [
-      { quantity: 2, name: "Yangzhou Special", price: 380.00 },
-      { quantity: 1, name: "Lumpia (12pc)", price: 90.00 }
-    ]
-  },
-  {
-    id: "5",
-    orderNumber: "0000",
-    time: "12:00AM",
-    status: "COMPLETED",
-    contactInfo: { name: "Liza Reyes", address: "21 Mabini St., Malate, Manila. Gate on the left, ring twice.", phone: "+63 976 202 8873" },
-    orderInfo: { type: "Take-Out" },
-    deliveryFee: 95.00,
-    total: 565.00,
-    items: [
-      { quantity: 2, name: "Yangzhou Special", price: 380.00 },
-      { quantity: 1, name: "Lumpia (12pc)", price: 90.00 }
-    ]
-  },
-  {
-    id: "6",
-    orderNumber: "0000",
-    time: "12:00AM",
-    status: "QUEUE",
-    timer: "5:00",
-    contactInfo: { name: "Liza Reyes", address: "21 Mabini St., Malate, Manila. Gate on the left, ring twice.", phone: "+63 976 202 8873" },
-    orderInfo: { type: "Take-Out" },
-    deliveryFee: 95.00,
-    total: 565.00,
-    items: [
-      { quantity: 2, name: "Yangzhou Special", price: 380.00 },
-      { quantity: 1, name: "Lumpia (12pc)", price: 90.00 }
-    ]
-  },
-];
-
-// TODO (Backend): Integration Checklist for Order Management
-// 1. Data Fetching & State: Replace `dummyOrders` with a real Supabase/API fetch. 
-//    Subscribe to real-time updates (Supabase channels) to receive new orders and status changes instantly.
-// 2. Mutations: Wire up the confirmation button in the dialog to hit endpoints that update the order status
-//    (e.g., to PREP, DELIVERY, COMPLETED, or CANCELED). Make sure to pass `cancelReason` when canceling.
-// 3. Pagination & Filtering: Update the `activeStatus` filter and `currentPage` to query the database
-//    using skip/limit and WHERE clauses, rather than relying on client-side array filtering.
-// 4. UX: Add toast notifications (success/error) and button loading states while waiting for API mutations to resolve.
-
+// 1. Wrapper component to provide the Toast context
 export default function ManageOrdersPage() {
+  return (
+    <ToastProvider>
+      <ManageOrdersInner />
+    </ToastProvider>
+  );
+}
+
+// 2. The inner component that handles data logic
+function ManageOrdersInner() {
+  const showToast = useToast();
+
+  // Real Data State
+  const [orders, setOrders] = useState<OrderData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  // UI State
   const [activeStatus, setActiveStatus] = useState<OrderStatus>("All");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedOrder, setSelectedOrder] = useState<OrderData | null>(null);
   
-  // ADDED: State to manage the visibility and data context of the generic confirmation dialog.
-  // This allows us to reuse one Dialog component for Cancel, Deliver, and Confirm actions.
   const [confirmAction, setConfirmAction] = useState<{ type: 'Cancel' | 'Deliver' | 'Confirm', order: OrderData } | null>(null);
-  
-  // ADDED: State to capture the cancellation reason and manage validation errors.
   const [cancelReason, setCancelReason] = useState("");
   const [showCancelError, setShowCancelError] = useState(false);
 
-  const filteredOrders = activeStatus === "All" 
-    ? dummyOrders 
-    : dummyOrders.filter(o => {
-        if (activeStatus === "Preparation") return o.status === "PREP";
-        return o.status.toUpperCase() === activeStatus.toUpperCase();
-      });
+  const ITEMS_PER_PAGE = 6;
+
+  // Fetch Orders on Mount and when Status/Page changes
+  const fetchOrders = useCallback(async () => {
+    setIsLoading(true);
+    
+    // Map UI Status to Database Enum
+    let dbStatus: string | undefined = undefined;
+    switch(activeStatus) {
+      case "Queue": dbStatus = "received"; break;
+      case "Preparation": dbStatus = "preparing"; break;
+      case "Delivery": dbStatus = "out_for_delivery"; break;
+      case "Completed": dbStatus = "completed"; break;
+      case "Canceled": dbStatus = "cancelled"; break;
+    }
+
+    // 1. Fetch the summaries using server-side pagination & filtering
+    const summaryResult = await getAllOrders({
+      limit: ITEMS_PER_PAGE,
+      offset: (currentPage - 1) * ITEMS_PER_PAGE,
+      status: dbStatus as any
+    });
+
+    if (summaryResult.error) {
+      showToast(`Failed to load orders: ${summaryResult.error}`);
+      setIsLoading(false);
+      return;
+    }
+
+    if (summaryResult.data) {
+      // 2. Fetch full details for the returned summaries to populate the UI Cards
+      const detailedPromises = summaryResult.data.map(summary => getOrderDetail(summary.order_id));
+      const detailedResults = await Promise.all(detailedPromises);
+      
+      const mappedOrders: OrderData[] = detailedResults
+        .filter(res => res.data !== null)
+        .map(res => {
+          const order = res.data!;
+          
+          // Map Database Status back to UI Status
+          let uiStatus: any = "QUEUE";
+          if (order.order_status === "preparing") uiStatus = "PREP";
+          if (order.order_status === "out_for_delivery") uiStatus = "DELIVERY";
+          if (order.order_status === "completed") uiStatus = "COMPLETED";
+          if (order.order_status === "cancelled") uiStatus = "CANCELED";
+
+          return {
+            id: order.order_id,
+            orderNumber: order.order_id.substring(0, 4).toUpperCase(), // Extracting short ID for display
+            time: order.created_at 
+              ? new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+              : "Unknown time",
+              status: uiStatus,
+            timer: "5:00", // Fallback (calculating real timer requires ETA logic)
+            contactInfo: {
+              name: order.customer?.name || "Walk-in Customer",
+              address: "Address details protected", // Fallback if delivery data is missing
+              phone: order.customer?.email || "No contact",
+            },
+            orderInfo: {
+              type: order.order_type || "Take-Out",
+              specialInstructions: order.order_item?.[0]?.special_instructions || "",
+            },
+            deliveryFee: 0,
+            total: order.transaction?.[0]?.total_paid || 0,
+            items: order.order_item.map(item => ({
+              quantity: item.quantity,
+              name: item.product?.product_name || "Unknown Item",
+              price: item.product?.product_price || 0,
+              addons: item.special_instructions || undefined,
+            }))
+          };
+        });
+        
+      setOrders(mappedOrders);
+    }
+    setIsLoading(false);
+  }, [activeStatus, currentPage, showToast]);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
+
+  // Execute Backend Mutations
+  const handleConfirmAction = async () => {
+    if (!confirmAction) return;
+    
+    if (confirmAction.type === "Cancel" && !cancelReason.trim()) {
+      setShowCancelError(true);
+      return;
+    }
+
+    setIsProcessing(true);
+
+    let newDbStatus = "";
+    if (confirmAction.type === "Confirm") newDbStatus = "preparing";
+    else if (confirmAction.type === "Deliver") newDbStatus = "out_for_delivery";
+    else if (confirmAction.type === "Cancel") newDbStatus = "cancelled";
+
+    const result = await updateOrderStatus(confirmAction.order.id, newDbStatus);
+
+    if (result.error) {
+      showToast(`Failed to update order: ${result.error}`);
+    } else {
+      showToast(`Order #${confirmAction.order.orderNumber} updated successfully.`);
+      await fetchOrders(); // Refresh the active list
+      setConfirmAction(null);
+      setSelectedOrder(null);
+      setCancelReason("");
+      setShowCancelError(false);
+    }
+    
+    setIsProcessing(false);
+  };
 
   return (
     <div className="flex flex-col h-full gap-4 md:gap-0">
@@ -144,33 +169,50 @@ export default function ManageOrdersPage() {
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 md:gap-8 flex-1 min-h-0">
-        <OrderSidebar activeStatus={activeStatus} onStatusChange={setActiveStatus} />
+        <OrderSidebar 
+          activeStatus={activeStatus} 
+          onStatusChange={(status) => {
+            setActiveStatus(status);
+            setCurrentPage(1); // Reset page on filter change
+          }} 
+        />
         
         <div className="flex-1 flex flex-col min-h-0">
           <div className="flex-1 overflow-y-auto pr-2 pb-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-              {filteredOrders.map(order => (
-                <div key={order.id} className="h-[280px]">
-                  <OrderCard 
-                    order={order} 
-                    onClick={() => setSelectedOrder(order)} 
-                    onAction={(type, order) => setConfirmAction({ type, order })}
-                  />
-                </div>
-              ))}
-            </div>
+            {isLoading ? (
+              <div className="flex items-center justify-center p-12 text-[#7A6A60]">
+                <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                Loading orders...
+              </div>
+            ) : orders.length === 0 ? (
+              <div className="p-8 text-center text-[#7A6A60] bg-white rounded-xl border border-[#F0E6D8]">
+                No orders found for this status.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                {orders.map(order => (
+                  <div key={order.id} className="h-[280px]">
+                    <OrderCard 
+                      order={order} 
+                      onClick={() => setSelectedOrder(order)} 
+                      onAction={(type, order) => setConfirmAction({ type, order })}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <div className="mt-auto pt-4">
             <ManagePagination 
               currentPage={currentPage} 
-              totalPages={3} 
+              totalPages={3} // Mocked until backend supports total counts
               onPageChange={setCurrentPage} 
             />
           </div>
         </div>
       </div>
       
-      {/* Modal and Dialog logic remains exactly the same below */}
+      {/* Detail Modal */}
       <OrderDetailModal 
         isOpen={selectedOrder !== null} 
         onClose={() => setSelectedOrder(null)} 
@@ -178,7 +220,7 @@ export default function ManageOrdersPage() {
         onAction={(type, order) => setConfirmAction({ type, order })}
       />
 
-
+      {/* Confirmation Dialog */}
       <Dialog 
         open={confirmAction !== null}
         onClose={() => {
@@ -199,25 +241,13 @@ export default function ManageOrdersPage() {
               setConfirmAction(null);
               setCancelReason("");
               setShowCancelError(false);
-            }}>Back</Button>
+            }} disabled={isProcessing}>Back</Button>
             <Button 
               variant={confirmAction?.type === "Cancel" ? "confirm" : "primary"}
-              onClick={() => {
-                // ADDED: Validation check for the Cancel action.
-                // If the user tries to confirm a cancellation without providing a reason,
-                // we block the action and show the inline error message.
-                if (confirmAction?.type === "Cancel" && !cancelReason.trim()) {
-                  setShowCancelError(true);
-                  return;
-                }
-                console.log(`${confirmAction?.type} order`, confirmAction?.order.id, cancelReason);
-                setConfirmAction(null);
-                setSelectedOrder(null);
-                setCancelReason("");
-                setShowCancelError(false);
-              }}
+              onClick={handleConfirmAction}
+              disabled={isProcessing}
             >
-              {confirmAction?.type === "Cancel" ? "Confirm" : `Yes, ${confirmAction?.type}`}
+              {isProcessing ? "Processing..." : confirmAction?.type === "Cancel" ? "Confirm" : `Yes, ${confirmAction?.type}`}
             </Button>
           </>
         }
