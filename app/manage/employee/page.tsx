@@ -1,11 +1,18 @@
 "use client";
 
-import { useState } from "react";
-import { Search, ChevronDown, ChevronUp, ChevronsUpDown, Filter } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Search, ChevronDown, ChevronUp, ChevronsUpDown, Filter, Loader2 } from "lucide-react";
 import { ManagePagination } from "@/components/manage/manage-pagination";
 import { EmployeeModal } from "@/components/manage/employee/employee-modal";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useToast, ToastProvider } from "@/components/ui/toast";
+import { 
+  getAllEmployees, 
+  createEmployee, 
+  deleteEmployee, 
+  changeEmployeeRole 
+} from "@/lib/actions/admin";
 
 export type EmployeeData = {
   id: string;
@@ -13,44 +20,143 @@ export type EmployeeData = {
   email: string;
   contact: string;
   role: string;
+  shift?: string;
+  lastAccessLog?: string;
 };
-
-const dummyEmployees: EmployeeData[] = [
-  { id: "1", name: "ROBERT DOWNEY JR.", email: "rdj@gmail.com", contact: "+6309872738456", role: "Manager" },
-  { id: "2", name: "CHRIS EVANS", email: "cevans@gmail.com", contact: "+6309872738456", role: "Cashier" },
-  { id: "3", name: "SCARLETT JOHANSSON", email: "scarlett@gmail.com", contact: "+6309872738456", role: "Cook" },
-  { id: "4", name: "MARK RUFFALO", email: "markr@gmail.com", contact: "+6309872738456", role: "Delivery" },
-  { id: "5", name: "CHRIS HEMSWORTH", email: "thor@gmail.com", contact: "+6309872738456", role: "Server" },
-  { id: "6", name: "JEREMY RENNER", email: "hawkeye@gmail.com", contact: "+6309872738456", role: "Server" },
-  { id: "7", name: "TOM HOLLAND", email: "spidey@gmail.com", contact: "+6309872738456", role: "Delivery" },
-  { id: "8", name: "PAUL RUDD", email: "antman@gmail.com", contact: "+6309872738456", role: "Server" },
-  { id: "9", name: "CHADWICK BOSEMAN", email: "tchalla@gmail.com", contact: "+6309872738456", role: "Manager" },
-  { id: "10", name: "BENEDICT CUMBERBATCH", email: "strange@gmail.com", contact: "+6309872738456", role: "Cook" },
-];
 
 const ROLES = ["All Roles", "Manager", "Server", "Cook", "Cashier", "Delivery"];
 
-// TODO (Backend): Integration Checklist for Employee Management
-// 1. Data Fetching: Replace `dummyEmployees` with real Supabase queries.
-// 2. Search & Sort: Wire up `searchQuery` and `nameSort` to database queries instead of client-side arrays.
-// 3. Pagination: Modify the `ManagePagination` to fetch offset/limit chunks from the server.
-// 4. Mutations: Implement the "Add Employee" modal and wire it to the backend endpoint.
-
+// 1. Wrapper component to provide the Toast context
 export default function ManageEmployeePage() {
+  return (
+    <ToastProvider>
+      <ManageEmployeeInner />
+    </ToastProvider>
+  );
+}
+
+// 2. The inner component that handles data logic
+function ManageEmployeeInner() {
+  const showToast = useToast();
+
+  // Real Data State
+  const [employees, setEmployees] = useState<EmployeeData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  // UI State
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("All Roles");
   const [roleFilterOpen, setRoleFilterOpen] = useState(false);
   const [nameSort, setNameSort] = useState<"asc" | "desc" | "none">("none");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState<EmployeeData | null>(null);
   
+  const [selectedEmployee, setSelectedEmployee] = useState<EmployeeData | null>(null);
   const [employeeToDelete, setEmployeeToDelete] = useState<EmployeeData | null>(null);
   const [employeeToAdd, setEmployeeToAdd] = useState<any | null>(null);
   const [employeeToEdit, setEmployeeToEdit] = useState<any | null>(null);
 
-  // Derive filtered and sorted employees
-  let filteredEmployees = [...dummyEmployees];
+  // Fetch Employees on Mount
+  const loadEmployees = useCallback(async () => {
+    setIsLoading(true);
+    const result = await getAllEmployees();
+    
+    if (result.error) {
+      showToast(`Failed to load employees: ${result.error}`);
+    } else if (result.data) {
+      // Safely map backend data to our UI schema
+      // Safely map backend data to our UI schema
+      const mappedData: EmployeeData[] = result.data.map((e: any) => ({
+        id: e.employee_id,
+        name: e.name || "Unknown User",
+        email: e.email || "No email",
+        contact: e.phone_number || "N/A", 
+        role: e.role || "Staff",
+        // Map the new columns exactly as they are spelled in the database image
+        shift: e.schedule_shift || "MWF – 12-3PM", 
+        lastAccessLog: e.last_access_log 
+          ? new Date(e.last_access_log).toLocaleString() 
+          : "No login history",
+      }));
+      setEmployees(mappedData);
+    }
+    setIsLoading(false);
+  }, [showToast]);
+
+  useEffect(() => {
+    loadEmployees();
+  }, [loadEmployees]);
+
+  // Execute Backend Mutations
+  const handleAddConfirm = async () => {
+    if (!employeeToAdd) return;
+    setIsProcessing(true);
+    
+    // Map the modal's role format to the uppercase ENUM format typical in Supabase
+    const dbRole = employeeToAdd.role.toUpperCase() === "SERVER" ? "STAFF" : employeeToAdd.role.toUpperCase();
+
+    const result = await createEmployee({
+      name: employeeToAdd.name,
+      email: employeeToAdd.email,
+      password: employeeToAdd.password || "Yangstemp123!", // Enforce secure fallback
+      role: dbRole as any, 
+    });
+
+    if (result.error) {
+      showToast(`Failed to add employee: ${result.error}`);
+    } else {
+      showToast("Employee added successfully.");
+      await loadEmployees(); // Refresh the list from the DB
+      setEmployeeToAdd(null);
+      setIsAddModalOpen(false);
+    }
+    setIsProcessing(false);
+  };
+
+  const handleEditConfirm = async () => {
+    if (!employeeToEdit || !selectedEmployee) return;
+    setIsProcessing(true);
+
+    // Currently, the backend only supports changing roles. 
+    const dbRole = employeeToEdit.role.toUpperCase() === "SERVER" ? "STAFF" : employeeToEdit.role.toUpperCase();
+
+    const result = await changeEmployeeRole({
+      employee_id: selectedEmployee.id,
+      new_role: dbRole as any,
+    });
+
+    if (result.error) {
+      showToast(`Failed to update role: ${result.error}`);
+    } else {
+      showToast("Employee role updated successfully.");
+      await loadEmployees();
+      setEmployeeToEdit(null);
+      setSelectedEmployee(null);
+      setIsAddModalOpen(false);
+    }
+    setIsProcessing(false);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!employeeToDelete) return;
+    setIsProcessing(true);
+    
+    const result = await deleteEmployee(employeeToDelete.id);
+    
+    if (result.error) {
+      showToast(`Failed to delete employee: ${result.error}`);
+    } else {
+      showToast("Employee account deleted successfully.");
+      setEmployees(prev => prev.filter(e => e.id !== employeeToDelete.id));
+      setEmployeeToDelete(null);
+      setSelectedEmployee(null);
+    }
+    setIsProcessing(false);
+  };
+
+  // Derive filtered and sorted employees client-side
+  let filteredEmployees = [...employees];
   
   if (searchQuery) {
     const q = searchQuery.toLowerCase();
@@ -62,7 +168,9 @@ export default function ManageEmployeePage() {
   }
 
   if (roleFilter !== "All Roles") {
-    filteredEmployees = filteredEmployees.filter(e => e.role === roleFilter);
+    // Basic mapping for UI filter names vs Database enums
+    const filterMapped = roleFilter === "Server" ? "STAFF" : roleFilter.toUpperCase();
+    filteredEmployees = filteredEmployees.filter(e => e.role.toUpperCase() === filterMapped || e.role === roleFilter);
   }
 
   if (nameSort === "asc") {
@@ -136,7 +244,6 @@ export default function ManageEmployeePage() {
 
       {/* Table Container */}
       <div className="flex-1 flex flex-col min-h-0">
-        
         <div className="bg-white rounded-[12px] overflow-hidden flex flex-col min-h-0 border border-[#F0E6D8] shadow-[0_2px_10px_rgba(26,18,16,0.02)]">
           {/* Table Head - Hidden on Mobile */}
           <div className="hidden md:grid grid-cols-[1.5fr_1.5fr_1fr_1fr] px-8 py-5 border-b border-[#F0E6D8] bg-[#EAE0D5] text-[12px] font-bold text-[#7A6A60] uppercase tracking-[1px]">
@@ -154,7 +261,12 @@ export default function ManageEmployeePage() {
 
           {/* Table Body */}
           <div className="flex-1 overflow-y-auto">
-            {filteredEmployees.length === 0 ? (
+            {isLoading ? (
+              <div className="flex items-center justify-center p-12 text-[#7A6A60]">
+                <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                Loading employees...
+              </div>
+            ) : filteredEmployees.length === 0 ? (
               <div className="p-8 text-center text-[#7A6A60]">
                 No employees found.
               </div>
@@ -190,7 +302,6 @@ export default function ManageEmployeePage() {
         </div>
       </div>
 
-      {/* Modals and Dialogs remain exactly the same */}
       <EmployeeModal 
         isOpen={isAddModalOpen || selectedEmployee !== null} 
         onClose={() => {
@@ -219,16 +330,13 @@ export default function ManageEmployeePage() {
         tone="danger"
         footer={
           <>
-            <Button variant="outline" onClick={() => setEmployeeToDelete(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setEmployeeToDelete(null)} disabled={isProcessing}>Cancel</Button>
             <Button 
               variant="confirm"
-              onClick={() => {
-                console.log("Deleting employee:", employeeToDelete?.id);
-                setEmployeeToDelete(null);
-                setSelectedEmployee(null);
-              }}
+              onClick={handleDeleteConfirm}
+              disabled={isProcessing}
             >
-              Delete Employee
+              {isProcessing ? "Deleting..." : "Delete Employee"}
             </Button>
           </>
         }
@@ -242,16 +350,13 @@ export default function ManageEmployeePage() {
         description={`Are you sure you want to add ${employeeToAdd?.name} as a new ${employeeToAdd?.role}?`}
         footer={
           <>
-            <Button variant="outline" onClick={() => setEmployeeToAdd(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setEmployeeToAdd(null)} disabled={isProcessing}>Cancel</Button>
             <Button 
               variant="primary"
-              onClick={() => {
-                console.log("Adding employee:", employeeToAdd);
-                setEmployeeToAdd(null);
-                setIsAddModalOpen(false);
-              }}
+              onClick={handleAddConfirm}
+              disabled={isProcessing}
             >
-              Add Employee
+              {isProcessing ? "Adding..." : "Add Employee"}
             </Button>
           </>
         }
@@ -261,32 +366,21 @@ export default function ManageEmployeePage() {
       <Dialog
         open={employeeToEdit !== null}
         onClose={() => setEmployeeToEdit(null)}
-        title="Edit Employee?"
-        description={`Are you sure you want to save changes to ${employeeToEdit?.name}'s profile?`}
+        title="Edit Employee Role?"
+        description={`Are you sure you want to change ${employeeToEdit?.name}'s role?`}
         footer={
           <>
-            <Button variant="outline" onClick={() => setEmployeeToEdit(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setEmployeeToEdit(null)} disabled={isProcessing}>Cancel</Button>
             <Button 
               variant="primary"
-              onClick={() => {
-                console.log("Editing employee:", employeeToEdit);
-                setEmployeeToEdit(null);
-                setSelectedEmployee(null);
-                setIsAddModalOpen(false);
-              }}
+              onClick={handleEditConfirm}
+              disabled={isProcessing}
             >
-              Save Changes
+              {isProcessing ? "Saving..." : "Save Changes"}
             </Button>
           </>
         }
       />
     </div>
   );
-
-
-
-
-
-
-  
 }
