@@ -299,35 +299,35 @@ export type Database = {
         Row: {
           email: string
           employee_id: string
+          is_account_disabled: boolean
           last_access_log: string | null
           name: string
           password_last_updated: string | null
           profileImage_URL: string | null
           role: string | null
           schedule_shift: string | null
-          is_account_disabled?: boolean | null
         }
         Insert: {
           email: string
           employee_id?: string
+          is_account_disabled?: boolean
           last_access_log?: string | null
           name: string
           password_last_updated?: string | null
           profileImage_URL?: string | null
           role?: string | null
           schedule_shift?: string | null
-          is_account_disabled?: boolean | null
         }
         Update: {
           email?: string
           employee_id?: string
+          is_account_disabled?: boolean
           last_access_log?: string | null
           name?: string
           password_last_updated?: string | null
           profileImage_URL?: string | null
           role?: string | null
           schedule_shift?: string | null
-          is_account_disabled?: boolean | null
         }
         Relationships: []
       }
@@ -610,7 +610,7 @@ export type Database = {
           {
             foreignKeyName: "review_order_id_fkey"
             columns: ["order_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "order"
             referencedColumns: ["order_id"]
           },
