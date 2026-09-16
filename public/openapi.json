@@ -43,6 +43,22 @@
     {
       "name": "Reports",
       "description": "Financial analytics, daily sales aggregates, and PDF report export (Manager)"
+    },
+    {
+      "name": "Customer - Orders & Reviews",
+      "description": "Customer past order history, receipts, and order rating/reviews (OHF1, OHF2)"
+    },
+    {
+      "name": "Cart & Order Cancellation",
+      "description": "Cart modification, immediate locking upon submission, and pre-confirmation order cancellation (Browsing6, Browsing11, Browsing12, Browsing13, Browsing15)"
+    },
+    {
+      "name": "Customer - Addresses",
+      "description": "Customer delivery address management and NCR delivery zone validation"
+    },
+    {
+      "name": "Orders - Real-Time ETA",
+      "description": "Real-time ETA calculation engine factoring in kitchen queue traffic and delivery distance (Browsing16)"
     }
   ],
   "paths": {
@@ -2283,6 +2299,68 @@
         }
       }
     },
+    "/api/auth/customer-login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Customer login",
+        "description": "Authenticates a customer and sets session cookies in the browser. After executing this in Swagger, all customer-protected endpoints will have your customer session automatically.",
+        "operationId": "customerLogin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerLoginInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Logged in successfully as customer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerLoginResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing email or password",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Account is not a customer or is disabled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/me": {
       "get": {
         "tags": [
@@ -2596,6 +2674,834 @@
           },
           "404": {
             "description": "Employee not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/customer/orders": {
+      "get": {
+        "tags": [
+          "Customer - Orders & Reviews"
+        ],
+        "summary": "Get logged-in customer's order history",
+        "description": "Returns the authenticated customer's full order history with itemized receipts, transaction totals, and review status. Backed by get_customer_order_history RPC and customer-scoped RLS policies.",
+        "operationId": "getCustomerOrders",
+        "responses": {
+          "200": {
+            "description": "Customer order history retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "count": {
+                      "type": "integer",
+                      "example": 2
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/CustomerOrderHistoryItem"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — caller is not signed in as a customer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/customer/orders/{id}": {
+      "get": {
+        "tags": [
+          "Customer - Orders & Reviews"
+        ],
+        "summary": "Get customer single order detail",
+        "description": "Returns a single order's full receipt detail including line items, products, transaction totals, and existing reviews. Enforces customer isolation via RLS and ownership verification.",
+        "operationId": "getCustomerOrderDetail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Order UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "37f6d10d-a11d-406e-a3f5-03e6d82aa190"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order receipt detail retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/CustomerOrderDetail"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — caller is not signed in as a customer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Order not found or does not belong to caller",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/customer/orders/{id}/review": {
+      "post": {
+        "tags": [
+          "Customer - Orders & Reviews"
+        ],
+        "summary": "Submit rating and review for completed order",
+        "description": "Submits a numerical rating (1-5) and optional written comment for a completed order. Validates that the order exists, belongs to the caller, is completed, and has not yet been reviewed.",
+        "operationId": "submitCustomerOrderReview",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Order UUID to review",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "37f6d10d-a11d-406e-a3f5-03e6d82aa190"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewSubmissionInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Review submitted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Review submitted successfully."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ReviewRecord"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input (rating not 1-5, comment too long, or order not completed)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — caller is not signed in as a customer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden — order belongs to another customer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Order not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict — order has already been reviewed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cart": {
+      "get": {
+        "tags": [
+          "Cart & Order Cancellation"
+        ],
+        "summary": "Get active cart",
+        "description": "Retrieves the authenticated customer's active (unlocked) cart and items with itemised calculations. If no active cart exists, creates one automatically.",
+        "operationId": "getActiveCart",
+        "responses": {
+          "200": {
+            "description": "Active cart retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CartDetailResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — caller must be signed in as a customer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cart/items": {
+      "post": {
+        "tags": [
+          "Cart & Order Cancellation"
+        ],
+        "summary": "Add item to cart",
+        "description": "Adds a menu item instance with custom instructions and quantity to the customer's active cart. Rejects if cart is locked.",
+        "operationId": "addCartItem",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddCartItemInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Item added to cart successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Item added to cart successfully."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CartItemResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error (invalid UUID, quantity out of range)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict — cart is locked and cannot be modified",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Cart & Order Cancellation"
+        ],
+        "summary": "Clear all items from cart",
+        "description": "Removes all items from the customer's active cart. Rejects with 409 Conflict if the cart is locked.",
+        "operationId": "clearCart",
+        "responses": {
+          "200": {
+            "description": "All items removed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "All items removed from cart successfully."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — caller must be signed in as a customer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict — cart is locked and cannot be modified",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cart/items/{id}": {
+      "patch": {
+        "tags": [
+          "Cart & Order Cancellation"
+        ],
+        "summary": "Update cart item",
+        "description": "Updates the quantity and/or special instructions for a specific item instance in the active cart. Rejects if cart is locked.",
+        "operationId": "updateCartItem",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Cart item UUID to update",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCartItemInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cart item updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Cart item updated successfully."
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/CartItemResponse"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Cart item not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict — cart is locked and cannot be modified",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Cart & Order Cancellation"
+        ],
+        "summary": "Remove item from cart",
+        "description": "Removes a specific item instance from the customer's active cart. Rejects if cart is locked.",
+        "operationId": "removeCartItem",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Cart item UUID to remove",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cart item removed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Cart item removed successfully."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Cart item not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict — cart is locked and cannot be modified",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cart/submit": {
+      "post": {
+        "tags": [
+          "Cart & Order Cancellation"
+        ],
+        "summary": "Submit order and lock cart",
+        "description": "Finalizes the cart, marks is_final = true, and generates a new pending order. Rejects if cart is empty or already locked.",
+        "operationId": "submitCart",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitCartInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Order submitted and cart locked successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Order submitted successfully. Cart is now locked."
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "order_id": { "type": "string", "format": "uuid" },
+                        "order_status": { "type": "string", "example": "pending" },
+                        "cart_id": { "type": "string", "format": "uuid" },
+                        "is_final": { "type": "boolean", "example": true }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request — empty cart or invalid inputs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict — cart is already submitted and locked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/customer/orders/{id}/cancel": {
+      "post": {
+        "tags": [
+          "Cart & Order Cancellation"
+        ],
+        "summary": "Cancel pending customer order",
+        "description": "Cancels a customer order before restaurant staff confirms it. Strictly rejects cancellation if the order is confirmed, preparing, ready, or completed.",
+        "operationId": "cancelCustomerOrder",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Order UUID to cancel",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelOrderInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Order cancelled successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Order cancelled successfully."
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "order_id": { "type": "string", "format": "uuid" },
+                        "order_status": { "type": "string", "example": "cancelled" },
+                        "cancelled_at": { "type": "string", "format": "date-time" },
+                        "cancellation_reason": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Order not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict — order has already been confirmed by staff or is already cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/customer/addresses": {
+      "get": {
+        "tags": [
+          "Customer - Addresses"
+        ],
+        "summary": "List saved customer addresses",
+        "description": "Returns all saved delivery addresses for the currently authenticated customer.",
+        "operationId": "getCustomerAddresses",
+        "responses": {
+          "200": {
+            "description": "List of customer addresses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "addresses": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/CustomerAddress"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized — customer session required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Customer - Addresses"
+        ],
+        "summary": "Add new customer address (NCR restricted)",
+        "description": "Adds a new delivery address for the authenticated customer. Strictly enforces NCR boundary check (maximum 25 km radius from Malate store). Rejects addresses outside Metro Manila.",
+        "operationId": "addCustomerAddress",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddCustomerAddressInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Address created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string", "example": "Address successfully added." },
+                    "address": { "$ref": "#/components/schemas/CustomerAddress" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error or outside NCR delivery zone",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/orders/{id}/eta": {
+      "get": {
+        "tags": [
+          "Orders - Real-Time ETA"
+        ],
+        "summary": "Calculate real-time ETA for order",
+        "description": "Calculates real-time ETA for an order factoring in kitchen queue traffic and delivery distance from the store. Persists arrival window to delivery.estimated_time.",
+        "operationId": "getOrderEta",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Order UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Calculated ETA breakdown",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderEtaBreakdown"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid order ID parameter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Order not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Orders - Real-Time ETA"
+        ],
+        "summary": "Recalculate order ETA with optional custom coordinates",
+        "description": "Forces real-time recalculation of order ETA. Optionally accepts custom coordinates for delivery distance estimation.",
+        "operationId": "recalculateOrderEta",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Order UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "latitude": { "type": "number", "example": 14.5547 },
+                  "longitude": { "type": "number", "example": 121.0244 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Recalculated ETA breakdown",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderEtaBreakdown"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Order not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -3199,6 +4105,56 @@
           }
         }
       },
+      "CustomerLoginInput": {
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "customer@yangsfriedrice.com"
+          },
+          "password": {
+            "type": "string",
+            "example": "Password123!"
+          }
+        }
+      },
+      "CustomerLoginResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Logged in successfully as customer"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "customer_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string",
+                "example": "Maria Santos"
+              },
+              "email": {
+                "type": "string",
+                "format": "email",
+                "example": "customer@yangsfriedrice.com"
+              },
+              "phone_number": {
+                "type": "string",
+                "nullable": true,
+                "example": "09171234567"
+              }
+            }
+          }
+        }
+      },
       "ChangePasswordInput": {
         "type": "object",
         "required": [
@@ -3413,6 +4369,432 @@
               }
             }
           }
+        }
+      },
+      "ReviewSubmissionInput": {
+        "type": "object",
+        "required": [
+          "rating"
+        ],
+        "properties": {
+          "rating": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5,
+            "description": "Rating score between 1 and 5",
+            "example": 5
+          },
+          "comment": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "Optional written review comment (max 1000 characters)",
+            "example": "Delicious Yang Chow Fried Rice! Delivered hot and on time."
+          }
+        }
+      },
+      "ReviewRecord": {
+        "type": "object",
+        "properties": {
+          "review_id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "a6d32d00-5600-4e34-beed-d4f1f3684004"
+          },
+          "order_id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "37f6d10d-a11d-406e-a3f5-03e6d82aa190"
+          },
+          "customer_id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "5a1070ba-a6fc-4c57-babd-993734af1319"
+          },
+          "rating": {
+            "type": "integer",
+            "example": 5
+          },
+          "comment": {
+            "type": "string",
+            "nullable": true,
+            "example": "Delicious Yang Chow Fried Rice! Delivered hot and on time."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-09-15T04:40:00Z"
+          }
+        }
+      },
+      "CustomerOrderHistoryItem": {
+        "type": "object",
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "37f6d10d-a11d-406e-a3f5-03e6d82aa190"
+          },
+          "order_status": {
+            "type": "string",
+            "example": "completed"
+          },
+          "order_type": {
+            "type": "string",
+            "example": "delivery"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-09-14T02:00:00Z"
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": "2026-09-14T02:35:00Z"
+          },
+          "special_instructions": {
+            "type": "string",
+            "nullable": true,
+            "example": "Extra chili sauce please"
+          },
+          "delivery_fee": {
+            "type": "number",
+            "nullable": true,
+            "example": 50
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "order_item_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "e4b10b00-3488-4c12-9cbb-b2d9d1462002"
+                },
+                "product_name": {
+                  "type": "string",
+                  "example": "Yang Chow Fried Rice"
+                },
+                "product_price": {
+                  "type": "number",
+                  "example": 180
+                },
+                "quantity": {
+                  "type": "integer",
+                  "example": 2
+                },
+                "subtotal": {
+                  "type": "number",
+                  "example": 360
+                },
+                "special_instructions": {
+                  "type": "string",
+                  "nullable": true,
+                  "example": null
+                }
+              }
+            }
+          },
+          "transactions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "transaction_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "f5c21c00-4599-4d23-adcc-c3e0e2573003"
+                },
+                "payment_method": {
+                  "type": "string",
+                  "example": "gcash"
+                },
+                "payment_status": {
+                  "type": "string",
+                  "example": "paid"
+                },
+                "subtotal": {
+                  "type": "number",
+                  "example": 360
+                },
+                "tax_amount": {
+                  "type": "number",
+                  "example": 0
+                },
+                "discount_amount": {
+                  "type": "number",
+                  "example": 0
+                },
+                "total_paid": {
+                  "type": "number",
+                  "example": 410
+                }
+              }
+            }
+          },
+          "review": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "review_id": {
+                "type": "string",
+                "format": "uuid",
+                "example": "a6d32d00-5600-4e34-beed-d4f1f3684004"
+              },
+              "rating": {
+                "type": "integer",
+                "example": 5
+              },
+              "comment": {
+                "type": "string",
+                "nullable": true,
+                "example": "Best fried rice in town!"
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time",
+                "example": "2026-09-14T03:00:00Z"
+              }
+            }
+          }
+        }
+      },
+      "CustomerOrderDetail": {
+        "type": "object",
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "37f6d10d-a11d-406e-a3f5-03e6d82aa190"
+          },
+          "order_status": {
+            "type": "string",
+            "example": "completed"
+          },
+          "order_type": {
+            "type": "string",
+            "example": "delivery"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-09-14T02:00:00Z"
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": "2026-09-14T02:35:00Z"
+          },
+          "special_instructions": {
+            "type": "string",
+            "nullable": true,
+            "example": "Extra chili sauce please"
+          },
+          "delivery_fee": {
+            "type": "number",
+            "nullable": true,
+            "example": 50
+          },
+          "cancelled_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": null
+          },
+          "cancellation_reason": {
+            "type": "string",
+            "nullable": true,
+            "example": null
+          },
+          "order_item": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "order_item_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "e4b10b00-3488-4c12-9cbb-b2d9d1462002"
+                },
+                "quantity": {
+                  "type": "integer",
+                  "example": 2
+                },
+                "subtotal": {
+                  "type": "number",
+                  "example": 360
+                },
+                "special_instructions": {
+                  "type": "string",
+                  "nullable": true,
+                  "example": null
+                },
+                "product": {
+                  "type": "object",
+                  "properties": {
+                    "product_name": {
+                      "type": "string",
+                      "example": "Yang Chow Fried Rice"
+                    },
+                    "product_price": {
+                      "type": "number",
+                      "example": 180
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "transaction": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "transaction_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "example": "f5c21c00-4599-4d23-adcc-c3e0e2573003"
+                },
+                "payment_method": {
+                  "type": "string",
+                  "example": "gcash"
+                },
+                "payment_status": {
+                  "type": "string",
+                  "example": "paid"
+                },
+                "subtotal": {
+                  "type": "number",
+                  "example": 360
+                },
+                "tax_amount": {
+                  "type": "number",
+                  "example": 0
+                },
+                "discount_amount": {
+                  "type": "number",
+                  "example": 0
+                },
+                "total_paid": {
+                  "type": "number",
+                  "example": 410
+                }
+              }
+            }
+          },
+          "review": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReviewRecord"
+            }
+          }
+        }
+      },
+      "CartItemResponse": {
+        "type": "object",
+        "properties": {
+          "cart_item_id": { "type": "string", "format": "uuid" },
+          "cart_id": { "type": "string", "format": "uuid" },
+          "product_id": { "type": "string", "format": "uuid" },
+          "product_name": { "type": "string", "example": "Yang Chow Fried Rice" },
+          "product_price": { "type": "number", "example": 180 },
+          "quantity": { "type": "integer", "example": 2 },
+          "special_instructions": { "type": "string", "nullable": true, "example": "Extra spicy, no onions" },
+          "subtotal": { "type": "number", "example": 360 }
+        }
+      },
+      "CartDetailResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "cart_id": { "type": "string", "format": "uuid" },
+              "customer_id": { "type": "string", "format": "uuid" },
+              "is_final": { "type": "boolean", "example": false },
+              "status": { "type": "string", "example": "active" },
+              "order_id": { "type": "string", "format": "uuid", "nullable": true },
+              "submitted_at": { "type": "string", "format": "date-time", "nullable": true },
+              "items": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/CartItemResponse" }
+              },
+              "total_items": { "type": "integer", "example": 2 },
+              "subtotal": { "type": "number", "example": 360 }
+            }
+          }
+        }
+      },
+      "AddCartItemInput": {
+        "type": "object",
+        "required": ["product_id", "quantity"],
+        "properties": {
+          "product_id": { "type": "string", "format": "uuid" },
+          "quantity": { "type": "integer", "minimum": 1, "maximum": 99, "example": 2 },
+          "special_instructions": { "type": "string", "maxLength": 500, "nullable": true, "example": "Extra spicy, no onions" }
+        }
+      },
+      "UpdateCartItemInput": {
+        "type": "object",
+        "properties": {
+          "quantity": { "type": "integer", "minimum": 1, "maximum": 99, "example": 3 },
+          "special_instructions": { "type": "string", "maxLength": 500, "nullable": true, "example": "Less spicy" }
+        }
+      },
+      "SubmitCartInput": {
+        "type": "object",
+        "required": ["cart_id"],
+        "properties": {
+          "cart_id": { "type": "string", "format": "uuid" },
+          "order_type": { "type": "string", "enum": ["dine_in", "take_out", "delivery"], "default": "take_out" },
+          "special_instructions": { "type": "string", "maxLength": 500, "nullable": true, "example": "Please pack utensils" },
+          "delivery_fee": { "type": "number", "minimum": 0, "default": 0 }
+        }
+      },
+      "CancelOrderInput": {
+        "type": "object",
+        "properties": {
+          "cancellation_reason": { "type": "string", "maxLength": 300, "default": "Customer requested cancellation" }
+        }
+      },
+      "CustomerAddress": {
+        "type": "object",
+        "properties": {
+          "address_id": { "type": "string", "example": "1" },
+          "label": { "type": "string", "example": "Home" },
+          "address_details": { "type": "string", "example": "Taft Avenue, Malate, Manila" },
+          "address_note": { "type": "string", "nullable": true, "example": "Leave at front desk" },
+          "is_default": { "type": "boolean", "example": true }
+        }
+      },
+      "AddCustomerAddressInput": {
+        "type": "object",
+        "required": ["address_details"],
+        "properties": {
+          "label": { "type": "string", "example": "Home" },
+          "address_details": { "type": "string", "example": "Taft Avenue, Malate, Manila" },
+          "address": { "type": "string", "description": "Alternative key for address_details" },
+          "delivery_note": { "type": "string", "nullable": true, "example": "Ring doorbell" },
+          "is_default": { "type": "boolean", "default": false }
+        }
+      },
+      "OrderEtaBreakdown": {
+        "type": "object",
+        "properties": {
+          "orderId": { "type": "string", "format": "uuid" },
+          "orderType": { "type": "string", "enum": ["delivery", "take_out", "dine_in"] },
+          "kitchenPrepMinutes": { "type": "integer", "example": 21 },
+          "transitMinutes": { "type": "integer", "example": 14 },
+          "totalEstimatedMinutes": { "type": "integer", "example": 35 },
+          "arrivalWindow": { "type": "string", "example": "30–40 mins" },
+          "estimatedArrivalTimestamp": { "type": "string", "format": "date-time" },
+          "distanceKm": { "type": "number", "nullable": true, "example": 3.12 },
+          "activeOrdersAhead": { "type": "integer", "example": 2 },
+          "isDeliverable": { "type": "boolean", "example": true },
+          "message": { "type": "string", "nullable": true }
         }
       }
     }

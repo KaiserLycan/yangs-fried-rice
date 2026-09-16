@@ -32,27 +32,19 @@ function DisplayField({ label, value }: { label: string, value: string }) {
   );
 }
 
-/**
- * CustomerModal
- * 
- * Built to match Figma design node 2105:7104.
- * Changed from the generic modal layout to a specialized "form-field" design:
- * - Avatar block at the top with user initials in the Anton display font.
- * - Read-only DisplayField components to structure user data.
- * - Actions row for navigating back or triggering the Delete sequence.
- */
 export function CustomerModal({ customer, isOpen, onClose, onAction }: CustomerModalProps) {
   if (!customer) return null;
 
-  // Extract initials (e.g., "ROBERT DOWNEY JR." -> "RD")
-  const initials = customer.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+  // Extract initials (e.g., "ROBERT DOWNEY JR." -> "RD") safely
+  const nameParts = customer.name.split(' ');
+  const initials = nameParts.map(n => n[0]).join('').substring(0, 2).toUpperCase() || "?";
 
   return (
     <DialogRoot
       open={isOpen}
       onClose={onClose}
       className={cn(
-        "max-w-[480px] w-full overflow-hidden rounded-[20px] border-0 shadow-[0_30px_70px_rgba(26,18,16,0.26)]",
+        "m-auto max-w-[480px] w-[calc(100%-2rem)] md:w-full overflow-hidden rounded-[20px] border-0 shadow-[0_30px_70px_rgba(26,18,16,0.26)]",
       )}
     >
       <div className="flex flex-col w-full bg-[#FBF6EC] max-h-[90vh]">
