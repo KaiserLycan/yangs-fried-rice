@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import * as React from "react";
 import { CardField, CardInput, ProfileCard } from "@/components/profile/profile-card";
 import { useCardEditor } from "@/components/profile/use-card-editor";
@@ -11,10 +12,8 @@ import { passwordStrength } from "@/lib/profile/password-strength";
 import {
   passwordChangeSchema,
   type PasswordChangeField,
+  type PasswordChangeValues,
 } from "@/lib/validation/profile";
-
-const SAVE_TOAST =
-  "Updating your password isn’t available yet. We’re still building it.";
 
 /**
  * No `password_changed_at` column exists yet — see
@@ -24,7 +23,6 @@ const SAVE_TOAST =
  */
 const LAST_CHANGED_EMPTY_STATE = "Not tracked yet.";
 
-/** Both breakpoints parse the same three fields out of their own form. */
 function readPasswordForm(form: FormData) {
   return {
     currentPassword: String(form.get("currentPassword") ?? ""),
@@ -36,37 +34,53 @@ function readPasswordForm(form: FormData) {
 /**
  * Change password (Cust4).
  *
- * Two compositions, not one reflowed — the same call `ProfileHeader` makes.
- * Desktop toggles this card open the way Personal and Contact details do,
- * because the frame lays its three fields out inline inside the card.
- * Mobile has no frame for the form at all — only a "Change" button, with
- * nowhere in the collapsed row for fields to go — so its button opens the
- * `Dialog` primitive instead of toggling the card, holding the same three
- * fields ticket 03's address form uses the same primitive for.
+ * Desktop and mobile each get their own `useCardEditor` call (see the
+ * original comment on why — both trees are mounted at once), but share one
+ * submit function so the actual network call and its error handling can't
+ * drift apart between the two.
  *
- * Desktop and mobile each get their **own** `useCardEditor` call, even
- * though both validate the same schema and raise the same toast. A single
- * shared `isEditing` looked appealing, but both trees are mounted at once —
- * one hidden by CSS, not unmounted — so one boolean would mean desktop's
- * Edit button also opens the mobile dialog's native `<dialog>` on top of the
- * inline form it just revealed. Two independent booleans is what keeps each
- * breakpoint's control wired only to its own presentation.
- *
- * Submitting raises a toast and changes nothing. See
- * `.scratch/profile-page/issues/05-backend-handoff.md`.
+ * PATCH /api/profile/password verifies currentPassword server-side before
+ * allowing the change. A wrong current password surfaces as a toast, not
+ * a field-level error — useCardEditor's error state only comes from
+ * client-side schema validation, and threading an async server error back
+ * into that same state would mean changing the hook's contract, which is
+ * shared by every other card on this screen. Worth revisiting if a field-
+ * level error becomes a real requirement.
  */
 export function PasswordCard() {
+  const router = useRouter();
   const showToast = useToast();
+
+  async function submitPasswordChange(values: PasswordChangeValues) {
+    try {
+      const res = await fetch("/api/profile/password", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+      const json = await res.json();
+
+      if (!res.ok) {
+        showToast(json.error ?? "Could not update your password.");
+        return;
+      }
+
+      showToast("Password updated.");
+      router.refresh();
+    } catch {
+      showToast("Could not update your password. Check your connection.");
+    }
+  }
 
   const desktop = useCardEditor({
     schema: passwordChangeSchema,
     read: readPasswordForm,
-    onValid: () => showToast(SAVE_TOAST),
+    onValid: submitPasswordChange,
   });
   const mobile = useCardEditor({
     schema: passwordChangeSchema,
     read: readPasswordForm,
-    onValid: () => showToast(SAVE_TOAST),
+    onValid: submitPasswordChange,
   });
 
   return (
@@ -104,9 +118,7 @@ export function PasswordCard() {
         </ProfileCard>
       </div>
 
-      {/* Mobile: a single row, not a header-plus-body card — the frame
-          (`2047:1169`) draws no border between the title block and the
-          Change button, unlike every other card on this screen. */}
+      {/* Mobile */}
       <div className="flex items-center justify-between gap-[12px] rounded-sm border border-rule bg-card px-[14px] py-[14px] md:hidden">
         <div className="flex flex-col gap-[2px]">
           <h2 className="font-display text-[15px] tracking-[0.3px] text-foreground">
@@ -140,8 +152,6 @@ export function PasswordCard() {
           </>
         }
       >
-        {/* Only rendered while open, so its fields never sit hidden in the
-            desktop layout's tab order. */}
         {mobile.isEditing ? (
           <form
             id="password-mobile-form"
@@ -157,12 +167,6 @@ export function PasswordCard() {
   );
 }
 
-/**
- * The three fields plus the strength meter, shared between the desktop
- * card's inline form and the mobile dialog's form. `idPrefix` keeps their
- * ids apart — both trees are mounted at once, one hidden by CSS rather than
- * unmounted, so duplicate ids would otherwise reach the DOM together.
- */
 function PasswordFields({
   idPrefix,
   errors,
@@ -219,8 +223,6 @@ function PasswordFields({
           onChange={(event) => setNewPassword(event.target.value)}
           invalid={Boolean(errors.newPassword)}
         />
-        {/* Advisory only — it never gates the submit button. The one real
-            rule is the shared minimum length `passwordChangeSchema` checks. */}
         {newPassword ? (
           <div className="flex items-center gap-[8px] pt-[2px]">
             <div className="h-[5px] flex-1 overflow-hidden rounded-pill bg-rule">

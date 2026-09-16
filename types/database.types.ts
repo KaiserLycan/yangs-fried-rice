@@ -47,16 +47,28 @@ export type Database = {
         Row: {
           cart_id: string
           customer_id: string | null
+          is_final: boolean
+          order_id: string | null
+          status: string
+          submitted_at: string | null
           updated_at: string | null
         }
         Insert: {
           cart_id?: string
           customer_id?: string | null
+          is_final?: boolean
+          order_id?: string | null
+          status?: string
+          submitted_at?: string | null
           updated_at?: string | null
         }
         Update: {
           cart_id?: string
           customer_id?: string | null
+          is_final?: boolean
+          order_id?: string | null
+          status?: string
+          submitted_at?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -66,6 +78,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "customer"
             referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "cart_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order"
+            referencedColumns: ["order_id"]
           },
         ]
       }
@@ -280,35 +299,35 @@ export type Database = {
         Row: {
           email: string
           employee_id: string
+          is_account_disabled: boolean
           last_access_log: string | null
           name: string
           password_last_updated: string | null
           profileImage_URL: string | null
           role: string | null
           schedule_shift: string | null
-          is_account_disabled?: boolean | null
         }
         Insert: {
           email: string
           employee_id?: string
+          is_account_disabled?: boolean
           last_access_log?: string | null
           name: string
           password_last_updated?: string | null
           profileImage_URL?: string | null
           role?: string | null
           schedule_shift?: string | null
-          is_account_disabled?: boolean | null
         }
         Update: {
           email?: string
           employee_id?: string
+          is_account_disabled?: boolean
           last_access_log?: string | null
           name?: string
           password_last_updated?: string | null
           profileImage_URL?: string | null
           role?: string | null
           schedule_shift?: string | null
-          is_account_disabled?: boolean | null
         }
         Relationships: []
       }
@@ -591,7 +610,7 @@ export type Database = {
           {
             foreignKeyName: "review_order_id_fkey"
             columns: ["order_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "order"
             referencedColumns: ["order_id"]
           },
@@ -690,7 +709,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_customer_order_history: {
+        Args: { p_customer_id: string }
+        Returns: Json
+      }
+      submit_order_review: {
+        Args: { p_comment?: string; p_order_id: string; p_rating: number }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
