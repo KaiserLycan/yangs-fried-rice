@@ -255,6 +255,11 @@ export async function loginEmployee(
     return { success: false, error: EMPLOYEE_SIGN_IN_FAILED };
   }
 
+  await supabase
+    .from("employee")
+    .update({ last_access_log: new Date().toISOString() })
+    .eq("employee_id", authData.user.id);
+
   if (employee.is_account_disabled) {
     await supabase.auth.signOut();
     return {
