@@ -709,10 +709,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_customer_order_history: {
-        Args: { p_customer_id: string }
-        Returns: Json
-      }
 
       cancel_customer_order: {
         Args: {
