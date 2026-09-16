@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
   CardField,
   CardInput,
@@ -13,48 +14,28 @@ import type { CustomerProfile } from "@/lib/profile/customer-profile";
 import { formatMobileNumber } from "@/lib/profile/mobile-number";
 import { contactDetailsSchema } from "@/lib/validation/profile";
 
-const SAVE_TOAST =
-  "Saving your contact details isn’t available yet. We’re still building it.";
-
 const MOBILE_HINT = "We text this number about your delivery.";
 
-/**
- * What the email is for, shown while the card is only displaying values. It
- * explains why this particular field is worth being careful with — it is the
- * customer's sign-in identity, not just somewhere to send a receipt.
- */
 const EMAIL_NOTE = "This is the email you sign in with.";
 
-/**
- * What changing it actually costs, shown only while editing. Taken verbatim
- * from the frame.
- *
- * The card must not imply the new address takes effect on submit. Changing a
- * sign-in identity sends a confirmation link, and the address does not switch
- * until that link is followed — until then the *old* one is still what signs
- * the customer in. Saying "saved" at the moment of submission would be a lie
- * the frontend told on the backend's behalf, so the field promises
- * verification instead.
- */
 const EMAIL_EDITING_HINT = "A new email needs verifying before your next order.";
 
 /**
  * Mobile number and email address (Cust4).
  *
- * Both fields validate against the rules the auth screens already use —
- * sign-up's for the number, login's for the address — imported rather than
- * restated, so no two screens can drift apart about what a valid value is.
+ * The two fields are submitted together by this form (contactDetailsSchema
+ * requires both), but only sent to the backend when they've actually
+ * changed — otherwise saving after only editing the mobile number would
+ * also silently re-trigger an email re-confirmation for an address that
+ * never changed.
  *
- * The frame's typo helper ("gmial.com looks like a typo") is cut: no
- * requirement asks for it, and a heuristic that second-guesses a customer's
- * own address is a guess that will be wrong for somebody.
- *
- * Saving raises a toast and writes nothing. The email is the more involved of
- * the two writes waiting behind this card — it lands on the customer record
- * and on the authentication record, and the second half completes
- * asynchronously. See `.scratch/profile-page/issues/05-backend-handoff.md`.
+ * Email doesn't take effect immediately: PATCH /api/profile calls
+ * supabase.auth.updateUser under the hood, which sends a confirmation link
+ * to the new address rather than switching it right away. The toast
+ * reflects that rather than claiming the change is done.
  */
 export function ContactDetailsCard({ profile }: { profile: CustomerProfile }) {
+  const router = useRouter();
   const showToast = useToast();
   const { isEditing, edit, cancel, errors, handleSubmit } = useCardEditor({
     schema: contactDetailsSchema,
@@ -62,7 +43,48 @@ export function ContactDetailsCard({ profile }: { profile: CustomerProfile }) {
       mobile: String(form.get("mobile") ?? ""),
       email: String(form.get("email") ?? ""),
     }),
-    onValid: () => showToast(SAVE_TOAST),
+    onValid: async (values) => {
+      const body: { mobile?: string; email?: string } = {};
+
+      if (values.mobile !== (profile.mobile ?? "")) {
+        body.mobile = values.mobile;
+      }
+      if (values.email !== profile.email) {
+        body.email = values.email;
+      }
+
+      if (Object.keys(body).length === 0) {
+        showToast("No changes to save.");
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/profile", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const json = await res.json();
+
+        if (!res.ok) {
+          showToast(json.error ?? "Could not save your contact details.");
+          return;
+        }
+
+        if (body.email) {
+          showToast(
+            body.mobile
+              ? "Mobile number updated. Check your new email to confirm the change."
+              : "Check your new email to confirm the change.",
+          );
+        } else {
+          showToast("Contact details saved.");
+        }
+        router.refresh();
+      } catch {
+        showToast("Could not save your contact details. Check your connection.");
+      }
+    },
   });
 
   return (
@@ -86,9 +108,6 @@ export function ContactDetailsCard({ profile }: { profile: CustomerProfile }) {
               hint={MOBILE_HINT}
               error={errors.mobile}
             >
-              {/* Seeded with the grouped form because that is what the
-                  editing frame draws. Safe to submit: the validator strips
-                  separators, and the grouping is lossless. */}
               <CardInput
                 id="mobile"
                 name="mobile"
@@ -105,10 +124,6 @@ export function ContactDetailsCard({ profile }: { profile: CustomerProfile }) {
               hint={EMAIL_EDITING_HINT}
               error={errors.email}
             >
-              {/* Uncontrolled and seeded from the stored address, matching the
-                  mobile number beside it — that is what makes Cancel restore
-                  the original value without this card holding any state of
-                  its own. */}
               <CardInput
                 id="email"
                 name="email"
