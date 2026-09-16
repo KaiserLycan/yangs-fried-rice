@@ -68,6 +68,14 @@ without it the screen would be permanently empty.
 | `?example=cancelled` | The same three, with a **cancelled** order added at the top. It shows "Cancelled" instead of "Delivered", has no stars, and offers Reorder. |
 | `?example=empty` | "No past orders yet." and a link back to the menu. |
 
+**Rating an example card doesn't work.** The star row on the unrated card
+is the real control now — pressing one sends the score to the database — but
+the example orders have made-up ids, so the database rejects them and a raw
+error like *"invalid input syntax for type uuid"* appears in a toast. This
+only happens on example cards; a real order rates fine. A friendlier "this is
+a sample order" message is a possible follow-up once the fixture is worth
+keeping that long — the expected end of it is deletion.
+
 **Two of these have no Figma frame**: `cancelled` and `empty`. They are not
 oversights. Ticket 07 built cancelling an order, so a cancelled order in the
 history is the ordinary consequence of using it; and an empty history is what
