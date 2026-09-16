@@ -27,42 +27,54 @@ type ActionResult =
  * re-runs the Server Components for the current route, so the new quantity
  * arrives the same way the old one did, from `readCart()`.
  *
- * `useTransition` is React's own way to track an async action from a click:
- * `pending` is true from the call until the refresh settles, which is what
- * the disabled state hangs off.
+ * `pending` is true from the press until the refresh settles, in two parts:
+ *
+ * - `inFlight` covers the network call, tracked by hand. On React 18
+ *   `useTransition` only scopes the synchronous part of its callback, so an
+ *   `await` inside one is invisible to it (React 19 changes this).
+ * - `refreshing` covers the re-read. `router.refresh()` is wrapped in its own
+ *   sync `startTransition`, the pattern Next documents, so `isPending` holds
+ *   until the new Server Component output has actually rendered — not just
+ *   until the refresh was requested.
  */
 export function useCartAction() {
   const router = useRouter();
   const showToast = useToast();
-  const [pending, startTransition] = React.useTransition();
+  const [inFlight, setInFlight] = React.useState(false);
+  const [refreshing, startTransition] = React.useTransition();
 
   const run = React.useCallback(
     <R extends ActionResult>(
       action: () => Promise<R>,
       onSuccess?: (data: NonNullable<R["data"]>) => void,
     ) => {
-      startTransition(async () => {
-        // The actions report failures as `{ error }`, but a dropped
-        // connection or a stale deployment makes the call itself throw.
-        // Without this catch React would hand that to the nearest error
-        // boundary — the whole page replaced by an error, for a button press.
-        let result: R;
+      setInFlight(true);
+      void (async () => {
         try {
-          result = await action();
-        } catch {
-          showToast(NETWORK_FAILED);
-          return;
+          // The actions report failures as `{ error }`, but a dropped
+          // connection or a stale deployment makes the call itself throw.
+          // Without this catch the rejection would go unhandled — an error
+          // in the console and a button that silently did nothing.
+          let result: R;
+          try {
+            result = await action();
+          } catch {
+            showToast(NETWORK_FAILED);
+            return;
+          }
+          if (result.error !== null) {
+            showToast(result.error);
+            return;
+          }
+          onSuccess?.(result.data as NonNullable<R["data"]>);
+          startTransition(() => router.refresh());
+        } finally {
+          setInFlight(false);
         }
-        if (result.error !== null) {
-          showToast(result.error);
-          return;
-        }
-        onSuccess?.(result.data as NonNullable<R["data"]>);
-        router.refresh();
-      });
+      })();
     },
     [router, showToast],
   );
 
-  return { run, pending };
+  return { run, pending: inFlight || refreshing };
 }
