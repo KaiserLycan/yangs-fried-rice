@@ -1,42 +1,87 @@
 "use client";
 
-import { useState } from "react";
-import { Search, ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Search, ChevronDown, ChevronUp, ChevronsUpDown, Loader2 } from "lucide-react";
 import { ManagePagination } from "@/components/manage/manage-pagination";
 import { CustomerModal, CustomerData } from "@/components/manage/customers/customer-modal";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useToast, ToastProvider } from "@/components/ui/toast";
+import { getAllCustomers, deleteCustomer } from "@/lib/actions/admin";
 
-const dummyCustomers: CustomerData[] = [
-  { id: "1", name: "ALICE SMITH", email: "alice.smith@gmail.com", contact: "+639171234567", customerSince: "Jan 12, 2024", totalOrders: 14, totalSpent: 7500.00 },
-  { id: "2", name: "ZENDAYA COLEMAN", email: "zendaya@gmail.com", contact: "+639171234568", customerSince: "Feb 14, 2024", totalOrders: 3, totalSpent: 1200.00 },
-  { id: "3", name: "CHRIS EVANS", email: "cevans@gmail.com", contact: "+639171234569", customerSince: "Mar 15, 2024", totalOrders: 5, totalSpent: 2450.00 },
-  { id: "4", name: "ROBERT DOWNEY JR.", email: "rdj@gmail.com", contact: "+6309872738456", customerSince: "Aug 15, 2025" },
-  { id: "5", name: "SCARLETT JOHANSSON", email: "scarlett@gmail.com", contact: "+639171234571", customerSince: "Apr 20, 2025" },
-  { id: "6", name: "MARK RUFFALO", email: "markr@gmail.com", contact: "+639171234572", customerSince: "May 21, 2025" },
-  { id: "7", name: "CHRIS HEMSWORTH", email: "thor@gmail.com", contact: "+639171234573", customerSince: "Jun 22, 2025" },
-  { id: "8", name: "JEREMY RENNER", email: "hawkeye@gmail.com", contact: "+639171234574", customerSince: "Jul 23, 2025" },
-  { id: "9", name: "TOM HOLLAND", email: "spidey@gmail.com", contact: "+639171234575", customerSince: "Aug 24, 2025" },
-  { id: "10", name: "PAUL RUDD", email: "antman@gmail.com", contact: "+639171234576", customerSince: "Sep 25, 2025" },
-];
-
-// TODO (Backend): Integration Checklist for Customer Management
-// 1. Data Fetching: Replace `dummyCustomers` with real Supabase queries.
-// 2. Search & Sort: Wire up `searchQuery` and `nameSort` to database queries (e.g., ilike and order) instead of client-side arrays.
-// 3. Pagination: Modify the `ManagePagination` to fetch offset/limit chunks from the server.
-// 4. Mutations: Wire the Dialog "Delete Account" action to the backend deletion endpoint.
-
+// 1. Wrapper component to provide the Toast context
 export default function ManageCustomersPage() {
+  return (
+    <ToastProvider>
+      <ManageCustomersInner />
+    </ToastProvider>
+  );
+}
+
+// 2. The inner component that safely uses the hook
+function ManageCustomersInner() {
+  const showToast = useToast();
+  
+  // Real Data State
+  const [customers, setCustomers] = useState<CustomerData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // UI State
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
-  const [showCount, setShowCount] = useState(10);
-
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerData | null>(null);
   const [customerToDelete, setCustomerToDelete] = useState<CustomerData | null>(null);
   const [nameSort, setNameSort] = useState<"asc" | "desc" | "none">("none");
 
-  // Derive filtered and sorted customers
-  let filteredCustomers = [...dummyCustomers];
+  // Fetch Customers on Mount
+  useEffect(() => {
+    async function loadCustomers() {
+      setIsLoading(true);
+      const result = await getAllCustomers();
+      
+      if (result.error) {
+        showToast(`Failed to load customers: ${result.error}`);
+      } else if (result.data) {
+        // Safely map backend data to our UI schema
+        const mappedData: CustomerData[] = result.data.map((c: any) => ({
+          id: c.customer_id,
+          name: c.name || "Unknown User",
+          email: c.email || "No email",
+          contact: c.phone_number || "No contact",
+          // Fallback to "Unknown" if created_at doesn't exist on the table yet
+          customerSince: c.created_at ? new Date(c.created_at).toLocaleDateString() : "Unknown",
+        }));
+        setCustomers(mappedData);
+      }
+      setIsLoading(false);
+    }
+    
+    loadCustomers();
+  }, [showToast]);
+
+  // Execute Backend Deletion
+  const handleDeleteConfirm = async () => {
+    if (!customerToDelete) return;
+    setIsDeleting(true);
+    
+    const result = await deleteCustomer(customerToDelete.id);
+    
+    if (result.error) {
+      showToast(`Failed to delete customer: ${result.error}`);
+    } else {
+      showToast("Customer account deleted successfully.");
+      // Remove from local state instantly to update the UI
+      setCustomers(prev => prev.filter(c => c.id !== customerToDelete.id));
+      setCustomerToDelete(null);
+      setSelectedCustomer(null);
+    }
+    
+    setIsDeleting(false);
+  };
+
+  // Derive filtered and sorted customers client-side
+  let filteredCustomers = [...customers];
 
   if (searchQuery) {
     const q = searchQuery.toLowerCase();
@@ -92,7 +137,12 @@ export default function ManageCustomersPage() {
 
           {/* Table Body */}
           <div className="flex-1 overflow-y-auto">
-            {filteredCustomers.length === 0 ? (
+            {isLoading ? (
+              <div className="flex items-center justify-center p-12 text-[#7A6A60]">
+                <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                Loading customers...
+              </div>
+            ) : filteredCustomers.length === 0 ? (
               <div className="p-8 text-center text-[#7A6A60]">
                 No customers found.
               </div>
@@ -148,16 +198,13 @@ export default function ManageCustomersPage() {
         tone="danger"
         footer={
           <>
-            <Button variant="outline" onClick={() => setCustomerToDelete(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setCustomerToDelete(null)} disabled={isDeleting}>Cancel</Button>
             <Button
               variant="confirm"
-              onClick={() => {
-                console.log("Deleting customer:", customerToDelete?.id);
-                setCustomerToDelete(null);
-                setSelectedCustomer(null);
-              }}
+              onClick={handleDeleteConfirm}
+              disabled={isDeleting}
             >
-              Delete Account
+              {isDeleting ? "Deleting..." : "Delete Account"}
             </Button>
           </>
         }
