@@ -11,7 +11,7 @@ import {
   getAllEmployees, 
   createEmployee, 
   deleteEmployee, 
-  changeEmployeeRole 
+  updateEmployeeDetails 
 } from "@/lib/actions/admin";
 
 export type EmployeeData = {
@@ -118,18 +118,19 @@ function ManageEmployeeInner() {
     if (!employeeToEdit || !selectedEmployee) return;
     setIsProcessing(true);
 
-    // Currently, the backend only supports changing roles. 
     const dbRole = employeeToEdit.role.toUpperCase() === "SERVER" ? "STAFF" : employeeToEdit.role.toUpperCase();
 
-    const result = await changeEmployeeRole({
-      employee_id: selectedEmployee.id,
-      new_role: dbRole as any,
+    // Call our new backend function to save everything!
+    const result = await updateEmployeeDetails(selectedEmployee.id, {
+      role: dbRole as any,
+      shift: employeeToEdit.shift,
+      password: employeeToEdit.password,
     });
 
     if (result.error) {
-      showToast(`Failed to update role: ${result.error}`);
+      showToast(`Failed to update employee: ${result.error}`);
     } else {
-      showToast("Employee role updated successfully.");
+      showToast("Employee details updated successfully.");
       await loadEmployees();
       setEmployeeToEdit(null);
       setSelectedEmployee(null);
