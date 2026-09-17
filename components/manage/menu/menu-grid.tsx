@@ -39,6 +39,7 @@ export function MenuGrid({ searchText, selectedCategory, onEditItem, items, isLo
               >
                 {/* Image Display */}
                 <div className="relative h-[160px] md:h-[181px] w-full shrink-0 bg-[#f6e9d9] overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img 
                     src={item.image} 
                     alt={item.name}
