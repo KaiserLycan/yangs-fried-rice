@@ -6,15 +6,32 @@ interface ManagePaginationProps {
   totalPages: number;
   onPageChange: (page: number) => void;
   className?: string;
+  itemsPerPage?: number;
+  onItemsPerPageChange?: (limit: number) => void;
 }
 
-export function ManagePagination({ currentPage, totalPages, onPageChange, className }: ManagePaginationProps) {
+export function ManagePagination({ 
+  currentPage, 
+  totalPages, 
+  onPageChange, 
+  className,
+  itemsPerPage = 6, // Default to 6 to match your initial grid layout
+  onItemsPerPageChange
+}: ManagePaginationProps) {
   return (
     <div className={cn("flex items-center justify-end gap-2", className)}>
       <span className="text-[13px] text-[#7a6a60]">Show</span>
-      <div className="flex h-[36px] w-[56px] items-center justify-center rounded-full border border-[#DDCDB8] bg-white">
-        <span className="text-[13px] font-bold text-[#1A1210]">10</span>
-      </div>
+      
+      {/* Functional dropdown replacing the static div */}
+      <select
+        value={itemsPerPage}
+        onChange={(e) => onItemsPerPageChange?.(Number(e.target.value))}
+        className="flex h-[36px] w-[56px] cursor-pointer appearance-none items-center justify-center rounded-full border border-[#DDCDB8] bg-white text-center text-[13px] font-bold text-[#1A1210] outline-none transition-colors hover:bg-black/5 text-center px-4"
+      >
+        <option value={6}>6</option>
+        <option value={10}>10</option>
+        <option value={20}>20</option>
+      </select>
 
       <div className="flex items-center gap-1 ml-4">
         <button
