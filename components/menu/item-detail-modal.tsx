@@ -3,12 +3,10 @@
 import * as React from "react";
 import { QuantityStepper } from "@/components/menu/quantity-stepper";
 import { ProductPhotoPlaceholder } from "@/components/menu/product-photo-placeholder";
-import { useToast } from "@/components/ui/toast";
+import { addCartItem } from "@/lib/actions/cart";
+import { useCartAction } from "@/lib/cart/use-cart-action";
 import { formatPeso, type ProductListing } from "@/lib/menu/product-listing";
 import { MIN_QUANTITY } from "@/lib/menu/quantity";
-
-const ADD_TO_CART_TOAST =
-  "Adding to your cart isn’t available yet. We’re still building it.";
 
 const SPECIAL_INSTRUCTIONS_PLACEHOLDER = "e.g. extra chili, no egg";
 
@@ -47,7 +45,7 @@ export function ItemDetailModal({
   product: ProductListing | null;
   onClose: () => void;
 }) {
-  const showToast = useToast();
+  const { run, pending } = useCartAction();
   const ref = React.useRef<HTMLDialogElement>(null);
   const [quantity, setQuantity] = React.useState(MIN_QUANTITY);
   const [instructions, setInstructions] = React.useState("");
@@ -84,9 +82,22 @@ export function ItemDetailModal({
 
   const lineTotal = formatPeso(product.price * quantity);
 
+  // `addCartItem` is the backend's write (PR #68). The modal closes only on
+  // success, so a failed add leaves the customer looking at what they were
+  // trying to add, with the backend's reason in a toast, rather than at a
+  // menu that silently didn't change.
   function handleAddToCart() {
-    showToast(ADD_TO_CART_TOAST);
-    onClose();
+    if (!product) return;
+    const { id: product_id } = product;
+    run(
+      () =>
+        addCartItem({
+          product_id,
+          quantity,
+          special_instructions: instructions.trim() || null,
+        }),
+      onClose,
+    );
   }
 
   return (
@@ -154,7 +165,8 @@ export function ItemDetailModal({
           <button
             type="button"
             onClick={handleAddToCart}
-            className="flex items-center justify-between rounded-[14px] bg-accent p-[17px] text-[15px] font-bold text-white"
+            disabled={pending}
+            className="flex items-center justify-between rounded-[14px] bg-accent p-[17px] text-[15px] font-bold text-white disabled:opacity-60"
           >
             <span>Add to cart</span>
             <span>{lineTotal}</span>
@@ -193,7 +205,8 @@ export function ItemDetailModal({
             <button
               type="button"
               onClick={handleAddToCart}
-              className="flex items-center justify-between rounded-[13px] bg-accent p-[15px] text-[14px] font-bold text-white"
+              disabled={pending}
+              className="flex items-center justify-between rounded-[13px] bg-accent p-[15px] text-[14px] font-bold text-white disabled:opacity-60"
             >
               <span>Add to cart</span>
               <span>{lineTotal}</span>

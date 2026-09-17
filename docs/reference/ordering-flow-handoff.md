@@ -2,7 +2,7 @@
 
 For the backend and database developers (and any AI assistant reading this
 repo on their behalf). Written by the frontend developer, last updated
-2026-09-06. Read `docs/reference/frontend-integration.md` first if you
+2026-09-16. Read `docs/reference/frontend-integration.md` first if you
 haven't — this file assumes its conventions and doesn't repeat them.
 
 **This document is started early, on purpose, and grows as more of the
@@ -37,8 +37,32 @@ a backend task.
 
 ## 2. The two writes that unlock the cart
 
-Both are stubbed with a toast reading roughly "isn't available yet. We're
-still building it." and write nothing today.
+> **Status 2026-09-16 — shipped and wired.** The backend delivered all of
+> these in PR #68 as server actions in `lib/actions/cart.ts` (`addCartItem`,
+> `updateCartItem`, `removeCartItem`, `submitCart`), and the frontend now
+> calls them from the three components named below (GitHub #7, ticket 14).
+> The sections that follow are kept as the record of what was asked for.
+> Two things from the ask are **not** in what shipped:
+>
+> 1. **`submitCart` does not record the payment method.** Its input is
+>    `cart_id`, `order_type`, `special_instructions`, `delivery_fee` — no
+>    `payment_method`, and no `transaction` row is written. The checkout
+>    screen still lets the customer pick one, and that choice is dropped on
+>    the floor. Step 3 under "Place order" below is still open; it belongs
+>    with GitHub #61 (payment processing).
+> 2. **`order_type` vocabulary.** The backend settled on
+>    `dine_in | take_out | delivery`. The frontend translates its "pickup" to
+>    `take_out` in `lib/checkout/fulfilment-param.ts` — answered, no action.
+>
+> Also worth knowing: `submitCart` flips `cart.is_final` and the next add
+> creates a fresh cart, so any cart read must filter `is_final = false`.
+> `lib/cart/read-cart.ts` does now.
+>
+> 3. **One request for the DB side:** nothing stops a customer having two
+>    active carts — `getActiveCart` checks then inserts with no lock, and
+>    there is no unique index. Two tabs adding at once would create two.
+>    A partial unique index, `cart (customer_id) where is_final = false`,
+>    closes it. The frontend reads the newest one in the meantime.
 
 ### Add to cart
 

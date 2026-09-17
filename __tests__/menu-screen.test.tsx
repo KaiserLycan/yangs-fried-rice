@@ -17,6 +17,15 @@ vi.mock("@/lib/menu/fetch-menu", () => ({
   fetchCategories: vi.fn(),
 }));
 
+// `ItemDetailModal` reaches for the router and the cart write on mount; none
+// of these tests open it, so both are inert stubs.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+}));
+vi.mock("@/lib/actions/cart", () => ({
+  addCartItem: vi.fn(),
+}));
+
 /**
  * A Supabase client stub that records how many times a channel was opened, so
  * the resubscribe-churn test has something to count. `on()` returns the

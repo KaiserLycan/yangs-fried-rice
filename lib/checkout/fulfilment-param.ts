@@ -18,3 +18,16 @@ import type { Fulfilment } from "@/lib/menu/cart-totals";
 export function fulfilmentFromParam(value: string | undefined): Fulfilment {
   return value === "pickup" ? "pickup" : "delivery";
 }
+
+/**
+ * What `submitCart` calls the same choice. The backend's `order.order_type`
+ * vocabulary is `dine_in | take_out | delivery` (`lib/validation/cart.ts`),
+ * and the frames only ever offer two of those: our "pickup" is its
+ * "take_out". Mapped here, next to the parser, so the two names for one
+ * idea are translated in exactly one place.
+ */
+export type OrderType = "take_out" | "delivery";
+
+export function orderTypeFor(fulfilment: Fulfilment): OrderType {
+  return fulfilment === "pickup" ? "take_out" : "delivery";
+}
