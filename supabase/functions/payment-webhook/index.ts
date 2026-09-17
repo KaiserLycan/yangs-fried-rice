@@ -1,27 +1,7 @@
 // supabase/functions/payment-webhook/index.ts
 //
-// Deno Edge Function (AC2). Public endpoint PayMongo POSTs to directly —
-// no customer JWT, no CORS restriction needed (PayMongo's servers call
-// this, not a browser). Authenticity is verified entirely via the
-// Paymongo-Signature header (HMAC-SHA256), per PayMongo's own go-live
-// checklist: verify the signature BEFORE any JSON parsing, since any byte
-// changed before verification breaks the check on a legitimate request.
-//
-// Deploy: supabase functions deploy payment-webhook --no-verify-jwt
-//   --no-verify-jwt is required — Supabase normally demands a Supabase
-//   auth JWT on every function call, but PayMongo obviously can't send
-//   one. Authenticity here comes entirely from the signature check below,
-//   not from Supabase's own auth layer.
-//
-// Secrets:
-//   supabase secrets set PAYMONGO_WEBHOOK_SECRET=whsk_...
-//   (shown once in PayMongo Dashboard -> Developer Tools -> Webhooks,
-//   when the endpoint is registered there)
-//
-// After deploying, register the resulting URL in PayMongo's dashboard
-// (Developer Tools -> Webhooks -> Add Endpoint) for payment.paid and
-// payment.failed. The dashboard displays the webhook secret ONLY at that
-// point — copy it immediately into the secrets command above.
+// Deno Edge Function (AC2). Public endpoint PayMongo POSTs to directly.
+// Authenticated via Paymongo-Signature header (HMAC-SHA256).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -30,10 +10,7 @@ Deno.serve(async (req: Request) => {
     return new Response("Method not allowed", { status: 405 });
   }
 
-  // Raw text, captured before any JSON parsing — required for signature
-  // verification to match what PayMongo actually signed.
   const rawBody = await req.text();
-
   const signatureHeader = req.headers.get("Paymongo-Signature");
   const webhookSecret = Deno.env.get("PAYMONGO_WEBHOOK_SECRET");
 
@@ -52,8 +29,6 @@ Deno.serve(async (req: Request) => {
     return new Response("Invalid signature.", { status: 400 });
   }
 
-  // Only safe to parse JSON now that the signature is confirmed to match
-  // this exact raw body.
   let event: any;
   try {
     event = JSON.parse(rawBody);
@@ -61,92 +36,96 @@ Deno.serve(async (req: Request) => {
     return new Response("Invalid JSON.", { status: 400 });
   }
 
-  const eventType: string | undefined = event?.data?.attributes?.type;
-  // NOTE: PayMongo's docs show the payload as
-  //   { data: { attributes: { type: "payment.paid", data: { ... } } } }
-  // but didn't show the full inner shape at the time this was written.
-  // The inner resource is expected at attributes.data.data.attributes
-  // (id, amount, metadata, payment_intent_id) based on how PayMongo
-  // structures its other resource responses — CONFIRM this against a
-  // real "Send test webhook" delivery from the PayMongo dashboard before
-  // trusting it in production, and adjust the extraction below if the
-  // actual nesting differs.
-  const resource = event?.data?.attributes?.data;
-  const resourceAttributes = resource?.attributes ?? resource?.data?.attributes;
-  const orderId: string | undefined = resourceAttributes?.metadata?.order_id;
-  const paymentIntentId: string | undefined =
-    resourceAttributes?.payment_intent_id ?? resource?.id;
+  // Handle both array-wrapped payloads (PayMongo webhook_process) and single objects
+  let webhookItem = event?.data;
+  if (Array.isArray(webhookItem)) {
+    webhookItem = webhookItem[0];
+  }
+
+  const eventType: string | undefined =
+    webhookItem?.attributes?.event_type ??
+    webhookItem?.attributes?.type ??
+    event?.type;
+
+  // Safely extract resource_id first, falling back to item or event IDs
+  const resourceId: string | undefined =
+    webhookItem?.attributes?.resource_id ??
+    webhookItem?.id ??
+    event?.data?.id;
+
+  console.log("Webhook parsed - Event Type:", eventType, "Resource ID:", resourceId);
 
   if (!eventType || (eventType !== "payment.paid" && eventType !== "payment.failed")) {
-    // Not an event this function cares about — acknowledge anyway so
-    // PayMongo doesn't retry something we deliberately ignore.
     return new Response("ok", { status: 200 });
   }
 
-  if (!orderId && !paymentIntentId) {
-    console.error(
-      "payment-webhook: could not extract order_id or payment_intent_id from payload.",
-      JSON.stringify(event),
-    );
-    // Acknowledge with 200 anyway — retrying won't fix a payload we
-    // can't parse, and this is exactly the case the NOTE above exists
-    // for. Logged for manual follow-up instead.
-    return new Response("ok", { status: 200 });
+  const paymongoSecretKey = Deno.env.get("PAYMONGO_SECRET_KEY");
+  let paymentIntentId: string | undefined;
+  let orderId: string | undefined;
+  let amountPaid: number | undefined;
+
+  if (paymongoSecretKey && resourceId && !resourceId.startsWith("evt_")) {
+    try {
+      let endpoint = `https://api.paymongo.com/v1/payments/${resourceId}`;
+      if (resourceId.startsWith("pi_")) {
+        endpoint = `https://api.paymongo.com/v1/payment_intents/${resourceId}`;
+      }
+
+      const paymongoRes = await fetch(endpoint, {
+        headers: {
+          Authorization: "Basic " + btoa(`${paymongoSecretKey}:`),
+        },
+      });
+
+      if (paymongoRes.ok) {
+        const responseData = await paymongoRes.json();
+        const attributes = responseData?.data?.attributes;
+        amountPaid = attributes?.amount;
+        paymentIntentId = attributes?.payment_intent_id ?? responseData?.data?.id;
+        orderId = attributes?.metadata?.order_id;
+      }
+    } catch (err) {
+      console.log("PayMongo API fetch skipped or failed for test ID:", err);
+    }
   }
 
-  // Service-role client — this function has no user session to inherit,
-  // and needs to write regardless of RLS.
+  // Service-role client to bypass RLS
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
   const newStatus = eventType === "payment.paid" ? "paid" : "failed";
-  const amountCentavos: number | undefined = resourceAttributes?.amount;
 
   let query = supabase
     .from("transaction")
     .update({
       payment_status: newStatus,
-      ...(newStatus === "paid" && typeof amountCentavos === "number"
-        ? { total_paid: amountCentavos / 100 }
+      ...(newStatus === "paid" && typeof amountPaid === "number"
+        ? { total_paid: amountPaid / 100 }
         : {}),
     })
-    // Idempotency: only update a transaction that's still pending. A
-    // retried webhook delivery for an already-processed event becomes a
-    // harmless no-op instead of double-applying the update.
     .eq("payment_status", "pending");
 
-  query = paymentIntentId
-    ? query.eq("provider_reference_id", paymentIntentId)
-    : query.eq("order_id", orderId!);
+  if (paymentIntentId) {
+    query = query.eq("provider_reference_id", paymentIntentId);
+  } else if (orderId) {
+    query = query.eq("order_id", orderId);
+  } else if (resourceId && !resourceId.startsWith("evt_")) {
+    query = query.eq("provider_reference_id", resourceId);
+  }
 
-  const { error } = await query;
+  const { data: updatedRows, error } = await query.select();
+
+  console.log("Database Update Result - Matched Rows:", updatedRows, "Error:", error);
 
   if (error) {
     console.error("payment-webhook: failed to update transaction:", error);
-    // Still 200 — PayMongo retries on non-2xx, and retrying a DB error
-    // that isn't transient won't help. Logged for manual follow-up.
   }
 
-  // Deliberately does NOT touch order.order_status. That field belongs
-  // to the kitchen-queue flow (lib/actions/orders.ts, a different
-  // teammate's work) — payment success/failure is tracked purely on
-  // `transaction`, kept as a separate concern.
   return new Response("ok", { status: 200 });
 });
 
-/**
- * Verifies PayMongo's Paymongo-Signature header against the raw body.
- * Header format: "t=<timestamp>,te=<test_signature>,li=<live_signature>"
- * Signed string: "<timestamp>.<raw_body>", HMAC-SHA256 with the webhook
- * secret, hex-encoded.
- *
- * Compares against `te` (test-mode signature) since this project is on
- * PayMongo test keys. Switch to comparing `li` once the integration goes
- * live with production keys — don't compare both, since PayMongo does
- * not send a live signature for a test-mode event or vice versa.
- */
 async function verifyPaymongoSignature(
   rawBody: string,
   signatureHeader: string,
@@ -184,10 +163,6 @@ async function verifyPaymongoSignature(
   return timingSafeEqual(computedHex, testSignature);
 }
 
-/** Constant-time string comparison — a naive === leaks timing info that
- *  can theoretically help an attacker guess the correct signature byte
- *  by byte. Always compares the full length of both strings regardless
- *  of where they first differ. */
 function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   let result = 0;
