@@ -47,7 +47,7 @@ export function ConfirmationModal({
 interface MenuItemModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (item: Partial<MenuItem>) => void;
+  onSave: (item: Partial<MenuItem>, file?: File) => void;
   categories?: string[];
 }
 
@@ -88,27 +88,21 @@ export function MenuItemModal({
     }
   };
 
-  const handleSave = () => {
-    // TODO (Backend): The parent component (page.tsx) handles the actual API request
-    // using the data passed to `onSave`. Make sure to pass the File object itself
-    // if you plan to upload it in the parent component.
+  const handleSave = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    const file = fileInputRef.current?.files?.[0];
+    
     onSave({
       name,
       price: parseFloat(price) || 0,
-      category: (category || selectableCategories[0]) as MenuCategory,
+      // Added a safe fallback string before the cast so TS knows it's never undefined
+      category: (category || selectableCategories[0] || "Uncategorized") as MenuCategory,
       description,
       available,
-    });
-    // Reset form
-    setName("");
-    setPrice("");
-    setCategory("");
-    setDescription("");
-    setAvailable(false);
-    setImagePreview(null);
-    onClose();
+    }, file);
   };
 
+  // Safe fallback for the display label as well
   const displayCategory = category || selectableCategories[0] || "Select";
 
   return (
@@ -251,11 +245,16 @@ export function MenuItemModal({
               Price ₱
             </label>
             <input
-              type="number"
-              step="0.01"
-              min="0"
+              type="text" // Changed from "number" to prevent browser default 'e' and '-' characters
+              inputMode="decimal"
               value={price}
-              onChange={(e) => setPrice(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                // Only allow numbers and a single decimal point with up to 2 decimal places
+                if (val === "" || /^\d*\.?\d{0,2}$/.test(val)) {
+                  setPrice(val);
+                }
+              }}
               placeholder="0.00"
               className="w-full rounded-[12px] border border-[#ddcdb8] bg-white px-4 py-3 text-[15px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
             />
@@ -296,6 +295,7 @@ export function MenuItemModal({
               </span>
             </button>
             <button
+              type="button"
               onClick={handleSave}
               className="flex flex-1 items-center justify-center rounded-[12px] bg-[#e8541f] px-[14px] py-[15px] transition-opacity hover:opacity-90"
             >
