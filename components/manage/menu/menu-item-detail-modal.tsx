@@ -41,7 +41,7 @@ function ToggleSwitch({
 interface MenuItemDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onEdit: (item: MenuItem) => void;
+  onEdit: (item: MenuItem, file?: File) => void;
   onDelete: (itemId: string) => void;
   item: MenuItem;
 }
@@ -95,20 +95,21 @@ export function MenuItemDetailModal({
     }
   };
 
-  const handleEditConfirm = () => {
-    // TODO (Backend): The parent component (page.tsx) handles the actual API request
-    // using the data passed to `onEdit`.
-    onEdit({
-      ...item,
-      name,
-      category,
-      description,
-      price: parseFloat(price) || 0,
-      available,
-    });
-    setShowEditConfirm(false);
-    onClose();
-  };
+  const handleEditConfirm = (e: React.MouseEvent) => {
+  e.preventDefault();
+  const file = fileInputRef.current?.files?.[0]; 
+  
+  onEdit({
+    ...item,
+    name,
+    category,
+    description,
+    price: parseFloat(price) || 0,
+    available,
+  }, file);
+  
+  setShowEditConfirm(false); // Safe to keep: this just closes the small confirmation popup
+};
 
   const handleDeleteConfirm = () => {
     onDelete(item.id);
@@ -128,10 +129,10 @@ export function MenuItemDetailModal({
           {/* ──────────────────────────────────────────────────────── Image */}
           <div className="group relative w-full">
             <div className="relative h-[220px] w-full overflow-hidden bg-[#f6e9d9]">
-              {imagePreview ? (
+              {(imagePreview || item.image) ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={imagePreview}
+                  src={imagePreview || item.image}
                   alt={name}
                   className="h-full w-full object-cover"
                 />
@@ -251,11 +252,15 @@ export function MenuItemDetailModal({
                 Price ₱
               </label>
               <input
-                type="number"
-                step="0.01"
-                min="0"
+                type="text"
+                inputMode="decimal"
                 value={price}
-                onChange={(e) => setPrice(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "" || /^\d*\.?\d{0,2}$/.test(val)) {
+                    setPrice(val);
+                  }
+                }}
                 placeholder="0.00"
                 className="w-full rounded-[12px] border border-[#ddcdb8] bg-white px-4 py-3 text-[15px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
               />

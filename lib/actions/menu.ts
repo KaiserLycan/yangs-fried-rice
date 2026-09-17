@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   productSchema,
   productUpdateSchema,
@@ -186,7 +187,7 @@ export async function createProduct(
     return { data: null, error: parsed.error.errors[0].message };
   }
 
-  const supabase = createClient();
+  const supabase = createAdminClient();
 
   const row: TablesInsert<"product"> = {
     product_name: parsed.data.product_name,
@@ -194,6 +195,7 @@ export async function createProduct(
     product_details: parsed.data.product_details ?? null,
     category_id: parsed.data.category_id ?? null,
     is_available: parsed.data.is_available,
+    image_url: parsed.data.image_url ?? null,
     ...(parsed.data.product_id ? { product_id: parsed.data.product_id } : {}),
   };
 

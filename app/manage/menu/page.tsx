@@ -1,69 +1,246 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Search } from "lucide-react";
 import { MenuSidebar } from "@/components/manage/menu/menu-sidebar";
 import { MenuGrid } from "@/components/manage/menu/menu-grid";
-import { MOCK_CATEGORIES, MenuItem } from "@/components/manage/menu/mock-menu";
 import { MenuItemModal } from "@/components/manage/menu/menu-modals";
 import { MenuItemDetailModal } from "@/components/manage/menu/menu-item-detail-modal";
+import { useToast, ToastProvider } from "@/components/ui/toast";
+import type { MenuItem } from "@/components/manage/menu/mock-menu";
+
+// Import real backend Server Actions and Supabase client
+import { 
+  getCategories, createCategory, updateCategory, deleteCategory,
+  getProducts, createProduct, updateProduct, deleteProduct 
+} from "@/lib/actions/menu";
+import { createClient } from "@/lib/supabase/client"; // Added for Storage uploads
 
 export default function ManageMenuPage() {
+  return (
+    <ToastProvider>
+      <ManageMenuInner />
+    </ToastProvider>
+  );
+}
+
+function ManageMenuInner() {
+  const showToast = useToast();
+
+  // Data State
+  const [dbCategories, setDbCategories] = useState<{ category_id: string; category_name: string }[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  // UI State
   const [searchText, setSearchText] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
-
-  // CHANGED: Categories are now dynamic state initialized from MOCK_CATEGORIES.
-  // WHY: Allows the user to add, rename, and delete categories in the UI.
-  // TODO (Backend): Fetch categories from the backend database (e.g., Supabase `menu_categories` table) instead of mock data.
-  const [categories, setCategories] = useState<string[]>([...MOCK_CATEGORIES]);
-  
-  // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
 
-  // CHANGED: Added category management handlers (handleAddCategory, handleRenameCategory, handleDeleteCategory).
-  // WHY: To support the new CRUD operations in the sidebar.
-  // TODO (Backend): 
-  // - handleAddCategory: Make a POST request to create a new category in the DB.
-  // - handleRenameCategory: Make a PUT/PATCH request to update the category name in the DB.
-  // - handleDeleteCategory: Make a DELETE request to remove the category from the DB.
-  const handleAddCategory = useCallback(() => {
+  // Derived Category Strings for UI
+  const categoryStrings = ["All", ...dbCategories.map(c => c.category_name)];
+
+  // Fetch Initial Data
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    const [catsRes, prodsRes] = await Promise.all([getCategories(), getProducts()]);
+
+    if (catsRes.error) showToast(`Error loading categories: ${catsRes.error}`);
+    else if (catsRes.data) setDbCategories(catsRes.data);
+
+    if (prodsRes.error) showToast(`Error loading products: ${prodsRes.error}`);
+    else if (prodsRes.data) {
+      // Map database schema to UI schema
+      const mapped: MenuItem[] = prodsRes.data.map((p: any) => ({
+        id: p.product_id,
+        name: p.product_name,
+        description: p.product_details || "",
+        price: p.product_price,
+        rating: 5.0, // Backend doesn't have ratings yet
+        category: p.categories?.category_name || "Uncategorized",
+        // Map the real image_url from the database, fallback to a placeholder
+        image: p.image_url || "/images/placeholder.jpg",
+        available: p.is_available,
+      }));
+      setMenuItems(mapped);
+    }
+    setIsLoading(false);
+  }, [showToast]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // --- Category CRUD ---
+  const handleAddCategory = async () => {
+    setIsProcessing(true);
     let name = "New Category";
     let counter = 1;
-    // Avoid duplicate names
-    while (categories.includes(name)) {
-      name = `New Category ${counter}`;
-      counter++;
+    while (dbCategories.some(c => c.category_name === name)) {
+      name = `New Category ${counter++}`;
     }
-    setCategories((prev) => [...prev, name]);
-    setSelectedCategory(name);
-  }, [categories]);
+    
+    const res = await createCategory({ category_name: name });
+    if (res.error) showToast(`Failed: ${res.error}`);
+    else {
+      showToast("Category created.");
+      await loadData();
+      setSelectedCategory(name);
+    }
+    setIsProcessing(false);
+  };
 
-  const handleRenameCategory = useCallback(
-    (oldName: string, newName: string) => {
-      if (categories.includes(newName)) return; // prevent duplicates
-      setCategories((prev) =>
-        prev.map((c) => (c === oldName ? newName : c))
-      );
-      // Keep selection in sync
-      if (selectedCategory === oldName) {
-        setSelectedCategory(newName);
-      }
-    },
-    [categories, selectedCategory]
-  );
+  const handleRenameCategory = async (oldName: string, newName: string) => {
+    if (dbCategories.some(c => c.category_name === newName)) return;
+    const cat = dbCategories.find(c => c.category_name === oldName);
+    if (!cat) return;
 
-  const handleDeleteCategory = useCallback(
-    (category: string) => {
-      setCategories((prev) => prev.filter((c) => c !== category));
-      // If the deleted category was selected, fall back to "All"
-      if (selectedCategory === category) {
-        setSelectedCategory("All");
+    setIsProcessing(true);
+    const res = await updateCategory(cat.category_id, { category_name: newName });
+    if (res.error) showToast(`Failed: ${res.error}`);
+    else {
+      await loadData();
+      if (selectedCategory === oldName) setSelectedCategory(newName);
+    }
+    setIsProcessing(false);
+  };
+
+  const handleDeleteCategory = async (categoryName: string) => {
+    const cat = dbCategories.find(c => c.category_name === categoryName);
+    if (!cat) return;
+
+    setIsProcessing(true);
+    const res = await deleteCategory(cat.category_id);
+    if (res.error) showToast(`Failed: ${res.error}`);
+    else {
+      showToast("Category deleted.");
+      await loadData();
+      if (selectedCategory === categoryName) setSelectedCategory("All");
+    }
+    setIsProcessing(false);
+  };
+
+  // --- Product CRUD ---
+  const handleSaveProduct = async (item: Partial<MenuItem>, imageFile?: File) => {
+    setIsProcessing(true);
+    let uploadedUrl = null;
+    const supabase = createClient();
+
+    // 1. Image Upload Pipeline
+    if (imageFile) {
+      const fileExt = imageFile.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('menu-images')
+        .upload(fileName, imageFile);
+
+      if (uploadError) {
+        showToast(`Image upload failed: ${uploadError.message}`);
+        setIsProcessing(false);
+        return;
       }
-    },
-    [selectedCategory]
-  );
+
+      // Grab the public URL for the newly uploaded file
+      const { data: { publicUrl } } = supabase.storage
+        .from('menu-images')
+        .getPublicUrl(fileName);
+        
+      uploadedUrl = publicUrl;
+    }
+
+    // 2. Database Insertion
+    const targetCat = dbCategories.find(c => c.category_name === item.category);
+    
+    const res = await createProduct({
+      product_name: item.name || "Untitled",
+      product_price: item.price || 0,
+      product_details: item.description,
+      category_id: targetCat?.category_id,
+      is_available: item.available ?? true,
+      image_url: uploadedUrl, // Send new URL to backend
+    });
+
+    if (res.error) showToast(`Failed to create item: ${res.error}`);
+    else {
+      showToast("Item created successfully.");
+      await loadData();
+      setIsAddModalOpen(false);
+    }
+    setIsProcessing(false);
+  };
+
+  const handleEditProduct = async (updatedItem: MenuItem, imageFile?: File) => {
+    setIsProcessing(true);
+    let uploadedUrl = null;
+    const supabase = createClient();
+
+    // 1. Image Upload Pipeline (Only triggers if a NEW image was selected)
+    if (imageFile) {
+      const fileExt = imageFile.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('menu-images')
+        .upload(fileName, imageFile);
+
+      if (uploadError) {
+        showToast(`Image upload failed: ${uploadError.message}`);
+        setIsProcessing(false);
+        return;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('menu-images')
+        .getPublicUrl(fileName);
+        
+      uploadedUrl = publicUrl;
+    }
+
+    // 2. Database Update
+    const targetCat = dbCategories.find(c => c.category_name === updatedItem.category);
+    
+    const updatePayload: Record<string, any> = {
+      product_name: updatedItem.name,
+      product_price: updatedItem.price,
+      product_details: updatedItem.description,
+      category_id: targetCat?.category_id,
+      is_available: updatedItem.available,
+    };
+
+    // Only update the image column if a new image was actually uploaded
+    if (uploadedUrl) {
+      updatePayload.image_url = uploadedUrl;
+    }
+
+    const res = await updateProduct(updatedItem.id, updatePayload);
+
+    if (res.error) showToast(`Failed to update item: ${res.error}`);
+    else {
+      showToast("Item updated successfully.");
+      await loadData();
+      setIsDetailModalOpen(false);
+      setSelectedItem(null);
+    }
+    setIsProcessing(false);
+  };
+
+  const handleDeleteProduct = async (itemId: string) => {
+    setIsProcessing(true);
+    const res = await deleteProduct(itemId);
+    
+    if (res.error) showToast(`Failed to delete item: ${res.error}`);
+    else {
+      showToast("Item deleted.");
+      await loadData();
+      setIsDetailModalOpen(false);
+      setSelectedItem(null);
+    }
+    setIsProcessing(false);
+  };
 
   return (
     <div className="flex h-full flex-col gap-4 md:gap-0">
@@ -74,7 +251,6 @@ export default function ManageMenuPage() {
         </h1>
         
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 md:gap-[20px]">
-          {/* Search Input */}
           <div className="flex w-full md:w-[442px] items-center gap-[10px] rounded-[10px] border border-[#ddcdb8] bg-white px-[14px] py-[10px]">
             <Search className="h-4 w-4 text-[#7a6a60]" />
             <input
@@ -86,10 +262,10 @@ export default function ManageMenuPage() {
             />
           </div>
           
-          {/* Add Item Button */}
           <button 
             onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center justify-center rounded-[10px] bg-[#e8541f] px-[18px] py-[11px] transition-opacity hover:opacity-90"
+            disabled={isProcessing}
+            className="flex items-center justify-center rounded-[10px] bg-[#e8541f] px-[18px] py-[11px] transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             <span className="text-[13px] md:text-[15px] font-bold text-white whitespace-nowrap">
               + Add item
@@ -100,9 +276,8 @@ export default function ManageMenuPage() {
 
       {/* Main Content: Sidebar + Grid */}
       <div className="flex flex-col md:flex-row flex-1 gap-4 md:gap-[10px] overflow-hidden pt-[10px]">
-        {/* Sidebar */}
         <MenuSidebar 
-          categories={categories}
+          categories={categoryStrings}
           selectedCategory={selectedCategory}
           onSelectCategory={setSelectedCategory}
           onAddCategory={handleAddCategory}
@@ -110,10 +285,11 @@ export default function ManageMenuPage() {
           onDeleteCategory={handleDeleteCategory}
         />
 
-        {/* Product Grid */}
         <MenuGrid 
           searchText={searchText}
           selectedCategory={selectedCategory}
+          items={menuItems}
+          isLoading={isLoading}
           onEditItem={(item) => {
             setSelectedItem(item);
             setIsDetailModalOpen(true);
@@ -125,14 +301,8 @@ export default function ManageMenuPage() {
       <MenuItemModal 
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        onSave={(item) => {
-          console.log("Saved item:", item);
-          // TODO (Backend): 
-          // 1. If an image is selected, upload it to storage (e.g., Supabase Storage) first.
-          // 2. Make a POST request to save the new item data (including the image URL) to the DB.
-          // 3. Update local state or trigger a re-fetch to show the new item.
-        }}
-        categories={categories}
+        onSave={handleSaveProduct}
+        categories={categoryStrings}
       />
 
       {selectedItem && (
@@ -142,20 +312,8 @@ export default function ManageMenuPage() {
             setIsDetailModalOpen(false);
             setSelectedItem(null);
           }}
-          onEdit={(updatedItem) => {
-            console.log("Updated item:", updatedItem);
-            // TODO (Backend):
-            // 1. If a new image was selected, upload it to storage and get the new URL.
-            // 2. Make a PUT/PATCH request to update the item's record in the DB.
-            // 3. Update local state or trigger a re-fetch.
-          }}
-          onDelete={(itemId) => {
-            console.log("Deleted item:", itemId);
-            // TODO (Backend):
-            // 1. Make a DELETE request to remove the item from the DB.
-            // 2. Optionally delete the associated image from storage.
-            // 3. Update local state to remove the item from the UI.
-          }}
+          onEdit={handleEditProduct}
+          onDelete={handleDeleteProduct}
           item={selectedItem}
         />
       )}
