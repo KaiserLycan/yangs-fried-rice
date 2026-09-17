@@ -2,9 +2,8 @@
 
 This document tracks all the pending/unimplemented acceptance criteria from open issues regarding the backend, frontend, and API. It has been updated to reflect the current state of the codebase.
 
-## Issue #42: SAS1- Administrators should be able to view and manage all registered user accounts, remote orders, and payments
-- [x] **Implemented:** Frontend UI (mocked with dummy data) for managing customers (`app/manage/customers`) and orders (`app/manage/orders`). Backend actions and API endpoints exist.
-- [ ] **Still Needed:** Wire up the frontend components to the backend API, replacing all dummy data with live Supabase queries and mutations.
+## Issue #42: SAS1- Administrators should be able to view and manage all registered user accounts, remote orders, and payments (CLOSED)
+- [x] **Implemented:** Frontend UI for managing customers (`app/manage/customers`) and orders (`app/manage/orders`) is fully wired to live Supabase queries and mutations.
 
 ## Issue #23: US-13: Customer Order Tracking (CLOSED)
 - [x] **Implemented:** Customers can view the current preparation status of their orders in real-time.
@@ -17,9 +16,9 @@ This document tracks all the pending/unimplemented acceptance criteria from open
 - [x] **Implemented:** Customers must be able to choose a payment method before finalizing their order.
 - [x] **Implemented:** The system must support cash on delivery and in-store payments as standard checkout options alongside digital payments.
 
-## Issue #21: US-11: Advanced Profile Management
-- [ ] **Still Needed:** Customers must be able to update their profile information, including their name, address, contact details, and password. (Frontend UI is completely missing).
-- [ ] **Still Needed:** Customers must be able to securely delete their account from the system.
+## Issue #21: US-11: Advanced Profile Management (CLOSED)
+- [x] **Implemented:** Customers can update their profile information (name, address, contact details, password) via the wired frontend and backend API.
+- [x] **Implemented:** Customers can securely delete their account from the system.
 
 ## Issue #11: US-05: Driver Operations & Proof of Delivery (CLOSED)
 - [x] **Implemented:** The system must allow the Delivery Driver to receive incoming delivery requests (basic layout & actions exist).
@@ -35,20 +34,20 @@ This document tracks all the pending/unimplemented acceptance criteria from open
 ## Issue #9: US-04: Payment Processing & Kitchen Queue
 - [ ] **Still Needed:** The Stripe/Paymongo API processes digital payments successfully. (No integration present).
 - [x] **Implemented:** Incoming orders display sequentially on a kitchen display system. (KDS button/layout exists).
-- [ ] **Still Needed:** Staff can click to mark prepared orders as completed. (Frontend UI exists, but needs backend wiring).
+- [x] **Implemented:** Staff can click to mark prepared orders as completed. (Backend and frontend wired).
 
-## Issue #8: US-08: Order History & Feedback System
-- [ ] **Still Needed:** Customers must be able to view a history of their past orders, which includes detailed receipts.
-- [ ] **Still Needed:** Customers must be able to submit a numerical rating for their completed orders.
-- [ ] **Still Needed:** Customers must be able to submit written reviews for their completed orders.
+## Issue #8: US-08: Order History & Feedback System (CLOSED)
+- [x] **Implemented:** Customers can view a history of their past orders, including detailed receipts.
+- [x] **Implemented:** Customers can submit a numerical rating for their completed orders.
+- [x] **Implemented:** Customers can submit written reviews for their completed orders.
 
-## Issue #7: US-06: Advanced Cart Modifications
-- [ ] **Still Needed:** Customers must be able to add special instructions or modifications to selected menu items in their cart.
-- [ ] **Still Needed:** Customers must be able to modify items and quantities in their cart before submitting the order.
-- [ ] **Still Needed:** The system must lock the cart and prevent any item/quantity modifications immediately after the order is submitted, regardless of restaurant confirmation status.
-- [x] **Implemented:** Customers must be able to cancel an order only before it is officially confirmed by restaurant staff (UI and basic logic present).
+## Issue #7: US-06: Advanced Cart Modifications (CLOSED)
+- [x] **Implemented:** Customers can add special instructions or modifications to selected menu items in their cart.
+- [x] **Implemented:** Customers can modify items and quantities in their cart before submitting the order.
+- [x] **Implemented:** The system locks the cart and prevents any item/quantity modifications immediately after the order is submitted.
+- [x] **Implemented:** Customers must be able to cancel an order only before it is officially confirmed by restaurant staff.
 - [x] **Implemented:** The system must display a confirmation prompt when a customer attempts to cancel an order.
-- [ ] **Still Needed:** The system must prevent order cancellation once the restaurant has confirmed it (Requires solid backend validation).
+- [x] **Implemented:** The system prevents order cancellation once the restaurant has confirmed it.
 
 ## Issue #6: US-09: Administration Analytics & System Oversight
 - [ ] **Still Needed:** The system must allow administrators to generate basic reports regarding platform performance. (Basic UI layout exists in `manage`, but reports are missing).
