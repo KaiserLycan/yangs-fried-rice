@@ -715,8 +715,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cancel_customer_order: {
+        Args: { p_order_id: string; p_reason?: string }
+        Returns: Json
+      }
       get_customer_order_history: {
         Args: { p_customer_id: string }
+        Returns: Json
+      }
+      submit_cart_to_order: {
+        Args: {
+          p_cart_id: string
+          p_order_type: string
+          p_special_instructions?: string
+          p_delivery_fee?: number
+        }
         Returns: Json
       }
       submit_order_review: {
