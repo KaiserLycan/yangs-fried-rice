@@ -143,8 +143,15 @@ export async function getAllOrders(
     .range(filters.offset, filters.offset + filters.limit - 1);
 
   if (filters.status) {
-    query = query.eq("order_status", filters.status);
+    if (Array.isArray(filters.status)) {
+      // If the frontend sends an array like ["pending", "received"]
+      query = query.in("order_status", filters.status);
+    } else {
+      // If the frontend sends a single string like "preparing"
+      query = query.eq("order_status", filters.status);
+    }
   }
+  
   if (filters.date_from) {
     query = query.gte("created_at", filters.date_from);
   }
