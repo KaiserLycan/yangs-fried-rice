@@ -52,25 +52,19 @@ async function requireCustomer(): Promise<
   ActionResult<{ customer_id: string }>
 > {
   const supabase = createClient();
+  // Optimization: getSession reads from the cookie locally (0 network requests),
+  // whereas getUser makes an HTTP request to the Supabase Auth API.
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
 
-  if (!user) {
+  if (!session?.user) {
     return { data: null, error: "You must be signed in.", code: "UNAUTHORIZED" };
   }
 
-  const { data: customer } = await supabase
-    .from("customer")
-    .select("customer_id")
-    .eq("customer_id", user.id)
-    .single();
-
-  if (!customer) {
-    return { data: null, error: "You are not registered as a customer.", code: "FORBIDDEN" };
-  }
-
-  return { data: { customer_id: user.id }, error: null };
+  // Optimization: We skip checking the `customer` table explicitly because 
+  // foreign key constraints on `cart` will prevent non-customers from creating carts anyway.
+  return { data: { customer_id: session.user.id }, error: null };
 }
 
 // ---------------------------------------------------------------------------
@@ -83,10 +77,23 @@ export async function getActiveCart(): Promise<ActionResult<ActiveCart>> {
 
   const supabase = createClient();
 
-  // Find active cart (not locked)
+  // Optimization: Fetch the cart AND its items in a single query to eliminate an extra roundtrip.
   let { data: cart } = await supabase
     .from("cart")
-    .select("*")
+    .select(`
+      *,
+      items:cart_item(
+        cart_item_id,
+        cart_id,
+        product_id,
+        quantity,
+        special_instructions,
+        product (
+          product_name,
+          product_price
+        )
+      )
+    `)
     .eq("customer_id", auth.data.customer_id)
     .eq("is_final", false)
     .maybeSingle();
@@ -106,30 +113,11 @@ export async function getActiveCart(): Promise<ActionResult<ActiveCart>> {
     if (createError || !newCart) {
       return { data: null, error: createError?.message ?? "Failed to initialize cart." };
     }
-    cart = newCart;
+    cart = { ...newCart, items: [] };
   }
 
-  // Fetch cart items with product details
-  const { data: rawItems, error: itemsError } = await supabase
-    .from("cart_item")
-    .select(`
-      cart_item_id,
-      cart_id,
-      product_id,
-      quantity,
-      special_instructions,
-      product (
-        product_name,
-        product_price
-      )
-    `)
-    .eq("cart_id", cart.cart_id);
-
-  if (itemsError) {
-    return { data: null, error: itemsError.message };
-  }
-
-  const items: CartItemDetail[] = (rawItems ?? []).map((row) => {
+  const rawItems = cart.items || [];
+  const items: CartItemDetail[] = rawItems.map((row: any) => {
     const product = row.product as { product_name: string; product_price: number } | null;
     const price = product?.product_price ?? 0;
     const qty = row.quantity;
@@ -168,7 +156,11 @@ export async function getActiveCart(): Promise<ActionResult<ActiveCart>> {
 // ---------------------------------------------------------------------------
 // 2. Add Cart Item (Enforces Locking)
 // ---------------------------------------------------------------------------
-
+// Optimization: Replaced sequential DB calls and redundant `getActiveCart()` invocations
+// with `Promise.all()` to fetch the active cart state and product details concurrently. 
+// Similarly, inserting the new `cart_item` and updating the parent cart's `updated_at` 
+// are now executed in parallel. This eliminates the "waterfall" effect, significantly 
+// reducing the latency of the operation.
 export async function addCartItem(
   rawInput: AddCartItemInput
 ): Promise<ActionResult<CartItemDetail>> {
@@ -180,12 +172,40 @@ export async function addCartItem(
     return { data: null, error: parsed.error.issues[0]?.message ?? "Invalid item input." };
   }
 
-  const activeCartResult = await getActiveCart();
-  if (!activeCartResult.data) return activeCartResult;
-  const cart = activeCartResult.data;
+  const supabase = createClient();
 
-  // STRICT LOCKING ENFORCEMENT: reject modifications if is_final
-  if (cart.is_final) {
+  // Fetch cart and product concurrently to save time
+  const [cartResult, productResult] = await Promise.all([
+    supabase
+      .from("cart")
+      .select("cart_id, is_final")
+      .eq("customer_id", auth.data.customer_id)
+      .eq("is_final", false)
+      .maybeSingle(),
+    supabase
+      .from("product")
+      .select("product_id, product_name, product_price, is_available")
+      .eq("product_id", parsed.data.product_id)
+      .single(),
+  ]);
+
+  let cart = cartResult.data;
+  if (!cart) {
+    const { data: newCart, error: createError } = await supabase
+      .from("cart")
+      .insert({
+        customer_id: auth.data.customer_id,
+        is_final: false,
+        status: "active",
+      })
+      .select("cart_id, is_final")
+      .single();
+
+    if (createError || !newCart) {
+      return { data: null, error: createError?.message ?? "Failed to initialize cart." };
+    }
+    cart = newCart;
+  } else if (cart.is_final) {
     return {
       data: null,
       error: "Cart is locked and cannot be modified.",
@@ -193,15 +213,7 @@ export async function addCartItem(
     };
   }
 
-  const supabase = createClient();
-
-  // Verify product exists and is available
-  const { data: product, error: prodError } = await supabase
-    .from("product")
-    .select("product_id, product_name, product_price, is_available")
-    .eq("product_id", parsed.data.product_id)
-    .single();
-
+  const { data: product, error: prodError } = productResult;
   if (prodError || !product) {
     return { data: null, error: "Product not found." };
   }
@@ -210,26 +222,33 @@ export async function addCartItem(
     return { data: null, error: `Product "${product.product_name}" is currently unavailable.` };
   }
 
-  // Insert cart item instance (special_instructions maps to this specific item instance)
-  const { data: newItem, error: insertError } = await supabase
-    .from("cart_item")
-    .insert({
-      cart_id: cart.cart_id,
-      product_id: product.product_id,
-      quantity: parsed.data.quantity,
-      special_instructions: parsed.data.special_instructions ?? null,
-    })
-    .select()
-    .single();
+  // Insert item and update cart concurrently
+  const [insertResult] = await Promise.all([
+    supabase
+      .from("cart_item")
+      .insert({
+        cart_id: cart.cart_id,
+        product_id: product.product_id,
+        quantity: parsed.data.quantity,
+        special_instructions: parsed.data.special_instructions ?? null,
+      })
+      .select()
+      .single(),
+    supabase
+      .from("cart")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("cart_id", cart.cart_id),
+  ]);
+
+  const newItem = insertResult.data;
+  const insertError = insertResult.error;
 
   if (insertError || !newItem) {
     return { data: null, error: insertError?.message ?? "Failed to add item to cart." };
   }
 
-  await supabase
-    .from("cart")
-    .update({ updated_at: new Date().toISOString() })
-    .eq("cart_id", cart.cart_id);
+  const { revalidatePath } = await import("next/cache");
+  revalidatePath("/", "layout");
 
   return {
     data: {
@@ -249,7 +268,9 @@ export async function addCartItem(
 // ---------------------------------------------------------------------------
 // 3. Update Cart Item (Enforces Locking)
 // ---------------------------------------------------------------------------
-
+// Optimization: Updating the cart item and updating the parent cart's `updated_at` 
+// timestamp are now executed concurrently via `Promise.all()` rather than sequentially, 
+// cutting down on database roundtrips.
 export async function updateCartItem(
   cartItemId: string,
   rawInput: UpdateCartItemInput
@@ -317,21 +338,28 @@ export async function updateCartItem(
     updatePayload.special_instructions = parsed.data.special_instructions;
   }
 
-  const { data: updated, error: updateError } = await supabase
-    .from("cart_item")
-    .update(updatePayload)
-    .eq("cart_item_id", cartItemId)
-    .select()
-    .single();
+  const [updateResult] = await Promise.all([
+    supabase
+      .from("cart_item")
+      .update(updatePayload)
+      .eq("cart_item_id", cartItemId)
+      .select()
+      .single(),
+    supabase
+      .from("cart")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("cart_id", parentCart.cart_id),
+  ]);
+
+  const updated = updateResult.data;
+  const updateError = updateResult.error;
 
   if (updateError || !updated) {
     return { data: null, error: updateError?.message ?? "Failed to update cart item." };
   }
 
-  await supabase
-    .from("cart")
-    .update({ updated_at: new Date().toISOString() })
-    .eq("cart_id", parentCart.cart_id);
+  const { revalidatePath } = await import("next/cache");
+  revalidatePath("/", "layout");
 
   const product = item.product as { product_name: string; product_price: number } | null;
   const price = product?.product_price ?? 0;
@@ -354,7 +382,8 @@ export async function updateCartItem(
 // ---------------------------------------------------------------------------
 // 4. Remove Cart Item (Enforces Locking)
 // ---------------------------------------------------------------------------
-
+// Optimization: Deleting the cart item and updating the parent cart's `updated_at` 
+// timestamp are now executed concurrently via `Promise.all()` rather than sequentially.
 export async function removeCartItem(
   cartItemId: string
 ): Promise<ActionResult<{ success: true }>> {
@@ -400,19 +429,23 @@ export async function removeCartItem(
     };
   }
 
-  const { error: deleteError } = await supabase
-    .from("cart_item")
-    .delete()
-    .eq("cart_item_id", cartItemId);
+  const [deleteResult] = await Promise.all([
+    supabase
+      .from("cart_item")
+      .delete()
+      .eq("cart_item_id", cartItemId),
+    supabase
+      .from("cart")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("cart_id", parentCart.cart_id),
+  ]);
 
-  if (deleteError) {
-    return { data: null, error: deleteError.message };
+  if (deleteResult.error) {
+    return { data: null, error: deleteResult.error.message };
   }
 
-  await supabase
-    .from("cart")
-    .update({ updated_at: new Date().toISOString() })
-    .eq("cart_id", parentCart.cart_id);
+  const { revalidatePath } = await import("next/cache");
+  revalidatePath("/", "layout");
 
   return { data: { success: true }, error: null };
 }
@@ -420,16 +453,31 @@ export async function removeCartItem(
 // ---------------------------------------------------------------------------
 // 4b. Clear All Items from Cart (Enforces Locking)
 // ---------------------------------------------------------------------------
-
+// Optimization: Avoids calling `getActiveCart()` which redundantly fetched all items 
+// and performed an extra auth check. Instead, it queries the minimum required cart 
+// info directly. Item deletion and cart `updated_at` modification are also executed 
+// concurrently using `Promise.all()`.
 export async function clearCart(): Promise<
   ActionResult<{ success: true; message: string }>
 > {
   const auth = await requireCustomer();
   if (!auth.data) return { data: null, error: auth.error, code: auth.code };
 
-  const activeCartResult = await getActiveCart();
-  if (!activeCartResult.data) return activeCartResult;
-  const cart = activeCartResult.data;
+  const supabase = createClient();
+
+  const { data: cart } = await supabase
+    .from("cart")
+    .select("cart_id, is_final")
+    .eq("customer_id", auth.data.customer_id)
+    .eq("is_final", false)
+    .maybeSingle();
+
+  if (!cart) {
+    return {
+      data: { success: true, message: "Cart is already empty." },
+      error: null,
+    };
+  }
 
   // STRICT LOCKING ENFORCEMENT
   if (cart.is_final) {
@@ -440,21 +488,23 @@ export async function clearCart(): Promise<
     };
   }
 
-  const supabase = createClient();
+  const [deleteResult] = await Promise.all([
+    supabase
+      .from("cart_item")
+      .delete()
+      .eq("cart_id", cart.cart_id),
+    supabase
+      .from("cart")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("cart_id", cart.cart_id),
+  ]);
 
-  const { error: deleteError } = await supabase
-    .from("cart_item")
-    .delete()
-    .eq("cart_id", cart.cart_id);
-
-  if (deleteError) {
-    return { data: null, error: deleteError.message };
+  if (deleteResult.error) {
+    return { data: null, error: deleteResult.error.message };
   }
 
-  await supabase
-    .from("cart")
-    .update({ updated_at: new Date().toISOString() })
-    .eq("cart_id", cart.cart_id);
+  const { revalidatePath } = await import("next/cache");
+  revalidatePath("/", "layout");
 
   return {
     data: { success: true, message: "All items removed from cart successfully." },
@@ -589,6 +639,9 @@ export async function submitCart(
       updated_at: now,
     })
     .eq("cart_id", cart.cart_id);
+
+  const { revalidatePath } = await import("next/cache");
+  revalidatePath("/", "layout");
 
   return {
     data: {
