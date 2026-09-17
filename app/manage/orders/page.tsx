@@ -64,8 +64,7 @@ function ManageOrdersInner() {
     const summaryResult = await getAllOrders({
       limit: itemsPerPage,
       offset: (currentPage - 1) * itemsPerPage,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      status: dbStatus as any
+      status: dbStatus as string | string[]
     });
 
     if (summaryResult.error) {
@@ -132,7 +131,7 @@ function ManageOrdersInner() {
       setOrders(mappedOrders);
     }
     setIsLoading(false);
-  }, [activeStatus, currentPage, showToast]);
+  }, [activeStatus, currentPage, showToast, itemsPerPage]);
 
   useEffect(() => {
     fetchOrders();
