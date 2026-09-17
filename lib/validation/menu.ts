@@ -27,7 +27,13 @@ export const productSchema = z.object({
     .uuid("Invalid category ID")
     .nullable()
     .optional(),
+    image_url: z
+    .string()
+    .url("Must be a valid URL")
+    .nullable()
+    .optional(),
   is_available: z.boolean().optional().default(true),
+  
 });
 
 /** Partial version of productSchema. every field is optional so callers
