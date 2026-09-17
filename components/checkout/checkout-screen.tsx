@@ -33,11 +33,15 @@ import type { CustomerProfile } from "@/lib/profile/customer-profile";
  */
 export function CheckoutScreen({
   profile,
+  cartId,
   lines,
   fulfilment,
   placedAtLabel,
 }: {
   profile: CustomerProfile;
+  /** The active cart's id — what `submitCart` turns into an order. `null`
+   * only when there are no lines either, so the empty state renders. */
+  cartId: string | null;
   lines: CartLine[];
   fulfilment: Fulfilment;
   placedAtLabel: string;
@@ -83,7 +87,7 @@ export function CheckoutScreen({
           <h1 className="font-display text-[32px] text-foreground">CHECKOUT</h1>
         </div>
 
-        {lines.length === 0 ? (
+        {lines.length === 0 || cartId === null ? (
           <EmptyCart />
         ) : (
           /* One grid, not two trees. The frames differ only in arrangement —
@@ -122,6 +126,7 @@ export function CheckoutScreen({
                 customerName={profile.name}
                 placedAtLabel={placedAtLabel}
                 address={profile.deliverToAddress}
+                cartId={cartId}
                 fulfilment={fulfilment}
                 lines={lines}
                 totals={totals}

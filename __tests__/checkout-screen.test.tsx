@@ -4,6 +4,18 @@ import { CheckoutScreen } from "@/components/checkout/checkout-screen";
 import { ToastProvider } from "@/components/ui/toast";
 import type { CartLine } from "@/lib/menu/cart-totals";
 import type { CustomerProfile } from "@/lib/profile/customer-profile";
+import { submitCart } from "@/lib/actions/cart";
+
+const push = vi.fn();
+const refresh = vi.fn();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push, refresh }),
+}));
+
+vi.mock("@/lib/actions/cart", () => ({
+  submitCart: vi.fn(),
+}));
 
 /**
  * Checkout is behind `middleware.ts`'s auth gate, so it can't be exercised
@@ -50,6 +62,7 @@ function renderCheckout(
     <ToastProvider>
       <CheckoutScreen
         profile={profile}
+        cartId="cart-1"
         lines={lines}
         fulfilment="delivery"
         placedAtLabel="Aug 30, 6:40 PM"
@@ -218,13 +231,69 @@ describe("Checkout payment method", () => {
 });
 
 describe("Checkout place order", () => {
-  it("raises a toast rather than placing anything", async () => {
-    renderCheckout();
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("submits the cart with the backend's order_type and the fee the customer saw, then opens the receipt", async () => {
+    vi.mocked(submitCart).mockResolvedValue({
+      data: {
+        order_id: "order-77",
+        order_status: "pending",
+        cart_id: "cart-1",
+        is_final: true,
+      },
+      error: null,
+    });
+    renderCheckout({ fulfilment: "pickup" });
 
     const [placeOrder] = screen.getAllByRole("button", { name: /Place order/ });
     fireEvent.click(placeOrder);
 
-    expect(await screen.findByText(/isn't available yet/i)).toBeInTheDocument();
+    await waitFor(() =>
+      expect(submitCart).toHaveBeenCalledWith({
+        cart_id: "cart-1",
+        order_type: "take_out",
+        delivery_fee: 0,
+      }),
+    );
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith("/checkout/confirmation?order=order-77"),
+    );
+  });
+
+  it("sends the ₱95 fee on a delivery order", async () => {
+    vi.mocked(submitCart).mockResolvedValue({
+      data: {
+        order_id: "order-78",
+        order_status: "pending",
+        cart_id: "cart-1",
+        is_final: true,
+      },
+      error: null,
+    });
+    renderCheckout({ fulfilment: "delivery" });
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Place order/ })[0]);
+
+    await waitFor(() =>
+      expect(submitCart).toHaveBeenCalledWith(
+        expect.objectContaining({ order_type: "delivery", delivery_fee: 95 }),
+      ),
+    );
+  });
+
+  it("stays on checkout and shows the backend's reason when the order is refused", async () => {
+    vi.mocked(submitCart).mockResolvedValue({
+      data: null,
+      error: "Cart is empty.",
+    });
+    renderCheckout();
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Place order/ })[0]);
+
+    expect(await screen.findByText("Cart is empty.")).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
   });
 });
 
