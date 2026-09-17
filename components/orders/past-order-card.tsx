@@ -98,7 +98,14 @@ export function PastOrderCard({ order }: { order: PastOrder }) {
           {formatTotal(order.total)}
         </span>
 
-        {action === "rate" ? (
+        {action === "track" ? (
+          <Link
+            href={`/orders/${order.orderId}`}
+            className="shrink-0 text-[13px] font-bold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          >
+            Track order
+          </Link>
+        ) : action === "rate" ? (
           // "Rate order" is the instruction for the star row, so it moves the
           // keyboard there rather than being a second way to rate. Rating
           // without choosing a score isn't a thing the control can do.
