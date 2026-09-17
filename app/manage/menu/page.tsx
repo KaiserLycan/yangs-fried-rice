@@ -203,8 +203,7 @@ function ManageMenuInner() {
     // 2. Database Update
     const targetCat = dbCategories.find(c => c.category_name === updatedItem.category);
     
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const updatePayload: any = {
+    const updatePayload: Record<string, any> = {
       product_name: updatedItem.name,
       product_price: updatedItem.price,
       product_details: updatedItem.description,
