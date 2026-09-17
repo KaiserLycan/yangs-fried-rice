@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { Suspense, use } from "react";
 import { SiteNavBar } from "@/components/nav/site-nav-bar";
 import { BottomTabBar } from "@/components/nav/bottom-tab-bar";
 import { CategorySidebar } from "@/components/menu/category-sidebar";
@@ -13,6 +14,7 @@ import { ProductCard } from "@/components/menu/product-card";
 import { ProductRow } from "@/components/menu/product-row";
 import { SearchField } from "@/components/menu/search-field";
 import { useToast } from "@/components/ui/toast";
+import { Alert } from "@/components/ui/alert";
 import {
   fetchCategories,
   fetchProducts,
@@ -25,6 +27,7 @@ import {
 } from "@/lib/menu/cart-totals";
 import type { ProductListing } from "@/lib/menu/product-listing";
 import type { CustomerProfile } from "@/lib/profile/customer-profile";
+import type { CartRead } from "@/lib/cart/read-cart";
 import { createClient } from "@/lib/supabase/client";
 
 /** Debounce for the search field, so every keystroke doesn't fire a request. */
@@ -39,55 +42,35 @@ const SEARCH_DEBOUNCE_MS = 250;
 const MENU_REFRESH_FAILED =
   "The menu couldn't be updated. Showing the last version we loaded.";
 
-/**
- * `/menu` (`133:734` desktop, `132:88` mobile), issue #3's last acceptance
- * criterion included: the list re-renders on its own when a product or
- * category changes, no refresh needed.
- *
- * A client component because search, the selected category, and the
- * Supabase Realtime subscription all live in browser state — the initial,
- * unfiltered list is still fetched server-side by `app/(shop)/menu/page.tsx`
- * and handed in as `initialProducts`, so a customer sees dishes on first
- * paint rather than a loading state.
- */
 export function MenuScreen({
-  profile,
-  initialProducts,
-  initialCategories,
-  cartLines,
+  profilePromise,
+  productsPromise,
+  categoriesPromise,
+  cartPromise,
   initialFulfilment,
 }: {
-  profile: CustomerProfile | null;
-  initialProducts: ProductListing[];
-  initialCategories: CategoryOption[];
-  cartLines: CartLine[];
-  /**
-   * Passed straight through to the cart rail. Set when a customer comes back
-   * here from checkout, so the Delivery/Pickup toggle they left on is the one
-   * they return to — see `lib/checkout/fulfilment-param.ts`.
-   */
+  profilePromise: Promise<CustomerProfile | null>;
+  productsPromise: Promise<ProductListing[]>;
+  categoriesPromise: Promise<CategoryOption[]>;
+  cartPromise: Promise<CartRead>;
   initialFulfilment?: Fulfilment;
 }) {
   const [search, setSearch] = React.useState("");
   const [selectedCategory, setSelectedCategory] = React.useState<string | null>(
     null,
   );
-  const [products, setProducts] = React.useState(initialProducts);
-  const [categories, setCategories] = React.useState(initialCategories);
+  
+  // Client-fetched products/categories when filters change or live updates happen
+  const [products, setProducts] = React.useState<ProductListing[] | null>(null);
+  const [categories, setCategories] = React.useState<CategoryOption[] | null>(null);
   const [selectedProduct, setSelectedProduct] =
     React.useState<ProductListing | null>(null);
 
+  const [optimisticCartLines, setOptimisticCartLines] = React.useState<CartLine[] | null>(null);
+  const [isPending, setIsPending] = React.useState(false);
+
   const showToast = useToast();
 
-  /**
-   * The current filters, readable without being a dependency.
-   *
-   * The Realtime subscription below needs to know what to refetch, but it
-   * must not tear itself down and rebuild every time a keystroke changes the
-   * search text. Reading the filters through a ref keeps `reload` stable, so
-   * the effect that owns the channel depends on nothing that changes while
-   * someone is typing.
-   */
   const filtersRef = React.useRef({ search, selectedCategory });
   React.useEffect(() => {
     filtersRef.current = { search, selectedCategory };
@@ -110,29 +93,30 @@ export function MenuScreen({
     }
   }, [showToast]);
 
-  // Search and category changes both go through the same debounced fetch —
-  // typing a keyword and picking a category are the same kind of request to
-  // the same route, just with different parameters.
-  //
-  // `stale` is what stops a slow request for an old keyword from landing on
-  // top of a fast one for the current keyword: React runs this cleanup before
-  // the next run, so any request still in flight is disowned at the moment
-  // its filters stop being the current ones. Without it the list can end up
-  // showing results for something the customer has already typed past.
+  const isFirstRender = React.useRef(true);
+
   React.useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
     let stale = false;
+    setIsPending(true);
 
     const timeout = setTimeout(() => {
       fetchProducts({ search, categoryName: selectedCategory })
         .then((nextProducts) => {
-          if (!stale) setProducts(nextProducts);
+          if (!stale) {
+            setProducts(nextProducts);
+            setIsPending(false);
+          }
         })
         .catch(() => {
-          // A failed refresh leaves the current results up rather than
-          // blanking the menu — the dishes already on screen are still the
-          // best answer we have, and an empty column would read as "nothing
-          // matched" rather than "the request failed".
-          if (!stale) showToast(MENU_REFRESH_FAILED);
+          if (!stale) {
+            showToast(MENU_REFRESH_FAILED);
+            setIsPending(false);
+          }
         });
     }, SEARCH_DEBOUNCE_MS);
 
@@ -142,16 +126,6 @@ export function MenuScreen({
     };
   }, [search, selectedCategory, showToast]);
 
-  // Live menu updates (issue #3's last unticked criterion). Refetching on
-  // any change is simpler and far less error-prone than patching the two
-  // tables' rows into local state by hand, and a product/category table
-  // changes rarely enough that the extra round trip costs nothing a
-  // customer would notice.
-  //
-  // `reload` is deliberately stable, so this opens one channel for the life
-  // of the screen instead of closing and reopening a WebSocket on every
-  // keystroke — churn that also risks dropping an event in the gap between
-  // the two subscriptions.
   React.useEffect(() => {
     const supabase = createClient();
     const channel = supabase
@@ -175,90 +149,325 @@ export function MenuScreen({
 
   const hasFilter = search.trim().length > 0 || selectedCategory !== null;
 
+  // Determine if branch is open (8am - 6pm Manila time).
+  // Default to true during SSR to avoid hydration mismatch, then check on mount.
+  const [isBranchOpen, setIsBranchOpen] = React.useState(true);
+  
+  React.useEffect(() => {
+    import("@/lib/store-hours").then(({ isRestaurantOpen }) => {
+      const checkBranchHours = () => {
+        setIsBranchOpen(isRestaurantOpen());
+      };
+      
+      checkBranchHours();
+      const interval = setInterval(checkBranchHours, 60000);
+      return () => clearInterval(interval);
+    });
+  }, []);
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <SiteNavBar
-        profile={profile}
+        profilePromise={profilePromise}
         currentSection="menu"
         search={
           <SearchField value={search} onChange={setSearch} variant="nav" />
         }
       />
       <MobileMenuHeader
-        profile={profile}
+        profilePromise={profilePromise}
         search={search}
         onSearchChange={setSearch}
       />
+      
+      {!isBranchOpen && (
+        <Alert className="rounded-none border-x-0 border-t-0 flex items-center justify-center">
+          Store is currently closed. Restaurant hours are 8am - 6pm.
+        </Alert>
+      )}
 
-      <CategoryChips
-        categories={categories}
-        selected={selectedCategory}
-        onSelect={setSelectedCategory}
-      />
-
-      {/* No gap between these three columns — the frame (133:734) has the
-          sidebar, the centre content and the cart rail sitting flush against
-          each other, each with its own internal padding rather than an
-          outer gap between them. */}
-      {/* The foot padding is the space `BottomTabBar` used to occupy before it
-          became fixed — without it the last dish in the list sits underneath
-          the bar and cannot be scrolled clear of it. Mobile only, since the
-          bar is `md:hidden`. */}
-      <div className="flex flex-1 pb-[var(--tab-bar-height)] md:pb-0">
-        <CategorySidebar
+      {categories ? (
+        <CategoryChips
           categories={categories}
           selected={selectedCategory}
           onSelect={setSelectedCategory}
         />
+      ) : (
+        <Suspense fallback={
+          <div className="flex gap-[8px] overflow-x-hidden px-[16px] py-[12px] md:hidden">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-[32px] w-[80px] shrink-0 animate-pulse rounded-full bg-secondary/40" />
+            ))}
+          </div>
+        }>
+          <ResolvedCategoryChips 
+            categoriesPromise={categoriesPromise} 
+            selected={selectedCategory} 
+            onSelect={setSelectedCategory} 
+          />
+        </Suspense>
+      )}
+
+      <div className="flex flex-1 pb-[var(--tab-bar-height)] md:pb-0">
+        {categories ? (
+          <CategorySidebar
+            categories={categories}
+            selected={selectedCategory}
+            onSelect={setSelectedCategory}
+          />
+        ) : (
+          <Suspense fallback={
+            <aside className="hidden w-[208px] shrink-0 flex-col md:flex">
+              <h2 className="px-[18px] pt-[24px] text-[13px] font-bold uppercase tracking-[0.5px] text-foreground">
+                Categories
+              </h2>
+              <nav className="mt-[15px] flex flex-col gap-[6px] px-[18px]">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="h-[38px] w-full animate-pulse rounded-md bg-secondary/40" />
+                ))}
+              </nav>
+            </aside>
+          }>
+            <ResolvedCategorySidebar 
+              categoriesPromise={categoriesPromise} 
+              selected={selectedCategory} 
+              onSelect={setSelectedCategory} 
+            />
+          </Suspense>
+        )}
 
         <main className="flex-1 md:px-[28px] md:py-[26px]">
           <div className="hidden items-baseline gap-[12px] px-[20px] pt-[16px] md:flex md:px-0 md:pt-0">
-            <h1 className="font-display text-[32px] tracking-[0.32px] text-foreground">
-              THE WHOLE MENU
+            <h1 className="font-display text-[32px] uppercase tracking-[0.32px] text-foreground">
+              {selectedCategory ?? "THE WHOLE MENU"}
             </h1>
-            <p className="text-[13px] text-muted-foreground">
-              {products.length} {products.length === 1 ? "dish" : "dishes"}
-            </p>
           </div>
 
-          {products.length === 0 ? (
-            <MenuEmptyState hasFilter={hasFilter} />
+          {isPending ? (
+            <GridSkeleton />
+          ) : products ? (
+            products.length === 0 ? (
+              <MenuEmptyState hasFilter={hasFilter} />
+            ) : (
+              <>
+                <div className="hidden gap-[16px] pt-[24px] md:grid md:grid-cols-3">
+                  {products.map((product) => (
+                    <ProductCard key={product.id} product={product} onSelect={setSelectedProduct} />
+                  ))}
+                </div>
+                <div className="flex flex-col md:hidden">
+                  {products.map((product) => (
+                    <ProductRow key={product.id} product={product} onSelect={setSelectedProduct} />
+                  ))}
+                </div>
+              </>
+            )
           ) : (
-            <>
-              <div className="hidden gap-[16px] pt-[24px] md:grid md:grid-cols-3">
-                {products.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    onSelect={setSelectedProduct}
-                  />
-                ))}
-              </div>
-              <div className="flex flex-col md:hidden">
-                {products.map((product) => (
-                  <ProductRow
-                    key={product.id}
-                    product={product}
-                    onSelect={setSelectedProduct}
-                  />
-                ))}
-              </div>
-            </>
+            <Suspense fallback={<GridSkeleton />}>
+              <ResolvedProductGrid 
+                productsPromise={productsPromise} 
+                onSelect={setSelectedProduct} 
+              />
+            </Suspense>
           )}
         </main>
 
-        <DesktopCartRail
-          lines={cartLines}
-          initialFulfilment={initialFulfilment}
-        />
+        <Suspense fallback={
+          <aside className="hidden w-[328px] shrink-0 flex-col gap-[14px] border-l border-field-border bg-secondary/20 px-[22px] py-[24px] md:flex">
+            <div className="flex items-baseline justify-between">
+              <h2 className="font-display text-[22px] text-foreground">YOUR CART</h2>
+              <div className="h-[16px] w-16 animate-pulse rounded bg-secondary/40" />
+            </div>
+            <div className="flex flex-col gap-[10px]">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex flex-col gap-[7px] rounded-[13px] border border-field-border bg-card p-[11px]">
+                  <div className="flex justify-between">
+                    <div className="h-[18px] w-1/2 animate-pulse rounded bg-secondary/40" />
+                    <div className="h-[18px] w-12 animate-pulse rounded bg-secondary/40" />
+                  </div>
+                  <div className="mt-2 h-[27px] w-[90px] animate-pulse rounded-[7px] bg-secondary/40" />
+                </div>
+              ))}
+            </div>
+          </aside>
+        }>
+          <ResolvedCartRail 
+            cartPromise={cartPromise} 
+            optimisticCartLines={optimisticCartLines}
+            setOptimisticCartLines={setOptimisticCartLines}
+            initialFulfilment={initialFulfilment}
+          />
+        </Suspense>
       </div>
 
-      <BottomTabBar current="menu" cartCount={cartItemCount(cartLines)} />
+      <Suspense fallback={
+        <nav className="fixed inset-x-0 bottom-0 z-40 flex h-[var(--tab-bar-height)] items-center justify-around border-t border-field-border bg-card md:hidden">
+          {[{ id: "menu", icon: "☰", label: "Menu" }, { id: "cart", icon: "▤", label: "Cart" }, { id: "orders", icon: "◉", label: "Orders" }, { id: "account", icon: "☺", label: "Me" }].map(({ id, icon, label }) => (
+            <div key={id} className={`flex flex-col items-center gap-[4px] px-[8px] py-[4px] ${id === "menu" ? "text-primary" : "text-muted-foreground"}`}>
+              <span className="text-[19px] leading-none" aria-hidden="true">{icon}</span>
+              <span className="text-[11px] font-medium">{label}</span>
+            </div>
+          ))}
+        </nav>
+      }>
+        <ResolvedBottomTabBar 
+          cartPromise={cartPromise} 
+          optimisticCartLines={optimisticCartLines} 
+        />
+      </Suspense>
 
       <ItemDetailModal
         product={selectedProduct}
         onClose={() => setSelectedProduct(null)}
+        onAdd={(quantity, instructions) => {
+          if (!selectedProduct) return;
+          setOptimisticCartLines((prev) => {
+            const currentLines = prev ?? [];
+            const inst = instructions || null;
+            const matchIndex = currentLines.findIndex(
+              (l) => l.name === selectedProduct.name && l.specialInstructions === inst
+            );
+            if (matchIndex >= 0) {
+              const next = [...currentLines];
+              next[matchIndex] = { ...next[matchIndex], quantity: next[matchIndex].quantity + quantity };
+              return next;
+            }
+            return [
+              ...currentLines,
+              {
+                id: `optimistic-${Date.now()}`,
+                name: selectedProduct.name,
+                unitPrice: selectedProduct.price,
+                quantity,
+                specialInstructions: inst,
+              },
+            ];
+          });
+        }}
       />
     </div>
   );
+}
+
+// -----------------------------------------------------------------------------
+// Component-Level Stream Wrappers
+// -----------------------------------------------------------------------------
+
+function GridSkeleton() {
+  return (
+    <>
+      <div className="hidden gap-[16px] pt-[24px] md:grid md:grid-cols-3">
+        {Array.from({ length: 9 }).map((_, i) => (
+          <div key={i} className="flex flex-col overflow-hidden rounded-md border border-field-border bg-card">
+            <div className="h-[138px] w-full animate-pulse bg-secondary/40" />
+            <div className="flex flex-1 flex-col gap-[10px] p-[14px]">
+              <div className="h-[20px] w-3/4 animate-pulse rounded bg-secondary/40" />
+              <div className="h-[14px] w-full animate-pulse rounded bg-secondary/40" />
+              <div className="h-[14px] w-2/3 animate-pulse rounded bg-secondary/40" />
+              <div className="mt-auto flex items-center justify-between pt-[4px]">
+                <div className="h-[24px] w-[60px] animate-pulse rounded bg-secondary/40" />
+                <div className="h-[36px] w-[60px] animate-pulse rounded-md bg-secondary/40" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="flex flex-col md:hidden">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="flex gap-[13px] border-b border-field-border px-[20px] py-[12px] last:border-b-0">
+            <div className="size-[74px] shrink-0 animate-pulse rounded-md bg-secondary/40" />
+            <div className="flex min-w-0 flex-1 flex-col justify-center gap-[6px]">
+              <div className="h-[20px] w-3/4 animate-pulse rounded bg-secondary/40" />
+              <div className="h-[14px] w-full animate-pulse rounded bg-secondary/40" />
+              <div className="h-[14px] w-2/3 animate-pulse rounded bg-secondary/40" />
+              <div className="mt-[2px] h-[22px] w-[50px] animate-pulse rounded bg-secondary/40" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function ResolvedCategoryChips({
+  categoriesPromise,
+  selected,
+  onSelect,
+}: {
+  categoriesPromise: Promise<CategoryOption[]>;
+  selected: string | null;
+  onSelect: (id: string | null) => void;
+}) {
+  const categories = use(categoriesPromise);
+  return <CategoryChips categories={categories} selected={selected} onSelect={onSelect} />;
+}
+
+function ResolvedCategorySidebar({
+  categoriesPromise,
+  selected,
+  onSelect,
+}: {
+  categoriesPromise: Promise<CategoryOption[]>;
+  selected: string | null;
+  onSelect: (id: string | null) => void;
+}) {
+  const categories = use(categoriesPromise);
+  return <CategorySidebar categories={categories} selected={selected} onSelect={onSelect} />;
+}
+
+function ResolvedProductGrid({
+  productsPromise,
+  onSelect,
+}: {
+  productsPromise: Promise<ProductListing[]>;
+  onSelect: (product: ProductListing) => void;
+}) {
+  const products = use(productsPromise);
+  if (products.length === 0) {
+    return <MenuEmptyState hasFilter={false} />;
+  }
+  return (
+    <>
+      <div className="hidden gap-[16px] pt-[24px] md:grid md:grid-cols-3">
+        {products.map((product) => (
+          <ProductCard key={product.id} product={product} onSelect={onSelect} />
+        ))}
+      </div>
+      <div className="flex flex-col md:hidden">
+        {products.map((product) => (
+          <ProductRow key={product.id} product={product} onSelect={onSelect} />
+        ))}
+      </div>
+    </>
+  );
+}
+
+function ResolvedCartRail({
+  cartPromise,
+  optimisticCartLines,
+  setOptimisticCartLines,
+  initialFulfilment,
+}: {
+  cartPromise: Promise<CartRead>;
+  optimisticCartLines: CartLine[] | null;
+  setOptimisticCartLines: (lines: CartLine[]) => void;
+  initialFulfilment?: Fulfilment;
+}) {
+  const cart = use(cartPromise);
+  React.useEffect(() => {
+    setOptimisticCartLines(cart.lines);
+  }, [cart.lines, setOptimisticCartLines]);
+
+  return <DesktopCartRail lines={optimisticCartLines ?? cart.lines} initialFulfilment={initialFulfilment} />;
+}
+
+function ResolvedBottomTabBar({
+  cartPromise,
+  optimisticCartLines,
+}: {
+  cartPromise: Promise<CartRead>;
+  optimisticCartLines: CartLine[] | null;
+}) {
+  const cart = use(cartPromise);
+  return <BottomTabBar current="menu" cartCount={cartItemCount(optimisticCartLines ?? cart.lines)} />;
 }
