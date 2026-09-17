@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import { isCancellable, type OrderProgress } from "@/lib/orders/order-stage";
+import { cancelCustomerOrder } from "@/lib/actions/cart";
+import { useCartAction } from "@/lib/cart/use-cart-action";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
@@ -13,8 +15,14 @@ import { useToast } from "@/components/ui/toast";
  *
  * Pressing Cancel order cancels nothing. It opens a confirmation, because the
  * action is destructive and cannot be undone, and a single press is not a
- * decision. Confirming raises a toast: writing `order.order_status` belongs to
- * the backend developer, and this control stops at the seam.
+ * decision. Confirming calls `cancelCustomerOrder` (PR #68), which owns the
+ * rule — only the customer's own order, only while it is still `pending` —
+ * and whose message is what the toast shows when the rule is broken.
+ *
+ * On success nothing here changes by hand. The tracking screen is subscribed
+ * to the `order` row, so the new status arrives the same way any other
+ * change would, and `progress` flips to cancelled on its own; the
+ * `router.refresh()` inside `useCartAction` re-reads the page as well.
  *
  * The whole progress is passed in rather than a `cancellable` boolean.
  * `isCancellable` is false for four different reasons and only one of them is
@@ -36,9 +44,6 @@ import { useToast } from "@/components/ui/toast";
 const KITCHEN_CONFIRMED_NOTE =
   "The kitchen has confirmed this order, so items and quantities can no longer be changed or cancelled.";
 
-const NOT_IMPLEMENTED_MESSAGE =
-  "Cancelling an order isn’t available yet. We’re still building it.";
-
 /**
  * Why the confirmation was taken away mid-decision. Each branch has to be true
  * on its own: the customer is reading this instead of the dialog they opened,
@@ -55,15 +60,19 @@ function withdrawnMessage(progress: OrderProgress): string {
 }
 
 export function CancelOrderControl({
+  orderId,
   orderNumber,
   progress,
 }: {
+  /** The `order.order_id` the write is sent for. */
+  orderId: string;
   /** The customer-facing reference, drawn as "#1042". */
   orderNumber: string;
   /** Resolved by `TrackOrderScreen` from the live order and delivery rows. */
   progress: OrderProgress;
 }) {
   const showToast = useToast();
+  const { run, pending } = useCartAction();
   const [open, setOpen] = React.useState(false);
 
   const cancellable = isCancellable(progress);
@@ -87,10 +96,14 @@ export function CancelOrderControl({
   return (
     <>
       {cancellable ? (
+        // Held while a cancel is out. The confirmation closes on the press,
+        // so this is the only way back to a second write before the first
+        // has settled.
         <button
           type="button"
+          disabled={pending}
           onClick={() => setOpen(true)}
-          className="w-full rounded-md border border-primary px-[18px] py-[13px] text-[13px] font-bold text-primary transition-colors hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 md:w-auto"
+          className="w-full rounded-md border border-primary px-[18px] py-[13px] text-[13px] font-bold text-primary transition-colors hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-60 md:w-auto"
         >
           Cancel order
         </button>
@@ -132,12 +145,20 @@ export function CancelOrderControl({
             >
               Keep my order
             </Button>
+            {/* Closed before the result is known, on purpose. The Realtime
+                row change on success would otherwise reach the withdraw
+                effect above while the dialog is still up, and toast the
+                customer that their order "has already been cancelled". A
+                rejection needs nothing but its message either way. */}
             <Button
               variant="confirm"
               className="flex-1"
+              disabled={pending}
               onClick={() => {
                 setOpen(false);
-                showToast(NOT_IMPLEMENTED_MESSAGE);
+                // No reason: the design never asks for one and the action
+                // defaults `cancellation_reason` itself.
+                run(() => cancelCustomerOrder(orderId));
               }}
             >
               Yes, cancel order

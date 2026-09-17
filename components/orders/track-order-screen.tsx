@@ -177,6 +177,7 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
               renders this screen. */}
           <div className="w-full pt-[6px] md:pt-0">
             <CancelOrderControl
+              orderId={orderId}
               orderNumber={order.orderNumber}
               progress={progress}
             />

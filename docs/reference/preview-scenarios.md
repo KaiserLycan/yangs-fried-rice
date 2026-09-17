@@ -33,7 +33,7 @@ The number in the URL (`1042`) is ignored — put anything there.
 
 | Add to the URL | What you should see |
 |---|---|
-| `?example=received` | "WAITING FOR THE KITCHEN". First stage marked **Now**, the rest pending. **Cancel order is offered.** This is also what you get with no `?example=` at all. |
+| `?example=received` | "WAITING FOR THE KITCHEN". First stage marked **Now**, the rest pending. **Cancel order is offered** — pressing Yes on an example shows a database error, because the example's id is not a real order; cancel works on an order placed from `/checkout`. This is also what you get with no `?example=` at all. |
 | `?example=preparing` | "IN THE WOK NOW". First stage **Done**, second **Now**. **Cancel order is gone**, replaced by a dashed note explaining the kitchen has confirmed it. |
 | `?example=out_for_delivery` | Third stage **Now**, first two **Done**. No cancel control. |
 | `?example=delivered` | All four stages **Done**. No cancel control. |

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveOrderProgress } from "./order-stage";
+import { isCancellable, resolveOrderProgress } from "./order-stage";
 import {
   DEFAULT_EXAMPLE_STATE,
   EXAMPLE_STATES,
@@ -22,10 +22,9 @@ describe("mockTrackedOrder", () => {
     };
 
     for (const [example, stage] of Object.entries(expected)) {
-      expect(resolveOrderProgress(mockTrackedOrder("id", example))).toEqual({
-        kind: "stage",
-        stage,
-      });
+      expect(resolveOrderProgress(mockTrackedOrder("id", example))).toMatchObject(
+        { kind: "stage", stage },
+      );
     }
 
     expect(resolveOrderProgress(mockTrackedOrder("id", "cancelled"))).toEqual({
@@ -40,6 +39,14 @@ describe("mockTrackedOrder", () => {
     for (const example of EXAMPLE_STATES) {
       expect(mockTrackedOrder("id", example)).toBeDefined();
     }
+  });
+
+  it("offers Cancel order on the received example, as the preview doc promises", () => {
+    // The example has to use the status the backend will actually cancel;
+    // the back office's "received" looks the same on the timeline but the
+    // control is withdrawn for it.
+    expect(isCancellable(resolveOrderProgress(mockTrackedOrder("id", "received")))).toBe(true);
+    expect(isCancellable(resolveOrderProgress(mockTrackedOrder("id", "preparing")))).toBe(false);
   });
 
   it("keeps the delivery stages disagreeing with order_status, as real rows do", () => {
@@ -63,7 +70,7 @@ describe("mockTrackedOrder", () => {
     // A repeated query parameter arrives as an array; the first wins.
     expect(
       resolveOrderProgress(mockTrackedOrder("id", ["preparing", "delivered"])),
-    ).toEqual({ kind: "stage", stage: "preparing" });
+    ).toMatchObject({ kind: "stage", stage: "preparing" });
   });
 
   it("accepts the spacings and casings someone would actually type", () => {

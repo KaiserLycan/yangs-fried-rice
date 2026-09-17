@@ -279,9 +279,31 @@ along, so that behaviour is fine and needs no change.
 
 ## 7. Cancel an order (ticket 07) — the one write on the tracking screen
 
+> **Status 2026-09-17 — shipped and wired.** The backend delivered
+> `cancelCustomerOrder` in `lib/actions/cart.ts` (PR #68, via the
+> `cancel_customer_order` RPC with a client fallback) and the frontend now
+> calls it from `components/orders/cancel-order-control.tsx` (GitHub #7,
+> ticket 15). The section below is kept as the record of what was asked
+> for. Three things worth knowing:
+>
+> 1. **The action cancels only `order_status = 'pending'`.** The frontend
+>    now offers Cancel order only for exactly that status, not for the whole
+>    "Order received" stage — the back office's `received` means staff have
+>    accepted, and the button would otherwise show and then fail. The same
+>    goes for schema.sql's `pending_confirmation`: if that ever lands in a
+>    row, the customer sees no button. `lib/orders/order-stage.ts` holds the
+>    rule.
+> 2. **It writes `cancellation_reason`, not `cancelled_by`.** The correction
+>    at the end of this section went the other way from what shipped: the
+>    column exists and the action defaults it. The frontend passes no reason.
+>    Nothing sets `cancelled_by`, so a later staff- or rider-side cancel will
+>    still need to settle what that column holds.
+> 3. **Example orders can't be cancelled.** The tracking fixture's id is
+>    whatever the URL says, so `/orders/1042` is not a UUID and the write
+>    returns a raw database error. Test on an order placed from `/checkout`.
+
 **Where:** `components/orders/cancel-order-control.tsx`, the "Yes, cancel
-order" button inside the confirmation. Pressing it closes the confirmation
-and raises the not-implemented toast; it writes nothing.
+order" button inside the confirmation.
 
 **What the frontend has when this fires:** the `order_id` from the URL
 (`/orders/[orderId]`), and the fact that the screen considered the order
