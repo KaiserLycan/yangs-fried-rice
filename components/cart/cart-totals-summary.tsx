@@ -1,6 +1,10 @@
+"use client";
+
+import * as React from "react";
 import Link from "next/link";
 import { formatPeso } from "@/lib/menu/product-listing";
 import type { CartTotals, Fulfilment } from "@/lib/menu/cart-totals";
+import { isRestaurantOpen } from "@/lib/store-hours";
 
 /**
  * Subtotal, delivery fee, Total, and the call to action — `133:990` desktop
@@ -27,6 +31,15 @@ export function CartTotalsSummary({
   showEstimate: boolean;
   fulfilment: Fulfilment;
 }) {
+  const [isClicked, setIsClicked] = React.useState(false);
+  const [isOpen, setIsOpen] = React.useState(true);
+
+  React.useEffect(() => {
+    setIsOpen(isRestaurantOpen());
+    const interval = setInterval(() => setIsOpen(isRestaurantOpen()), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="flex flex-col gap-[8px] border-t border-field-border pt-[14px]">
       <Row label="Subtotal" value={formatPeso(totals.subtotal)} />
@@ -44,10 +57,21 @@ export function CartTotalsSummary({
       ) : null}
 
       <Link
-        href={`/checkout?fulfilment=${fulfilment}`}
-        className="mt-[6px] flex items-center justify-center rounded-[12px] bg-foreground p-[15px] text-[14px] font-bold text-background"
+        href={!isOpen || isClicked ? "#" : `/checkout?fulfilment=${fulfilment}`}
+        onClick={(e) => {
+          if (!isOpen || isClicked) {
+            e.preventDefault();
+            return;
+          }
+          setIsClicked(true);
+        }}
+        className={`mt-[6px] flex items-center justify-center rounded-[12px] p-[15px] text-[14px] font-bold ${
+          !isOpen || isClicked
+            ? "bg-secondary text-muted-foreground cursor-not-allowed opacity-60 pointer-events-none"
+            : "bg-foreground text-background"
+        }`}
       >
-        {ctaLabel}
+        {!isOpen ? "Store Closed" : ctaLabel}
       </Link>
     </div>
   );
