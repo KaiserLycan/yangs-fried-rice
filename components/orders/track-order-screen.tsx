@@ -9,6 +9,7 @@ import {
   timelineStages,
 } from "@/lib/orders/order-stage";
 import type { TrackedOrder } from "@/lib/orders/read-tracked-order";
+import { Alert } from "@/components/ui/alert";
 import { CancelOrderControl } from "@/components/orders/cancel-order-control";
 import { LiveMapPanel } from "@/components/orders/live-map-panel";
 import { OrderTimeline } from "@/components/orders/order-timeline";
@@ -37,6 +38,7 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
   const serverStatus = {
     orderStatus: order.orderStatus,
     cancelledAt: order.cancelledAt,
+    cancellationReason: order.cancellationReason,
     deliveryStatus: order.deliveryStatus,
   };
 
@@ -53,7 +55,7 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
    * `order` object itself would not work, since the server hands over a new
    * object every render and the patch would be thrown away immediately.
    */
-  const serverKey = `${order.orderStatus}|${order.cancelledAt}|${order.deliveryStatus}`;
+  const serverKey = `${order.orderStatus}|${order.cancelledAt}|${order.cancellationReason}|${order.deliveryStatus}`;
   const [live, setLive] = React.useState<typeof serverStatus | null>(null);
   const [seenKey, setSeenKey] = React.useState(serverKey);
 
@@ -101,6 +103,7 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
             ...(previous ?? serverStatusRef.current),
             orderStatus: (payload.new.order_status as string | null) ?? null,
             cancelledAt: (payload.new.cancelled_at as string | null) ?? null,
+            cancellationReason: (payload.new.cancellation_reason as string | null) ?? null,
           }));
         },
       )
@@ -159,6 +162,14 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
           <p className="pt-[2px] text-[13px] text-on-ink-muted md:pt-[3px] md:text-[14px] md:text-muted-strong">
             {subline}
           </p>
+          
+          {progress.stage === "cancelled" && status.cancellationReason && (
+            <div className="mt-4">
+              <Alert className="bg-destructive/10 border-destructive/20 text-destructive md:text-destructive md:bg-error-surface md:border-error-border">
+                {status.cancellationReason}
+              </Alert>
+            </div>
+          )}
         </header>
 
         {/* Second on mobile, right-hand column on desktop. */}
