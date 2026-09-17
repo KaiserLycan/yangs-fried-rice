@@ -24,6 +24,7 @@ export type TrackedOrder = {
   /** Fed to `resolveOrderProgress`; never read directly by a component. */
   orderStatus: string | null;
   cancelledAt: string | null;
+  cancellationReason: string | null;
   deliveryStatus: string | null;
   /** `delivery.delivery_id`, so the screen can subscribe to the right row. */
   deliveryId: string | null;
@@ -64,7 +65,7 @@ export async function readTrackedOrder(
   // so the filter is what actually prevents that.
   const { data: order } = await supabase
     .from("order")
-    .select("order_id, order_status, order_type, cancelled_at")
+    .select("order_id, order_status, order_type, cancelled_at, cancellation_reason")
     .eq("order_id", orderId)
     .eq("customer_id", user.id)
     .maybeSingle();
@@ -87,6 +88,7 @@ export async function readTrackedOrder(
     orderNumber: orderNumberFrom(order.order_id),
     orderStatus: order.order_status,
     cancelledAt: order.cancelled_at,
+    cancellationReason: order.cancellation_reason,
     deliveryStatus: delivery?.delivery_status ?? null,
     deliveryId: delivery?.delivery_id ?? null,
     orderType: order.order_type,
