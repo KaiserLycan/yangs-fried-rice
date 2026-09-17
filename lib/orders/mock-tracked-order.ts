@@ -81,7 +81,11 @@ const BASE = {
  * which a nullable free-text column produces for real.
  */
 const EXAMPLES: Record<ExampleState, Partial<typeof BASE>> = {
-  received: { orderStatus: "received" },
+  // `pending` is what `submitCart` writes, and the only status
+  // `cancelCustomerOrder` accepts — so this is the one example that offers
+  // Cancel order. The back office's `received` means staff have accepted,
+  // which reads as the same stage but withdraws the control.
+  received: { orderStatus: "pending" },
   preparing: { orderStatus: "preparing" },
   out_for_delivery: {
     orderStatus: "preparing",
