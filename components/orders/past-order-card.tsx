@@ -86,6 +86,7 @@ export function PastOrderCard({ order }: { order: PastOrder }) {
         />
       ) : rateable ? (
         <OrderRatingInput
+          orderId={order.orderId}
           orderNumber={order.orderNumber}
           firstStarRef={firstStarRef}
           className="order-4 flex text-[15px] leading-none md:order-3"
