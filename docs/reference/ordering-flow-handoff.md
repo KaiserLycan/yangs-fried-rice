@@ -363,9 +363,24 @@ nothing about a cancellation makes the food less orderable.
 
 ## 9. Rate a past order (ticket 12) — OHF2
 
+> **Status 2026-09-17 — shipped and wired.** The backend delivered
+> `submitReview` in `lib/actions/customer-orders.ts` (PR #66, via the
+> `submit_order_review` RPC) and the frontend now calls it from
+> `components/orders/order-rating.tsx` (GitHub #8). The section below is kept
+> as the record of what was asked for. Two things worth knowing:
+>
+> 1. **The RPC only accepts `order_status = 'completed'`.** The frontend shows
+>    the stars whenever `lib/orders/order-stage.ts` resolves the order to
+>    `delivered`, which also covers a delivery row marked delivered while the
+>    order row still says otherwise. In that case the press fails and the
+>    RPC's message shows in a toast. Whichever side writes `completed` on
+>    delivery closes the gap; the backend rule is the one that holds.
+> 2. **Example orders can't be rated.** The `/orders` fixture uses ids like
+>    `example-1039`, which are not UUIDs, so rating one shows a raw database
+>    error. See `preview-scenarios.md`.
+
 **Where:** `components/orders/order-rating.tsx`, the row of stars on an
-unrated order in `/orders`. Choosing a star raises the not-implemented toast
-and writes nothing.
+unrated order in `/orders`.
 
 **What the frontend has when this fires:** the `order_id`, the signed-in
 customer, and an integer score from 1 to 5. No comment — `review.comment`
