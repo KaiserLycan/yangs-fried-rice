@@ -18,6 +18,7 @@ export default function RiderProfilePage() {
     memberSince: null,
     orderCount: 0,
     deliverToAddress: null,
+    activeAddressId: null,
     addresses: [],
   };
 

@@ -42,13 +42,21 @@ export function ProductCard({
           <span className="font-display text-[22px] text-foreground">
             {formatPeso(product.price)}
           </span>
-          <button
-            type="button"
-            onClick={() => onSelect(product)}
-            className="rounded-md bg-accent px-[16px] py-[9px] text-[13px] font-bold text-white"
-          >
-            Add
-          </button>
+          <div className="flex items-center gap-[10px]">
+            {!product.isAvailable ? (
+              <span className="rounded-md bg-secondary/50 px-[8px] py-[4px] text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Unavailable
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onSelect(product)}
+                className="rounded-md bg-accent px-[16px] py-[9px] text-[13px] font-bold text-white transition-opacity hover:opacity-90"
+              >
+                Add
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -41,6 +42,11 @@ export type CustomerProfile = {
    * than one.
    */
   deliverToAddress: string | null;
+  /**
+   * The active address ID, either from the session cookie, the default address,
+   * or the first available address.
+   */
+  activeAddressId: string | null;
   /**
    * Every address the customer has saved, ordered by `address_id` for a
    * result that's at least stable across renders. That is **not** creation
@@ -108,7 +114,7 @@ export async function readCustomerProfile(): Promise<CustomerProfile | null> {
       .eq("customer_id", user.id),
     supabase
       .from("customer_address")
-      .select("address_id, label, address_details")
+      .select("address_id, label, address_details, address_note, is_default")
       .eq("customer_id", user.id)
       // Ordered for a stable result, not a chronological one — see the
       // `addresses` type's own comment on why `address_id` can't tell us
@@ -121,11 +127,18 @@ export async function readCustomerProfile(): Promise<CustomerProfile | null> {
       id: row.address_id,
       label: row.label,
       addressDetails: row.address_details,
-      // Neither column exists yet — see the type's own comments.
-      deliveryNote: null,
-      isDefault: false,
+      deliveryNote: row.address_note,
+      isDefault: row.is_default,
     }),
   );
+
+  const cookieStore = cookies();
+  const activeAddressId = cookieStore.get("active_address_id")?.value;
+
+  let activeAddress = addresses.find((a) => a.id === activeAddressId);
+  if (!activeAddress) {
+    activeAddress = addresses.find((a) => a.isDefault) ?? addresses[0];
+  }
 
   // Registration writes the customer row separately from creating the auth
   // user and can leave the second write undone, so a name is not guaranteed.
@@ -150,7 +163,8 @@ export async function readCustomerProfile(): Promise<CustomerProfile | null> {
     // nothing else, so it names one address rather than a separate query —
     // see the `addresses` type comment for what "first" does and doesn't
     // mean here.
-    deliverToAddress: addresses[0]?.addressDetails ?? null,
+    deliverToAddress: activeAddress?.addressDetails ?? null,
+    activeAddressId: activeAddress?.id ?? null,
     addresses,
   };
 }

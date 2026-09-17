@@ -104,11 +104,7 @@ export async function readPastOrders(): Promise<PastOrder[]> {
         total: totalOf(orderItems, row.delivery_fee, row.order_type),
         rating: ratingByOrder.get(row.order_id) ?? null,
       };
-    })
-    // Filtered here rather than in the query, because deciding whether an
-    // order is finished means reading four disagreeing status vocabularies
-    // and that logic lives in `order-stage.ts`, not in a `.in()` clause.
-    .filter(isPast);
+    });
 }
 
 /**
