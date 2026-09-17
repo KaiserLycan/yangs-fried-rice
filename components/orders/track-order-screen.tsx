@@ -163,10 +163,10 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
             {subline}
           </p>
           
-          {progress.stage === "cancelled" && status.cancellationReason && (
+          {progress.kind === "cancelled" && (
             <div className="mt-4">
               <Alert className="bg-destructive/10 border-destructive/20 text-destructive md:text-destructive md:bg-error-surface md:border-error-border">
-                {status.cancellationReason}
+                {status.cancellationReason || "This order was cancelled."}
               </Alert>
             </div>
           )}
