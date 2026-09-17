@@ -60,10 +60,12 @@ export function useCartAction() {
             result = await action();
           } catch {
             showToast(NETWORK_FAILED);
+            startTransition(() => router.refresh());
             return;
           }
           if (result.error !== null) {
             showToast(result.error);
+            startTransition(() => router.refresh());
             return;
           }
           onSuccess?.(result.data as NonNullable<R["data"]>);

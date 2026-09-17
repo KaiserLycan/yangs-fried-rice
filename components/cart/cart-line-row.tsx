@@ -1,10 +1,12 @@
 "use client";
 
+import * as React from "react";
 import { removeCartItem, updateCartItem } from "@/lib/actions/cart";
 import { useCartAction } from "@/lib/cart/use-cart-action";
 import { formatPeso } from "@/lib/menu/product-listing";
 import { lineTotal, type CartLine } from "@/lib/menu/cart-totals";
 import { MAX_QUANTITY, MIN_QUANTITY } from "@/lib/menu/quantity";
+import { cn } from "@/lib/utils";
 
 /**
  * One line in the cart (`133:955` desktop, `132:329` mobile): dish name and
@@ -22,14 +24,72 @@ import { MAX_QUANTITY, MIN_QUANTITY } from "@/lib/menu/quantity";
  * `MAX_QUANTITY`, the same cap the item modal's stepper uses, so the two
  * screens agree on how many of one dish a customer can order.
  */
-export function CartLineRow({ line }: { line: CartLine }) {
+export function CartLineRow({ 
+  line,
+  onUpdate,
+  onRemove,
+}: { 
+  line: CartLine;
+  onUpdate?: (quantity: number) => void;
+  onRemove?: () => void;
+}) {
   const { run, pending } = useCartAction();
 
-  const remove = () => run(() => removeCartItem(line.id));
-  const setQuantity = (quantity: number) =>
-    quantity < MIN_QUANTITY
-      ? remove()
-      : run(() => updateCartItem(line.id, { quantity }));
+  const isOptimistic = line.id.startsWith("optimistic-");
+  const isPending = pending || isOptimistic;
+
+  const [localQuantity, setLocalQuantity] = React.useState(line.quantity);
+  const debounceTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  React.useEffect(() => {
+    if (!debounceTimerRef.current) {
+      setLocalQuantity(line.quantity);
+    }
+  }, [line.quantity]);
+
+  const remove = () => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+    onRemove?.();
+    run(() => removeCartItem(line.id));
+  };
+
+  const setQuantity = (quantity: number) => {
+    if (quantity > MAX_QUANTITY) return;
+    
+    setLocalQuantity(quantity);
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      debounceTimerRef.current = null;
+      if (quantity < MIN_QUANTITY) {
+        remove();
+      } else {
+        onUpdate?.(quantity);
+        run(() => updateCartItem(line.id, { quantity }));
+      }
+    }, 600);
+  };
+
+  if (isOptimistic) {
+    return (
+      <div className="flex flex-col gap-[7px] rounded-[13px] border border-field-border bg-card p-[11px]">
+        <div className="flex justify-between">
+          <div className="h-[18px] w-1/2 animate-pulse rounded bg-secondary/40" />
+          <div className="h-[18px] w-12 animate-pulse rounded bg-secondary/40" />
+        </div>
+        <div className="mt-[8px] h-[27px] w-[90px] animate-pulse rounded-[7px] bg-secondary/40" />
+      </div>
+    );
+  }
+
+  // Calculate local line total based on debounced localQuantity 
+  const localLineTotal = lineTotal({ ...line, quantity: localQuantity });
 
   return (
     <div className="flex flex-col gap-[7px] rounded-[13px] border border-field-border bg-card p-[11px]">
@@ -38,7 +98,7 @@ export function CartLineRow({ line }: { line: CartLine }) {
           {line.name}
         </span>
         <span className="text-[13px] font-bold text-primary">
-          {formatPeso(lineTotal(line))}
+          {formatPeso(localLineTotal)}
         </span>
       </div>
 
@@ -52,23 +112,23 @@ export function CartLineRow({ line }: { line: CartLine }) {
         <StepButton
           glyph="−"
           label="Decrease quantity"
-          disabled={pending}
-          onClick={() => setQuantity(line.quantity - 1)}
+          disabled={isPending}
+          onClick={() => setQuantity(localQuantity - 1)}
         />
         <span className="min-w-[14px] px-[3px] text-center text-[13px] font-bold text-foreground">
-          {line.quantity}
+          {localQuantity}
         </span>
         <StepButton
           glyph="+"
           label="Increase quantity"
-          disabled={pending || line.quantity >= MAX_QUANTITY}
-          onClick={() => setQuantity(line.quantity + 1)}
+          disabled={isPending || localQuantity >= MAX_QUANTITY}
+          onClick={() => setQuantity(localQuantity + 1)}
         />
 
         <button
           type="button"
           onClick={remove}
-          disabled={pending}
+          disabled={isPending}
           className="ml-auto text-[11px] font-bold text-primary underline disabled:opacity-60"
         >
           Remove

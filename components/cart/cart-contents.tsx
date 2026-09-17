@@ -29,33 +29,39 @@ export function CartContents({
   lines: CartLine[];
   ctaLabel: string;
   showEstimate: boolean;
-  /**
-   * Where the toggle starts. Defaults to Delivery, which is what the frames
-   * draw, but a customer arriving back from checkout carries their choice in
-   * the URL — otherwise going back to change a line and continuing again
-   * would silently put them back on delivery and add the ₱95 fee with
-   * nothing on screen saying it had changed.
-   */
   initialFulfilment?: Fulfilment;
 }) {
-  // Not persisted — see FulfilmentToggle's own comment on why this is plain
-  // component state rather than a value read from and written to the cart.
   const [fulfilment, setFulfilment] =
     React.useState<Fulfilment>(initialFulfilment);
 
-  if (lines.length === 0) {
+  // Optimistic UI state
+  const [localLines, setLocalLines] = React.useState(lines);
+  React.useEffect(() => {
+    setLocalLines(lines);
+  }, [lines]);
+
+  if (localLines.length === 0) {
     return <CartEmptyState />;
   }
 
-  const totals = computeCartTotals({ lines, fulfilment });
+  const totals = computeCartTotals({ lines: localLines, fulfilment });
 
   return (
     <div className="flex flex-1 flex-col gap-[14px]">
       <FulfilmentToggle value={fulfilment} onChange={setFulfilment} />
 
       <div className="flex flex-col gap-[10px]">
-        {lines.map((line) => (
-          <CartLineRow key={line.id} line={line} />
+        {localLines.map((line) => (
+          <CartLineRow 
+            key={line.id} 
+            line={line} 
+            onUpdate={(quantity) => {
+              setLocalLines((prev) => prev.map((l) => (l.id === line.id ? { ...l, quantity } : l)));
+            }}
+            onRemove={() => {
+              setLocalLines((prev) => prev.filter((l) => l.id !== line.id));
+            }}
+          />
         ))}
       </div>
 
