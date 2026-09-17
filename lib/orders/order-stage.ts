@@ -79,7 +79,18 @@ export const UNKNOWN_HEADLINE = "CHECKING THIS ORDER";
  * and both change what the rest of the screen may show.
  */
 export type OrderProgress =
-  | { kind: "stage"; stage: OrderStage }
+  | {
+      kind: "stage";
+      stage: OrderStage;
+      /**
+       * The order row's status after folding, or null when the stage came
+       * from the delivery row alone. Carried because one rule — whether the
+       * order can still be cancelled — is drawn at a line finer than the
+       * four stages, and the timeline must not move to accommodate it. It
+       * is a value for `isCancellable`, not for components to switch on.
+       */
+      orderStatus: string | null;
+    }
   | { kind: "cancelled" }
   | { kind: "unknown" };
 
@@ -169,15 +180,26 @@ export function resolveOrderProgress(input: OrderStageInput): OrderProgress {
   // than a vocabulary question.
   if (input.cancelledAt !== null) return { kind: "cancelled" };
 
-  const fromOrder = ORDER_STATUS_STAGES[normaliseStatus(input.orderStatus) ?? ""];
+  const orderStatus = normaliseStatus(input.orderStatus);
+  const fromOrder = ORDER_STATUS_STAGES[orderStatus ?? ""];
   if (fromOrder === "cancelled") return { kind: "cancelled" };
 
   const fromDelivery =
     DELIVERY_STATUS_STAGES[normaliseStatus(input.deliveryStatus) ?? ""];
 
   const stage = furtherAlong(fromOrder ?? null, fromDelivery ?? null);
-  return stage === null ? { kind: "unknown" } : { kind: "stage", stage };
+  return stage === null
+    ? { kind: "unknown" }
+    : { kind: "stage", stage, orderStatus };
 }
+
+/**
+ * The one status `cancelCustomerOrder` (`lib/actions/cart.ts`) will accept.
+ * schema.sql's `pending_confirmation` folds onto the same stage above but is
+ * deliberately not here: the backend rejects it, and offering a button that
+ * then fails is the exact thing this rule exists to prevent.
+ */
+const CANCELLABLE_STATUS = "pending";
 
 /**
  * The boundary the mobile frames draw: Cancel order is present while "Order
@@ -185,9 +207,23 @@ export function resolveOrderProgress(input: OrderStageInput): OrderProgress {
  * kitchen confirms. An unknown or cancelled order offers no cancel control,
  * for different reasons: one is already cancelled, and the other is a state
  * we cannot reason about.
+ *
+ * The line is drawn one notch finer than the stage (ticket 15, decision A).
+ * The back office writes `received` when staff accept an order, and the
+ * timeline shows that as "Order received" still — but the backend refuses to
+ * cancel it. Offering the button there would show it and then fail, so the
+ * rule reads the status the stage was resolved from, not the stage.
  */
 export function isCancellable(progress: OrderProgress): boolean {
-  return progress.kind === "stage" && progress.stage === "received";
+  // Both checks are needed. The delivery row can carry the stage past
+  // "received" while the order row still says pending — and a dispatched
+  // order must not be offered for cancelling just because the backend's
+  // status check would let it through.
+  return (
+    progress.kind === "stage" &&
+    progress.stage === "received" &&
+    progress.orderStatus === CANCELLABLE_STATUS
+  );
 }
 
 /**

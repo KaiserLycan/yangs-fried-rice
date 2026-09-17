@@ -25,6 +25,16 @@ type Handler = (payload: { new?: Record<string, unknown> }) => void;
 let handlers: { table: string; handler: Handler }[] = [];
 let channelsRemoved = 0;
 
+// The cancel control reaches for the router and the write; neither is
+// exercised here — `cancel-order-control.test.tsx` covers the press.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+}));
+
+vi.mock("@/lib/actions/cart", () => ({
+  cancelCustomerOrder: vi.fn(),
+}));
+
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
     channel: () => {
@@ -59,7 +69,9 @@ function trackedOrder(over: Partial<TrackedOrder> = {}): TrackedOrder {
   return {
     orderId: "7c9e6679-7425-40de-944b-e07fc1f90ae7",
     orderNumber: "0AE7",
-    orderStatus: "received",
+    // What `submitCart` writes. The back office's "received" is the same
+    // stage but means staff have accepted, which withdraws Cancel order.
+    orderStatus: "pending",
     cancelledAt: null,
     deliveryStatus: null,
     deliveryId: null,
@@ -168,6 +180,17 @@ describe("TrackOrderScreen", () => {
     expect(
       screen.getByRole("button", { name: "Cancel order" }),
     ).toBeInTheDocument();
+
+    // Staff accepted: same "Order received" stage, but the backend will no
+    // longer cancel it, so the note shows in place of the button.
+    rerender(
+      <TrackOrderScreen order={trackedOrder({ orderStatus: "received" })} />,
+    );
+    expect(
+      screen.queryByRole("button", { name: "Cancel order" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(/no longer be changed or cancelled/)).toBeInTheDocument();
+    expect(stageStates()).toEqual(["Now", "—", "—", "—"]);
 
     rerender(
       <TrackOrderScreen order={trackedOrder({ orderStatus: "preparing" })} />,
