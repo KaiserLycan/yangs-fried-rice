@@ -321,12 +321,6 @@ function SignupFormInner() {
         </p>
       </form>
 
-      {/* Desktop-only, as on login. On a 390px frame the five-field card has
-          almost nothing to spare, and this line is what tips it over. */}
-      <p className="relative hidden text-[11px] leading-[16.5px] text-placeholder md:mt-[18px] md:block">
-        By creating an account you agree to Yang&apos;s terms of service and
-        privacy policy.
-      </p>
     </div>
   );
 }
