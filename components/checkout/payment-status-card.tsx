@@ -164,14 +164,14 @@ export function PaymentStatusCard({
       </p>
 
       {offer.length > 0 ? (
-        <div className="mt-[8px] grid grid-cols-1 gap-[8px] sm:grid-cols-2">
+        <div className="mt-[8px] flex flex-col gap-[8px] sm:flex-row">
           {offer.map((provider) => (
             <button
               key={provider}
               type="button"
               onClick={() => void payWith(provider)}
               disabled={starting !== null}
-              className="rounded-[13px] bg-accent p-[12px] text-[14px] font-bold text-accent-foreground disabled:opacity-60"
+              className="flex-1 rounded-[13px] bg-accent p-[12px] text-[14px] font-bold text-accent-foreground disabled:opacity-60"
             >
               {starting === provider
                 ? "Opening wallet…"
