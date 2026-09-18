@@ -66,6 +66,7 @@ export function MenuItemModal({
   const [description, setDescription] = useState("");
   const [available, setAvailable] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [categoryOpen, setCategoryOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -85,9 +86,11 @@ export function MenuItemModal({
     if (file) {
       try {
         const compressed = await compressImage(file, 800);
+        setSelectedFile(compressed);
         setImagePreview(URL.createObjectURL(compressed));
       } catch {
         // Fallback to uncompressed if compression fails
+        setSelectedFile(file);
         setImagePreview(URL.createObjectURL(file));
       }
     }
@@ -95,7 +98,6 @@ export function MenuItemModal({
 
   const handleSave = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    const file = fileInputRef.current?.files?.[0];
     
     onSave({
       name,
@@ -104,7 +106,7 @@ export function MenuItemModal({
       category: (category || selectableCategories[0] || "Uncategorized") as MenuCategory,
       description,
       available,
-    }, file);
+    }, selectedFile || undefined);
   };
 
   // Safe fallback for the display label as well

@@ -65,6 +65,7 @@ export function MenuItemDetailModal({
   const [price, setPrice] = useState(item.price.toFixed(2));
   const [available, setAvailable] = useState(item.available);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [categoryOpen, setCategoryOpen] = useState(false);
 
   const selectableCategories = (categories ?? MOCK_CATEGORIES).filter(
@@ -85,6 +86,7 @@ export function MenuItemDetailModal({
     setPrice(item.price.toFixed(2));
     setAvailable(item.available);
     setImagePreview(null);
+    setSelectedFile(null);
   }, [item]);
 
   if (!isOpen) return null;
@@ -98,10 +100,12 @@ export function MenuItemDetailModal({
     if (file) {
       try {
         const compressed = await compressImage(file, 800);
+        setSelectedFile(compressed);
         const url = URL.createObjectURL(compressed);
         setImagePreview(url);
       } catch {
         // Fallback to uncompressed if compression fails
+        setSelectedFile(file);
         const url = URL.createObjectURL(file);
         setImagePreview(url);
       }
@@ -109,20 +113,19 @@ export function MenuItemDetailModal({
   };
 
   const handleEditConfirm = (e: React.MouseEvent) => {
-  e.preventDefault();
-  const file = fileInputRef.current?.files?.[0]; 
-  
-  onEdit({
+    e.preventDefault();
+    
+    onEdit({
     ...item,
     name,
     category,
-    description,
-    price: parseFloat(price) || 0,
-    available,
-  }, file);
-  
-  setShowEditConfirm(false); // Safe to keep: this just closes the small confirmation popup
-};
+      description,
+      price: parseFloat(price) || 0,
+      available,
+    }, selectedFile || undefined);
+    
+    setShowEditConfirm(false); // Safe to keep: this just closes the small confirmation popup
+  };
 
   const handleDeleteConfirm = () => {
     onDelete(item.id);
