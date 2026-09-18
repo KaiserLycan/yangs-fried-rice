@@ -43,7 +43,7 @@ This document maps the master list of requirements to the current state of the c
 - [x] **Order7 - Driver mark delivered with proof:** **Implemented** (`ProofOfDeliveryModal`)
 
 ## 🟡 Payment Processing
-- [ ] **PP1 - Online payments (Cards/Wallets):** **Missing** (No Stripe/Paymongo integration - *Issue #9*)
+- [x] **PP1 - Online payments (Cards/Wallets):** **Implemented** (PayMongo integration for GCash/Maya added)
 - [x] **PP2 - COD and In-store payments:** **Implemented** 
 
 ## 🟡 System Administration and Support

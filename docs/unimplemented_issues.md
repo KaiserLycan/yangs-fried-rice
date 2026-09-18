@@ -31,8 +31,8 @@ This document tracks all the pending/unimplemented acceptance criteria from open
 - [ ] **Still Needed:** The ETA calculation must account for real-time kitchen queue traffic.
 - [ ] **Still Needed:** The ETA calculation must factor in the delivery distance.
 
-## Issue #9: US-04: Payment Processing & Kitchen Queue (PARTIALLY CLOSED)
-- [ ] **Still Needed:** The Stripe/Paymongo API processes digital payments successfully. (No integration present).
+## Issue #9: US-04: Payment Processing & Kitchen Queue (CLOSED)
+- [x] **Implemented:** The Stripe/Paymongo API processes digital payments successfully. (PayMongo integration via Edge Functions).
 - [x] **Implemented:** Incoming orders display sequentially on a kitchen display system. (KDS button/layout exists).
 - [x] **Implemented:** Staff can click to mark prepared orders as completed. (Backend and frontend wired).
 
