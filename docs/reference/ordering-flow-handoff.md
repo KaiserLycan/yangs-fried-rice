@@ -253,11 +253,25 @@ delivery completes.
   map "Rider Ariel S. · 2.4 km away". The name is real — it comes from the
   delivery's rider, via `rider.employee_id` → `employee.name` — but no
   distance is stored anywhere, so the screen omits that half rather than
-  inventing it. This is tied up with issue #10 (US-07, real-time ETA) and is
-  not needed for ticket 06 to be correct.
-- **An arrival window.** `delivery.estimated_time` is a single value and the
-  design shows a range ("35–45 min"). The screen renders whatever the column
-  holds, and says "Arrival time to be confirmed" when it is NULL.
+  inventing it. `getOrderEtaAction` (PR #69) returns a `distanceKm`, but
+  that is store → customer, not rider → customer, so it is not this number.
+- **An arrival window — wired (issue #10).** The header now shows
+  `arrivalWindow` from `getOrderEtaAction` in `lib/actions/eta.ts`, read on
+  page load and re-asked on every Realtime status event. It does **not** read
+  `delivery.estimated_time` — that column is a timestamp the action writes as
+  a side effect, and the design shows a range. "None" (cancelled or
+  completed) and a failed call both render as "Arrival time to be
+  confirmed". Note the action writes that column on every tracking page
+  load; fine for now, flagging in case it shows up in query logs.
+- **Checkout still prints a constant.** "Estimated arrival 35–45 min" on
+  `/checkout` and the order-placed screen is still `ARRIVAL_ESTIMATE` in
+  `lib/checkout/arrival-estimate.ts`. `getOrderEtaAction` needs an
+  `order_id`, and at checkout there is no order yet. To make that estimate
+  real, the frontend needs a variant that takes an order type and the
+  customer's address (or coordinates) instead of an order — roughly
+  `calculateOrderEta` in `lib/eta/engine.ts` with the queue count and
+  geocoding done server-side. Not blocking; the copy is honest about being
+  an estimate.
 
 **Per-stage timestamps are NOT needed** — worth stating because it looks
 like they would be. The frames draw the literal words "Done", "Now" and an

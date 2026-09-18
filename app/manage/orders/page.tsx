@@ -38,24 +38,27 @@ function ManageOrdersInner() {
   const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [selectedOrder, setSelectedOrder] = useState<OrderData | null>(null);
+  const [itemsPerPage, setItemsPerPage] = useState(6);
   
   const [confirmAction, setConfirmAction] = useState<{ type: 'Cancel' | 'Deliver' | 'Confirm', order: OrderData } | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [showCancelError, setShowCancelError] = useState(false);
 
   // Fetch Orders on Mount and when Status/Page changes
+  // Fetch Orders on Mount and when Status/Page changes
+// Fetch Orders on Mount and when Status/Page changes
   const fetchOrders = useCallback(async () => {
     setIsLoading(true);
     
-    // Map UI Status to Database Enum
-    let dbStatus: string | undefined = undefined;
-    switch(activeStatus) {
-      case "Queue": dbStatus = "received"; break;
-      case "Preparation": dbStatus = "preparing"; break;
-      case "Delivery": dbStatus = "out_for_delivery"; break;
-      case "Completed": dbStatus = "completed"; break;
-      case "Canceled": dbStatus = "cancelled"; break;
-    }
+    // 1. Bulletproof Status Mapping (Fixed backend mismatch & casing issues)
+    let dbStatus: string | string[] | undefined = undefined;
+    const uiTab = activeStatus.toLowerCase();
+    
+    if (uiTab === "queue") dbStatus = ["pending", "received"]; 
+    else if (uiTab === "preparation" || uiTab === "prep") dbStatus = "preparing";
+    else if (uiTab === "delivery") dbStatus = "out_for_delivery";
+    else if (uiTab === "completed") dbStatus = "completed";
+    else if (uiTab === "canceled" || uiTab === "cancelled") dbStatus = "cancelled";
 
     // 1. Fetch the summaries using server-side pagination & filtering
     const summaryResult = await getDetailedOrders({
@@ -79,23 +82,24 @@ function ManageOrdersInner() {
         .map(order => {
           // Map Database Status back to UI Status
           let uiStatus: any = "QUEUE";
-          if (order.order_status === "preparing") uiStatus = "PREP";
-          if (order.order_status === "out_for_delivery") uiStatus = "DELIVERY";
-          if (order.order_status === "completed") uiStatus = "COMPLETED";
-          if (order.order_status === "cancelled") uiStatus = "CANCELED";
+          if (order.order_status === "pending" || order.order_status === "received") uiStatus = "QUEUE";
+          else if (order.order_status === "preparing") uiStatus = "PREP";
+          else if (order.order_status === "out_for_delivery") uiStatus = "DELIVERY";
+          else if (order.order_status === "completed") uiStatus = "COMPLETED";
+          else if (order.order_status === "cancelled") uiStatus = "CANCELED";
 
           return {
             id: order.order_id,
-            orderNumber: order.order_id.substring(0, 4).toUpperCase(), // Extracting short ID for display
+            orderNumber: order.order_id.substring(0, 4).toUpperCase(),
             time: order.created_at 
               ? new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
               : "Unknown time",
-              status: uiStatus,
-            timer: "5:00", // Fallback (calculating real timer requires ETA logic)
+            status: uiStatus,
+            timer: "5:00", 
             contactInfo: {
               name: order.customer?.name || "Walk-in Customer",
-              address: "Address details protected", // Fallback if delivery data is missing
-              phone: order.customer?.email || "No contact",
+              address: "Address details protected",
+              phone:order.customer?.email || "No contact",
             },
             orderInfo: {
               type: order.order_type || "Take-Out",
@@ -111,6 +115,15 @@ function ManageOrdersInner() {
             }))
           };
         });
+
+      // 4. Custom Sort: Push Completed and Canceled to the back of the grid
+      mappedOrders.sort((a, b) => {
+        const aIsDone = a.status === "COMPLETED" || a.status === "CANCELED";
+        const bIsDone = b.status === "COMPLETED" || b.status === "CANCELED";
+        if (aIsDone && !bIsDone) return 1;
+        if (!aIsDone && bIsDone) return -1;
+        return 0; // Maintain original time-based order for active items
+      });
         
       setOrders(mappedOrders);
     }

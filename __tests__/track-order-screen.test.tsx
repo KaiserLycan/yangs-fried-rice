@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { TrackOrderScreen } from "@/components/orders/track-order-screen";
 import { ToastProvider } from "@/components/ui/toast";
 import type { TrackedOrder } from "@/lib/orders/read-tracked-order";
@@ -34,6 +34,17 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/actions/cart", () => ({
   cancelCustomerOrder: vi.fn(),
 }));
+
+// The ETA is re-asked on every status event. Each test decides what the
+// backend answers; the default is a fresh, shorter window.
+const getOrderEtaAction = vi.fn();
+vi.mock("@/lib/actions/eta", () => ({
+  getOrderEtaAction: (...args: unknown[]) => getOrderEtaAction(...args),
+}));
+
+function etaOf(arrivalWindow: string) {
+  return { success: true, data: { arrivalWindow } };
+}
 
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
@@ -102,6 +113,8 @@ function stageStates() {
 beforeEach(() => {
   handlers = [];
   channelsRemoved = 0;
+  getOrderEtaAction.mockReset();
+  getOrderEtaAction.mockResolvedValue(etaOf("20–30 mins"));
 });
 
 describe("TrackOrderScreen", () => {
@@ -211,6 +224,85 @@ describe("TrackOrderScreen", () => {
     expect(
       screen.queryByRole("button", { name: "Cancel order" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("re-asks the ETA when the order moves and shows the new window", async () => {
+    renderScreen(trackedOrder());
+    expect(getOrderEtaAction).not.toHaveBeenCalled();
+
+    emit("order", { order_status: "preparing", cancelled_at: null });
+
+    expect(getOrderEtaAction).toHaveBeenCalledWith(
+      "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByText("Arriving 20–30 mins · Delivery to 21 Mabini St"),
+      ).toBeInTheDocument(),
+    );
+  });
+
+  it("re-asks the ETA when the delivery moves", async () => {
+    getOrderEtaAction.mockResolvedValue(etaOf("5–10 mins"));
+    renderScreen(trackedOrder({ orderStatus: "preparing" }));
+
+    emit("delivery", { delivery_status: "out_for_delivery" });
+
+    await waitFor(() =>
+      expect(screen.getByText(/Arriving 5–10 mins/)).toBeInTheDocument(),
+    );
+  });
+
+  it("shows the fallback when the backend refuses the estimate", async () => {
+    getOrderEtaAction.mockResolvedValue({ success: false, error: "Order not found." });
+    renderScreen(trackedOrder());
+
+    emit("order", { order_status: "preparing", cancelled_at: null });
+
+    // A refusal is an answer, unlike a thrown call: the old "35–45 min" is
+    // no longer known to be current, so the fallback replaces it.
+    await waitFor(() =>
+      expect(screen.getByText(/Arrival time to be confirmed/)).toBeInTheDocument(),
+    );
+  });
+
+  it("keeps the last window when the ETA call throws", async () => {
+    getOrderEtaAction.mockRejectedValue(new Error("network"));
+    renderScreen(trackedOrder());
+
+    emit("order", { order_status: "preparing", cancelled_at: null });
+
+    await waitFor(() => expect(getOrderEtaAction).toHaveBeenCalledTimes(1));
+    expect(screen.getByText(/Arriving 35–45 min/)).toBeInTheDocument();
+  });
+
+  it("says it is working while the first estimate is on its way", async () => {
+    let answer: (value: unknown) => void = () => {};
+    getOrderEtaAction.mockReturnValue(new Promise((resolve) => (answer = resolve)));
+    renderScreen(trackedOrder({ arrivalWindow: null }));
+
+    emit("order", { order_status: "preparing", cancelled_at: null });
+
+    expect(screen.getByText(/Updating arrival time…/)).toBeInTheDocument();
+    await act(async () => answer(etaOf("25–35 mins")));
+    expect(screen.getByText(/Arriving 25–35 mins/)).toBeInTheDocument();
+  });
+
+  it("does not let a slow reply overwrite a newer one", async () => {
+    let answerFirst: (value: unknown) => void = () => {};
+    getOrderEtaAction
+      .mockReturnValueOnce(new Promise((resolve) => (answerFirst = resolve)))
+      .mockResolvedValueOnce(etaOf("10–15 mins"));
+    renderScreen(trackedOrder());
+
+    emit("order", { order_status: "preparing", cancelled_at: null });
+    emit("delivery", { delivery_status: "out_for_delivery" });
+
+    await waitFor(() =>
+      expect(screen.getByText(/Arriving 10–15 mins/)).toBeInTheDocument(),
+    );
+    await act(async () => answerFirst(etaOf("40–50 mins")));
+    expect(screen.getByText(/Arriving 10–15 mins/)).toBeInTheDocument();
   });
 
   it("closes its channel when the screen goes away", () => {
