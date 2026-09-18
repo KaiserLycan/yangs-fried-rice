@@ -2,21 +2,69 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
-import { DeliveryOverviewCard } from "./delivery-overview-card";
-import { MOCK_DELIVERIES } from "@/lib/mock-deliveries";
+import { useState, useEffect } from "react";
+import { DeliveryOverviewCard, type DeliveryData } from "./delivery-overview-card";
+import { getAssignedDeliveries, getDeliveryDetail } from "@/lib/actions/delivery";
+import { Loader2 } from "lucide-react";
 
 export function DeliverSidebar() {
   const pathname = usePathname();
-  // Get active delivery ID from the path (e.g., /deliver/1042)
   const activeDeliveryId = pathname.split("/").pop();
   
-  const [filter, setFilter] = useState<"all" | "ready" | "delivering">("all");
+  const [filter, setFilter] = useState<"all" | "queue" | "delivered">("all");
+  const [deliveries, setDeliveries] = useState<DeliveryData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const filteredDeliveries = MOCK_DELIVERIES.filter((d) => {
-    if (d.status === "completed") return false;
-    if (filter !== "all" && d.status !== filter) return false;
-    return true;
+  useEffect(() => {
+    async function loadSidebarQueue() {
+      const { deliveries: summaries, error } = await getAssignedDeliveries();
+      
+      if (error || !summaries) {
+        setIsLoading(false);
+        return;
+      }
+
+      // Fetch full details for the sidebar cards
+      const detailedPromises = summaries.map(s => getDeliveryDetail(s.deliveryId));
+      const detailedResults = await Promise.all(detailedPromises);
+
+      const mapped: DeliveryData[] = detailedResults
+        .filter(res => res.delivery !== null)
+        .map(res => {
+          const d = res.delivery!;
+          
+          let cardStatus: "ready" | "delivering" | "completed" = "ready";
+          if (d.deliveryStatus === "delivering" || d.deliveryStatus === "out_for_delivery") cardStatus = "delivering";
+          if (d.deliveryStatus === "delivered") cardStatus = "completed";
+
+          return {
+            id: d.deliveryId, // Keep full UUID so sidebar Links navigate to real database IDs
+            customer: d.customer?.name || "Walk-in Customer",
+            address: d.customer?.address || "Address details protected",
+            phone: d.customer?.phone || "Contact via details",
+            notes: "",
+            paymentMethod: "Standard",
+            total: 0,
+            status: cardStatus,
+            items: d.items.map(item => ({
+              qty: item.quantity,
+              name: item.productName
+            }))
+          };
+        });
+
+      setDeliveries(mapped);
+      setIsLoading(false);
+    }
+
+    loadSidebarQueue();
+  }, []);
+
+  const filteredDeliveries = deliveries.filter((d) => {
+    if (filter === "all") return d.status === "ready";
+    if (filter === "queue") return d.status === "delivering";
+    if (filter === "delivered") return d.status === "completed";
+    return false;
   });
 
   return (
@@ -34,41 +82,49 @@ export function DeliverSidebar() {
             All
           </button>
           <button 
-            onClick={() => setFilter("ready")}
-            className={`flex-1 text-[12px] font-bold py-1.5 rounded-[6px] transition-colors ${filter === "ready" ? "bg-white text-[#1a1210] shadow-sm" : "text-[#7a6a60] hover:text-[#1a1210]"}`}
+            onClick={() => setFilter("queue")}
+            className={`flex-1 text-[12px] font-bold py-1.5 rounded-[6px] transition-colors ${filter === "queue" ? "bg-white text-[#1a1210] shadow-sm" : "text-[#7a6a60] hover:text-[#1a1210]"}`}
           >
-            Queued
+            Queue
           </button>
           <button 
-            onClick={() => setFilter("delivering")}
-            className={`flex-1 text-[12px] font-bold py-1.5 rounded-[6px] transition-colors ${filter === "delivering" ? "bg-white text-[#1a1210] shadow-sm" : "text-[#7a6a60] hover:text-[#1a1210]"}`}
+            onClick={() => setFilter("delivered")}
+            className={`flex-1 text-[12px] font-bold py-1.5 rounded-[6px] transition-colors ${filter === "delivered" ? "bg-white text-[#1a1210] shadow-sm" : "text-[#7a6a60] hover:text-[#1a1210]"}`}
           >
-            Ongoing
+            Delivered
           </button>
         </div>
       </div>
 
       <div className="flex flex-col px-[23px] py-[24px] gap-[10px] overflow-y-auto h-full">
-        {filteredDeliveries.map((delivery) => {
-          const isActive = activeDeliveryId === delivery.id;
-          
-          return (
-            <Link 
-              key={delivery.id} 
-              href={`/deliver/${delivery.id}`} 
-              className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-[16px]"
-            >
-              <DeliveryOverviewCard 
-                delivery={delivery} 
-                isActive={isActive} 
-              />
-            </Link>
-          );
-        })}
-        {filteredDeliveries.length === 0 && (
-          <p className="text-center text-[13px] text-[#7a6a60] mt-4">
-            No deliveries found for this filter.
-          </p>
+        {isLoading ? (
+          <div className="flex justify-center items-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-[#E8541F]" />
+          </div>
+        ) : (
+          <>
+            {filteredDeliveries.map((delivery) => {
+              const isActive = activeDeliveryId === delivery.id;
+              
+              return (
+                <Link 
+                  key={delivery.id} 
+                  href={`/deliver/${delivery.id}`} 
+                  className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-[16px]"
+                >
+                  <DeliveryOverviewCard 
+                    delivery={delivery} 
+                    isActive={isActive} 
+                  />
+                </Link>
+              );
+            })}
+            {filteredDeliveries.length === 0 && (
+              <p className="text-center text-[13px] text-[#7a6a60] mt-4">
+                No deliveries found for this filter.
+              </p>
+            )}
+          </>
         )}
       </div>
     </div>
