@@ -15,7 +15,7 @@ export default function NotFound() {
               Page Not Found
             </h2>
             <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground md:text-[15px]">
-              The wok is hot, but we can't find the page you're looking for. It
+              The wok is hot, but we can&apos;t find the page you&apos;re looking for. It
               might have been moved or deleted.
             </p>
           </div>

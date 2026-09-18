@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   ReportTypeSelect,
@@ -21,7 +21,7 @@ function getDefaultStartDate() {
     .split("T")[0];
 }
 
-export default function ReportsPage() {
+function ReportsContent() {
   const searchParams = useSearchParams();
   const reportType = searchParams.get("type") || "Sales and Order";
 
@@ -79,5 +79,13 @@ export default function ReportsPage() {
         />
       </div>
     </div>
+  );
+}
+
+export default function ReportsPage() {
+  return (
+    <Suspense fallback={<div className="p-4 text-sm text-muted-foreground animate-pulse">Loading reports...</div>}>
+      <ReportsContent />
+    </Suspense>
   );
 }
