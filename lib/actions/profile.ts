@@ -312,13 +312,31 @@ export async function changeMyPassword(input: {
     return { data: null, error: updateError.message };
   }
 
-  await supabase
-    .from("customer")
-    .update({ password_last_updated: new Date().toISOString() })
-    .eq("customer_id", user.id);
+  await Promise.all([
+    supabase
+      .from("customer")
+      .update({ password_last_updated: new Date().toISOString() })
+      .eq("customer_id", user.id),
+    supabase
+      .from("employee")
+      .update({ password_last_updated: new Date().toISOString() })
+      .eq("employee_id", user.id),
+  ]);
 
-  return { data: undefined, error: null };
+    await Promise.all([
+    supabase
+      .from("customer")
+      .update({ password_last_updated: new Date().toISOString() })
+      .eq("customer_id", user.id),
+    supabase
+      .from("employee")
+      .update({ password_last_updated: new Date().toISOString() })
+      .eq("employee_id", user.id),
+  ]);
+
+  return { data: undefined, error: null };  // <-- this line was missing
 }
+
 
 export async function deleteMyAccount(): Promise<RouterResult<undefined>> {
   const supabase = createClient();
