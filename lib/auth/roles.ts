@@ -16,6 +16,36 @@
 export const EMPLOYEE_ROLES = ["MANAGER", "STAFF", "RIDER"] as const;
 export type EmployeeRole = (typeof EMPLOYEE_ROLES)[number];
 
+const UI_ROLE_ALIASES: Record<string, EmployeeRole> = {
+  MANAGER: "MANAGER",
+  STAFF: "STAFF",
+  RIDER: "RIDER",
+  SERVER: "STAFF",
+  COOK: "STAFF",
+  CASHIER: "STAFF",
+  DELIVERY: "RIDER",
+  "MANAGER ": "MANAGER",
+  "STAFF ": "STAFF",
+  "RIDER ": "RIDER",
+  "SERVER ": "STAFF",
+  "COOK ": "STAFF",
+  "CASHIER ": "STAFF",
+  "DELIVERY ": "RIDER",
+};
+
+export function normalizeEmployeeRoleLabel(
+  role: string | null | undefined,
+): EmployeeRole | null {
+  if (!role) return null;
+
+  const canonical = role.trim().toUpperCase();
+  if (canonical in UI_ROLE_ALIASES) {
+    return UI_ROLE_ALIASES[canonical];
+  }
+
+  return isEmployeeRole(canonical) ? canonical : null;
+}
+
 /** Numeric weight — higher number = more authority. */
 export const ROLE_HIERARCHY: Record<EmployeeRole, number> = {
   MANAGER: 2,
