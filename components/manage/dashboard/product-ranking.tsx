@@ -3,10 +3,6 @@
  *
  * Displays a list of items with their count and a horizontal progress bar
  * proportional to the top item's count.
- *
- * TODO: BACKEND INTEGRATION — This component is purely presentational.
- * Pass real data from the parent. The `percentage` field on each item
- * controls the bar width (0–100).
  */
 
 import type { RankedProduct } from "@/lib/actions/dashboard";

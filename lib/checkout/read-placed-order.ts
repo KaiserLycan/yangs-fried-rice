@@ -109,8 +109,9 @@ function fulfilmentFromOrderType(orderType: string | null): Fulfilment {
  * `order` has no address column, so the destination comes from the customer's
  * default address — the same compromise the tracking screen makes.
  *
- * TODO (Backend): orders need their own delivery address. Reading the
- * customer's current default is wrong the moment they change it.
+ * We read the destination from the customer's *current* address, which means a
+ * delivered order will retroactively claim it went somewhere else if they
+ * move.change it.
  */
 async function readDestination(
   supabase: ReturnType<typeof createClient>,

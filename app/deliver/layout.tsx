@@ -8,9 +8,6 @@
  * genuinely different: riders work from a phone, in the field, one delivery
  * at a time. Same sign-in page as the rest of the employees, different
  * destination after it.
- *
- * TODO(auth): signed-in Employee with the Rider role, else redirect to
- * /employee/login.
  */
 "use client";
 

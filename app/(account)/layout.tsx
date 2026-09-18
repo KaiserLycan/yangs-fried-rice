@@ -23,5 +23,10 @@ export default function AccountLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <div className="min-h-screen">{children}</div>;
+  return (
+    <div className="min-h-screen">
+      {/* This renders all /account nested routes like /account/orders */}
+      <main className="flex-1">{children}</main>
+    </div>
+  );
 }

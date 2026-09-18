@@ -10,7 +10,6 @@ export interface MenuItem {
   image: string;
   // CHANGED: Added `available` field to track stock status.
   // WHY: The Figma design includes an "Available?" toggle for managing items.
-  // TODO (Backend): Ensure the `menu_items` DB table has an `is_available` boolean column.
   available: boolean;
 }
 

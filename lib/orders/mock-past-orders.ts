@@ -26,9 +26,6 @@ import type { PastOrder } from "@/lib/orders/past-order";
  *
  * Delete this file. The page's `?? mockPastOrders(...)` then stops compiling
  * and TypeScript points at the one line to remove.
- *
- * TODO: do exactly that once placing an order writes a real row. Tracked as
- * the "Place an order" write in `docs/reference/ordering-flow-handoff.md`.
  */
 
 export const EXAMPLE_HISTORIES = ["populated", "cancelled", "empty"] as const;

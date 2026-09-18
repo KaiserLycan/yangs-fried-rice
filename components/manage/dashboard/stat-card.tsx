@@ -4,10 +4,6 @@
  * Renders: Sales Today, Orders, Cancelled.
  * Each card has a label (uppercase, muted), a large value (display font),
  * and a subtitle line with a contextual color.
- *
- * TODO: BACKEND INTEGRATION — This component is purely presentational.
- * Props are fed from mock-data.ts now; replace the data source in
- * dashboard-content.tsx when real APIs are wired.
  */
 
 interface StatCardProps {

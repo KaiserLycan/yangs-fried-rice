@@ -9,8 +9,7 @@ import { EmployeeLoginForm } from "@/components/auth/employee-login-form";
  * Owner, and the footer on this screen says so.
  *
  * The post-sign-in redirect depends on Employee.role and is the only place in
- * the route tree where the role vocabulary changes behaviour. See the TODO in
- * EmployeeLoginForm.
+ * the route tree where the role vocabulary changes behaviour.
  */
 export default function EmployeeLoginPage() {
   return (
