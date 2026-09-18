@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { SiteNavBar } from "@/components/nav/site-nav-bar";
 import { TrackOrderScreen } from "@/components/orders/track-order-screen";
 import { ToastProvider } from "@/components/ui/toast";
+import { getOrderEtaAction } from "@/lib/actions/eta";
+import { arrivalWindowFrom } from "@/lib/orders/arrival-window";
 import { mockTrackedOrder } from "@/lib/orders/mock-tracked-order";
 import { readTrackedOrder } from "@/lib/orders/read-tracked-order";
 import { readCustomerProfile } from "@/lib/profile/customer-profile";
@@ -17,6 +19,12 @@ import { readCustomerProfile } from "@/lib/profile/customer-profile";
  * all. Same treatment the employee screens already use; see
  * `lib/orders/mock-tracked-order.ts`, which also records what has to land
  * before the fallback can be deleted.
+ *
+ * The arrival window comes from the backend's ETA engine (issue #10), read
+ * in the same pass as the order. The action refuses an order the caller
+ * does not own with the same "Order not found." as a missing one, so a
+ * failed estimate never leaks anything — the screen just says the time is
+ * to be confirmed. The screen re-asks on every Realtime status change.
  *
  * Middleware already turns signed-out visitors away from /orders, so
  * reaching the redirect below is not expected. Guarded anyway, the same
@@ -35,9 +43,10 @@ export default async function OrderDetailPage({
    */
   searchParams: { example?: string | string[] };
 }) {
-  const [profile, order] = await Promise.all([
+  const [profile, order, eta] = await Promise.all([
     readCustomerProfile(),
     readTrackedOrder(params.orderId),
+    getOrderEtaAction(params.orderId),
   ]);
 
   if (!profile) redirect(`/login?next=/orders/${params.orderId}`);
@@ -46,7 +55,11 @@ export default async function OrderDetailPage({
     <ToastProvider>
       <SiteNavBar profile={profile} currentSection="track-order" />
       <TrackOrderScreen
-        order={order ?? mockTrackedOrder(params.orderId, searchParams.example)}
+        order={
+          order
+            ? { ...order, arrivalWindow: arrivalWindowFrom(eta) }
+            : mockTrackedOrder(params.orderId, searchParams.example)
+        }
       />
     </ToastProvider>
   );
