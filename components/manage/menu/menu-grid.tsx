@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ManagePagination } from "@/components/manage/manage-pagination";
+import { ProductPhotoPlaceholder } from "@/components/menu/product-photo-placeholder";
 import type { MenuItem } from "@/components/manage/menu/mock-menu";
 
 interface MenuGridProps {
@@ -67,22 +68,26 @@ export function MenuGrid({ searchText, selectedCategory, onEditItem, items, isLo
               <button
                 key={item.id}
                 onClick={() => onEditItem(item)}
-                className="flex flex-col items-start overflow-hidden rounded-[16px] border border-[#e3d6c3] bg-white transition-shadow hover:shadow-md"
+                className="flex h-full w-full flex-col items-start overflow-hidden rounded-[16px] border border-[#e3d6c3] bg-white transition-shadow hover:shadow-md"
               >
                 {/* Image Display */}
-                <div className="relative h-[160px] md:h-[181px] w-full shrink-0 bg-[#f6e9d9] overflow-hidden">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img 
-                    src={item.image} 
-                    alt={item.name}
-                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  />
+                <div className="relative h-[160px] md:h-[181px] w-full shrink-0 overflow-hidden">
+                  {item.image ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img 
+                      src={item.image} 
+                      alt={item.name}
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                  ) : (
+                    <ProductPhotoPlaceholder className="w-full h-full group-hover:bg-secondary/60 transition-colors duration-300" />
+                  )}
                 </div>
 
                 {/* Content */}
-                <div className="flex flex-col gap-[5.4px] p-3 md:p-[14px] w-full text-left">
+                <div className="flex flex-1 flex-col gap-[5.4px] p-3 md:p-[14px] w-full text-left">
                   <div className="flex w-full items-start justify-between gap-2">
-                    <h3 className="font-sans text-[15px] font-bold leading-[18px] text-[#1a1210]">
+                    <h3 className="font-sans text-[15px] font-bold leading-[18px] text-[#1a1210] line-clamp-2">
                       {item.name}
                     </h3>
                     <span className="shrink-0 text-[11px] text-[#7a6a60]">

@@ -130,6 +130,7 @@ const ORDER_STATUS_STAGES: Record<string, OrderStage | "cancelled"> = {
   // lib/validation/orders.ts — the vocabulary the back office writes today.
   received: "received",
   preparing: "preparing",
+  ready: "preparing", // Ready for pickup/dispatch is functionally still 'preparing' in the 4-step UI
   out_for_delivery: "out_for_delivery",
   completed: "delivered",
   cancelled: "cancelled",

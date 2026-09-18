@@ -16,16 +16,22 @@
 
 import { useRef, useState } from "react";
 import { Camera } from "lucide-react";
+import { compressImage } from "@/lib/image/compress";
 
 export function EmployeeAvatarCard({ initials }: { initials: string }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setAvatarPreview(URL.createObjectURL(file));
-      // TODO: upload file to backend
+      try {
+        const compressed = await compressImage(file, 400);
+        setAvatarPreview(URL.createObjectURL(compressed));
+      } catch {
+        setAvatarPreview(URL.createObjectURL(file));
+      }
+      // TODO: upload compressed file to backend
     }
   };
 

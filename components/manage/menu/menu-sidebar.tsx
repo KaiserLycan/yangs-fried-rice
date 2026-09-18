@@ -25,19 +25,29 @@ export function MenuSidebar({
   // WHY: Allows the user to rename categories directly in the sidebar without a separate modal.
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [justAdded, setJustAdded] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const prevLengthRef = useRef(categories.length);
+  const prevCategoriesRef = useRef(categories);
 
-  // CHANGED: Added an effect to auto-enter edit mode for newly added categories.
-  // WHY: Provides a seamless UX where clicking "Add Category" immediately focuses the input to name it.
+  // Auto-enter edit mode for newly added categories.
   useEffect(() => {
-    if (categories.length > prevLengthRef.current) {
-      const newCategory = categories[categories.length - 1];
-      setEditingCategory(newCategory);
-      setEditValue(newCategory);
+    if (justAdded && categories.length > prevCategoriesRef.current.length) {
+      // Find the specific category that was added, since alphabetical sorting means it might not be at the end.
+      const newlyAdded = categories.find(c => !prevCategoriesRef.current.includes(c));
+      
+      if (newlyAdded) {
+        setEditingCategory(newlyAdded);
+        setEditValue(newlyAdded);
+      }
+      setJustAdded(false);
     }
-    prevLengthRef.current = categories.length;
-  }, [categories]);
+    prevCategoriesRef.current = categories;
+  }, [categories, justAdded]);
+
+  const handleAddClick = () => {
+    setJustAdded(true);
+    onAddCategory();
+  };
 
   // Focus the input when entering edit mode.
   useEffect(() => {
@@ -153,7 +163,7 @@ export function MenuSidebar({
 
         {/* Add Category */}
         <button
-          onClick={onAddCategory}
+          onClick={handleAddClick}
           className="flex shrink-0 items-center gap-[6px] rounded-[10px] border border-dashed border-[#ddcdb8] py-[8px] md:py-[10px] px-3 md:pl-[12px] md:pr-[16px] text-[#7a6a60] transition-colors hover:bg-black/5 hover:text-[#5a4a42] whitespace-nowrap"
         >
           <Plus className="h-3.5 w-3.5" />

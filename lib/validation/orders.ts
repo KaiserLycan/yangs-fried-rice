@@ -15,6 +15,7 @@ export const ORDER_STATUSES = [
   "pending",
   "received",
   "preparing",
+  "ready",
   "out_for_delivery",
   "completed",
   "cancelled",
@@ -41,7 +42,8 @@ export const orderStatusSchema = z.enum(ORDER_STATUSES, {
 export const VALID_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
   pending: ["preparing", "cancelled"],
   received: ["preparing", "cancelled"],
-  preparing: ["out_for_delivery", "cancelled"],
+  preparing: ["ready", "out_for_delivery", "cancelled"],
+  ready: ["out_for_delivery", "completed", "cancelled"],
   out_for_delivery: ["completed", "cancelled"],
   completed: [],   // terminal
   cancelled: [],   // terminal
@@ -49,7 +51,7 @@ export const VALID_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
 
 /** Is it legal to move from `from` to `to`? */
 export function isValidTransition(from: OrderStatus, to: OrderStatus): boolean {
-  return VALID_TRANSITIONS[from].includes(to);
+  return VALID_TRANSITIONS[from]?.includes(to) ?? false;
 }
 
 // ---------------------------------------------------------------------------

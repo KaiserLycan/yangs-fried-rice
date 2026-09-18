@@ -71,7 +71,7 @@ export function OrderCard({ order, onClick, onAction }: OrderCardProps) {
       </div>
 
       {/* Body */}
-      <div className="p-4 flex-1">
+      <div className="p-4 flex-1 overflow-y-auto min-h-0">
         {order.items.map((item, index) => (
           <div key={index} className="mb-4 last:mb-0">
             <div className="font-semibold text-sm text-gray-900">

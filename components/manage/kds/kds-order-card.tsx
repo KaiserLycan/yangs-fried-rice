@@ -1,9 +1,27 @@
 "use client";
 
+import { useState } from "react";
+import { Loader2 } from "lucide-react";
 import { OrderData } from "@/lib/mock-orders";
 
-export function KdsOrderCard({ order }: { order: OrderData }) {
+interface KdsOrderCardProps {
+  order: OrderData;
+  onAction?: (type: "Cancel" | "Confirm" | "Deliver", order: OrderData) => void;
+}
+
+export function KdsOrderCard({ order, onAction }: KdsOrderCardProps) {
   const isConfirmed = order.status === "PREP";
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleAction = async (type: "Cancel" | "Confirm" | "Deliver") => {
+    if (!onAction || isProcessing) return;
+    setIsProcessing(true);
+    try {
+      await onAction(type, order);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   return (
     <div className="bg-[#fbf6ec] border border-[#3a2e2c] flex flex-col overflow-hidden rounded-[14px] w-full h-full min-h-[320px] shadow-sm">
@@ -15,7 +33,7 @@ export function KdsOrderCard({ order }: { order: OrderData }) {
         <div className="flex justify-between items-start">
           <div className="flex flex-col items-start gap-1">
             <span className="font-display text-[#fbf6ec] text-[22px] leading-none mb-1">
-              {order.orderNumber}
+              #{order.orderNumber}
             </span>
             <span className="font-bold text-[#fbf6ec] text-[11px] tracking-[0.88px] uppercase">
               {order.time}
@@ -35,7 +53,7 @@ export function KdsOrderCard({ order }: { order: OrderData }) {
       </div>
 
       {/* Order Items List */}
-      <div className="flex-1 flex flex-col overflow-y-auto px-[13px] py-[12px] gap-[10px]">
+      <div className="flex-1 flex flex-col overflow-y-auto min-h-0 px-[13px] py-[12px] gap-[10px]">
         {order.items.map((item, index) => (
           <div key={index} className="flex flex-col w-full">
             <div className="flex gap-[10px] items-start text-[#1a1210]">
@@ -57,13 +75,31 @@ export function KdsOrderCard({ order }: { order: OrderData }) {
 
       {/* Footer Buttons */}
       <div className="flex w-full shrink-0 mt-auto">
-        <button className="bg-[#c0392b] flex-1 flex justify-center py-[13px] hover:brightness-110 transition-all border-t border-[#3a2e2c]/20">
-          <span className="font-bold text-[13px] text-white tracking-[0.52px] uppercase">Cancel</span>
+        <button
+          onClick={() => handleAction("Cancel")}
+          disabled={isProcessing}
+          className="bg-[#c0392b] flex-1 flex justify-center items-center py-[13px] hover:brightness-110 transition-all border-t border-[#3a2e2c]/20 disabled:opacity-60"
+        >
+          {isProcessing ? (
+            <Loader2 className="h-4 w-4 animate-spin text-white" />
+          ) : (
+            <span className="font-bold text-[13px] text-white tracking-[0.52px] uppercase">
+              Cancel
+            </span>
+          )}
         </button>
-        <button className="bg-[#4c9a5e] flex-1 flex justify-center py-[13px] hover:brightness-110 transition-all border-t border-l border-[#3a2e2c]/20">
-          <span className="font-bold text-[13px] text-white tracking-[0.52px] uppercase">
-            {isConfirmed ? "Deliver" : "Confirm"}
-          </span>
+        <button
+          onClick={() => handleAction(isConfirmed ? "Deliver" : "Confirm")}
+          disabled={isProcessing}
+          className="bg-[#4c9a5e] flex-1 flex justify-center items-center py-[13px] hover:brightness-110 transition-all border-t border-l border-[#3a2e2c]/20 disabled:opacity-60"
+        >
+          {isProcessing ? (
+            <Loader2 className="h-4 w-4 animate-spin text-white" />
+          ) : (
+            <span className="font-bold text-[13px] text-white tracking-[0.52px] uppercase">
+              {isConfirmed ? "Deliver" : "Confirm"}
+            </span>
+          )}
         </button>
       </div>
 
