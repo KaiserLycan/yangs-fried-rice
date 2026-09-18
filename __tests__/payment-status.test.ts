@@ -24,6 +24,18 @@ describe("foldPaymentStatus", () => {
     ).toBe("pending");
   });
 
+  it("reports a refund as refunded, not as unpaid", () => {
+    expect(
+      foldPaymentStatus([
+        { payment_status: "paid" },
+        { payment_status: "refunded" },
+      ]),
+    ).toBe("paid");
+    expect(foldPaymentStatus([{ payment_status: "refunded" }])).toBe(
+      "refunded",
+    );
+  });
+
   it("reports failed only when every attempt failed", () => {
     expect(foldPaymentStatus([{ payment_status: "failed" }])).toBe("failed");
   });

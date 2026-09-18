@@ -9,13 +9,14 @@
  * open pending row means the wallet has not answered yet, and only when
  * every attempt failed is the order reported as failed.
  */
-export type PaymentStatus = "paid" | "pending" | "failed";
+export type PaymentStatus = "paid" | "refunded" | "pending" | "failed";
 
 export function foldPaymentStatus(
   rows: { payment_status: string | null }[],
 ): PaymentStatus | null {
   const statuses = rows.map((row) => row.payment_status?.trim().toLowerCase());
   if (statuses.includes("paid")) return "paid";
+  if (statuses.includes("refunded")) return "refunded";
   if (statuses.includes("pending")) return "pending";
   if (statuses.includes("failed")) return "failed";
   return null;
