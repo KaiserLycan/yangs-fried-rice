@@ -1,5 +1,6 @@
 "use server";
 
+import type { TablesUpdate } from "@/types/database.types";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isManager, isEmployeeRole, type EmployeeRole } from "@/lib/auth/roles";
@@ -151,7 +152,7 @@ export async function updateMyEmployeeProfile(
     };
   }
 
-  const updatePayload: Record<string, unknown> = {};
+    const updatePayload: TablesUpdate<"employee"> = {};
   if (name !== undefined) updatePayload.name = name;
   if (scheduleShift !== undefined) updatePayload.schedule_shift = scheduleShift;
   if (role !== undefined) updatePayload.role = role;
@@ -198,7 +199,7 @@ export async function updateMyRiderDetails(
   const { vehicleMakeModel, vehiclePlateNumber, driverLicenseNumber, licenseExpiryDate } =
     parsed.data;
 
-  const updatePayload: Record<string, unknown> = {};
+    const updatePayload: TablesUpdate<"rider"> = {};
   if (vehicleMakeModel !== undefined) updatePayload.vehicle_make_model = vehicleMakeModel;
   if (vehiclePlateNumber !== undefined)
     updatePayload.vehicle_plate_number = vehiclePlateNumber;
