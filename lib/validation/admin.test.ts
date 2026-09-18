@@ -1,10 +1,20 @@
 import { describe, it, expect } from "vitest";
+import { normalizeEmployeeRoleLabel } from "@/lib/auth/roles";
 import {
   createEmployeeSchema,
   changeRoleSchema,
   changePasswordSchema,
   updateCustomerSchema,
 } from "./admin";
+
+describe("normalizeEmployeeRoleLabel", () => {
+  it("maps delivery UI labels to rider database roles", () => {
+    expect(normalizeEmployeeRoleLabel("Delivery")).toBe("RIDER");
+    expect(normalizeEmployeeRoleLabel("Manager")).toBe("MANAGER");
+    expect(normalizeEmployeeRoleLabel("Server")).toBe("STAFF");
+    expect(normalizeEmployeeRoleLabel("Rider")).toBe("RIDER");
+  });
+});
 
 describe("createEmployeeSchema", () => {
   const valid = {
@@ -57,6 +67,22 @@ describe("createEmployeeSchema", () => {
       ).toBe(true);
     },
   );
+
+  it("accepts rider-specific details for a delivery/rider employee", () => {
+    const result = createEmployeeSchema.safeParse({
+      ...valid,
+      role: "RIDER",
+      scheduleShift: null,
+      riderDetails: {
+        vehicle_make_model: "Toyota Hiace",
+        vehicle_plate_number: "ABC 1234",
+        driver_license_number: "N01-1234567",
+        license_expiry_date: "2028-05-30",
+      },
+    });
+
+    expect(result.success).toBe(true);
+  });
 
   it("rejects unknown role", () => {
     expect(
