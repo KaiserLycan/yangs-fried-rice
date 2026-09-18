@@ -13,8 +13,8 @@ This document maps the master list of requirements to the current state of the c
 - [x] **Menu1 - Add food items:** **Implemented** (Admin CRUD UI built and wired to API)
 - [x] **Menu2 - Edit food items:** **Implemented** (Admin CRUD UI built and wired to API)
 - [x] **Menu3 - Remove food items:** **Implemented** (Admin CRUD UI built and wired to API)
-- [~] **Menu4 - Categorize items:** **Partially Implemented** 
-- [ ] **Menu5 - Real time updates:** **Missing** 
+- [x] **Menu4 - Categorize items:** **Implemented** (Categories fully supported in DB, Admin UI, and Customer filtering)
+- [x] **Menu5 - Real time updates:** **Implemented** (MenuScreen uses Supabase Realtime channels for instant UI updates)
 
 ## 🟡 Browsing and Ordering
 - [x] **Browsing1 - Browse menu:** **Implemented** (`/menu` page)
@@ -30,8 +30,8 @@ This document maps the master list of requirements to the current state of the c
 - [x] **Browsing12 - Lock cart post-submit:** **Implemented** (Wired to cart writes via PR #77)
 - [x] **Browsing13 - Cancel unconfirmed order:** **Implemented** (`CancelOrderControl`)
 - [x] **Browsing14 - Cancel confirmation prompt:** **Implemented**
-- [ ] **Browsing15 - Prevent cancel confirmed order:** **Missing** (Backend validation missing)
-- [ ] **Browsing16 - Smart ETA range:** **Missing** (Using static placeholders - *Issue #10*)
+- [x] **Browsing15 - Prevent cancel confirmed order:** **Implemented** (Backend validation properly restricts cancellation to 'pending' state)
+- [x] **Browsing16 - Smart ETA range:** **Implemented** (Using lib/eta/engine to calculate dynamic ETA based on kitchen queue and transit distance)
 
 ## 🟢 Order Tracking and Management
 - [x] **Order1 - Admin update order status:** **Implemented** (Wired to `updateOrderStatus` via PR #73)
