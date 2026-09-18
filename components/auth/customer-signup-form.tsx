@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
+import { cn } from "@/lib/utils";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -57,11 +58,18 @@ function SignupFormInner() {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const result = signupSchema.safeParse({
-      name: String(data.get("name") ?? ""),
+      firstName: String(data.get("firstName") ?? ""),
+      lastName: String(data.get("lastName") ?? ""),
       email: String(data.get("email") ?? ""),
-      phone: String(data.get("phone") ?? ""),
+      phone: String(data.get("phone") ?? "").replace(/[^0-9]/g, "") 
+        ? `+63${String(data.get("phone") ?? "").replace(/[^0-9]/g, "")}`
+        : "",
       password: String(data.get("password") ?? ""),
-      address: String(data.get("address") ?? ""),
+      buildingNo: String(data.get("buildingNo") ?? ""),
+      street: String(data.get("street") ?? ""),
+      barangay: String(data.get("barangay") ?? ""),
+      city: String(data.get("city") ?? ""),
+      zip: String(data.get("zip") ?? ""),
     });
 
     setSubmitted(true);
@@ -97,7 +105,7 @@ function SignupFormInner() {
       <form
         noValidate
         onSubmit={handleSubmit}
-        className="flex flex-col gap-[14px] rounded-[22px] bg-background p-5 md:gap-[18px] md:rounded-none md:bg-transparent md:p-0"
+        className="flex flex-col gap-[10px] rounded-[22px] bg-background p-5 md:gap-[14px] md:rounded-none md:bg-transparent md:p-0"
       >
         <AuthTabs active="register" />
 
@@ -114,45 +122,86 @@ function SignupFormInner() {
           <Alert>{serverError}</Alert>
         ) : submitted && hasErrors ? (
           <Alert>
-            We couldn&apos;t create your account. Check the fields marked below.
+            <div className="flex flex-col gap-[6px]">
+              <span className="font-bold">Please fix the following:</span>
+              <ul className="list-disc pl-5 text-[13px]">
+                {Object.entries(errors).map(([field, msg]) => (
+                  <li key={field}>{msg}</li>
+                ))}
+              </ul>
+            </div>
           </Alert>
         ) : null}
 
-        <Field label="Name" htmlFor="name" error={errors.name}>
-          <Input
-            id="name"
-            name="name"
-            type="text"
-            autoComplete="name"
-            placeholder="Liza Reyes"
-            invalid={Boolean(errors.name)}
-          />
-        </Field>
+        <div className="flex flex-col gap-[10px] md:flex-row md:gap-[14px]">
+          <Field className="flex-1" label="First Name *" htmlFor="firstName" error={errors.firstName}>
+            <Input
+              id="firstName"
+              name="firstName"
+              type="text"
+              autoComplete="given-name"
+              placeholder="Liza"
+              minLength={2}
+              maxLength={50}
+              invalid={Boolean(errors.firstName)}
+            />
+          </Field>
 
-        <Field label="Email" htmlFor="email" error={errors.email}>
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            placeholder="you@example.com"
-            invalid={Boolean(errors.email)}
-          />
-        </Field>
+          <Field className="flex-1" label="Last Name *" htmlFor="lastName" error={errors.lastName}>
+            <Input
+              id="lastName"
+              name="lastName"
+              type="text"
+              autoComplete="family-name"
+              placeholder="Reyes"
+              minLength={2}
+              maxLength={50}
+              invalid={Boolean(errors.lastName)}
+            />
+          </Field>
+        </div>
 
-        <Field label="Mobile number" htmlFor="phone" error={errors.phone}>
-          <Input
-            id="phone"
-            name="phone"
-            type="tel"
-            autoComplete="tel"
-            placeholder="0917 123 4567"
-            invalid={Boolean(errors.phone)}
-          />
-        </Field>
+        <div className="flex flex-col gap-[10px] md:flex-row md:gap-[14px]">
+          <Field className="flex-1" label="Email *" htmlFor="email" error={errors.email}>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              placeholder="you@example.com"
+              minLength={5}
+              maxLength={255}
+              invalid={Boolean(errors.email)}
+            />
+          </Field>
+
+          <Field className="flex-1" label="Mobile number *" htmlFor="phone" error={errors.phone}>
+            <div
+              className={cn(
+                "flex w-full items-center rounded-md border bg-white focus-within:ring-2 focus-within:ring-ring/40",
+                errors.phone ? "border-error-border" : "border-field-border"
+              )}
+            >
+              <span className="pl-[14px] text-[15px] text-muted-foreground select-none pointer-events-none">+63</span>
+              <input
+                id="phone"
+                name="phone"
+                type="tel"
+                autoComplete="tel"
+                placeholder="9171234567"
+                maxLength={10}
+                minLength={8}
+                className="w-full bg-transparent px-[6px] py-[13px] text-[15px] text-foreground placeholder:text-placeholder focus:outline-none md:py-[14px]"
+                onInput={(e) => {
+                  e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, "");
+                }}
+              />
+            </div>
+          </Field>
+        </div>
 
         <Field
-          label="Password"
+          label="Password *"
           htmlFor="password"
           error={errors.password}
           action={
@@ -165,30 +214,73 @@ function SignupFormInner() {
           <Input
             id="password"
             name="password"
-            // `new-password` rather than login's `current-password`, so the
-            // browser offers to generate and save one instead of filling in
-            // the password for an account that does not exist yet.
             type={showPassword ? "text" : "password"}
             autoComplete="new-password"
             placeholder="At least 8 characters"
+            minLength={8}
+            maxLength={72}
             invalid={Boolean(errors.password)}
           />
         </Field>
 
-        <Field
-          label="Delivery address"
-          htmlFor="address"
-          error={errors.address}
-        >
-          <Textarea
-            id="address"
-            name="address"
-            rows={2}
-            autoComplete="street-address"
-            placeholder="Unit, street, barangay, city"
-            invalid={Boolean(errors.address)}
+        <div className="flex flex-col gap-[10px] md:flex-row md:gap-[14px]">
+          <Field className="flex-1" label="Building / House No. *" htmlFor="buildingNo" error={errors.buildingNo}>
+            <Input
+              id="buildingNo"
+              name="buildingNo"
+              placeholder="e.g. Unit 123, Tower A"
+              minLength={1}
+              maxLength={100}
+              invalid={Boolean(errors.buildingNo)}
+            />
+          </Field>
+
+          <Field className="flex-1" label="Street *" htmlFor="street" error={errors.street}>
+            <Input
+              id="street"
+              name="street"
+              placeholder="e.g. Ayala Ave"
+              minLength={2}
+              maxLength={100}
+              invalid={Boolean(errors.street)}
+            />
+          </Field>
+        </div>
+
+        <Field label="Barangay *" htmlFor="barangay" error={errors.barangay}>
+          <Input
+            id="barangay"
+            name="barangay"
+            placeholder="e.g. Bel-Air"
+            minLength={2}
+            maxLength={100}
+            invalid={Boolean(errors.barangay)}
           />
         </Field>
+
+        <div className="flex flex-col gap-[10px] md:flex-row md:gap-[14px]">
+          <Field className="flex-1" label="City *" htmlFor="city" error={errors.city}>
+            <Input
+              id="city"
+              name="city"
+              placeholder="e.g. Makati"
+              minLength={2}
+              maxLength={50}
+              invalid={Boolean(errors.city)}
+            />
+          </Field>
+
+          <Field className="flex-1" label="ZIP Code *" htmlFor="zip" error={errors.zip}>
+            <Input
+              id="zip"
+              name="zip"
+              placeholder="e.g. 1209"
+              minLength={4}
+              maxLength={4}
+              invalid={Boolean(errors.zip)}
+            />
+          </Field>
+        </div>
 
         <Button type="submit" disabled={isPending}>
           {isPending ? "Creating account…" : "Create account"}

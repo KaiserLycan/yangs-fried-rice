@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Search, ChevronDown, ChevronUp, ChevronsUpDown, Filter, Loader2 } from "lucide-react";
 import { ManagePagination } from "@/components/manage/manage-pagination";
 import { EmployeeModal } from "@/components/manage/employee/employee-modal";
+import { useDebounce } from "@/lib/hooks/use-debounce";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast, ToastProvider } from "@/components/ui/toast";
@@ -22,6 +23,7 @@ export type EmployeeData = {
   role: string;
   shift?: string;
   lastAccessLog?: string;
+  imageUrl?: string;
 };
 
 const ROLES = ["All Roles", "Manager", "Server", "Cook", "Cashier", "Delivery"];
@@ -46,7 +48,9 @@ function ManageEmployeeInner() {
 
   // UI State
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [roleFilter, setRoleFilter] = useState("All Roles");
   const [roleFilterOpen, setRoleFilterOpen] = useState(false);
   const [nameSort, setNameSort] = useState<"asc" | "desc" | "none">("none");
@@ -78,6 +82,7 @@ function ManageEmployeeInner() {
         lastAccessLog: e.last_access_log 
           ? new Date(e.last_access_log).toLocaleString() 
           : "No login history",
+        imageUrl: e.profileImage_URL || undefined,
       }));
       setEmployees(mappedData);
     }
@@ -159,8 +164,8 @@ function ManageEmployeeInner() {
   // Derive filtered and sorted employees client-side
   let filteredEmployees = [...employees];
   
-  if (searchQuery) {
-    const q = searchQuery.toLowerCase();
+  if (debouncedSearchQuery) {
+    const q = debouncedSearchQuery.toLowerCase();
     filteredEmployees = filteredEmployees.filter(e => 
       e.name.toLowerCase().includes(q) || 
       e.email.toLowerCase().includes(q) || 
@@ -179,6 +184,18 @@ function ManageEmployeeInner() {
   } else if (nameSort === "desc") {
     filteredEmployees.sort((a, b) => b.name.localeCompare(a.name));
   }
+
+  const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / pageSize));
+
+  // Ensure current page is valid after filtering
+  if (currentPage > totalPages) {
+    setCurrentPage(totalPages);
+  }
+
+  const paginatedEmployees = filteredEmployees.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
 
   return (
     <div className="flex flex-col h-full gap-4 md:gap-0">
@@ -247,7 +264,7 @@ function ManageEmployeeInner() {
       <div className="flex-1 flex flex-col min-h-0">
         <div className="bg-white rounded-[12px] overflow-hidden flex flex-col min-h-0 border border-[#F0E6D8] shadow-[0_2px_10px_rgba(26,18,16,0.02)]">
           {/* Table Head - Hidden on Mobile */}
-          <div className="hidden md:grid grid-cols-[1.5fr_1.5fr_1fr_1fr] px-8 py-5 border-b border-[#F0E6D8] bg-[#EAE0D5] text-[12px] font-bold text-[#7A6A60] uppercase tracking-[1px]">
+          <div className="hidden md:grid grid-cols-[1.5fr_1.5fr_1fr] px-8 py-5 border-b border-[#F0E6D8] bg-[#EAE0D5] text-[12px] font-bold text-[#7A6A60] uppercase tracking-[1px]">
             <button 
               className="flex items-center gap-2 hover:text-[#4A3D36] transition-colors focus:outline-none w-fit"
               onClick={() => setNameSort(prev => prev === 'none' ? 'asc' : prev === 'asc' ? 'desc' : 'none')}
@@ -256,27 +273,31 @@ function ManageEmployeeInner() {
               {nameSort === 'asc' ? <ChevronUp className="h-[14px] w-[14px]" /> : nameSort === 'desc' ? <ChevronDown className="h-[14px] w-[14px]" /> : <ChevronsUpDown className="h-[14px] w-[14px]" />}
             </button>
             <div className="flex items-center">Email</div>
-            <div className="flex items-center">Contact</div>
             <div className="flex items-center">Role</div>
           </div>
 
           {/* Table Body */}
           <div className="flex-1 overflow-y-auto">
             {isLoading ? (
-              <div className="flex items-center justify-center p-12 text-[#7A6A60]">
-                <Loader2 className="w-6 h-6 animate-spin mr-2" />
-                Loading employees...
+              <div className="flex flex-col">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex flex-col md:grid md:grid-cols-[1.5fr_1.5fr_1fr] px-5 md:px-8 py-4 md:py-5 border-b border-[#F0E6D8] gap-2 md:gap-0 items-start md:items-center">
+                    <div className="h-[18px] w-[140px] bg-[#efe6d8] rounded-full animate-pulse" />
+                    <div className="h-[18px] w-[180px] bg-[#efe6d8] rounded-full animate-pulse" />
+                    <div className="hidden md:block h-[18px] w-[100px] bg-[#efe6d8] rounded-full animate-pulse" />
+                  </div>
+                ))}
               </div>
-            ) : filteredEmployees.length === 0 ? (
+            ) : paginatedEmployees.length === 0 ? (
               <div className="p-8 text-center text-[#7A6A60]">
                 No employees found.
               </div>
             ) : (
-              filteredEmployees.map((employee, index) => (
+              paginatedEmployees.map((employee, index) => (
                 <div 
                   key={employee.id}
-                  className={`flex flex-col md:grid md:grid-cols-[1.5fr_1.5fr_1fr_1fr] px-5 md:px-8 py-4 md:py-5 cursor-pointer transition-colors hover:bg-[#FAF7F0] gap-1 md:gap-0 ${
-                    index !== filteredEmployees.length - 1 ? "border-b border-[#F0E6D8]" : ""
+                  className={`flex flex-col md:grid md:grid-cols-[1.5fr_1.5fr_1fr] px-5 md:px-8 py-4 md:py-5 cursor-pointer transition-colors hover:bg-[#FAF7F0] gap-1 md:gap-0 ${
+                    index !== paginatedEmployees.length - 1 ? "border-b border-[#F0E6D8]" : ""
                   }`}
                   onClick={() => setSelectedEmployee(employee)}
                 >
@@ -285,7 +306,6 @@ function ManageEmployeeInner() {
                     <span className="md:hidden text-[11px] font-bold tracking-wide uppercase bg-[#f6e9d9] text-[#8c1c13] px-2 py-1 rounded-md">{employee.role}</span>
                   </div>
                   <div className="text-[#7A6A60] md:font-bold md:text-[#1A1210] flex items-center text-[13px] md:text-[15px]">{employee.email}</div>
-                  <div className="text-[#7A6A60] md:font-bold md:text-[#1A1210] flex items-center text-[13px] md:text-[15px]">{employee.contact}</div>
                   <div className="hidden md:flex font-bold text-[#1A1210] items-center text-[15px]">{employee.role}</div>
                 </div>
               ))
@@ -297,8 +317,13 @@ function ManageEmployeeInner() {
         <div className="mt-4 md:mt-8 mb-4 flex justify-center md:justify-end">
           <ManagePagination 
             currentPage={currentPage}
-            totalPages={3}
+            totalPages={totalPages}
             onPageChange={setCurrentPage}
+            pageSize={pageSize}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setCurrentPage(1);
+            }}
           />
         </div>
       </div>

@@ -45,5 +45,5 @@ export function formatMobileNumber(stored: string | null | undefined): string {
   if (!groups) return stored;
 
   const [, area, prefix, line] = groups;
-  return `09${area} ${prefix} ${line}`;
+  return `+63 9${area} ${prefix} ${line}`;
 }

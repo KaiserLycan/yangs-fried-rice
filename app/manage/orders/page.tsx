@@ -12,7 +12,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast, ToastProvider } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
-import { getAllOrders, getOrderDetail, updateOrderStatus } from "@/lib/actions/orders";
+import { getDetailedOrders, updateOrderStatus } from "@/lib/actions/orders";
 
 // 1. Wrapper component to provide the Toast context
 export default function ManageOrdersPage() {
@@ -35,13 +35,13 @@ function ManageOrdersInner() {
   // UI State
   const [activeStatus, setActiveStatus] = useState<OrderStatus>("All");
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
   const [selectedOrder, setSelectedOrder] = useState<OrderData | null>(null);
   
   const [confirmAction, setConfirmAction] = useState<{ type: 'Cancel' | 'Deliver' | 'Confirm', order: OrderData } | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [showCancelError, setShowCancelError] = useState(false);
-
-  const ITEMS_PER_PAGE = 6;
 
   // Fetch Orders on Mount and when Status/Page changes
   const fetchOrders = useCallback(async () => {
@@ -58,28 +58,25 @@ function ManageOrdersInner() {
     }
 
     // 1. Fetch the summaries using server-side pagination & filtering
-    const summaryResult = await getAllOrders({
-      limit: ITEMS_PER_PAGE,
-      offset: (currentPage - 1) * ITEMS_PER_PAGE,
-      status: dbStatus as any
+    const summaryResult = await getDetailedOrders({
+      status: dbStatus as any,
+      limit: pageSize,
+      offset: (currentPage - 1) * pageSize,
     });
 
     if (summaryResult.error) {
       showToast(`Failed to load orders: ${summaryResult.error}`);
-      setIsLoading(false);
-      return;
     }
 
     if (summaryResult.data) {
-      // 2. Fetch full details for the returned summaries to populate the UI Cards
-      const detailedPromises = summaryResult.data.map(summary => getOrderDetail(summary.order_id));
-      const detailedResults = await Promise.all(detailedPromises);
+      const { data: detailedOrders, totalCount } = summaryResult.data;
       
-      const mappedOrders: OrderData[] = detailedResults
-        .filter(res => res.data !== null)
-        .map(res => {
-          const order = res.data!;
-          
+      // Calculate and update total pages based on count
+      setTotalPages(Math.max(1, Math.ceil(totalCount / pageSize)));
+      
+      const mappedOrders: OrderData[] = detailedOrders
+        .filter(res => res !== null)
+        .map(order => {
           // Map Database Status back to UI Status
           let uiStatus: any = "QUEUE";
           if (order.order_status === "preparing") uiStatus = "PREP";
@@ -118,7 +115,7 @@ function ManageOrdersInner() {
       setOrders(mappedOrders);
     }
     setIsLoading(false);
-  }, [activeStatus, currentPage, showToast]);
+  }, [activeStatus, currentPage, pageSize, showToast]);
 
   useEffect(() => {
     fetchOrders();
@@ -180,9 +177,37 @@ function ManageOrdersInner() {
         <div className="flex-1 flex flex-col min-h-0">
           <div className="flex-1 overflow-y-auto pr-2 pb-4">
             {isLoading ? (
-              <div className="flex items-center justify-center p-12 text-[#7A6A60]">
-                <Loader2 className="w-6 h-6 animate-spin mr-2" />
-                Loading orders...
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="flex flex-col text-left w-full rounded-xl overflow-hidden shadow-sm bg-[#FAF7F0] border border-gray-200/50 h-[280px]">
+                    {/* Header Skeleton */}
+                    <div className="flex justify-between items-start p-4 bg-[#efe6d8]">
+                      <div>
+                        <div className="h-5 w-16 bg-[#e3d6c3] rounded-full animate-pulse mb-2" />
+                        <div className="h-3 w-12 bg-[#e3d6c3] rounded-full animate-pulse" />
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <div className="h-3 w-14 bg-[#e3d6c3] rounded-full animate-pulse mb-2" />
+                        <div className="h-5 w-12 bg-[#e3d6c3] rounded-full animate-pulse" />
+                      </div>
+                    </div>
+                    {/* Body Skeleton */}
+                    <div className="p-4 flex-1 flex flex-col gap-4">
+                      <div>
+                        <div className="h-4 w-3/4 bg-[#efe6d8] rounded-full animate-pulse mb-2" />
+                        <div className="h-3 w-1/2 bg-[#efe6d8] rounded-full animate-pulse ml-5" />
+                      </div>
+                      <div>
+                        <div className="h-4 w-2/3 bg-[#efe6d8] rounded-full animate-pulse" />
+                      </div>
+                    </div>
+                    {/* Footer Actions Skeleton */}
+                    <div className="flex w-full mt-auto h-[44px]">
+                      <div className="flex-1 bg-[#efe6d8] border-r border-[#e3d6c3] animate-pulse" />
+                      <div className="flex-1 bg-[#efe6d8] animate-pulse" />
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : orders.length === 0 ? (
               <div className="p-8 text-center text-[#7A6A60] bg-white rounded-xl border border-[#F0E6D8]">
@@ -205,8 +230,13 @@ function ManageOrdersInner() {
           <div className="mt-auto pt-4">
             <ManagePagination 
               currentPage={currentPage} 
-              totalPages={3} // Mocked until backend supports total counts
-              onPageChange={setCurrentPage} 
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              pageSize={pageSize}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setCurrentPage(1);
+              }}
             />
           </div>
         </div>

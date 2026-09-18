@@ -44,6 +44,7 @@ interface MenuItemDetailModalProps {
   onEdit: (item: MenuItem, file?: File) => void;
   onDelete: (itemId: string) => void;
   item: MenuItem;
+  categories?: string[];
 }
 
 export function MenuItemDetailModal({
@@ -52,6 +53,7 @@ export function MenuItemDetailModal({
   onEdit,
   onDelete,
   item,
+  categories,
 }: MenuItemDetailModalProps) {
   // CHANGED: Created this detailed modal to replace the legacy confirmation modal.
   // WHY: To implement the Figma design (node 2102-5252) which requires full editing capabilities and image updates.
@@ -63,6 +65,10 @@ export function MenuItemDetailModal({
   const [available, setAvailable] = useState(item.available);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [categoryOpen, setCategoryOpen] = useState(false);
+
+  const selectableCategories = (categories ?? MOCK_CATEGORIES).filter(
+    (c) => c !== "All"
+  );
 
   // Confirmation dialog state
   const [showEditConfirm, setShowEditConfirm] = useState(false);
@@ -171,7 +177,7 @@ export function MenuItemDetailModal({
             {/* Product Name */}
             <div className="flex flex-col gap-1.5">
               <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
-                Product Name
+                Product Name <span className="text-[#bf4342]">*</span>
               </label>
               <input
                 value={name}
@@ -184,7 +190,7 @@ export function MenuItemDetailModal({
             {/* Category */}
             <div className="flex flex-col gap-1.5">
               <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
-                Category
+                Category <span className="text-[#bf4342]">*</span>
               </label>
               <div className="relative">
                 <button
@@ -209,7 +215,7 @@ export function MenuItemDetailModal({
                       onClick={() => setCategoryOpen(false)}
                     />
                     <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 rounded-[12px] border border-[#ddcdb8] bg-white p-[5px] shadow-[0px_8px_20px_rgba(26,18,16,0.12)]">
-                      {MOCK_CATEGORIES.filter((c) => c !== "All").map((cat) => (
+                      {selectableCategories.map((cat) => (
                         <button
                           key={cat}
                           type="button"
@@ -249,7 +255,7 @@ export function MenuItemDetailModal({
             {/* Price */}
             <div className="flex flex-col gap-1.5">
               <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
-                Price ₱
+                Price ₱ <span className="text-[#bf4342]">*</span>
               </label>
               <input
                 type="text"
@@ -286,7 +292,8 @@ export function MenuItemDetailModal({
               </button>
               <button
                 onClick={() => setShowEditConfirm(true)}
-                className="flex flex-1 items-center justify-center rounded-[12px] bg-[#ca762d] px-[14px] py-[15px] transition-opacity hover:opacity-90"
+                disabled={!name.trim() || !price || parseFloat(price) <= 0}
+                className="flex flex-1 items-center justify-center rounded-[12px] bg-[#ca762d] px-[14px] py-[15px] transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span className="text-[14px] font-bold leading-none text-white">
                   Edit

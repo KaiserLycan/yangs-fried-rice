@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 import {
   CardField,
   CardInput,
@@ -40,7 +41,9 @@ export function ContactDetailsCard({ profile }: { profile: CustomerProfile }) {
   const { isEditing, edit, cancel, errors, handleSubmit } = useCardEditor({
     schema: contactDetailsSchema,
     read: (form) => ({
-      mobile: String(form.get("mobile") ?? ""),
+      mobile: String(form.get("mobile") ?? "").replace(/[^0-9]/g, "")
+        ? `+63${String(form.get("mobile") ?? "").replace(/[^0-9]/g, "")}`
+        : "",
       email: String(form.get("email") ?? ""),
     }),
     onValid: async (values) => {
@@ -108,14 +111,27 @@ export function ContactDetailsCard({ profile }: { profile: CustomerProfile }) {
               hint={MOBILE_HINT}
               error={errors.mobile}
             >
-              <CardInput
-                id="mobile"
-                name="mobile"
-                type="tel"
-                autoComplete="tel"
-                defaultValue={formatMobileNumber(profile.mobile)}
-                invalid={Boolean(errors.mobile)}
-              />
+              <div
+                className={cn(
+                  "flex w-full items-center rounded-md border bg-white focus-within:ring-2 focus-within:ring-ring/40",
+                  errors.mobile ? "border-error-border" : "border-field-border"
+                )}
+              >
+                <span className="pl-[14px] text-[15px] text-muted-foreground select-none pointer-events-none">+63</span>
+                <input
+                  id="mobile"
+                  name="mobile"
+                  type="tel"
+                  autoComplete="tel"
+                  defaultValue={formatMobileNumber(profile.mobile).replace("+63 ", "")}
+                  maxLength={10}
+                  minLength={8}
+                  className="w-full bg-transparent px-[6px] py-[13px] text-[15px] text-foreground placeholder:text-placeholder focus:outline-none md:py-[14px]"
+                  onInput={(e) => {
+                    e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, "");
+                  }}
+                />
+              </div>
             </CardField>
 
             <CardField
@@ -130,6 +146,8 @@ export function ContactDetailsCard({ profile }: { profile: CustomerProfile }) {
                 type="email"
                 autoComplete="email"
                 defaultValue={profile.email}
+                minLength={5}
+                maxLength={255}
                 invalid={Boolean(errors.email)}
               />
             </CardField>

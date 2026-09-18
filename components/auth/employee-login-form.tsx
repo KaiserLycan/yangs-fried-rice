@@ -107,7 +107,7 @@ export function EmployeeLoginForm() {
         ) : null}
 
         <Field
-          label="Staff ID or work email"
+          label="Work email"
           htmlFor="identifier"
           error={errors.identifier}
         >
@@ -115,10 +115,9 @@ export function EmployeeLoginForm() {
             id="identifier"
             name="identifier"
             type="text"
-            // `username` rather than `email`: the field accepts a staff ID as
-            // well, so an email-only hint would fight the browser's autofill.
+            // `username` rather than `email` to play nicely with autofill
             autoComplete="username"
-            placeholder="YFR-0142 or name@yangs.ph"
+            placeholder="name@yangs.ph"
             invalid={Boolean(errors.identifier)}
           />
         </Field>

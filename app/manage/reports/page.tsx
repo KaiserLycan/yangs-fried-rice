@@ -4,9 +4,20 @@ import {
 } from "@/components/manage/reports/report-controls";
 import { ReportsSummary } from "@/components/manage/reports/reports-summary";
 import { ReportsCharts } from "@/components/manage/reports/reports-charts";
-import { MOCK_DATE, MOCK_BRANCH } from "@/components/manage/dashboard/mock-data";
 
-export default function ReportsPage() {
+export default function ReportsPage({
+  searchParams,
+}: {
+  searchParams: { type?: string };
+}) {
+  const reportType = searchParams.type || "Sales and Order";
+  const MOCK_DATE = new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  }).format(new Date());
+  const MOCK_BRANCH = "Malate branch";
+
   return (
     <div className="flex flex-col gap-[20px] md:gap-[30px]">
       {/* Header Row */}
@@ -31,10 +42,10 @@ export default function ReportsPage() {
       {/* Analytics Content */}
       <div className="flex flex-col gap-[20px] md:gap-[30px] overflow-y-auto pb-[20px]">
         {/* KPI Cards */}
-        <ReportsSummary />
+        <ReportsSummary type={reportType} />
         
         {/* Interactive Charts */}
-        <ReportsCharts />
+        <ReportsCharts type={reportType} />
       </div>
     </div>
   );

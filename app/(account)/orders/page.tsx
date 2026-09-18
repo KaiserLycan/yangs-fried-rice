@@ -5,6 +5,9 @@ import { ToastProvider } from "@/components/ui/toast";
 import { mockPastOrders } from "@/lib/orders/mock-past-orders";
 import { readPastOrders } from "@/lib/orders/read-past-orders";
 import { readCustomerProfile } from "@/lib/profile/customer-profile";
+import { BottomTabBar } from "@/components/nav/bottom-tab-bar";
+import { readCart } from "@/lib/cart/read-cart";
+import { cartItemCount } from "@/lib/menu/cart-totals";
 
 /**
  * Order history (OHF1) — desktop `133:1268`, mobile `133:2101`.
@@ -36,9 +39,10 @@ export default async function OrdersPage({
    */
   searchParams: { example?: string | string[] };
 }) {
-  const [profile, orders] = await Promise.all([
+  const [profile, orders, cart] = await Promise.all([
     readCustomerProfile(),
     readPastOrders(),
+    readCart(),
   ]);
 
   if (!profile) redirect("/login?next=/orders");
@@ -49,6 +53,7 @@ export default async function OrdersPage({
       <PastOrdersScreen
         orders={orders.length > 0 ? orders : mockPastOrders(searchParams.example)}
       />
+      <BottomTabBar current="orders" cartCount={cartItemCount(cart.lines)} />
     </ToastProvider>
   );
 }

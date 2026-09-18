@@ -76,6 +76,8 @@ export function PersonalDetailsCard({ profile }: { profile: CustomerProfile }) {
                 type="text"
                 autoComplete="name"
                 defaultValue={profile.name}
+                minLength={2}
+                maxLength={100}
                 invalid={Boolean(errors.name)}
               />
             </CardField>

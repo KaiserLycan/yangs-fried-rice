@@ -135,7 +135,15 @@ export function ItemDetailModal({
           ever touching the property the centering trick needs untouched. */}
       <div className="flex min-h-screen w-full flex-col overflow-y-auto bg-background md:hidden">
         <div className="relative h-[240px] shrink-0">
-          <ProductPhotoPlaceholder className="size-full" />
+          {product.imageUrl ? (
+            <img
+              src={product.imageUrl}
+              alt={product.name}
+              className="size-full object-cover"
+            />
+          ) : (
+            <ProductPhotoPlaceholder className="size-full" />
+          )}
           <button
             type="button"
             aria-label="Back to menu"
@@ -184,7 +192,15 @@ export function ItemDetailModal({
           scroll live here, not on the `<dialog>` element — same reason as
           the mobile wrapper's comment above. */}
       <div className="hidden max-h-[calc(100vh-4rem)] overflow-x-hidden overflow-y-auto rounded-[20px] bg-background shadow-[0_30px_70px_rgba(26,18,16,0.26)] md:flex">
-        <ProductPhotoPlaceholder className="w-[300px] shrink-0" />
+        {product.imageUrl ? (
+          <img
+            src={product.imageUrl}
+            alt={product.name}
+            className="w-[300px] shrink-0 object-cover"
+          />
+        ) : (
+          <ProductPhotoPlaceholder className="w-[300px] shrink-0" />
+        )}
 
         <div className="flex w-[420px] flex-col gap-[14px] px-[26px] pb-[26px] pt-[25px]">
           <ItemSummary product={product} titleClassName="text-[28px]" />

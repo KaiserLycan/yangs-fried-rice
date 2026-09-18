@@ -1,19 +1,41 @@
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ManagePaginationProps {
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
+  pageSize?: number;
+  onPageSizeChange?: (size: number) => void;
   className?: string;
 }
 
-export function ManagePagination({ currentPage, totalPages, onPageChange, className }: ManagePaginationProps) {
+export function ManagePagination({ 
+  currentPage, 
+  totalPages, 
+  onPageChange, 
+  pageSize = 10,
+  onPageSizeChange,
+  className 
+}: ManagePaginationProps) {
   return (
     <div className={cn("flex items-center justify-end gap-2", className)}>
       <span className="text-[13px] text-[#7a6a60]">Show</span>
-      <div className="flex h-[36px] w-[56px] items-center justify-center rounded-full border border-[#DDCDB8] bg-white">
-        <span className="text-[13px] font-bold text-[#1A1210]">10</span>
+      <div className="relative">
+        <select
+          value={pageSize}
+          onChange={(e) => onPageSizeChange?.(Number(e.target.value))}
+          className="flex h-[36px] items-center justify-center appearance-none rounded-full border border-[#DDCDB8] bg-white pl-4 pr-8 text-[13px] font-bold text-[#1A1210] outline-none focus:border-[#E8541F]"
+          disabled={!onPageSizeChange}
+        >
+          <option value={10}>10</option>
+          <option value={20}>20</option>
+          <option value={50}>50</option>
+          <option value={100}>100</option>
+        </select>
+        <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+          <ChevronDown className="h-3 w-3 text-[#A2938A]" />
+        </div>
       </div>
 
       <div className="flex items-center gap-1 ml-4">
