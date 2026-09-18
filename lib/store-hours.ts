@@ -3,6 +3,10 @@
  * Restaurant hours are 8am - 6pm (08:00 to 17:59).
  */
 export function isRestaurantOpen(): boolean {
+  if (process.env.NODE_ENV === "development") {
+    return true;
+  }
+
   const now = new Date();
   const manilaTime = new Date(
     now.toLocaleString("en-US", { timeZone: "Asia/Manila" })
