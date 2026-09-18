@@ -15,6 +15,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { LogOut, ArrowLeft } from "lucide-react";
 import { DeliverSidebar } from "@/components/deliver/deliver-sidebar";
+import { initialsFrom } from "@/lib/profile/identity";
 import { useState, useCallback, useEffect } from "react";
 
 export default function DeliverLayout({
@@ -29,6 +30,36 @@ export default function DeliverLayout({
 
   const [sidebarWidth, setSidebarWidth] = useState(440);
   const [isResizing, setIsResizing] = useState(false);
+  const [profileName, setProfileName] = useState("Rider");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadProfile() {
+      try {
+        const res = await fetch("/api/employee/profile", { cache: "no-store" });
+        if (!res.ok) {
+          return;
+        }
+
+        const payload = await res.json();
+        const name = payload?.data?.name || "Rider";
+
+        if (isMounted) {
+          setProfileName(name);
+        }
+      } catch {
+        if (isMounted) {
+          setProfileName("Rider");
+        }
+      }
+    }
+
+    loadProfile();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const startResizing = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -50,6 +81,13 @@ export default function DeliverLayout({
     },
     [isResizing]
   );
+
+  const displayName = profileName.trim() || "Rider";
+  const primaryName = displayName.includes(" ")
+    ? displayName.split(" ").filter(Boolean)[0]
+    : displayName;
+  const headerLabel = `Rider, ${primaryName}`;
+  const avatarInitials = initialsFrom(displayName) || "R";
 
   useEffect(() => {
     window.addEventListener("mousemove", resize);
@@ -78,11 +116,11 @@ export default function DeliverLayout({
           <div className="flex items-center gap-[24px]">
             <Link href="/deliver/profile" className="flex items-center gap-[16px] hover:opacity-80 transition-opacity">
               <p className="font-bold text-[10px] tracking-[1.4px] text-[#fbf6ec] uppercase text-right leading-none mt-1">
-                Rider, John
+                {headerLabel}
               </p>
               <div className="w-[36px] h-[36px] rounded-full bg-[#f0b27a] flex items-center justify-center shrink-0">
                 <span className="font-bold text-[13px] text-[#3a2e2c] leading-none">
-                  LR
+                  {avatarInitials}
                 </span>
               </div>
             </Link>
