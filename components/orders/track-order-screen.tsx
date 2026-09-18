@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getOrderEtaAction } from "@/lib/actions/eta";
 import {
@@ -14,9 +15,11 @@ import {
   timelineStages,
 } from "@/lib/orders/order-stage";
 import type { TrackedOrder } from "@/lib/orders/read-tracked-order";
+import { Alert } from "@/components/ui/alert";
 import { CancelOrderControl } from "@/components/orders/cancel-order-control";
 import { LiveMapPanel } from "@/components/orders/live-map-panel";
 import { OrderTimeline } from "@/components/orders/order-timeline";
+import { ProductReviewControl } from "@/components/orders/product-review-control";
 
 /**
  * The tracking screen. Desktop (`133:1164`) is two columns — header, timeline
@@ -42,6 +45,7 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
   const serverStatus = {
     orderStatus: order.orderStatus,
     cancelledAt: order.cancelledAt,
+    cancellationReason: order.cancellationReason,
     deliveryStatus: order.deliveryStatus,
   };
 
@@ -58,7 +62,7 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
    * `order` object itself would not work, since the server hands over a new
    * object every render and the patch would be thrown away immediately.
    */
-  const serverKey = `${order.orderStatus}|${order.cancelledAt}|${order.deliveryStatus}`;
+  const serverKey = `${order.orderStatus}|${order.cancelledAt}|${order.cancellationReason}|${order.deliveryStatus}`;
   const [live, setLive] = React.useState<typeof serverStatus | null>(null);
   const [seenKey, setSeenKey] = React.useState(serverKey);
 
@@ -148,6 +152,7 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
             ...(previous ?? serverStatusRef.current),
             orderStatus: (payload.new.order_status as string | null) ?? null,
             cancelledAt: (payload.new.cancelled_at as string | null) ?? null,
+            cancellationReason: (payload.new.cancellation_reason as string | null) ?? null,
           }));
           refreshEta();
         },
@@ -201,10 +206,16 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
         <header className="flex flex-col gap-[4px] bg-foreground p-[20px] md:col-start-1 md:row-start-1 md:gap-[3px] md:bg-transparent md:p-0">
           <Link
             href="/orders"
+            className="group mb-1 flex w-fit items-center gap-[4px] text-[11px] uppercase tracking-[1.76px] text-on-ink-faint transition-colors hover:text-white md:mb-2 md:text-[12px] md:tracking-[1.92px] md:text-muted-foreground md:hover:text-foreground"
+          >
+            <ChevronLeft className="h-[14px] w-[14px] md:h-[16px] md:w-[16px]" />
+            <span>Back to orders</span>
+          </Link>
+          <span
             className="text-[11px] uppercase tracking-[1.76px] text-on-ink-faint md:text-[12px] md:tracking-[1.92px] md:text-muted-foreground"
           >
             Order #{order.orderNumber}
-          </Link>
+          </span>
           <h1 className="font-display text-[30px] text-on-ink md:text-[38px] md:leading-[1.05] md:text-foreground">
             {headlineFor(progress)}
           </h1>
@@ -214,6 +225,14 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
           >
             {subline}
           </p>
+
+          {progress.kind === "cancelled" && status.cancellationReason && (
+            <div className="mt-4">
+              <Alert className="bg-destructive/10 border-destructive/20 text-destructive md:text-destructive md:bg-error-surface md:border-error-border">
+                {status.cancellationReason}
+              </Alert>
+            </div>
+          )}
         </header>
 
         {/* Second on mobile, right-hand column on desktop. */}
@@ -237,6 +256,11 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
               progress={progress}
             />
           </div>
+          {progress.kind === "stage" && progress.stage === "delivered" && (
+            <div className="w-full pt-[6px] md:pt-4 border-t border-rule mt-4">
+              <ProductReviewControl order={order} />
+            </div>
+          )}
         </div>
       </div>
     </div>

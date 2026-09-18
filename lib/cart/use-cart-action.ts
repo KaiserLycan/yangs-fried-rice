@@ -59,10 +59,12 @@ export function useCartAction() {
             result = await action();
           } catch {
             showToast(NETWORK_FAILED);
+            startTransition(() => router.refresh());
             return;
           }
           if (result.error !== null) {
             showToast(result.error);
+            startTransition(() => router.refresh());
             return;
           }
           // Awaited so a follow-up that is itself a network call — starting

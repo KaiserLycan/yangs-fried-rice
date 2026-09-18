@@ -27,7 +27,7 @@ export type PaymentMethod = {
 };
 
 export const PAYMENT_METHODS: PaymentMethod[] = [
-  { id: "card", label: "Credit / debit card" },
+  // { id: "card", label: "Credit / debit card" },
   { id: "wallet", label: "GCash / Maya wallet" },
   { id: "cash-on-delivery", label: "Cash on delivery" },
   { id: "pay-in-store", label: "Pay in store" },

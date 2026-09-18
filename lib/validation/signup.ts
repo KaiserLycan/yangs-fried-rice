@@ -38,7 +38,7 @@ import { customerEmailSchema, customerPasswordSchema } from "./login";
  */
 export const PHONE_SEPARATORS = /[\s().-]/g;
 export const PH_MOBILE_GROUPS_PATTERN =
-  /^(?:0|(?:\+?63))9(\d{2})(\d{3})(\d{4})$/;
+  /^\+639(\d{2})(\d{3})(\d{4})$/;
 
 /**
  * Exported so the profile screen's contact-details card validates the number
@@ -72,23 +72,22 @@ export const customerNameSchema = z
  * rather than specified, and no length check can tell a deliverable address
  * from an undeliverable one anyway.
  */
-const addressSchema = z
-  .string()
-  .refine((value) => value.trim().length > 0, "Enter your delivery address.");
-
-/**
- * The label the address is saved under. Not a form field: a customer has
- * exactly one address at this point in the product, so there is nothing to
- * choose between and no picker is drawn.
- */
 export const DEFAULT_ADDRESS_LABEL = "Home";
 
+const requiredString = (message: string) =>
+  z.string().refine((value) => value.trim().length > 0, message);
+
 export const signupSchema = z.object({
-  name: customerNameSchema,
+  firstName: customerNameSchema,
+  lastName: customerNameSchema,
   email: customerEmailSchema,
   phone: customerMobileSchema,
   password: customerPasswordSchema,
-  address: addressSchema,
+  buildingNo: requiredString("Enter building/house number."),
+  street: requiredString("Enter street."),
+  barangay: requiredString("Enter barangay."),
+  city: requiredString("Enter city."),
+  zip: requiredString("Enter ZIP code."),
 });
 
 export type SignupValues = z.infer<typeof signupSchema>;

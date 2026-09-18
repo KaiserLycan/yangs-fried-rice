@@ -26,16 +26,6 @@ import { Sidebar } from "@/components/manage/sidebar";
  *
  * Role-based routing (MANAGER → dashboard, STAFF → orders,
  * RIDER → deliver) is handled at login time in actions.ts.
- *
- * TODO: BACKEND INTEGRATION — When adding role-specific page
- * restrictions (e.g. STAFF cannot see Reports), do it at the
- * individual page level, not here. Example:
- *
- * ```ts
- * // In app/manage/reports/page.tsx
- * const employee = await getEmployee(supabase, user.id);
- * if (employee.role !== "MANAGER") redirect("/manage/orders");
- * ```
  * ============================================================
  */
 export default function ManageLayout({
@@ -48,9 +38,6 @@ export default function ManageLayout({
 
   return (
     <div className="flex h-screen bg-[#fbf6ec]">
-      {/* TODO: BACKEND INTEGRATION — Pass the employee role and user
-          data to the Sidebar so it can filter nav items by role and
-          display the real user name/initials instead of mock data. */}
       {!isKds && <Sidebar />}
       <main className={`flex-1 overflow-y-auto ${isKds ? "" : "px-[30px] py-[26px]"}`}>
         {children}

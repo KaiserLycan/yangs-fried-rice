@@ -511,18 +511,34 @@ export async function deleteEmployee(
  * List all customer accounts.
  * Requires: manager.
  */
-export async function getAllCustomers(): Promise<ActionResult<Customer[]>> {
+export async function getAllCustomers(): Promise<ActionResult<(Customer & { created_at?: string })[]>> {
   const auth = await requireRole("MANAGER");
   if (!auth.data) return { data: null, error: auth.error };
 
   const supabase = createClient();
-  const { data, error } = await supabase
+  const { data: customers, error } = await supabase
     .from("customer")
     .select("*")
     .order("name");
 
   if (error) return { data: null, error: error.message };
-  return { data, error: null };
+
+  // Fetch created_at from auth.users
+  const adminClient = createAdminClient();
+  const { data: { users }, error: authError } = await adminClient.auth.admin.listUsers();
+  
+  let enrichedCustomers = customers as (Customer & { created_at?: string })[];
+  if (!authError && users) {
+    enrichedCustomers = customers.map(c => {
+      const authUser = users.find(u => u.id === c.customer_id);
+      return {
+        ...c,
+        created_at: authUser?.created_at
+      };
+    });
+  }
+
+  return { data: enrichedCustomers, error: null };
 }
 
 /**

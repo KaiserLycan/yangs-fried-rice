@@ -26,9 +26,9 @@ interface EmployeeModalProps {
     name: string;
     email: string;
     role: string;
-    contact?: string;
     shift?: string;
     lastAccessLog?: string;
+    imageUrl?: string;
   } | null;
 }
 
@@ -130,11 +130,21 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee }: E
         
         {/* Avatar Section */}
         <div className="flex justify-center pt-[30px] shrink-0">
-          <div className="bg-[#8C1C13] flex items-center justify-center rounded-full size-[140px]">
-            <span className="font-display text-[#FBF6EC] text-[60px] leading-none mt-2">
-              {initials}
-            </span>
-          </div>
+          {employee?.imageUrl ? (
+            <div className="size-[140px] rounded-full overflow-hidden border-4 border-[#8C1C13]">
+              <img 
+                src={employee.imageUrl} 
+                alt={displayName}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ) : (
+            <div className="bg-[#8C1C13] flex items-center justify-center rounded-full size-[140px]">
+              <span className="font-display text-[#FBF6EC] text-[60px] leading-none mt-2">
+                {initials}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Form Fields */}

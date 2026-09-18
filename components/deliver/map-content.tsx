@@ -3,11 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
-// @ts-ignore - TypeScript does not need to type-check CSS files; Next.js handles the bundling. This import is necessary for Leaflet's CSS to be included in the build.
-import "leaflet/dist/leaflet.css";
-import "leaflet-routing-machine";
 import { DeliveryLocation } from "@/lib/mock-deliveries";
+import "leaflet/dist/leaflet.css";
 
+if (typeof window !== "undefined") {
+  // @ts-ignore - Leaflet routing machine expects L to be globally available
+  window.L = L;
+  require("leaflet-routing-machine");
+}
+
+// Component to trigger Leaflet resize when container changes size
 function MapResizer() {
   const map = useMap();
 
@@ -28,23 +33,26 @@ function MapResizer() {
   return null;
 }
 
-function RoutingMachine({
-  origin,
+function RoutingMachine({ 
+  origin, 
   destination,
-}: {
+  originLabel = "RIDER",
+  destinationLabel = "DESTINATION"
+}: { 
   origin: DeliveryLocation;
   destination: DeliveryLocation;
+  originLabel?: string;
+  destinationLabel?: string;
 }) {
   const map = useMap();
-  const routingControlRef = useRef<L.Routing.Control | null>(null);
+  const routingControlRef = useRef<any>(null);
 
   useEffect(() => {
     if (!map) return;
 
     const createMarkerIcon = (isOrigin: boolean) => {
       const bgColor = isOrigin ? "#1A1210" : "#E8541F";
-      const labelText = isOrigin ? "RIDER" : "DESTINATION";
-
+      const labelText = isOrigin ? originLabel : destinationLabel;
       return L.divIcon({
         className: "custom-div-icon",
         html: `
@@ -64,7 +72,8 @@ function RoutingMachine({
     const destLatLng = L.latLng(destination.lat, destination.lng);
 
     if (!routingControlRef.current) {
-      const routingControl = L.Routing.control({
+      // First time initialization
+      const routingControl = (L as any).Routing.control({
         waypoints: [originLatLng, destLatLng],
         lineOptions: {
           styles: [{ color: "#E8541F", opacity: 0.8, weight: 6 }],
@@ -99,17 +108,21 @@ function RoutingMachine({
         }
       }
     };
-  }, [map, origin, destination]);
+  }, [map, origin, destination, originLabel, destinationLabel]);
 
   return null;
 }
 
-export default function MapContent({
-  origin,
+export default function MapContent({ 
+  origin, 
   destination,
-}: {
-  origin: DeliveryLocation;
-  destination: DeliveryLocation;
+  originLabel,
+  destinationLabel
+}: { 
+  origin: DeliveryLocation; 
+  destination: DeliveryLocation; 
+  originLabel?: string;
+  destinationLabel?: string;
 }) {
   const [mounted, setMounted] = useState(false);
 
@@ -136,13 +149,19 @@ export default function MapContent({
         zoom={14}
         style={{ height: "100%", width: "100%" }}
         zoomControl={false}
+        attributionControl={false}
       >
         <TileLayer
           attribution="Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, Esri Japan, METI, Esri China (Hong Kong), Esri (Thailand), TomTom, 2012"
           url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
         />
         <MapResizer />
-        <RoutingMachine origin={origin} destination={destination} />
+        <RoutingMachine 
+          origin={origin} 
+          destination={destination} 
+          originLabel={originLabel}
+          destinationLabel={destinationLabel}
+        />
       </MapContainer>
     </div>
   );

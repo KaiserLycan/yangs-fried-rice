@@ -73,14 +73,17 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
+const MOCK_PRODUCTS = [dish("Yang Special Fried Rice")];
+const MOCK_CATEGORIES = [{ id: "1", name: "Yang's Rice" }];
+
 function renderScreen() {
   return render(
     <ToastProvider>
       <MenuScreen
-        profile={null}
-        initialProducts={[dish("Yang Special Fried Rice")]}
-        initialCategories={[{ id: "1", name: "Yang's Rice" }]}
-        cartLines={[]}
+        profilePromise={Promise.resolve(null)}
+        productsPromise={Promise.resolve(MOCK_PRODUCTS)}
+        categoriesPromise={Promise.resolve(MOCK_CATEGORIES)}
+        cartPromise={Promise.resolve({ cartId: null, lines: [] })}
       />
     </ToastProvider>,
   );

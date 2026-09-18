@@ -10,6 +10,7 @@ export interface CustomerData {
   customerSince: string;
   totalOrders?: number;
   totalSpent?: number;
+  imageUrl?: string;
 }
 
 interface CustomerModalProps {
@@ -51,11 +52,21 @@ export function CustomerModal({ customer, isOpen, onClose, onAction }: CustomerM
         
         {/* Avatar Section */}
         <div className="flex justify-center pt-[30px] pb-4 shrink-0">
-          <div className="bg-[#8C1C13] flex items-center justify-center rounded-full size-[140px]">
-            <span className="font-display text-[#FBF6EC] text-[60px] leading-none mt-2">
-              {initials}
-            </span>
-          </div>
+          {customer.imageUrl ? (
+            <div className="size-[140px] rounded-full overflow-hidden border-4 border-[#8C1C13]">
+              <img 
+                src={customer.imageUrl} 
+                alt={customer.name}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ) : (
+            <div className="bg-[#8C1C13] flex items-center justify-center rounded-full size-[140px]">
+              <span className="font-display text-[#FBF6EC] text-[60px] leading-none mt-2">
+                {initials}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Form Fields */}

@@ -1,3 +1,5 @@
+"use server";
+
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -136,7 +138,11 @@ export async function updateMyProfile(
 
 type AddressInput = {
   label?: string;
-  addressDetails: string;
+  buildingNo: string;
+  street: string;
+  barangay: string;
+  city: string;
+  zip: string;
   deliveryNote?: string;
 };
 
@@ -151,19 +157,25 @@ export async function addMyAddress(
 
   const parsed = deliveryAddressSchema.safeParse({
     label: input.label ?? "",
-    addressDetails: input.addressDetails,
+    buildingNo: input.buildingNo,
+    street: input.street,
+    barangay: input.barangay,
+    city: input.city,
+    zip: input.zip,
     deliveryNote: input.deliveryNote ?? "",
   });
   if (!parsed.success) {
     return { data: null, error: "Enter a valid address." };
   }
 
+  const fullAddress = `${parsed.data.buildingNo} ${parsed.data.street}, ${parsed.data.barangay}, ${parsed.data.city} ${parsed.data.zip}`;
+
   const { data, error } = await supabase
     .from("customer_address")
     .insert({
       customer_id: user.id,
       label: parsed.data.label || null,
-      address_details: parsed.data.addressDetails,
+      address_details: fullAddress,
       address_note: parsed.data.deliveryNote || null,
     })
     .select("address_id")
@@ -188,19 +200,35 @@ export async function updateMyAddress(
 
   const parsed = deliveryAddressSchema.partial().safeParse({
     label: input.label,
-    addressDetails: input.addressDetails,
+    buildingNo: input.buildingNo,
+    street: input.street,
+    barangay: input.barangay,
+    city: input.city,
+    zip: input.zip,
     deliveryNote: input.deliveryNote,
   });
   if (!parsed.success) {
     return { data: null, error: "Enter a valid address." };
   }
 
+  let fullAddress: string | undefined;
+  if (
+    parsed.data.buildingNo ||
+    parsed.data.street ||
+    parsed.data.barangay ||
+    parsed.data.city ||
+    parsed.data.zip
+  ) {
+    // If any part of the address was updated, we expect all parts to be sent by the form
+    fullAddress = `${parsed.data.buildingNo || ""} ${parsed.data.street || ""}, ${parsed.data.barangay || ""}, ${parsed.data.city || ""} ${parsed.data.zip || ""}`;
+  }
+
   const { error, count } = await supabase
     .from("customer_address")
     .update({
       ...(input.label !== undefined ? { label: parsed.data.label || null } : {}),
-      ...(input.addressDetails !== undefined
-        ? { address_details: parsed.data.addressDetails }
+      ...(fullAddress !== undefined
+        ? { address_details: fullAddress.trim() }
         : {}),
       ...(input.deliveryNote !== undefined
         ? { address_note: parsed.data.deliveryNote || null }
@@ -391,4 +419,47 @@ export async function deleteMyAccount(): Promise<RouterResult<undefined>> {
   await supabase.auth.signOut();
 
   return { data: undefined, error: null };
+}
+
+import { revalidatePath } from "next/cache";
+
+export async function uploadProfileImage(formData: FormData) {
+  const file = formData.get("file") as File | null;
+  if (!file) return { error: "No file provided" };
+
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not signed in" };
+
+  const fileExt = file.name.split(".").pop();
+  const filePath = `${user.id}/${Date.now()}.${fileExt}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("avatars")
+    .upload(filePath, file, {
+      cacheControl: "3600",
+      upsert: true,
+    });
+
+  if (uploadError) return { error: uploadError.message };
+
+  const { data: publicUrlData } = supabase.storage
+    .from("avatars")
+    .getPublicUrl(filePath);
+
+  const publicUrl = publicUrlData.publicUrl;
+
+  const { error: updateError } = await supabase
+    .from("customer")
+    .update({ profileImage_URL: publicUrl })
+    .eq("customer_id", user.id);
+
+  if (updateError) return { error: updateError.message };
+
+  revalidatePath("/", "layout");
+
+  return { success: true, publicUrl };
 }

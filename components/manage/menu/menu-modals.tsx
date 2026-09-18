@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { MenuItem, MenuCategory, MOCK_CATEGORIES } from "@/components/manage/menu/mock-menu";
 import { cn } from "@/lib/utils";
 import { Camera, ChevronDown, ChevronRight } from "lucide-react";
+import { compressImage } from "@/lib/image/compress";
 import { Dialog, DialogRoot } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
@@ -65,6 +66,7 @@ export function MenuItemModal({
   const [description, setDescription] = useState("");
   const [available, setAvailable] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [categoryOpen, setCategoryOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -79,18 +81,23 @@ export function MenuItemModal({
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // TODO (Backend): Wait to upload this file until the user clicks "Add" (in handleSave).
-      // Here we just generate a local preview URL.
-      setImagePreview(URL.createObjectURL(file));
+      try {
+        const compressed = await compressImage(file, 800);
+        setSelectedFile(compressed);
+        setImagePreview(URL.createObjectURL(compressed));
+      } catch {
+        // Fallback to uncompressed if compression fails
+        setSelectedFile(file);
+        setImagePreview(URL.createObjectURL(file));
+      }
     }
   };
 
   const handleSave = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    const file = fileInputRef.current?.files?.[0];
     
     onSave({
       name,
@@ -99,7 +106,7 @@ export function MenuItemModal({
       category: (category || selectableCategories[0] || "Uncategorized") as MenuCategory,
       description,
       available,
-    }, file);
+    }, selectedFile || undefined);
   };
 
   // Safe fallback for the display label as well
@@ -165,7 +172,7 @@ export function MenuItemModal({
           {/* Product Name */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
-              Product Name
+              Product Name <span className="text-[#bf4342]">*</span>
             </label>
             <input
               value={name}
@@ -178,7 +185,7 @@ export function MenuItemModal({
           {/* Category — custom dropdown */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
-              Category
+              Category <span className="text-[#bf4342]">*</span>
             </label>
             <div className="relative">
               <button
@@ -242,7 +249,7 @@ export function MenuItemModal({
           {/* Price */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
-              Price ₱
+              Price ₱ <span className="text-[#bf4342]">*</span>
             </label>
             <input
               type="text" // Changed from "number" to prevent browser default 'e' and '-' characters
@@ -297,7 +304,8 @@ export function MenuItemModal({
             <button
               type="button"
               onClick={handleSave}
-              className="flex flex-1 items-center justify-center rounded-[12px] bg-[#e8541f] px-[14px] py-[15px] transition-opacity hover:opacity-90"
+              disabled={!name.trim() || !price || parseFloat(price) <= 0}
+              className="flex flex-1 items-center justify-center rounded-[12px] bg-[#e8541f] px-[14px] py-[15px] transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <span className="text-[14px] font-bold leading-none text-white">
                 Add

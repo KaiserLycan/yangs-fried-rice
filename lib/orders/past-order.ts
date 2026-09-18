@@ -147,7 +147,8 @@ export function canRate(order: PastOrder): boolean {
  * has not been rated, otherwise reorder, and reach the receipt through the
  * card's own link to the order.
  */
-export function primaryActionOf(order: PastOrder): "rate" | "reorder" {
+export function primaryActionOf(order: PastOrder): "rate" | "reorder" | "track" {
+  if (!isPast(order)) return "track";
   return canRate(order) ? "rate" : "reorder";
 }
 

@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect } from "react";
 import { Camera, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { compressImage } from "@/lib/image/compress";
 import { useRouter } from "next/navigation";
 import { markDelivered } from "@/lib/actions/delivery";
 
@@ -41,6 +43,7 @@ export function ProofOfDeliveryModal({
   const [isCashCollected, setIsCashCollected] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | Blob | null>(null);
 
   useEffect(() => {
     setProofPreview(proofImageUrl ?? null);
@@ -54,10 +57,18 @@ export function ProofOfDeliveryModal({
     if (!isOpen && dialog.open) dialog.close();
   }, [isOpen]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setProofPreview(URL.createObjectURL(file));
+      try {
+        const compressed = await compressImage(file, 800);
+        setProofPreview(URL.createObjectURL(compressed));
+        setSelectedFile(compressed);
+      } catch {
+        // Fallback to uncompressed if compression fails
+        setProofPreview(URL.createObjectURL(file));
+        setSelectedFile(file);
+      }
       setError(null);
     }
   };
@@ -65,8 +76,7 @@ export function ProofOfDeliveryModal({
   const handleComplete = async () => {
     if (isReadOnly) return;
 
-    const file = fileInputRef.current?.files?.[0];
-    if (!file) {
+    if (!selectedFile) {
       setError("Proof photo is required.");
       return;
     }
@@ -75,8 +85,8 @@ export function ProofOfDeliveryModal({
     setError(null);
 
     const formData = new FormData();
-    formData.append("proof", file);
-    formData.append("proofPhoto", file);
+    formData.append("proof", selectedFile);
+    formData.append("proofPhoto", selectedFile);
     formData.append("isCashCollected", String(isCashCollected));
 
     const result = await markDelivered(deliveryId, formData);

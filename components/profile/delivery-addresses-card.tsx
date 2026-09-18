@@ -17,7 +17,6 @@ import {
   type DeliveryAddressField,
   type DeliveryAddressValues,
 } from "@/lib/validation/profile";
-import { addCustomerAddressAction } from "@/lib/actions/customer-address";
 
 const NOTE_EMPTY_STATE = "No delivery note added yet.";
 
@@ -266,6 +265,44 @@ function AddressRow({
   );
 }
 
+function parseAddress(fullAddress: string = "") {
+  if (!fullAddress) {
+    return { buildingNo: "", street: "", barangay: "", city: "", zip: "" };
+  }
+  // Best effort parsing of: "Unit 123 Tower A Ayala Ave, Bel-Air, Makati 1209"
+  // Assuming format: "{buildingNo} {street}, {barangay}, {city} {zip}"
+  const parts = fullAddress.split(",").map((p) => p.trim());
+  let buildingNo = "";
+  let street = "";
+  let barangay = "";
+  let city = "";
+  let zip = "";
+
+  if (parts.length >= 3) {
+    // If it has at least 3 parts, assume: [building+street, barangay, city+zip]
+    const bldStreet = parts[0];
+    // Split building and street (heuristically take first word if it has numbers, or just put all in street)
+    // For simplicity, we just put the whole first part in street since splitting it reliably is hard.
+    street = bldStreet;
+    
+    barangay = parts[1];
+    
+    const cityZip = parts[parts.length - 1];
+    const match = cityZip.match(/^(.*?)\s+(\d+)$/);
+    if (match) {
+      city = match[1];
+      zip = match[2];
+    } else {
+      city = cityZip;
+    }
+  } else {
+    // Fallback: put everything in street
+    street = fullAddress;
+  }
+
+  return { buildingNo, street, barangay, city, zip };
+}
+
 function AddressFormDialog({
   open,
   address,
@@ -292,7 +329,11 @@ function AddressFormDialog({
     const form = new FormData(event.currentTarget);
     const result = deliveryAddressSchema.safeParse({
       label: String(form.get("label") ?? ""),
-      addressDetails: String(form.get("addressDetails") ?? ""),
+      buildingNo: String(form.get("buildingNo") ?? ""),
+      street: String(form.get("street") ?? ""),
+      barangay: String(form.get("barangay") ?? ""),
+      city: String(form.get("city") ?? ""),
+      zip: String(form.get("zip") ?? ""),
       deliveryNote: String(form.get("deliveryNote") ?? ""),
     });
 
@@ -305,6 +346,7 @@ function AddressFormDialog({
   }
 
   const formId = React.useId();
+  const parsed = parseAddress(address?.addressDetails);
 
   return (
     <Dialog
@@ -345,21 +387,68 @@ function AddressFormDialog({
               id="address-label"
               name="label"
               defaultValue={address?.label ?? ""}
+              maxLength={50}
             />
           </CardField>
 
-          <CardField
-            label="Address"
-            htmlFor="address-details"
-            error={errors.addressDetails}
-          >
+          <div className="flex flex-col gap-[12px] md:flex-row md:gap-[16px]">
+            <CardField className="flex-1" label="Building / House No. *" htmlFor="address-buildingNo" error={errors.buildingNo}>
+              <CardInput
+                id="address-buildingNo"
+                name="buildingNo"
+                defaultValue={parsed.buildingNo}
+                minLength={1}
+                maxLength={100}
+                invalid={Boolean(errors.buildingNo)}
+              />
+            </CardField>
+
+            <CardField className="flex-1" label="Street *" htmlFor="address-street" error={errors.street}>
+              <CardInput
+                id="address-street"
+                name="street"
+                defaultValue={parsed.street}
+                minLength={2}
+                maxLength={100}
+                invalid={Boolean(errors.street)}
+              />
+            </CardField>
+          </div>
+
+          <CardField label="Barangay *" htmlFor="address-barangay" error={errors.barangay}>
             <CardInput
-              id="address-details"
-              name="addressDetails"
-              defaultValue={address?.addressDetails ?? ""}
-              invalid={Boolean(errors.addressDetails)}
+              id="address-barangay"
+              name="barangay"
+              defaultValue={parsed.barangay}
+              minLength={2}
+              maxLength={100}
+              invalid={Boolean(errors.barangay)}
             />
           </CardField>
+
+          <div className="flex flex-col gap-[12px] md:flex-row md:gap-[16px]">
+            <CardField className="flex-1" label="City *" htmlFor="address-city" error={errors.city}>
+              <CardInput
+                id="address-city"
+                name="city"
+                defaultValue={parsed.city}
+                minLength={2}
+                maxLength={50}
+                invalid={Boolean(errors.city)}
+              />
+            </CardField>
+
+            <CardField className="flex-1" label="ZIP Code *" htmlFor="address-zip" error={errors.zip}>
+              <CardInput
+                id="address-zip"
+                name="zip"
+                defaultValue={parsed.zip}
+                minLength={4}
+                maxLength={4}
+                invalid={Boolean(errors.zip)}
+              />
+            </CardField>
+          </div>
 
           <CardField
             label="Delivery note"
@@ -370,6 +459,7 @@ function AddressFormDialog({
               id="address-note"
               name="deliveryNote"
               defaultValue={address?.deliveryNote ?? ""}
+              maxLength={255}
             />
           </CardField>
         </form>

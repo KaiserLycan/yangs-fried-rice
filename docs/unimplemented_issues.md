@@ -9,7 +9,7 @@ This document tracks all the pending/unimplemented acceptance criteria from open
 - [x] **Implemented:** Customers can view the current preparation status of their orders in real-time.
 - [x] **Implemented:** Customers can track the current delivery status of their orders.
 - [x] **Implemented:** The system updates the customer interface automatically as staff and drivers change the order stages (via Supabase realtime channels).
-- [ ] **Still Needed:** The staff and driver interfaces need their state mutations connected so they actually trigger these live updates.
+- [x] **Implemented:** The staff and driver interfaces need their state mutations connected so they actually trigger these live updates.
 
 ## Issue #22: US-12: Order Review & Flexible Payment Options (CLOSED)
 - [x] **Implemented:** Customers must be able to review their complete order details (name, date, address, items ordered, estimated completion time, and amount payable) before confirming the placement.
@@ -26,13 +26,13 @@ This document tracks all the pending/unimplemented acceptance criteria from open
 - [x] **Implemented:** The Delivery Driver must be able to mark an order as "delivered" (basic action exists).
 - [x] **Implemented:** The system must require and accept **proof of delivery** (e.g. photo upload, signature) when an order is marked as delivered (Proof of Delivery Modal implemented).
 
-## Issue #10: US-07: Real-Time Estimated Time of Arrival (ETA)
-- [ ] **Still Needed:** The system must calculate an estimated time of arrival (ETA) range. (Currently uses a static, hardcoded arrival window).
-- [ ] **Still Needed:** The ETA calculation must account for real-time kitchen queue traffic.
-- [ ] **Still Needed:** The ETA calculation must factor in the delivery distance.
+## Issue #10: US-07: Real-Time Estimated Time of Arrival (ETA) (CLOSED)
+- [x] **Implemented:** The system must calculate an estimated time of arrival (ETA) range. (Uses `getOrderEtaAction`).
+- [x] **Implemented:** The ETA calculation must account for real-time kitchen queue traffic.
+- [x] **Implemented:** The ETA calculation must factor in the delivery distance.
 
-## Issue #9: US-04: Payment Processing & Kitchen Queue
-- [ ] **Still Needed:** The Stripe/Paymongo API processes digital payments successfully. (No integration present).
+## Issue #9: US-04: Payment Processing & Kitchen Queue (CLOSED)
+- [x] **Implemented:** The Stripe/Paymongo API processes digital payments successfully. (PayMongo integration via Edge Functions).
 - [x] **Implemented:** Incoming orders display sequentially on a kitchen display system. (KDS button/layout exists).
 - [x] **Implemented:** Staff can click to mark prepared orders as completed. (Backend and frontend wired).
 
@@ -49,12 +49,12 @@ This document tracks all the pending/unimplemented acceptance criteria from open
 - [x] **Implemented:** The system must display a confirmation prompt when a customer attempts to cancel an order.
 - [x] **Implemented:** The system prevents order cancellation once the restaurant has confirmed it.
 
-## Issue #6: US-09: Administration Analytics & System Oversight
-- [ ] **Still Needed:** The system must allow administrators to generate basic reports regarding platform performance. (Basic UI layout exists in `manage`, but reports are missing).
+## Issue #6: US-09: Administration Analytics & System Oversight (CLOSED)
+- [x] **Implemented:** The system must allow administrators to generate basic reports regarding platform performance. (PDF export and frontend charts built and wired).
 
 ## Issue #5: US-03: Menu Browsing & Checkout (CLOSED)
 - [x] **Implemented:** The system automatically calculates the total cost, including delivery fees.
 - [x] **Implemented:** The checkout process requires selecting between pickup or delivery options.
 
-## Issue #3: US-02: Menu Management & Database Setup
-- [ ] **Still Needed:** Menu changes reflect instantly on the user interface.
+## Issue #3: US-02: Menu Management & Database Setup (CLOSED)
+- [x] **Implemented:** Menu changes reflect instantly on the user interface. (MenuScreen subscribes to Supabase postgres changes).

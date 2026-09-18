@@ -41,16 +41,6 @@ export function CategorySidebar({
         ))}
       </nav>
 
-      {/* No `branch` table exists anywhere in the schema — not a missing
-          column on an existing table, a whole concept the frame draws that
-          the database has no place for yet. Rather than fabricate hours or
-          an "accepting orders" status, this says plainly that neither is
-          available, the same choice `CardValue`'s empty state makes for a
-          field with nothing behind it. See the note in this ticket's
-          "Derived during implementation" section. */}
-      <div className="mx-[18px] mt-[26px] border-t border-field-border pt-[18px] text-[12px] text-muted-foreground">
-        Branch hours aren&apos;t available yet.
-      </div>
     </aside>
   );
 }

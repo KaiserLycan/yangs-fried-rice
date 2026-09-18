@@ -1,19 +1,30 @@
 "use client";
 
-import { ChevronDown, Download } from "lucide-react";
 import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ChevronDown, Download, Loader2 } from "lucide-react";
+import { generateSalesPDF, generatePerformancePDF } from "@/lib/actions/reports";
 
-function DateInput({ label, placeholder }: { label: string; placeholder: string }) {
+interface DateInputProps {
+  label: string;
+  max: string;
+  value: string;
+  onChange: (value: string) => void;
+}
+
+function DateInput({ label, max, value, onChange }: DateInputProps) {
   return (
-    <div className="flex w-full md:w-[113px] flex-col gap-[6px]">
+    <div className="flex w-full md:w-auto md:min-w-[160px] flex-col gap-[6px]">
       <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
         {label}
       </label>
       <div className="flex rounded-[12px] border border-[#ddcdb8] bg-white p-3 md:p-[14px]">
         <input
-          type="text"
-          placeholder={placeholder}
-          className="w-full bg-transparent text-[13px] md:text-[15px] text-[#a2938a] outline-none placeholder:text-[#a2938a]"
+          type="date"
+          max={max}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full bg-transparent text-[13px] md:text-[15px] text-[#1a1210] outline-none"
         />
       </div>
     </div>
@@ -21,8 +32,11 @@ function DateInput({ label, placeholder }: { label: string; placeholder: string 
 }
 
 export function ReportTypeSelect() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [isOpen, setIsOpen] = useState(false);
-  const [selected, setSelected] = useState("Sales and Order");
+
+  const selected = searchParams.get("type") || "Sales and Order";
 
   const options = [
     "Sales and Order",
@@ -51,7 +65,9 @@ export function ReportTypeSelect() {
             <button
               key={option}
               onClick={() => {
-                setSelected(option);
+                const params = new URLSearchParams(searchParams.toString());
+                params.set("type", option);
+                router.push(`?${params.toString()}`);
                 setIsOpen(false);
               }}
               className="w-full px-[14px] py-[10px] text-left text-[15px] text-[#1a1210] hover:bg-[#fbf6ec]"
@@ -65,29 +81,97 @@ export function ReportTypeSelect() {
   );
 }
 
-export function ReportDateFilters() {
-  const handleExport = () => {
-    const link = document.createElement("a");
-    link.href = "/sample-report.pdf";
-    link.download = "yangs-fried-rice-report.pdf";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+interface ReportDateFiltersProps {
+  startDate: string;
+  endDate: string;
+  onStartDateChange: (value: string) => void;
+  onEndDateChange: (value: string) => void;
+  reportType: string;
+}
+
+export function ReportDateFilters({
+  startDate,
+  endDate,
+  onStartDateChange,
+  onEndDateChange,
+  reportType,
+}: ReportDateFiltersProps) {
+  const [isExporting, setIsExporting] = useState(false);
+
+  // Get current date in YYYY-MM-DD format for the max attribute
+  const today = new Date().toISOString().split("T")[0];
+
+  const handleExport = async () => {
+    setIsExporting(true);
+
+    try {
+      let result;
+
+      if (reportType === "Menu Items reports" || reportType === "Customer Satisfaction") {
+        // Use performance report for menu items and customer satisfaction
+        result = await generatePerformancePDF({
+          start_date: startDate,
+          end_date: endDate,
+          top_products: 10,
+        });
+      } else {
+        // Default: Sales report
+        result = await generateSalesPDF({
+          start_date: startDate,
+          end_date: endDate,
+          frequency: "daily",
+        });
+      }
+
+      if (result.error) {
+        alert(`Export failed: ${result.error}`);
+        return;
+      }
+
+      if (result.data) {
+        // The server returns a base64 data URI — open it in a new tab so the user can download
+        const link = document.createElement("a");
+        link.href = result.data;
+        link.download = `yangs-report-${startDate}-to-${endDate}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    } catch (err) {
+      alert("Export failed. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
     <div className="flex flex-col md:flex-row items-stretch md:items-end md:justify-end gap-4 md:gap-[20px]">
       <div className="grid grid-cols-2 md:flex gap-3 md:gap-[10px]">
-        <DateInput label="Start Date" placeholder="09/15/2005" />
-        <DateInput label="End Date" placeholder="09/15/2005" />
+        <DateInput
+          label="Start Date"
+          max={today}
+          value={startDate}
+          onChange={onStartDateChange}
+        />
+        <DateInput
+          label="End Date"
+          max={today}
+          value={endDate}
+          onChange={onEndDateChange}
+        />
       </div>
 
       <button
         onClick={handleExport}
-        className="flex h-[50px] w-full md:w-auto items-center justify-center md:justify-start gap-[10px] rounded-[12px] bg-[#b8352a] px-[20px] text-[15px] font-bold text-white transition-opacity hover:opacity-90"
+        disabled={isExporting}
+        className="flex h-[50px] w-full md:w-auto items-center justify-center md:justify-start gap-[10px] rounded-[12px] bg-[#b8352a] px-[20px] text-[15px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
       >
-        <Download className="h-5 w-5" />
-        <span>Export to PDF</span>
+        {isExporting ? (
+          <Loader2 className="h-5 w-5 animate-spin" />
+        ) : (
+          <Download className="h-5 w-5" />
+        )}
+        <span>{isExporting ? "Generating..." : "Export to PDF"}</span>
       </button>
     </div>
   );
