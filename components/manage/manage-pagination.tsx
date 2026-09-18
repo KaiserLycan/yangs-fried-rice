@@ -28,6 +28,7 @@ export function ManagePagination({
           className="flex h-[36px] items-center justify-center appearance-none rounded-full border border-[#DDCDB8] bg-white pl-4 pr-8 text-[13px] font-bold text-[#1A1210] outline-none focus:border-[#E8541F]"
           disabled={!onPageSizeChange}
         >
+          <option value={6}>6</option>
           <option value={10}>10</option>
           <option value={20}>20</option>
           <option value={50}>50</option>

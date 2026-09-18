@@ -29,7 +29,12 @@ export type TrackedOrder = {
   /** `delivery.delivery_id`, so the screen can subscribe to the right row. */
   deliveryId: string | null;
   orderType: string | null;
-  /** "35–45 min", or null when nothing has been estimated yet. */
+  /**
+   * "25–35 mins", or null when nothing has been estimated. Not read here:
+   * the page fills it from `getOrderEtaAction`, because `delivery.
+   * estimated_time` is a timestamp the ETA engine writes as a side effect,
+   * not the range the design shows. See `lib/orders/arrival-window.ts`.
+   */
   arrivalWindow: string | null;
   /** The address the order is going to, or null for a non-delivery order. */
   destination: string | null;
@@ -75,7 +80,7 @@ export async function readTrackedOrder(
 
   const { data: delivery } = await supabase
     .from("delivery")
-    .select("delivery_id, delivery_status, estimated_time, rider_id")
+    .select("delivery_id, delivery_status, rider_id")
     .eq("order_id", order.order_id)
     .maybeSingle();
 
@@ -98,7 +103,7 @@ export async function readTrackedOrder(
     deliveryStatus: delivery?.delivery_status ?? null,
     deliveryId: delivery?.delivery_id ?? null,
     orderType: order.order_type,
-    arrivalWindow: delivery?.estimated_time ?? null,
+    arrivalWindow: null,
     destination,
     riderName,
     items: (orderItems || []).map((item) => ({
