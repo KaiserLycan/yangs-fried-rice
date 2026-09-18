@@ -231,7 +231,11 @@ export async function getDetailedOrders(
     .range(filters.offset, filters.offset + filters.limit - 1);
 
   if (filters.status) {
-    query = query.eq("order_status", filters.status);
+    if (Array.isArray(filters.status)) {
+      query = query.in("order_status", filters.status);
+    } else {
+      query = query.eq("order_status", filters.status);
+    }
   }
   if (filters.date_from) {
     query = query.gte("created_at", filters.date_from);
