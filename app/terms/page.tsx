@@ -13,7 +13,7 @@ export default function TermsPage() {
       <div className="relative flex flex-col px-6 pb-[30px] pt-[30px] md:bg-background md:px-[52px] md:py-[48px]">
         <div className="flex flex-col gap-[14px] rounded-[22px] bg-background p-5 shadow-sm md:gap-[18px] md:rounded-none md:bg-transparent md:p-0 md:shadow-none">
           <Link href="/" className="inline-block text-[14px] text-[#e8541f] font-bold hover:underline w-fit">
-            &larr; Back to Home
+            &larr; Back
           </Link>
           
           <h1 className="font-display text-[32px] md:text-[40px] text-[#e8541f] uppercase mt-2">
