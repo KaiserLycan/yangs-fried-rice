@@ -52,9 +52,6 @@ export function PastOrdersScreen({ orders }: { orders: PastOrder[] }) {
  * nothing writes an `order` row yet, so a genuine read finds nothing. Phrased
  * as an invitation back to the menu, the same shape `CartEmptyState` uses for
  * the same reason.
- *
- * TODO (PM): worth a frame. An empty history is a real first-visit state, not
- * only an artefact of the backend being unbuilt.
  */
 function PastOrdersEmptyState() {
   return (

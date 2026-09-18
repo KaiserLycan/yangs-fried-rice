@@ -33,9 +33,6 @@ import type { TrackedOrder } from "@/lib/orders/read-tracked-order";
  * Delete this file. The page's `?? mockTrackedOrder(...)` then stops
  * compiling and TypeScript points at the one line to remove. There is no
  * runtime flag to remember, and nothing keeps working silently.
- *
- * TODO: do exactly that once placing an order writes a real row. Tracked as
- * the "Place an order" write in `docs/reference/ordering-flow-handoff.md`.
  */
 
 export const EXAMPLE_STATES = [

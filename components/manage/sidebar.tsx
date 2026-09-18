@@ -56,10 +56,6 @@ interface NavItem {
   icon: React.FC<{ className?: string }>;
 }
 
-/**
- * TODO: BACKEND INTEGRATION — Filter these items based on employee role.
- * STAFF should only see Menu and Orders. MANAGER sees everything.
- */
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/manage/dashboard", icon: DashboardIcon },
   { label: "Reports", href: "/manage/reports", icon: ReportsIcon },

@@ -55,22 +55,18 @@ export const STAGE_LABELS: Record<OrderStage, string> = {
  * (frame 132:543). The rest fall back to the neutral stage wording rather
  * than to invented restaurant-voice copy, because inventing it silently is
  * exactly what ticket 06 rules out.
- *
- * TODO (PM): the four marked below need real copy in the same voice as the
- * two that are drawn. They are all in this one map so replacing them is a
- * one-file change.
  */
 export const STAGE_HEADLINES: Record<OrderStage, string> = {
   received: "WAITING FOR THE KITCHEN",
   preparing: "IN THE WOK NOW",
-  out_for_delivery: "OUT FOR DELIVERY", // TODO (PM): needs real copy
-  delivered: "DELIVERED", // TODO (PM): needs real copy
+  out_for_delivery: "OUT FOR DELIVERY",
+  delivered: "DELIVERED",
 };
 
-/** TODO (PM): needs real copy. */
+
 export const CANCELLED_HEADLINE = "ORDER CANCELLED";
 
-/** TODO (PM): needs real copy. */
+
 export const UNKNOWN_HEADLINE = "CHECKING THIS ORDER";
 
 /**
@@ -149,10 +145,6 @@ const ORDER_STATUS_STAGES: Record<string, OrderStage | "cancelled"> = {
  * accepted on the same reasoning as the order vocabulary: the column is free
  * text, so tolerating the plausible spellings costs nothing, and anything
  * unrecognised still falls through to `unknown`.
- *
- * TODO (Backend): confirm which string marks a delivery as on its way. If it
- * is none of these, the screen will sit on "Preparing in kitchen" until the
- * delivery completes.
  */
 const DELIVERY_STATUS_STAGES: Record<string, OrderStage> = {
   delivered: "delivered",

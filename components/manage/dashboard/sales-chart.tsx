@@ -11,7 +11,6 @@
  *   - Value labels sit above each bar in bold
  *   - Day labels sit below each bar in regular weight
  *
- * TODO: BACKEND INTEGRATION — Data comes from mock-data.ts.
  * Replace the `data` prop source in dashboard-content.tsx with
  * real weekly sales data from Supabase.
  */

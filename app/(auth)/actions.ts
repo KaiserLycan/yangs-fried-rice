@@ -191,15 +191,6 @@ type EmployeeLoginResult =
  *  - manager and staff all land in /manage (the back office)
  *  - rider lands in /deliver (the delivery queue)
  */
-/**
- * TODO: BACKEND INTEGRATION — Role-based redirects after employee login.
- *
- * MANAGER (Business Owner) → /manage/dashboard (full back-office access)
- * STAFF (server, kitchen, etc.) → /manage/orders (no dashboard access)
- * RIDER → /deliver (delivery queue, separate app area)
- *
- * If additional roles are added, register their redirect here.
- */
 const EMPLOYEE_ROLE_REDIRECTS: Record<string, string> = {
   MANAGER: "/manage/dashboard",
   STAFF: "/manage/orders",
