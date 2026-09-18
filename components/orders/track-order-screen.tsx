@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
   headlineFor,
@@ -13,6 +14,7 @@ import { Alert } from "@/components/ui/alert";
 import { CancelOrderControl } from "@/components/orders/cancel-order-control";
 import { LiveMapPanel } from "@/components/orders/live-map-panel";
 import { OrderTimeline } from "@/components/orders/order-timeline";
+import { ProductReviewControl } from "@/components/orders/product-review-control";
 
 /**
  * The tracking screen. Desktop (`133:1164`) is two columns — header, timeline
@@ -152,10 +154,16 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
         <header className="flex flex-col gap-[4px] bg-foreground p-[20px] md:col-start-1 md:row-start-1 md:gap-[3px] md:bg-transparent md:p-0">
           <Link
             href="/orders"
+            className="group mb-1 flex w-fit items-center gap-[4px] text-[11px] uppercase tracking-[1.76px] text-on-ink-faint transition-colors hover:text-white md:mb-2 md:text-[12px] md:tracking-[1.92px] md:text-muted-foreground md:hover:text-foreground"
+          >
+            <ChevronLeft className="h-[14px] w-[14px] md:h-[16px] md:w-[16px]" />
+            <span>Back to orders</span>
+          </Link>
+          <span
             className="text-[11px] uppercase tracking-[1.76px] text-on-ink-faint md:text-[12px] md:tracking-[1.92px] md:text-muted-foreground"
           >
             Order #{order.orderNumber}
-          </Link>
+          </span>
           <h1 className="font-display text-[30px] text-on-ink md:text-[38px] md:leading-[1.05] md:text-foreground">
             {headlineFor(progress)}
           </h1>
@@ -193,6 +201,11 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
               progress={progress}
             />
           </div>
+          {progress.stage === "completed" && (
+            <div className="w-full pt-[6px] md:pt-4 border-t border-rule mt-4">
+              <ProductReviewControl order={order} />
+            </div>
+          )}
         </div>
       </div>
     </div>

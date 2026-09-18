@@ -27,7 +27,15 @@ export function ProductCard({
 }) {
   return (
     <div className="flex flex-col overflow-hidden rounded-md border border-field-border bg-card">
-      <ProductPhotoPlaceholder className="h-[138px] w-full" />
+      {product.imageUrl ? (
+        <img
+          src={product.imageUrl}
+          alt={product.name}
+          className="h-[138px] w-full object-cover"
+        />
+      ) : (
+        <ProductPhotoPlaceholder className="h-[138px] w-full" />
+      )}
 
       <div className="flex flex-1 flex-col gap-[10px] p-[14px]">
         <h3 className="text-[15px] font-bold text-foreground">

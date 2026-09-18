@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { Search } from "lucide-react";
 import { MenuSidebar } from "@/components/manage/menu/menu-sidebar";
 import { MenuGrid } from "@/components/manage/menu/menu-grid";
+import { useDebounce } from "@/lib/hooks/use-debounce";
 import { MenuItemModal } from "@/components/manage/menu/menu-modals";
 import { MenuItemDetailModal } from "@/components/manage/menu/menu-item-detail-modal";
 import { useToast, ToastProvider } from "@/components/ui/toast";
@@ -11,8 +12,8 @@ import type { MenuItem } from "@/components/manage/menu/mock-menu";
 
 // Import real backend Server Actions and Supabase client
 import { 
-  getCategories, createCategory, updateCategory, deleteCategory,
-  getProducts, createProduct, updateProduct, deleteProduct 
+  getMenuData, createCategory, updateCategory, deleteCategory,
+  createProduct, updateProduct, deleteProduct 
 } from "@/lib/actions/menu";
 import { createClient } from "@/lib/supabase/client"; // Added for Storage uploads
 
@@ -35,6 +36,7 @@ function ManageMenuInner() {
 
   // UI State
   const [searchText, setSearchText] = useState("");
+  const debouncedSearchText = useDebounce(searchText, 300);
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -46,15 +48,15 @@ function ManageMenuInner() {
   // Fetch Initial Data
   const loadData = useCallback(async () => {
     setIsLoading(true);
-    const [catsRes, prodsRes] = await Promise.all([getCategories(), getProducts()]);
+    const res = await getMenuData();
 
-    if (catsRes.error) showToast(`Error loading categories: ${catsRes.error}`);
-    else if (catsRes.data) setDbCategories(catsRes.data);
-
-    if (prodsRes.error) showToast(`Error loading products: ${prodsRes.error}`);
-    else if (prodsRes.data) {
+    if (res.error) {
+      showToast(`Error loading menu data: ${res.error}`);
+    } else if (res.data) {
+      setDbCategories(res.data.categories);
+      
       // Map database schema to UI schema
-      const mapped: MenuItem[] = prodsRes.data.map((p: any) => ({
+      const mapped: MenuItem[] = res.data.products.map((p: any) => ({
         id: p.product_id,
         name: p.product_name,
         description: p.product_details || "",
@@ -286,7 +288,7 @@ function ManageMenuInner() {
         />
 
         <MenuGrid 
-          searchText={searchText}
+          searchText={debouncedSearchText}
           selectedCategory={selectedCategory}
           items={menuItems}
           isLoading={isLoading}
@@ -315,6 +317,7 @@ function ManageMenuInner() {
           onEdit={handleEditProduct}
           onDelete={handleDeleteProduct}
           item={selectedItem}
+          categories={categoryStrings}
         />
       )}
     </div>

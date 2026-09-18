@@ -44,7 +44,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition, useEffect } from "react";
 import { logout } from "@/app/(auth)/actions";
-import { MOCK_USER } from "./dashboard/mock-data";
+import { getCurrentEmployee } from "@/lib/actions/admin";
 
 // ---------------------------------------------------------------------------
 // Navigation items
@@ -315,12 +315,26 @@ export function Sidebar() {
     });
   }
 
-  /**
-   * TODO: BACKEND INTEGRATION — Replace MOCK_USER with the real
-   * authenticated employee data. Pass user info as a prop from
-   * the manage layout (which has access to the server session).
-   */
-  const user = MOCK_USER;
+  const [userData, setUserData] = useState<{ initials: string; displayName: string; imageUrl?: string }>({
+    initials: "LR",
+    displayName: "Lazy Ryan"
+  });
+
+  useEffect(() => {
+    async function loadUser() {
+      const result = await getCurrentEmployee();
+      if (result.data) {
+        const name = result.data.name || "Unknown";
+        const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+        setUserData({
+          initials,
+          displayName: name,
+          imageUrl: result.data.profileImage_URL || undefined
+        });
+      }
+    }
+    loadUser();
+  }, []);
 
   function handleLogout() {
     startTransition(async () => {
@@ -404,17 +418,21 @@ export function Sidebar() {
           className={`flex items-center gap-2.5 transition-opacity hover:opacity-80 ${isCollapsed ? "flex-col gap-3" : ""
             }`}
         >
-          {/* Avatar circle with initials */}
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f0b27a]">
-            <span className="text-[13px] font-bold text-[#3a2e2c]">
-              {user.initials}
-            </span>
+          {/* Avatar circle with initials or Image */}
+          <div className="flex h-9 w-9 shrink-0 overflow-hidden items-center justify-center rounded-full bg-[#f0b27a]">
+            {userData.imageUrl ? (
+              <img src={userData.imageUrl} alt={userData.displayName} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-[13px] font-bold text-[#3a2e2c]">
+                {userData.initials}
+              </span>
+            )}
           </div>
 
           {/* Display name — hidden when collapsed */}
           {!isCollapsed && (
             <span className="text-[13px] font-bold text-[#fbf6ec]">
-              {user.displayName}
+              {userData.displayName}
             </span>
           )}
         </Link>

@@ -11,6 +11,9 @@ import { ProfileSummaryCard } from "@/components/profile/profile-summary-card";
 import { ToastProvider } from "@/components/ui/toast";
 import { readCustomerProfile } from "@/lib/profile/customer-profile";
 import { initialsFrom } from "@/lib/profile/identity";
+import { BottomTabBar } from "@/components/nav/bottom-tab-bar";
+import { readCart } from "@/lib/cart/read-cart";
+import { cartItemCount } from "@/lib/menu/cart-totals";
 
 /**
  * Customer profile (Cust3, Cust4, Cust5).
@@ -25,7 +28,10 @@ import { initialsFrom } from "@/lib/profile/identity";
  * `.scratch/profile-page/issues/05-backend-handoff.md`.
  */
 export default async function ProfilePage() {
-  const profile = await readCustomerProfile();
+  const [profile, cart] = await Promise.all([
+    readCustomerProfile(),
+    readCart(),
+  ]);
 
   // Middleware already turns signed-out visitors away, so reaching this is
   // not expected. Guarding anyway: without it a missing session would render
@@ -80,6 +86,7 @@ export default async function ProfilePage() {
           </main>
         </div>
       </div>
+      <BottomTabBar current="account" cartCount={cartItemCount(cart.lines)} />
     </ToastProvider>
   );
 }

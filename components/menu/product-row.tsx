@@ -20,7 +20,15 @@ export function ProductRow({
 }) {
   const content = (
     <>
-      <ProductPhotoPlaceholder className="size-[74px] shrink-0 rounded-md" />
+      {product.imageUrl ? (
+        <img
+          src={product.imageUrl}
+          alt={product.name}
+          className="size-[74px] shrink-0 rounded-md object-cover"
+        />
+      ) : (
+        <ProductPhotoPlaceholder className="size-[74px] shrink-0 rounded-md" />
+      )}
 
       <div className="flex min-w-0 flex-1 flex-col gap-[6px]">
         <h3 className="text-[15px] font-bold text-foreground">

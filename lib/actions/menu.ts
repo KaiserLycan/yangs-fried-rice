@@ -36,6 +36,30 @@ function revalidateMenuPaths() {
 
 // CATEGORIES
 
+// Fetch categories and products together in a single request for the Menu page
+export async function getMenuData(): Promise<
+  ActionResult<{ categories: Category[]; products: ProductWithCategory[] }>
+> {
+  const supabase = createClient();
+  
+  // Parallel fetches on the server, but only one HTTP request from the client
+  const [catsRes, prodsRes] = await Promise.all([
+    supabase.from("categories").select("*").order("category_name"),
+    supabase.from("product").select("*, categories ( category_name )").order("product_name")
+  ]);
+
+  if (catsRes.error) return { data: null, error: catsRes.error.message };
+  if (prodsRes.error) return { data: null, error: prodsRes.error.message };
+
+  return {
+    data: { 
+      categories: catsRes.data, 
+      products: prodsRes.data as ProductWithCategory[] 
+    },
+    error: null,
+  };
+}
+
 // Fetch every category, alphabetically.
 export async function getCategories(): Promise<ActionResult<Category[]>> {
   const supabase = createClient();

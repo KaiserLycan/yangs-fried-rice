@@ -62,8 +62,8 @@ export async function getOrders(request: Request) {
   }
 
   return NextResponse.json({
-    count: result.data.length,
-    data: result.data,
+    count: result.data.totalCount,
+    data: result.data.data,
   });
 }
 

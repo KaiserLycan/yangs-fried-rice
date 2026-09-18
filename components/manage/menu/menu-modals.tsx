@@ -165,7 +165,7 @@ export function MenuItemModal({
           {/* Product Name */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
-              Product Name
+              Product Name <span className="text-[#bf4342]">*</span>
             </label>
             <input
               value={name}
@@ -178,7 +178,7 @@ export function MenuItemModal({
           {/* Category — custom dropdown */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
-              Category
+              Category <span className="text-[#bf4342]">*</span>
             </label>
             <div className="relative">
               <button
@@ -242,7 +242,7 @@ export function MenuItemModal({
           {/* Price */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
-              Price ₱
+              Price ₱ <span className="text-[#bf4342]">*</span>
             </label>
             <input
               type="text" // Changed from "number" to prevent browser default 'e' and '-' characters
@@ -297,7 +297,8 @@ export function MenuItemModal({
             <button
               type="button"
               onClick={handleSave}
-              className="flex flex-1 items-center justify-center rounded-[12px] bg-[#e8541f] px-[14px] py-[15px] transition-opacity hover:opacity-90"
+              disabled={!name.trim() || !price || parseFloat(price) <= 0}
+              className="flex flex-1 items-center justify-center rounded-[12px] bg-[#e8541f] px-[14px] py-[15px] transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <span className="text-[14px] font-bold leading-none text-white">
                 Add

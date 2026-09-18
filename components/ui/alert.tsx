@@ -12,7 +12,7 @@ export function Alert({
     <div
       role="alert"
       className={cn(
-        "flex w-full items-start gap-[10px] rounded-md border border-on-brand-subtle bg-error-surface px-[14px] py-[11px] text-primary",
+        "flex w-full items-start gap-[10px] rounded-md border border-error-border bg-error-surface px-[14px] py-[11px] text-error-border",
         className,
       )}
     >

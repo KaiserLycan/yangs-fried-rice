@@ -116,6 +116,7 @@ export function CardField({
   hint,
   error,
   children,
+  className,
 }: {
   label: string;
   htmlFor?: string;
@@ -133,9 +134,10 @@ export function CardField({
   hint?: string;
   error?: string;
   children: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-[3px] md:gap-[5px]">
+    <div className={cn("flex min-w-0 flex-col gap-[3px] md:gap-[5px]", className)}>
       <div className="flex items-baseline justify-between gap-[8px]">
         <span className="text-[10.5px] font-bold uppercase tracking-[1.47px] text-muted-foreground">
           {htmlFor ? <label htmlFor={htmlFor}>{label}</label> : label}

@@ -34,6 +34,7 @@ export type TrackedOrder = {
   /** The address the order is going to, or null for a non-delivery order. */
   destination: string | null;
   riderName: string | null;
+  items: { productId: string; name: string }[];
 };
 
 /**
@@ -78,9 +79,14 @@ export async function readTrackedOrder(
     .eq("order_id", order.order_id)
     .maybeSingle();
 
-  const [riderName, destination] = await Promise.all([
+  const [riderName, destination, orderItems] = await Promise.all([
     readRiderName(supabase, delivery?.rider_id ?? null),
     readDestination(supabase, user.id),
+    supabase
+      .from("order_item")
+      .select("product_id, product(product_name)")
+      .eq("order_id", order.order_id)
+      .then((res) => res.data),
   ]);
 
   return {
@@ -95,6 +101,10 @@ export async function readTrackedOrder(
     arrivalWindow: delivery?.estimated_time ?? null,
     destination,
     riderName,
+    items: (orderItems || []).map((item) => ({
+      productId: item.product_id || "",
+      name: Array.isArray(item.product) ? item.product[0]?.product_name || "Unknown Item" : item.product?.product_name || "Unknown Item",
+    })),
   };
 }
 

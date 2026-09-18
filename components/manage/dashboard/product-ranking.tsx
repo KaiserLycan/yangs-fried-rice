@@ -9,7 +9,7 @@
  * controls the bar width (0–100).
  */
 
-import type { RankedProduct } from "./mock-data";
+import type { RankedProduct } from "@/lib/actions/dashboard";
 
 interface ProductRankingProps {
   /** Section title, e.g. "TOP SELLERS" */
@@ -27,27 +27,33 @@ export function ProductRanking({ title, items }: ProductRankingProps) {
       </span>
 
       {/* Item list */}
-      {items.map((item) => (
-        <div key={item.name} className="flex flex-col gap-[5px]">
-          {/* Name + count row */}
-          <div className="flex items-center justify-between">
-            <span className="text-[13px] font-bold text-[#1a1210]">
-              {item.name}
-            </span>
-            <span className="text-[13px] text-[#7a6a60]">
-              {item.count} sold
-            </span>
-          </div>
-
-          {/* Progress bar */}
-          <div className="h-[7px] w-full rounded-full bg-[#efe6d8]">
-            <div
-              className="h-[7px] rounded-full bg-[#bf4342]"
-              style={{ width: `${item.percentage}%` }}
-            />
-          </div>
+      {items.length === 0 ? (
+        <div className="flex flex-1 items-center justify-center pt-10 text-[13px] text-[#7a6a60]">
+          No data available.
         </div>
-      ))}
+      ) : (
+        items.map((item) => (
+          <div key={item.name} className="flex flex-col gap-[5px]">
+            {/* Name + count row */}
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-bold text-[#1a1210]">
+                {item.name}
+              </span>
+              <span className="text-[13px] text-[#7a6a60]">
+                {item.count} sold
+              </span>
+            </div>
+
+            {/* Progress bar */}
+            <div className="h-[7px] w-full rounded-full bg-[#efe6d8]">
+              <div
+                className="h-[7px] rounded-full bg-[#bf4342]"
+                style={{ width: `${item.percentage}%` }}
+              />
+            </div>
+          </div>
+        ))
+      )}
     </div>
   );
 }

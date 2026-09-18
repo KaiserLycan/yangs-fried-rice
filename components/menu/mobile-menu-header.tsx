@@ -1,6 +1,6 @@
 import { Suspense, use } from "react";
 import Link from "next/link";
-import { AvatarButton } from "@/components/profile/avatar-button";
+import { Avatar } from "@/components/ui/avatar";
 import { SearchField } from "@/components/menu/search-field";
 import { shortAddressLabel } from "@/lib/profile/address-label";
 import type { CustomerProfile } from "@/lib/profile/customer-profile";
@@ -31,10 +31,17 @@ function ResolvedMobileProfile({
         <span />
       )}
       {profile ? (
-        <AvatarButton
-          initials={initialsFrom(profile.name)}
-          className="size-[38px] bg-accent text-[13px] font-bold text-white"
-        />
+        <Link
+          href="/profile"
+          className="rounded-pill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          aria-label="Go to your account"
+        >
+          <Avatar
+            initials={initialsFrom(profile.name)}
+            imageUrl={profile.profileImageUrl}
+            className="size-[38px] bg-accent text-[13px] font-bold text-white"
+          />
+        </Link>
       ) : (
         <Link href="/login" className="text-[13px] font-bold text-white">
           Log in
