@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import {
   CardField,
   CardInput,
@@ -19,15 +20,6 @@ import {
 
 const NOTE_EMPTY_STATE = "No delivery note added yet.";
 
-const ADD_TOAST =
-  "Saving a new address isn’t available yet. We’re still building it.";
-const EDIT_TOAST =
-  "Saving your address changes isn’t available yet. We’re still building it.";
-const DELETE_TOAST =
-  "Deleting this address isn’t available yet. We’re still building it.";
-const DEFAULT_TOAST =
-  "Setting a default address isn’t available yet. We’re still building it.";
-
 /** Which dialog, if any, is open, and the address it is acting on. */
 type DialogState =
   | { mode: "add" }
@@ -39,38 +31,95 @@ type DialogState =
  * Delivery addresses (Order7), the section the requirements care about most
  * — a rider cannot deliver without one.
  *
- * A list that happens to contain one entry, not a single fixed row: sign-up
- * writes exactly one address today, but a second is a confirmed upcoming
- * feature. Add, Edit, Delete and Set as default all raise a toast and write
- * nothing — see `.scratch/profile-page/issues/05-backend-handoff.md`.
- *
- * Only the collapsed row and the edit form are drawn in the frames
- * (`2047:1025` desktop, `2047:1154` mobile). Add, Delete and Set as default
- * are derived: there is no frame for any of the three, so each reuses the
- * controls already on the card rather than inventing a new composition.
+ * Add, Edit, Delete and Set as default are all wired to
+ * app/api/profile/addresses (lib/actions/profile.ts). Two fixes made while
+ * wiring, not just a toast-to-fetch swap:
+ *   - handleSave previously ignored the values the dialog submitted.
+ *   - handleSetDefault previously had no way to know which address was
+ *     clicked, since it was passed to every row identically.
  */
 export function DeliveryAddressesCard({
   addresses,
 }: {
   addresses: CustomerAddress[];
 }) {
+  const router = useRouter();
   const showToast = useToast();
   const [dialog, setDialog] = React.useState<DialogState>(null);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const closeDialog = () => setDialog(null);
 
-  function handleSave() {
-    showToast(dialog?.mode === "edit" ? EDIT_TOAST : ADD_TOAST);
-    closeDialog();
+  async function handleSave(values: DeliveryAddressValues) {
+    const isEdit = dialog?.mode === "edit";
+    const url = isEdit
+      ? `/api/profile/addresses/${dialog.address.id}`
+      : "/api/profile/addresses";
+
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(url, {
+        method: isEdit ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+      const json = await res.json();
+
+      if (!res.ok) {
+        showToast(json.error ?? "Could not save address.");
+        return;
+      }
+
+      showToast(isEdit ? "Address updated." : "Address added.");
+      closeDialog();
+      router.refresh();
+    } catch {
+      showToast("Could not save address. Check your connection.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
-  function handleDelete() {
-    showToast(DELETE_TOAST);
-    closeDialog();
+  async function handleDelete() {
+    if (dialog?.mode !== "delete") return;
+    const addressId = dialog.address.id;
+
+    try {
+      const res = await fetch(`/api/profile/addresses/${addressId}`, {
+        method: "DELETE",
+      });
+      const json = await res.json();
+
+      if (!res.ok) {
+        showToast(json.error ?? "Could not delete address.");
+        return;
+      }
+
+      showToast("Address deleted.");
+      closeDialog();
+      router.refresh();
+    } catch {
+      showToast("Could not delete address. Check your connection.");
+    }
   }
 
-  function handleSetDefault() {
-    showToast(DEFAULT_TOAST);
+  async function handleSetDefault(address: CustomerAddress) {
+    try {
+      const res = await fetch(`/api/profile/addresses/${address.id}/default`, {
+        method: "PATCH",
+      });
+      const json = await res.json();
+
+      if (!res.ok) {
+        showToast(json.error ?? "Could not update default address.");
+        return;
+      }
+
+      showToast("Default address updated.");
+      router.refresh();
+    } catch {
+      showToast("Could not update default address. Check your connection.");
+    }
   }
 
   return (
@@ -85,8 +134,6 @@ export function DeliveryAddressesCard({
           <span className="hidden md:inline">DELIVERY ADDRESS</span>
         </h2>
 
-        {/* The count only appears in the desktop frame — the mobile one has
-            no room for it beside the shortened title. */}
         <span className="hidden text-[12.5px] text-muted-foreground md:inline">
           {addresses.length === 1
             ? "1 saved"
@@ -123,7 +170,7 @@ export function DeliveryAddressesCard({
                 address={address}
                 onEdit={() => setDialog({ mode: "edit", address })}
                 onDelete={() => setDialog({ mode: "delete", address })}
-                onSetDefault={handleSetDefault}
+                onSetDefault={() => handleSetDefault(address)}
               />
             </div>
           ))
@@ -133,6 +180,7 @@ export function DeliveryAddressesCard({
       <AddressFormDialog
         open={dialog?.mode === "add" || dialog?.mode === "edit"}
         address={dialog?.mode === "edit" ? dialog.address : undefined}
+        isSubmitting={isSubmitting}
         onClose={closeDialog}
         onSave={handleSave}
       />
@@ -176,8 +224,6 @@ function AddressRow({
           <span className="text-[14px] font-bold text-foreground md:text-[14.5px]">
             {address.label || "Address"}
           </span>
-          {/* Rendered only when the data actually says this is the default —
-              never hardcoded onto whichever address happens to be first. */}
           {address.isDefault ? (
             <span className="rounded-sm bg-rule px-[7px] py-[3px] text-[10px] font-bold uppercase tracking-[1px] text-primary md:px-[8px] md:text-[10.5px] md:tracking-[1.05px]">
               Default
@@ -219,21 +265,54 @@ function AddressRow({
   );
 }
 
-/**
- * The one form Add and Edit share, built on the `Dialog` primitive. There is
- * no mobile frame for either action — the mobile card only draws the
- * collapsed row and its Edit button — so the same dialog serves both
- * breakpoints, the way ticket 04's password form does for its own fields.
- */
+function parseAddress(fullAddress: string = "") {
+  if (!fullAddress) {
+    return { buildingNo: "", street: "", barangay: "", city: "", zip: "" };
+  }
+  // Best effort parsing of: "Unit 123 Tower A Ayala Ave, Bel-Air, Makati 1209"
+  // Assuming format: "{buildingNo} {street}, {barangay}, {city} {zip}"
+  const parts = fullAddress.split(",").map((p) => p.trim());
+  let buildingNo = "";
+  let street = "";
+  let barangay = "";
+  let city = "";
+  let zip = "";
+
+  if (parts.length >= 3) {
+    // If it has at least 3 parts, assume: [building+street, barangay, city+zip]
+    const bldStreet = parts[0];
+    // Split building and street (heuristically take first word if it has numbers, or just put all in street)
+    // For simplicity, we just put the whole first part in street since splitting it reliably is hard.
+    street = bldStreet;
+    
+    barangay = parts[1];
+    
+    const cityZip = parts[parts.length - 1];
+    const match = cityZip.match(/^(.*?)\s+(\d+)$/);
+    if (match) {
+      city = match[1];
+      zip = match[2];
+    } else {
+      city = cityZip;
+    }
+  } else {
+    // Fallback: put everything in street
+    street = fullAddress;
+  }
+
+  return { buildingNo, street, barangay, city, zip };
+}
+
 function AddressFormDialog({
   open,
   address,
+  isSubmitting,
   onClose,
   onSave,
 }: {
   open: boolean;
-  /** Present in edit mode; absent when adding a new address. */
   address?: CustomerAddress;
+  isSubmitting: boolean;
   onClose: () => void;
   onSave: (values: DeliveryAddressValues) => void;
 }) {
@@ -241,9 +320,6 @@ function AddressFormDialog({
     Partial<Record<DeliveryAddressField, string>>
   >({});
 
-  // Closing the dialog drops its error state, so reopening it — for the same
-  // address or a different one — starts clean rather than showing a stale
-  // rejection from the last attempt.
   React.useEffect(() => {
     if (!open) setErrors({});
   }, [open]);
@@ -253,7 +329,11 @@ function AddressFormDialog({
     const form = new FormData(event.currentTarget);
     const result = deliveryAddressSchema.safeParse({
       label: String(form.get("label") ?? ""),
-      addressDetails: String(form.get("addressDetails") ?? ""),
+      buildingNo: String(form.get("buildingNo") ?? ""),
+      street: String(form.get("street") ?? ""),
+      barangay: String(form.get("barangay") ?? ""),
+      city: String(form.get("city") ?? ""),
+      zip: String(form.get("zip") ?? ""),
       deliveryNote: String(form.get("deliveryNote") ?? ""),
     });
 
@@ -266,6 +346,7 @@ function AddressFormDialog({
   }
 
   const formId = React.useId();
+  const parsed = parseAddress(address?.addressDetails);
 
   return (
     <Dialog
@@ -277,18 +358,18 @@ function AddressFormDialog({
           <Button variant="outline" className="flex-1 p-[14px]" onClick={onClose}>
             Cancel
           </Button>
-          <Button variant="confirm" className="flex-1" type="submit" form={formId}>
-            Save
+          <Button
+            variant="confirm"
+            className="flex-1"
+            type="submit"
+            form={formId}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "Saving…" : "Save"}
           </Button>
         </>
       }
     >
-      {/* Only rendered while open — matching the password card's mobile
-          dialog — so the fields don't sit mounted (and, briefly, holding the
-          previous address's values) while the dialog is closed. Keyed on the
-          address id (or "add") so the uncontrolled fields remount with fresh
-          defaults every time a different row's Edit is pressed, rather than
-          carrying the previous address's values into this one. */}
       {open ? (
         <form
           key={address?.id ?? "add"}
@@ -306,21 +387,68 @@ function AddressFormDialog({
               id="address-label"
               name="label"
               defaultValue={address?.label ?? ""}
+              maxLength={50}
             />
           </CardField>
 
-          <CardField
-            label="Address"
-            htmlFor="address-details"
-            error={errors.addressDetails}
-          >
+          <div className="flex flex-col gap-[12px] md:flex-row md:gap-[16px]">
+            <CardField className="flex-1" label="Building / House No. *" htmlFor="address-buildingNo" error={errors.buildingNo}>
+              <CardInput
+                id="address-buildingNo"
+                name="buildingNo"
+                defaultValue={parsed.buildingNo}
+                minLength={1}
+                maxLength={100}
+                invalid={Boolean(errors.buildingNo)}
+              />
+            </CardField>
+
+            <CardField className="flex-1" label="Street *" htmlFor="address-street" error={errors.street}>
+              <CardInput
+                id="address-street"
+                name="street"
+                defaultValue={parsed.street}
+                minLength={2}
+                maxLength={100}
+                invalid={Boolean(errors.street)}
+              />
+            </CardField>
+          </div>
+
+          <CardField label="Barangay *" htmlFor="address-barangay" error={errors.barangay}>
             <CardInput
-              id="address-details"
-              name="addressDetails"
-              defaultValue={address?.addressDetails ?? ""}
-              invalid={Boolean(errors.addressDetails)}
+              id="address-barangay"
+              name="barangay"
+              defaultValue={parsed.barangay}
+              minLength={2}
+              maxLength={100}
+              invalid={Boolean(errors.barangay)}
             />
           </CardField>
+
+          <div className="flex flex-col gap-[12px] md:flex-row md:gap-[16px]">
+            <CardField className="flex-1" label="City *" htmlFor="address-city" error={errors.city}>
+              <CardInput
+                id="address-city"
+                name="city"
+                defaultValue={parsed.city}
+                minLength={2}
+                maxLength={50}
+                invalid={Boolean(errors.city)}
+              />
+            </CardField>
+
+            <CardField className="flex-1" label="ZIP Code *" htmlFor="address-zip" error={errors.zip}>
+              <CardInput
+                id="address-zip"
+                name="zip"
+                defaultValue={parsed.zip}
+                minLength={4}
+                maxLength={4}
+                invalid={Boolean(errors.zip)}
+              />
+            </CardField>
+          </div>
 
           <CardField
             label="Delivery note"
@@ -331,6 +459,7 @@ function AddressFormDialog({
               id="address-note"
               name="deliveryNote"
               defaultValue={address?.deliveryNote ?? ""}
+              maxLength={255}
             />
           </CardField>
         </form>

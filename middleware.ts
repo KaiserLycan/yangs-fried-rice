@@ -47,10 +47,6 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
   const pathname = request.nextUrl.pathname;
   const isCustomerArea = ["/cart", "/checkout", "/orders", "/profile"].some(
     (path) => pathname.startsWith(path)
@@ -59,33 +55,50 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith(path)
   );
 
+  const isAuthPage = ["/login", "/signup", "/employee/login"].some(path => pathname === path);
+
+  // ========================================================================
+  // FAST PATH: Employee Areas (No Supabase network requests)
+  // ========================================================================
+  let payload: any = null;
+  const sessionCookie = request.cookies.get("yfr_employee_session")?.value;
+  if (sessionCookie) {
+    const { decrypt } = await import("@/lib/auth/session");
+    payload = await decrypt(sessionCookie);
+  }
+  const isValidEmployee = !!payload?.employee_id;
+
+  if (isEmployeeArea) {
+    if (!isValidEmployee) {
+      const redirectUrl = new URL("/employee/login", request.url);
+      redirectUrl.searchParams.set("next", pathname);
+      return NextResponse.redirect(redirectUrl);
+    }
+    // Still return the response so Supabase cookies are passed through if needed
+    return response;
+  }
+
+  // ========================================================================
+  // SLOW PATH: Customer Areas & Auth Pages (Validates against Supabase Auth)
+  // ========================================================================
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   if (isCustomerArea && !user) {
     const redirectUrl = new URL("/login", request.url);
     redirectUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(redirectUrl);
   }
 
-  if (isEmployeeArea) {
-    const redirectToEmployeeLogin = () => {
-      const redirectUrl = new URL("/employee/login", request.url);
-      redirectUrl.searchParams.set("next", pathname);
-      return NextResponse.redirect(redirectUrl);
-    };
-
-    if (!user) {
-      return redirectToEmployeeLogin();
+  if (isAuthPage) {
+    if (isValidEmployee) {
+      const role = String(payload.role).toUpperCase();
+      const redirectPath = role === "RIDER" ? "/deliver" : "/manage/dashboard";
+      return NextResponse.redirect(new URL(redirectPath, request.url));
     }
-
-    const { data: employee } = await supabase
-      .from("employee")
-      .select("employee_id")
-      .eq("employee_id", user.id)
-      .single();
-
-    // Authenticated but not an employee (e.g. a customer session trying
-    // /manage directly) — same destination as signed-out.
-    if (!employee) {
-      return redirectToEmployeeLogin();
+    if (user) {
+      return NextResponse.redirect(new URL("/", request.url));
     }
   }
 
@@ -94,16 +107,13 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Customer areas. These live in the (account) route group, and route
-    // groups contribute nothing to the URL, so each path is listed by hand.
-    // The primary gate is app/(account)/layout.tsx — this is defence in depth.
-    "/cart/:path*",
-    "/checkout/:path*",
-    "/orders/:path*",
-    "/profile/:path*",
-    // Employee areas. /employee/login is deliberately excluded — see the
-    // comment above the middleware function for why.
-    "/manage/:path*",
-    "/deliver/:path*",
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - images, favicon.ico, _next (public assets)
+     */
+    "/((?!api|_next/static|_next/image|images|favicon.ico).*)",
   ],
 };

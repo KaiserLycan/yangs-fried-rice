@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   productSchema,
   productUpdateSchema,
@@ -34,6 +35,30 @@ function revalidateMenuPaths() {
 }
 
 // CATEGORIES
+
+// Fetch categories and products together in a single request for the Menu page
+export async function getMenuData(): Promise<
+  ActionResult<{ categories: Category[]; products: ProductWithCategory[] }>
+> {
+  const supabase = createClient();
+  
+  // Parallel fetches on the server, but only one HTTP request from the client
+  const [catsRes, prodsRes] = await Promise.all([
+    supabase.from("categories").select("*").order("category_name"),
+    supabase.from("product").select("*, categories ( category_name )").order("product_name")
+  ]);
+
+  if (catsRes.error) return { data: null, error: catsRes.error.message };
+  if (prodsRes.error) return { data: null, error: prodsRes.error.message };
+
+  return {
+    data: { 
+      categories: catsRes.data, 
+      products: prodsRes.data as ProductWithCategory[] 
+    },
+    error: null,
+  };
+}
 
 // Fetch every category, alphabetically.
 export async function getCategories(): Promise<ActionResult<Category[]>> {
@@ -186,7 +211,7 @@ export async function createProduct(
     return { data: null, error: parsed.error.errors[0].message };
   }
 
-  const supabase = createClient();
+  const supabase = createAdminClient();
 
   const row: TablesInsert<"product"> = {
     product_name: parsed.data.product_name,
@@ -194,8 +219,9 @@ export async function createProduct(
     product_details: parsed.data.product_details ?? null,
     category_id: parsed.data.category_id ?? null,
     is_available: parsed.data.is_available,
+    image_url: parsed.data.image_url ?? null,
     ...(parsed.data.product_id ? { product_id: parsed.data.product_id } : {}),
-  };
+  } as any;
 
   const { data, error } = await supabase
     .from("product")

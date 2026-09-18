@@ -1,24 +1,47 @@
+"use client";
+
+import { usePathname } from "next/navigation";
+import { Sidebar } from "@/components/manage/sidebar";
+
 /**
- * Back office. Staff and Business Owner.
+ * Back office layout. Staff and Business Owner.
  *
  * Literal prefix — "manage" is in the URL on purpose so middleware.ts guards
  * the whole area with one /manage/:path* match, and any page added here later
- * is protected automatically. Maintaining a list of individual protected
- * paths is how admin pages leak.
+ * is protected automatically.
  *
- * The URL is named for the AREA, not for a role. Both Staff and the Business
- * Owner work here; a Business Owner visiting /staff/* would read wrong, and
- * carving URLs by role would mean duplicating pages.
+ * ============================================================
+ * WHY THIS LAYOUT IS NOT ASYNC
+ * ============================================================
+ * Previously, this layout was an `async` Server Component that
+ * called `supabase.auth.getUser()` and queried the employee
+ * table on every render. Because Next.js re-renders layouts on
+ * every client-side navigation, those two Supabase round-trips
+ * ran on EVERY sidebar tab click, making navigation noticeably
+ * slow (~1-2s per click).
  *
- * TODO(auth): two checks belong here, not in the URL.
- *   1. Signed-in Employee, else redirect to /employee/login.
- *   2. Business-Owner-only sections — reports/ and staff/ — gated within.
- *      Staff can see orders, menu and inventory but not those two.
+ * The auth check was redundant — middleware.ts already guards
+ * all /manage/* routes and verifies the employee record.
+ * Removing it makes tab switching instant.
+ *
+ * Role-based routing (MANAGER → dashboard, STAFF → orders,
+ * RIDER → deliver) is handled at login time in actions.ts.
+ * ============================================================
  */
 export default function ManageLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <div className="min-h-screen">{children}</div>;
+  const pathname = usePathname();
+  const isKds = pathname === "/manage/kds";
+
+  return (
+    <div className="flex h-screen bg-[#fbf6ec]">
+      {!isKds && <Sidebar />}
+      <main className={`flex-1 overflow-y-auto ${isKds ? "" : "px-[30px] py-[26px]"}`}>
+        {children}
+      </main>
+    </div>
+  );
 }

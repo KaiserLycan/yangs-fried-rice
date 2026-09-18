@@ -22,26 +22,21 @@ import { cn } from "@/lib/utils";
  * band across a cream panel — so it is not reproduced. Flagged for the
  * designer.
  */
-export function Dialog({
+export function DialogRoot({
   open,
   onClose,
-  title,
-  description,
-  tone = "default",
   children,
-  footer,
+  className,
+  placement = "modal",
 }: {
   open: boolean;
   onClose: () => void;
-  title: string;
-  description?: React.ReactNode;
-  tone?: "default" | "danger";
-  /** Optional body between the description and the footer. */
-  children?: React.ReactNode;
-  footer: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+  placement?: "sheet" | "modal";
 }) {
+  const sheet = placement === "sheet";
   const ref = React.useRef<HTMLDialogElement>(null);
-  const titleId = React.useId();
 
   React.useEffect(() => {
     const dialog = ref.current;
@@ -54,43 +49,71 @@ export function Dialog({
   return (
     <dialog
       ref={ref}
-      aria-labelledby={titleId}
-      // Escape closes the dialog natively, but React still owns `open`, so
-      // the default is prevented and the same handler runs as every other
-      // dismissal. Without this the element closes while state says it is
-      // open, and it cannot be reopened.
       onCancel={(event) => {
         event.preventDefault();
         onClose();
       }}
-      // A click that lands on the dialog element itself rather than on the
-      // panel inside it is a backdrop click. This works only because the
-      // element carries no padding of its own.
       onClick={(event) => {
         if (event.target === ref.current) onClose();
       }}
-      // overflow-visible undoes the `overflow: auto` the browser's own
-      // stylesheet puts on every <dialog>. That default makes the element a
-      // scroll container, and a scroll container clips whatever is painted
-      // outside it — which is the whole of the panel's glow and drop shadow.
-      // Without this the modal renders as a flat rectangle on a dimmed page.
       className={cn(
-        "m-auto w-[calc(100%-2rem)] max-w-[440px] overflow-visible bg-transparent p-0",
+        "max-w-[440px] overflow-visible bg-transparent p-0",
+        // A sheet is pushed to the bottom edge by the auto margin above it,
+        // and inset 18px from the three edges it touches. From `md` up it is
+        // the centred modal again, so the desktop frame is unaffected.
+        sheet
+          ? "mx-auto mb-[18px] mt-auto w-[calc(100%-36px)] md:my-auto md:w-[calc(100%-2rem)]"
+          : "m-auto w-[calc(100%-2rem)]",
         "backdrop:bg-foreground/40",
+        className
       )}
     >
+      {children}
+    </dialog>
+  );
+}
+
+export function Dialog({
+  open,
+  onClose,
+  title,
+  description,
+  tone = "default",
+  children,
+  footer,
+  placement = "modal",
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  description?: React.ReactNode;
+  tone?: "default" | "danger";
+  /** Optional body between the description and the footer. */
+  children?: React.ReactNode;
+  footer: React.ReactNode;
+  placement?: "sheet" | "modal";
+}) {
+  const titleId = React.useId();
+  const sheet = placement === "sheet";
+
+  return (
+    <DialogRoot open={open} onClose={onClose} placement={placement}>
       <div
         className={cn(
-          "flex flex-col gap-[12px] rounded-[20px] bg-background p-[26px]",
+          "flex flex-col gap-[12px] bg-background",
+          sheet
+            ? "rounded-[22px] p-[22px] md:rounded-[20px] md:p-[26px]"
+            : "rounded-[20px] p-[26px]",
           tone === "danger"
-            ? "border border-primary shadow-[0_0_10px_hsl(var(--primary))]"
+            ? "border border-primary shadow-[0_30px_35px_rgba(26,18,16,0.26)]"
             : "shadow-[0_30px_35px_rgba(26,18,16,0.26)]",
         )}
       >
         <h2
           id={titleId}
           className={cn(
-            "font-display text-[26px] leading-normal",
+            "font-display leading-normal",
+            sheet ? "text-[22px] md:text-[26px]" : "text-[26px]",
             tone === "danger" ? "text-primary" : "text-foreground",
           )}
         >
@@ -105,8 +128,17 @@ export function Dialog({
 
         {children}
 
-        <div className="flex justify-center gap-[10px] pt-[6px]">{footer}</div>
+        {/* The sheet stacks its buttons because a 390px screen has no room
+            for two side by side; the desktop modal keeps them in a row. */}
+        <div
+          className={cn(
+            "flex justify-center gap-[10px] pt-[6px]",
+            sheet && "flex-col md:flex-row",
+          )}
+        >
+          {footer}
+        </div>
       </div>
-    </dialog>
+    </DialogRoot>
   );
 }

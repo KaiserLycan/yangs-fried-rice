@@ -77,15 +77,71 @@
     --muted-strong: 19 19% 35%; /* #6A5348  body copy inside dialogs */
     --card: 40 100% 98%; /* #FFFCF6  raised surface on cream */
 
+    /* --- Added by the order tracking screen -----------------------------
+       Nine more colours Collection 1 does not define. Same request to the
+       designer as the groups above: name them in Figma and bind them.
+
+       The `on-ink` three sit on the mobile header, which is a solid ink
+       panel (#1A1210) rather than the brand red — so they are their own
+       group rather than reuses of `on-brand`, even where a hex matches.
+       --on-ink-faint is the same value as --placeholder, named separately
+       for the same reason --on-console-muted is: one is an eyebrow label on
+       a dark panel, the other is an empty input, and moving one should not
+       silently move the other. */
+    --on-ink: 38 54% 93%; /* #F7F0E4  stage headline on the ink header */
+    --on-ink-muted: 25 21% 73%; /* #C9B8AC  arrival line on the ink header */
+    --on-ink-faint: 22 11% 59%; /* #A2938A  order number eyebrow on ink */
+
+    --timeline-pending: 35 33% 77%; /* #D8C8B2  unreached stage marker */
+    --timeline-meta: 23 11% 55%; /* #9A8A80  the Done / Now / — line */
+
+    /* The map is an empty rectangle in the design too — these draw the
+       placeholder, not a real map. See `components/orders/live-map-panel`. */
+    --map-surface: 47 25% 86%; /* #E4E0D2  map placeholder fill */
+    --map-grid: 45 24% 80%; /* #D8D2C0  its faint grid rule */
+    --map-label: 29 18% 46%; /* #8A7460  the LIVE MAP label */
+    --map-border: 39 28% 78%; /* #D6CBB6  its edge on mobile */
+
     --radius: 0.75rem; /* radius/12 */
+
+    /* The mobile bottom tab bar (`components/nav/bottom-tab-bar.tsx`) is
+       fixed to the viewport, so it takes up no layout height of its own.
+       Three separate things need this number — the bar's own height, the foot
+       padding each screen that renders it must reserve, and the offset that
+       keeps a toast from landing on top of it — and they have to agree. A
+       token is how they agree: Tailwind cannot read a TypeScript constant in
+       an arbitrary value, but it consumes `var()` without trouble. */
+    --tab-bar-height: 79px;
   }
 }
 
 @layer base {
   * {
     @apply border-border;
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--field-border)) transparent;
   }
   body {
     @apply bg-background text-foreground;
+  }
+
+  /* Custom WebKit Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--field-border));
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground));
+    border: 2px solid transparent;
+    background-clip: content-box;
   }
 }
