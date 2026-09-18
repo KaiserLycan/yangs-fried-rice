@@ -1,9 +1,54 @@
-import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { OrderPlacedScreen } from "@/components/checkout/order-placed-screen";
 import { ToastProvider } from "@/components/ui/toast";
+import { startWalletPayment } from "@/lib/checkout/paymongo";
 import type { PlacedOrder } from "@/lib/checkout/placed-order";
+import type { WalletProvider } from "@/lib/checkout/payment-methods";
 import type { CustomerProfile } from "@/lib/profile/customer-profile";
+
+// The payment card watches `transaction` for a wallet payment settling.
+// `select` is what the re-read resolves; `handler` is the Realtime callback.
+const select = vi.fn();
+let onChange: (() => void) | null = null;
+
+vi.mock("@/lib/supabase/client", () => ({
+  createClient: () => ({
+    from: () => ({
+      select: () => ({ eq: select }),
+    }),
+    channel: () => {
+      const channel = {
+        on: (_event: string, _filter: unknown, handler: () => void) => {
+          onChange = handler;
+          return channel;
+        },
+        subscribe: () => channel,
+      };
+      return channel;
+    },
+    removeChannel: vi.fn(),
+  }),
+}));
+
+vi.mock("@/lib/checkout/paymongo", () => ({
+  startWalletPayment: vi.fn(),
+}));
+
+beforeEach(() => {
+  select.mockResolvedValue({ data: [] });
+});
+
+afterEach(() => {
+  onChange = null;
+  vi.clearAllMocks();
+});
 
 /**
  * The confirmation screen sits behind `middleware.ts`'s auth gate and cannot
@@ -31,6 +76,7 @@ const order = (overrides: Partial<PlacedOrder> = {}): PlacedOrder => ({
   address: "21 Mabini St, Malate, Manila",
   fulfilment: "delivery",
   paymentMethodLabel: "Cash on delivery",
+  paymentStatus: null,
   lines: [
     {
       id: "1",
@@ -50,13 +96,25 @@ const order = (overrides: Partial<PlacedOrder> = {}): PlacedOrder => ({
   ...overrides,
 });
 
-function renderScreen(placed: PlacedOrder = order()) {
+function renderScreen(
+  placed: PlacedOrder = order(),
+  wallet: WalletProvider | null = null,
+  startFailed = false,
+) {
   return render(
     <ToastProvider>
-      <OrderPlacedScreen profile={profile} order={placed} />
+      <OrderPlacedScreen
+        profile={profile}
+        order={placed}
+        wallet={wallet}
+        startFailed={startFailed}
+      />
     </ToastProvider>,
   );
 }
+
+const walletOrder = (status: PlacedOrder["paymentStatus"]) =>
+  order({ paymentMethodLabel: "GCash / Maya wallet", paymentStatus: status });
 
 describe("OrderPlacedScreen", () => {
   it("says the order was placed and shows its number", () => {
@@ -121,5 +179,122 @@ describe("OrderPlacedScreen", () => {
   it("offers no cancel control — cancelling lives on the tracking screen", () => {
     renderScreen();
     expect(screen.queryByText(/cancel/i)).toBeNull();
+  });
+});
+
+describe("OrderPlacedScreen online payment", () => {
+  it("offers nothing to pay for a cash order", () => {
+    renderScreen();
+    expect(screen.queryByRole("button", { name: /pay now/i })).toBeNull();
+  });
+
+  it("says the payment was received once the webhook has settled it", () => {
+    renderScreen(walletOrder("paid"), "gcash");
+    const payment = screen.getByTestId("payment-method");
+    expect(payment).toHaveTextContent("GCash / Maya wallet");
+    expect(payment).toHaveTextContent(/payment received/i);
+    expect(screen.queryByRole("button", { name: /pay now/i })).toBeNull();
+  });
+
+  it("offers to finish a pending payment with the wallet the customer chose", () => {
+    renderScreen(walletOrder("pending"), "paymaya");
+    expect(screen.getByTestId("payment-method")).toHaveTextContent(/waiting/i);
+    expect(
+      screen.getByRole("button", { name: "Pay now with Maya" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /GCash/ })).toBeNull();
+  });
+
+  it("offers both wallets when the receipt is reopened without one named", () => {
+    renderScreen(walletOrder("failed"));
+    expect(
+      screen.getByRole("button", { name: "Try again with GCash" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Try again with Maya" }),
+    ).toBeInTheDocument();
+  });
+
+  it("offers to start a payment that never began", () => {
+    renderScreen(order({ paymentMethodLabel: "Not recorded" }), "gcash");
+    const payment = screen.getByTestId("payment-method");
+    expect(payment).toHaveTextContent("GCash / Maya wallet");
+    expect(payment).toHaveTextContent(/hasn’t started/i);
+    expect(
+      screen.getByRole("button", { name: "Pay now with GCash" }),
+    ).toBeInTheDocument();
+  });
+
+  it("explains when checkout could not open the wallet, and still offers Pay now", () => {
+    renderScreen(order({ paymentMethodLabel: "Not recorded" }), "gcash", true);
+    expect(screen.getByTestId("payment-method")).toHaveTextContent(
+      /couldn’t open your wallet/i,
+    );
+    expect(
+      screen.getByRole("button", { name: "Pay now with GCash" }),
+    ).toBeInTheDocument();
+  });
+
+  it("sends the customer to the wallet's page from Pay now", async () => {
+    const assign = vi.fn();
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { origin: "https://yangs.test", assign },
+    });
+    vi.mocked(startWalletPayment).mockResolvedValue({
+      kind: "redirect",
+      url: "https://gcash.test/pay",
+    });
+    renderScreen(walletOrder("pending"), "gcash");
+
+    fireEvent.click(screen.getByRole("button", { name: "Pay now with GCash" }));
+
+    await waitFor(() =>
+      expect(startWalletPayment).toHaveBeenCalledWith({
+        orderId: "example-1042",
+        wallet: "gcash",
+        returnUrl:
+          "https://yangs.test/checkout/confirmation?order=example-1042&pay=gcash",
+      }),
+    );
+    await waitFor(() =>
+      expect(assign).toHaveBeenCalledWith("https://gcash.test/pay"),
+    );
+  });
+
+  it("shows the reason when the payment cannot be restarted", async () => {
+    vi.mocked(startWalletPayment).mockRejectedValue(
+      new Error("This order has already been paid."),
+    );
+    renderScreen(walletOrder("failed"), "gcash");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Try again with GCash" }),
+    );
+
+    expect(
+      await screen.findByText("This order has already been paid."),
+    ).toBeInTheDocument();
+  });
+
+  it("moves to paid when the transaction row changes underneath it", async () => {
+    renderScreen(walletOrder("pending"), "gcash");
+    expect(screen.getByTestId("payment-method")).toHaveAttribute(
+      "data-status",
+      "pending",
+    );
+
+    select.mockResolvedValue({ data: [{ payment_status: "paid" }] });
+    await act(async () => {
+      onChange?.();
+    });
+
+    await waitFor(() =>
+      expect(screen.getByTestId("payment-method")).toHaveAttribute(
+        "data-status",
+        "paid",
+      ),
+    );
+    expect(screen.queryByRole("button", { name: /pay now/i })).toBeNull();
   });
 });

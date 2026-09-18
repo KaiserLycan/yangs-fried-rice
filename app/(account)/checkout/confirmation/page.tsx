@@ -1,24 +1,20 @@
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { OrderPlacedScreen } from "@/components/checkout/order-placed-screen";
 import { ToastProvider } from "@/components/ui/toast";
-import { mockPlacedOrder } from "@/lib/checkout/mock-placed-order";
+import { walletFromParam } from "@/lib/checkout/payment-methods";
 import { readPlacedOrder } from "@/lib/checkout/read-placed-order";
 import { readCustomerProfile } from "@/lib/profile/customer-profile";
 
 /**
- * Order placed (Browsing12, Browsing16) — the receipt a customer lands on
- * once their order exists.
+ * Order placed (Browsing12, Browsing16, PP1) — the receipt a customer lands
+ * on once their order exists.
  *
- * Nothing routes here yet, on purpose. Placing an order is still a stubbed
- * write, so checkout's button raises a toast and stays put; sending someone
- * to a receipt for an order that was never created, with their cart still
- * full behind it, would be a worse lie than the toast. The screen is reached
- * by typing `?example=delivery` or `?example=pickup` until the write lands —
- * see `lib/checkout/mock-placed-order.ts`.
- *
- * `?order=<id>` is the real path and takes priority: once the backend creates
- * an order and redirects here with its id, that order renders and the
- * `?example=` switch has no effect on it.
+ * `?order=<id>` names the order; checkout sends the customer here after
+ * `submitCart`, and a wallet payment's `return_url` brings them back here
+ * too. `?pay=gcash|paymaya` rides along on the wallet paths so the receipt
+ * knows which wallet to offer if the payment still needs finishing, and
+ * `?pay_error=1` when checkout could not open the wallet at all. An id that
+ * is not one of this customer's orders is a 404.
  *
  * Middleware already turns signed-out visitors away from /checkout, so
  * reaching the redirect below is not expected. Guarded anyway, the same
@@ -27,7 +23,7 @@ import { readCustomerProfile } from "@/lib/profile/customer-profile";
 export default async function CheckoutConfirmationPage({
   searchParams,
 }: {
-  searchParams: { order?: string; example?: string | string[] };
+  searchParams: { order?: string; pay?: string; pay_error?: string };
 }) {
   const profile = await readCustomerProfile();
 
@@ -37,11 +33,15 @@ export default async function CheckoutConfirmationPage({
     ? await readPlacedOrder(searchParams.order)
     : null;
 
+  if (!order) notFound();
+
   return (
     <ToastProvider>
       <OrderPlacedScreen
         profile={profile}
-        order={order ?? mockPlacedOrder(searchParams.example)}
+        order={order}
+        wallet={walletFromParam(searchParams.pay)}
+        startFailed={searchParams.pay_error === "1"}
       />
     </ToastProvider>
   );

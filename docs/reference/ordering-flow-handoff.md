@@ -447,3 +447,67 @@ builds against it.
 
 **On success, from the customer's point of view:** the stars fill and stop
 being pressable, and the card's action becomes Reorder. No toast, no redirect.
+
+## 10. Online payment (GitHub #9) — PP1, wired 2026-09-18
+
+> **Status — wired for GCash / Maya.** The frontend now calls
+> `create-payment-intent` (PR #79) after `submitCart`, attaches a `gcash` or
+> `paymaya` payment method in the browser with the public key, and sends the
+> customer to the wallet's page. The receipt at `/checkout/confirmation`
+> reads `transaction.payment_status` (the existing
+> `customer_select_own_transactions` policy allows it) and watches it
+> settle. Nothing below blocks that; these are the gaps the frontend can
+> see but cannot close.
+
+**Where:** `lib/checkout/paymongo.ts` (the three calls),
+`components/checkout/order-summary-card.tsx` (Place order),
+`components/checkout/payment-status-card.tsx` (the receipt).
+
+**What the frontend needs from you:**
+
+1. **The PayMongo public key.** `NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY` in
+   `.env.local` and in Vercel. Without it "Place order" on a wallet order
+   still creates the order, then toasts "Online payment isn't set up on this
+   site yet" and lands on the receipt with a Pay now button.
+2. **Realtime on `transaction`.** The receipt subscribes to
+   `postgres_changes` on `transaction` filtered by `order_id`. If the table
+   is not in the `supabase_realtime` publication the screen still works —
+   it re-reads every 4 s while pending and on tab focus — but the paid
+   state arrives later than it could.
+
+**Gaps in what shipped, for whoever owns them:**
+
+- **Card is not offered.** Payment Intents need card number, expiry and CVC
+  collected in our page, and no frame draws that form. "Credit / debit
+  card" is still selectable and toasts that it is not available yet. If a
+  hosted page is preferred over a card form, PayMongo Checkout Sessions
+  would need a new edge function.
+- **Cash on delivery / Pay in store are still not recorded.** `submitCart`
+  takes no `payment_method` and writes no `transaction` row, so those
+  receipts read "Not recorded". Same ask as §2 "Place order" step 3.
+- **`transaction.payment_method` says `paymongo`, not which wallet.** The
+  receipt shows "GCash / Maya wallet" for it. Storing `gcash` / `paymaya`
+  would let it say which.
+- **A paid order's `order_status` does not change.** The webhook flips
+  `transaction.payment_status` only. Whether payment should move the order
+  into the kitchen queue automatically is a backend decision; today it sits
+  wherever `submitCart` left it.
+- **A retry after `failed` inserts a second `transaction` row** rather than
+  reusing the failed one (`create-payment-intent` only reuses `pending`).
+  The frontend folds all rows for the order, so this is cosmetic — but
+  anything that reports on `transaction` should expect more than one row per
+  order.
+- **Two open intents can orphan a payment.** `create-payment-intent`
+  overwrites the pending row's `provider_reference_id` with the newest
+  intent, and the webhook matches on that id first. A customer who leaves
+  the GCash tab open, presses "Pay now" on the receipt (a second intent),
+  then pays on the *first* tab has paid against an id no row carries any
+  more — money taken, row still `pending`. Two fixes on your side: fall back
+  to `metadata.order_id` when the intent id matches nothing, and/or refuse a
+  new intent while one is still open at PayMongo. The frontend cannot tell
+  an abandoned wallet page from one still open, so it has to offer "Pay now"
+  on a pending row.
+- **`?pay=` on the receipt is taken on trust.** Because cash orders record
+  nothing (previous bullet), a cash order opened with `?pay=gcash` typed
+  into the URL is offered "Pay now", and `create-payment-intent` will accept
+  it. Recording the method at `submitCart` is what lets both sides refuse.
