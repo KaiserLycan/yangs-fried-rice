@@ -18,20 +18,41 @@ import { EmployeeContactDetailsCard } from "@/components/manage/profile/employee
 import { EmployeeAvatarCard } from "@/components/manage/profile/employee-avatar-card";
 import { PasswordCard } from "@/components/profile/password-card";
 import { ToastProvider } from "@/components/ui/toast";
+import { getMyEmployeeProfile } from "@/lib/actions/employee-profile";
+import { isManager } from "@/lib/auth/roles";
 
-export default function ProfilePage() {
-  // Mock data representing the current logged-in user
+export default async function ProfilePage() {
+  const result = await getMyEmployeeProfile();
+
+  if (!result.success) {
+    return (
+      <ToastProvider>
+        <div className="flex h-full w-full items-center justify-center p-6">
+          <div className="rounded-[16px] border border-[#DDCDB8] bg-[#FAF5EB] p-6 text-center text-[#1a1210]">
+            <p className="font-display text-[24px] uppercase">Profile unavailable</p>
+            <p className="mt-2 text-sm text-[#7A6A60]">{result.error}</p>
+          </div>
+        </div>
+      </ToastProvider>
+    );
+  }
+
   const profile = {
-    name: "Liza Reyes",
-    dateOfBirth: "1996-06-14", // ISO string required by native date input
-    role: "Server",
-    shift: "MWF – 12-3PM",
-    mobile: "0917 402 8851",
-    email: "liza.reyes@gmial.com",
+    name: result.data.name,
+    dateOfBirth: result.data.dateOfBirth ?? null,
+    role: result.data.role,
+    shift: result.data.scheduleShift ?? "Not set",
+    mobile: result.data.phoneNumber ?? "",
+    email: result.data.email,
   };
 
-  // Mock manager status to demonstrate conditional editing
-  const isManager = true; // Set to true to test the manager role
+  const canManageEmployeeProfile = isManager(result.data.role);
+  const initials = profile.name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("") || "E";
 
   return (
     <ToastProvider>
@@ -50,13 +71,13 @@ export default function ProfilePage() {
 
           {/* Top Row: Avatar & Personal Details */}
           <div className="flex flex-col md:flex-row items-center md:items-start gap-[16px] md:gap-[18px]">
-            <EmployeeAvatarCard initials="LR" />
+            <EmployeeAvatarCard initials={initials} avatarUrl={result.data.profileImageUrl} />
             <div className="min-w-0 w-full flex-1">
               <EmployeePersonalDetailsCard profile={profile} />
             </div>
           </div>
 
-          <EmployeeRoleDetailsCard profile={profile} isManager={isManager} />
+          <EmployeeRoleDetailsCard profile={profile} isManager={canManageEmployeeProfile} />
 
           <EmployeeContactDetailsCard profile={profile} />
 
