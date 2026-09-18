@@ -3,6 +3,11 @@
 import * as React from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { getOrderEtaAction } from "@/lib/actions/eta";
+import {
+  arrivalLineFor,
+  arrivalWindowFrom,
+} from "@/lib/orders/arrival-window";
 import {
   headlineFor,
   resolveOrderProgress,
@@ -75,6 +80,48 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
 
   const { orderId } = order;
 
+  /**
+   * The arrival window moves too, but not over the subscription: the ETA is
+   * computed by `getOrderEtaAction`, not stored anywhere the screen could
+   * watch. So every status event re-asks the action, and the answer replaces
+   * the window the page rendered with. Same reset rule as `live` above — a
+   * newer server window drops the client's.
+   *
+   * `etaRequest` numbers each ask so a slow reply cannot land on top of a
+   * faster, newer one. A failed ask keeps whatever was showing; there is no
+   * toast, because nothing the customer did caused it and nothing they can
+   * press would fix it.
+   */
+  const [liveArrival, setLiveArrival] = React.useState<string | null>();
+  const [seenArrival, setSeenArrival] = React.useState(order.arrivalWindow);
+  const [etaPending, setEtaPending] = React.useState(false);
+  const etaRequest = React.useRef(0);
+
+  if (seenArrival !== order.arrivalWindow) {
+    setSeenArrival(order.arrivalWindow);
+    setLiveArrival(undefined);
+  }
+
+  const arrivalWindow =
+    liveArrival === undefined ? order.arrivalWindow : liveArrival;
+
+  const refreshEta = React.useCallback(() => {
+    const request = ++etaRequest.current;
+    setEtaPending(true);
+    void (async () => {
+      try {
+        const result = await getOrderEtaAction(orderId);
+        if (request === etaRequest.current) {
+          setLiveArrival(arrivalWindowFrom(result));
+        }
+      } catch {
+        // Dropped connection or stale deployment: keep the last window.
+      } finally {
+        if (request === etaRequest.current) setEtaPending(false);
+      }
+    })();
+  }, [orderId]);
+
   React.useEffect(() => {
     const supabase = createClient();
 
@@ -102,6 +149,7 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
             orderStatus: (payload.new.order_status as string | null) ?? null,
             cancelledAt: (payload.new.cancelled_at as string | null) ?? null,
           }));
+          refreshEta();
         },
       )
       .on(
@@ -118,6 +166,7 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
             deliveryStatus:
               (payload.new?.delivery_status as string | null) ?? null,
           }));
+          refreshEta();
         },
       )
       .subscribe();
@@ -125,14 +174,17 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [orderId]);
+  }, [orderId, refreshEta]);
 
   const progress = resolveOrderProgress(status);
   const stages = timelineStages(progress);
 
-  const arrival = order.arrivalWindow
-    ? `Arriving ${order.arrivalWindow}`
-    : "Arrival time to be confirmed";
+  // While a fresh estimate is on its way the old one stays up rather than
+  // flashing the fallback; only a screen with nothing yet says it is working.
+  const arrival =
+    etaPending && arrivalWindow === null
+      ? "Updating arrival time…"
+      : arrivalLineFor(arrivalWindow);
   const destination = order.destination
     ? `${order.orderType ?? "Delivery"} to ${order.destination}`
     : null;
@@ -156,7 +208,10 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
           <h1 className="font-display text-[30px] text-on-ink md:text-[38px] md:leading-[1.05] md:text-foreground">
             {headlineFor(progress)}
           </h1>
-          <p className="pt-[2px] text-[13px] text-on-ink-muted md:pt-[3px] md:text-[14px] md:text-muted-strong">
+          <p
+            className="pt-[2px] text-[13px] text-on-ink-muted md:pt-[3px] md:text-[14px] md:text-muted-strong"
+            aria-busy={etaPending}
+          >
             {subline}
           </p>
         </header>
