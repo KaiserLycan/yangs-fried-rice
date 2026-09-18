@@ -44,7 +44,25 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition, useEffect } from "react";
 import { logout } from "@/app/(auth)/actions";
-import { MOCK_USER } from "./dashboard/mock-data";
+
+function initialsFromName(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "E";
+
+  const letters = parts
+    .slice(0, 2)
+    .map((part) => Array.from(part)[0] ?? "")
+    .join("")
+    .toUpperCase();
+
+  return letters || "E";
+}
+
+const DEFAULT_SIDEBAR_USER = {
+  name: "Employee",
+  initials: "E",
+  profileImageUrl: null as string | null,
+};
 
 // ---------------------------------------------------------------------------
 // Navigation items
@@ -298,29 +316,69 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [user, setUser] = useState(DEFAULT_SIDEBAR_USER);
 
   // Persist collapsed state in localStorage
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem(COLLAPSED_KEY);
+    if (
+      typeof window === "undefined" ||
+      !window.localStorage ||
+      typeof window.localStorage.getItem !== "function"
+    ) {
+      return;
+    }
+
+    const stored = window.localStorage.getItem(COLLAPSED_KEY);
     if (stored === "true") setIsCollapsed(true);
   }, []);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadSidebarEmployee() {
+      try {
+        const res = await fetch("/api/employee/profile", { cache: "no-store" });
+        if (!res.ok) return;
+
+        const json = await res.json();
+        const employee = json?.data;
+        if (!employee || !isActive) return;
+
+        const rawName = typeof employee.name === "string" ? employee.name : "Employee";
+        const safeName = rawName.trim() || "Employee";
+
+        setUser({
+          name: safeName,
+          initials: initialsFromName(safeName),
+          profileImageUrl: employee.profileImageUrl ?? null,
+        });
+      } catch {
+        // Keep the default employee identity if the session/profile call fails.
+      }
+    }
+
+    void loadSidebarEmployee();
+
+    return () => {
+      isActive = false;
+    };
+  }, [pathname]);
 
   function toggleCollapse() {
     setIsCollapsed((prev) => {
       const next = !prev;
-      localStorage.setItem(COLLAPSED_KEY, String(next));
+      if (
+        typeof window !== "undefined" &&
+        window.localStorage &&
+        typeof window.localStorage.setItem === "function"
+      ) {
+        window.localStorage.setItem(COLLAPSED_KEY, String(next));
+      }
       return next;
     });
   }
-
-  /**
-   * TODO: BACKEND INTEGRATION — Replace MOCK_USER with the real
-   * authenticated employee data. Pass user info as a prop from
-   * the manage layout (which has access to the server session).
-   */
-  const user = MOCK_USER;
 
   function handleLogout() {
     startTransition(async () => {
@@ -404,17 +462,25 @@ export function Sidebar() {
           className={`flex items-center gap-2.5 transition-opacity hover:opacity-80 ${isCollapsed ? "flex-col gap-3" : ""
             }`}
         >
-          {/* Avatar circle with initials */}
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f0b27a]">
-            <span className="text-[13px] font-bold text-[#3a2e2c]">
-              {user.initials}
-            </span>
+          {/* Avatar circle with initials or the employee's saved image */}
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#f0b27a] ring-1 ring-[#fbf6ec]/40">
+            {user.profileImageUrl ? (
+              <img
+                src={user.profileImageUrl}
+                alt=""
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <span className="text-[13px] font-bold text-[#3a2e2c]">
+                {user.initials}
+              </span>
+            )}
           </div>
 
           {/* Display name — hidden when collapsed */}
           {!isCollapsed && (
             <span className="text-[13px] font-bold text-[#fbf6ec]">
-              {user.displayName}
+              {user.name}
             </span>
           )}
         </Link>
