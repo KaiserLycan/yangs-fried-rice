@@ -15,22 +15,20 @@ export async function submitProductReview(
     return { error: "You must be logged in to submit a review." };
   }
 
-  // Check if a review already exists for this order and product
+  // Check if a review already exists for this order
   const { data: existing } = await supabase
     .from("review")
     .select("review_id")
     .eq("order_id", orderId)
-    .eq("product_id", productId)
     .maybeSingle();
 
   if (existing) {
-    return { error: "You have already reviewed this product for this order." };
+    return { error: "You have already reviewed this order." };
   }
 
   const { error } = await supabase.from("review").insert({
     customer_id: user.id,
     order_id: orderId,
-    product_id: productId,
     rating,
     comment: comment || null,
   });

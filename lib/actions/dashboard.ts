@@ -222,21 +222,41 @@ export async function getTopRatedProducts(branchId?: string): Promise<RankedProd
   
   const { data: reviews } = await supabase
     .from("review")
-    .select("product_id, rating, product(product_name)")
-    .not("product_id", "is", null);
+    .select("order_id, rating")
+    .not("order_id", "is", null);
     
   if (!reviews || reviews.length === 0) return [];
   
+  const orderIds = reviews.map(r => r.order_id);
+  
+  const { data: orderItems } = await supabase
+    .from("order_item")
+    .select("order_id, product_id, product(product_name)")
+    .in("order_id", orderIds);
+    
+  if (!orderItems || orderItems.length === 0) return [];
+
+  const reviewMap = new Map<string, number>();
+  reviews.forEach(r => {
+    if (r.order_id && r.rating) {
+      reviewMap.set(r.order_id, r.rating);
+    }
+  });
+  
   const productRating = new Map<string, { name: string, total: number, count: number }>();
   
-  reviews.forEach(r => {
-    if (!r.product_id || !r.product || !r.rating) return;
-    const name = Array.isArray(r.product) ? r.product[0].product_name : r.product.product_name;
+  orderItems.forEach(item => {
+    if (!item.product_id || !item.product || !item.order_id) return;
     
-    const existing = productRating.get(r.product_id) || { name, total: 0, count: 0 };
-    existing.total += r.rating;
+    const rating = reviewMap.get(item.order_id);
+    if (!rating) return;
+    
+    const name = Array.isArray(item.product) ? item.product[0].product_name : item.product.product_name;
+    
+    const existing = productRating.get(item.product_id) || { name, total: 0, count: 0 };
+    existing.total += rating;
     existing.count += 1;
-    productRating.set(r.product_id, existing);
+    productRating.set(item.product_id, existing);
   });
   
   const sorted = Array.from(productRating.values()).map(p => ({
