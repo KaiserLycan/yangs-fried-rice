@@ -23,7 +23,7 @@ export default function NotFound() {
           <div className="mt-4 flex flex-col gap-[10px] md:mt-2">
             <Link
               href="/"
-              className="flex h-[44px] items-center justify-center rounded-[8px] bg-primary px-[18px] text-[13px] font-bold text-primary-foreground transition-opacity hover:opacity-90"
+              className="flex h-[44px] items-center justify-center rounded-[8px] bg-[#e8541f] px-[18px] text-[13px] font-bold text-primary-foreground transition-opacity hover:opacity-90"
             >
               Back to Menu
             </Link>
