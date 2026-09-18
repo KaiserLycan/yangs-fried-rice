@@ -13,6 +13,7 @@
  * - [ ] Connect `profile` prop to live session data.
  */
 
+import { useRouter } from "next/navigation";
 import {
   CardField,
   CardInput,
@@ -33,13 +34,44 @@ export function EmployeeContactDetailsCard({
   profile: { mobile: string; email: string };
 }) {
   const showToast = useToast();
+  const router = useRouter();
   const { isEditing, edit, cancel, errors, handleSubmit } = useCardEditor({
     schema: contactDetailsSchema,
     read: (form) => ({
       mobile: String(form.get("mobile") ?? ""),
       email: String(form.get("email") ?? ""),
     }),
-    onValid: () => showToast(SAVE_TOAST),
+    onValid: async (values) => {
+      const body: { mobile?: string } = {};
+
+      if (values.mobile !== profile.mobile) {
+        body.mobile = values.mobile;
+      }
+
+      if (Object.keys(body).length === 0) {
+        showToast("No changes to save.");
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/employee/profile", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const json = await res.json();
+
+        if (!res.ok) {
+          showToast(json.error ?? "Could not save your contact details.");
+          return;
+        }
+
+        showToast("Contact details saved.");
+        router.refresh();
+      } catch {
+        showToast("Could not save your contact details. Check your connection.");
+      }
+    },
   });
 
   return (
@@ -75,6 +107,8 @@ export function EmployeeContactDetailsCard({
                 autoComplete="email"
                 defaultValue={profile.email}
                 invalid={Boolean(errors.email)}
+                readOnly
+                className="cursor-not-allowed opacity-60"
               />
             </CardField>
           </div>

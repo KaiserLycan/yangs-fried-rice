@@ -51,6 +51,8 @@ export async function getMyEmployeeProfile(): Promise<
   ActionResult<{
     name: string;
     email: string;
+    phoneNumber: string | null;
+    dateOfBirth: string | null;
     role: EmployeeRole;
     scheduleShift: string | null;
     profileImageUrl: string | null;
@@ -73,7 +75,7 @@ export async function getMyEmployeeProfile(): Promise<
   const { data: employee, error: employeeError } = await supabase
     .from("employee")
     .select(
-      "name, email, role, schedule_shift, profileImage_URL, password_last_updated, is_account_disabled",
+      'name, email, role, schedule_shift, profileImage_URL, date_of_birth, "phone-num", password_last_updated, is_account_disabled',
     )
     .eq("employee_id", caller.employeeId)
     .single();
@@ -95,6 +97,8 @@ export async function getMyEmployeeProfile(): Promise<
     data: {
       name: employee.name,
       email: employee.email,
+      phoneNumber: (employee as any)["phone-num"] ?? null,
+      dateOfBirth: employee.date_of_birth ?? null,
       role: employee.role as EmployeeRole,
       scheduleShift: employee.schedule_shift,
       profileImageUrl: employee.profileImage_URL,
@@ -143,7 +147,7 @@ export async function updateMyEmployeeProfile(
       error: parsed.error.issues[0]?.message ?? "Some fields need fixing.",
     };
   }
-  const { name, scheduleShift, role } = parsed.data;
+  const { name, mobile, dateOfBirth, scheduleShift, role } = parsed.data;
 
   if (role !== undefined && !isManager(caller.role)) {
     return {
@@ -152,10 +156,16 @@ export async function updateMyEmployeeProfile(
     };
   }
 
-    const updatePayload: TablesUpdate<"employee"> = {};
+  const updatePayload: TablesUpdate<"employee"> = {} as TablesUpdate<"employee">;
   if (name !== undefined) updatePayload.name = name;
   if (scheduleShift !== undefined) updatePayload.schedule_shift = scheduleShift;
   if (role !== undefined) updatePayload.role = role;
+  if (dateOfBirth !== undefined) {
+    (updatePayload as Record<string, string | null>).date_of_birth = dateOfBirth || null;
+  }
+  if (mobile !== undefined) {
+    (updatePayload as Record<string, string | null>)["phone-num"] = mobile || null;
+  }
 
   if (Object.keys(updatePayload).length === 0) {
     // Nothing persistable was actually sent (e.g. only mobile/department,

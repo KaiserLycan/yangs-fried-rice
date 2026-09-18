@@ -536,9 +536,10 @@ export async function submitCart(
 
   const supabase = createClient();
 
-  // Try RPC first (if installed in Supabase)
-  const { data: rpcData, error: rpcError } = await supabase.rpc(
-    "submit_cart_to_order" as any,
+  // Try RPC first (if installed in Supabase). The RPC is optional in this
+  // codebase, so the generated types may not include it for every schema snapshot.
+  const { data: rpcData, error: rpcError } = await (supabase.rpc as any)(
+    "submit_cart_to_order",
     {
       p_cart_id: parsed.data.cart_id,
       p_order_type: parsed.data.order_type,
@@ -732,9 +733,10 @@ export async function cancelCustomerOrder(
 
   const supabase = createClient();
 
-  // Try RPC first (if installed in Supabase)
-  const { data: rpcData, error: rpcError } = await supabase.rpc(
-    "cancel_customer_order" as any,
+  // Try RPC first (if installed in Supabase). Some generated snapshots do not
+  // include this helper RPC even though the runtime function may exist.
+  const { data: rpcData, error: rpcError } = await (supabase.rpc as any)(
+    "cancel_customer_order",
     {
       p_order_id: orderId,
       p_reason: parsed.data.cancellation_reason,
