@@ -53,6 +53,11 @@ function SignupFormInner() {
   const [submitted, setSubmitted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [isFormValid, setIsFormValid] = useState(false);
+
+  function handleFormChange(event: React.FormEvent<HTMLFormElement>) {
+    setIsFormValid(event.currentTarget.checkValidity());
+  }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -104,6 +109,7 @@ function SignupFormInner() {
     <div className="relative flex flex-col px-6 pb-[30px] md:justify-center md:bg-background md:px-[52px] md:py-[48px]">
       <form
         noValidate
+        onChange={handleFormChange}
         onSubmit={handleSubmit}
         className="flex flex-col gap-[10px] rounded-[22px] bg-background p-5 md:gap-[14px] md:rounded-none md:bg-transparent md:p-0"
       >
@@ -141,6 +147,7 @@ function SignupFormInner() {
               type="text"
               autoComplete="given-name"
               placeholder="Liza"
+              required
               minLength={2}
               maxLength={50}
               invalid={Boolean(errors.firstName)}
@@ -154,6 +161,7 @@ function SignupFormInner() {
               type="text"
               autoComplete="family-name"
               placeholder="Reyes"
+              required
               minLength={2}
               maxLength={50}
               invalid={Boolean(errors.lastName)}
@@ -169,6 +177,7 @@ function SignupFormInner() {
               type="email"
               autoComplete="email"
               placeholder="you@example.com"
+              required
               minLength={5}
               maxLength={255}
               invalid={Boolean(errors.email)}
@@ -189,6 +198,7 @@ function SignupFormInner() {
                 type="tel"
                 autoComplete="tel"
                 placeholder="9171234567"
+                required
                 maxLength={10}
                 minLength={8}
                 className="w-full bg-transparent px-[6px] py-[13px] text-[15px] text-foreground placeholder:text-placeholder focus:outline-none md:py-[14px]"
@@ -217,6 +227,7 @@ function SignupFormInner() {
             type={showPassword ? "text" : "password"}
             autoComplete="new-password"
             placeholder="At least 8 characters"
+            required
             minLength={8}
             maxLength={72}
             invalid={Boolean(errors.password)}
@@ -229,6 +240,7 @@ function SignupFormInner() {
               id="buildingNo"
               name="buildingNo"
               placeholder="e.g. Unit 123, Tower A"
+              required
               minLength={1}
               maxLength={100}
               invalid={Boolean(errors.buildingNo)}
@@ -240,6 +252,7 @@ function SignupFormInner() {
               id="street"
               name="street"
               placeholder="e.g. Ayala Ave"
+              required
               minLength={2}
               maxLength={100}
               invalid={Boolean(errors.street)}
@@ -252,6 +265,7 @@ function SignupFormInner() {
             id="barangay"
             name="barangay"
             placeholder="e.g. Bel-Air"
+            required
             minLength={2}
             maxLength={100}
             invalid={Boolean(errors.barangay)}
@@ -264,6 +278,7 @@ function SignupFormInner() {
               id="city"
               name="city"
               placeholder="e.g. Makati"
+              required
               minLength={2}
               maxLength={50}
               invalid={Boolean(errors.city)}
@@ -275,6 +290,7 @@ function SignupFormInner() {
               id="zip"
               name="zip"
               placeholder="e.g. 1209"
+              required
               minLength={4}
               maxLength={4}
               invalid={Boolean(errors.zip)}
@@ -282,7 +298,14 @@ function SignupFormInner() {
           </Field>
         </div>
 
-        <Button type="submit" disabled={isPending}>
+        <label className="flex items-start gap-[9px] text-[13px] mt-1 mb-1">
+          <Checkbox name="terms" required />
+          <span className="text-muted-foreground leading-tight">
+            I have read and agree to the <Link href="/terms" target="_blank" className="font-bold text-primary hover:underline">Terms & Policy</Link>.
+          </span>
+        </label>
+
+        <Button type="submit" disabled={isPending || !isFormValid}>
           {isPending ? "Creating account…" : "Create account"}
         </Button>
 
