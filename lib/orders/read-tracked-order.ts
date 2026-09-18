@@ -24,6 +24,7 @@ export type TrackedOrder = {
   /** Fed to `resolveOrderProgress`; never read directly by a component. */
   orderStatus: string | null;
   cancelledAt: string | null;
+  cancellationReason: string | null;
   deliveryStatus: string | null;
   /** `delivery.delivery_id`, so the screen can subscribe to the right row. */
   deliveryId: string | null;
@@ -38,6 +39,7 @@ export type TrackedOrder = {
   /** The address the order is going to, or null for a non-delivery order. */
   destination: string | null;
   riderName: string | null;
+  items: { productId: string; name: string }[];
 };
 
 /**
@@ -45,9 +47,7 @@ export type TrackedOrder = {
  * screen shows the last four characters of the id. The frames draw "#1042",
  * a four-digit sequence, which a UUID cannot produce.
  *
- * TODO (Backend): an `order_number` column — a short sequence customers can
- * read out over the phone. Until then this is stable and unique enough to
- * identify an order on screen, but it is not what the design asks for.
+ * The current implementation takes the last 4 chars of the UUID.it is not what the design asks for.
  */
 export function orderNumberFrom(orderId: string): string {
   return orderId.replace(/-/g, "").slice(-4).toUpperCase();
@@ -69,7 +69,7 @@ export async function readTrackedOrder(
   // so the filter is what actually prevents that.
   const { data: order } = await supabase
     .from("order")
-    .select("order_id, order_status, order_type, cancelled_at")
+    .select("order_id, order_status, order_type, cancelled_at, cancellation_reason")
     .eq("order_id", orderId)
     .eq("customer_id", user.id)
     .maybeSingle();
@@ -82,9 +82,14 @@ export async function readTrackedOrder(
     .eq("order_id", order.order_id)
     .maybeSingle();
 
-  const [riderName, destination] = await Promise.all([
+  const [riderName, destination, orderItems] = await Promise.all([
     readRiderName(supabase, delivery?.rider_id ?? null),
     readDestination(supabase, user.id),
+    supabase
+      .from("order_item")
+      .select("product_id, product(product_name)")
+      .eq("order_id", order.order_id)
+      .then((res) => res.data),
   ]);
 
   return {
@@ -92,12 +97,17 @@ export async function readTrackedOrder(
     orderNumber: orderNumberFrom(order.order_id),
     orderStatus: order.order_status,
     cancelledAt: order.cancelled_at,
+    cancellationReason: order.cancellation_reason,
     deliveryStatus: delivery?.delivery_status ?? null,
     deliveryId: delivery?.delivery_id ?? null,
     orderType: order.order_type,
     arrivalWindow: null,
     destination,
     riderName,
+    items: (orderItems || []).map((item) => ({
+      productId: item.product_id || "",
+      name: Array.isArray(item.product) ? item.product[0]?.product_name || "Unknown Item" : item.product?.product_name || "Unknown Item",
+    })),
   };
 }
 
@@ -132,9 +142,9 @@ async function readRiderName(
  * The order's destination is read from the customer's default address rather
  * than from the order, because `order` has no address column at all.
  *
- * TODO (Backend): orders need their own delivery address. Reading the
- * customer's current default is wrong the moment they change it — a delivered
- * order would retroactively claim it went somewhere it did not.
+ * We read the destination from the customer's *current* address, which means a
+ * delivered order will retroactively claim it went somewhere else if they
+ * move.
  */
 async function readDestination(
   supabase: ReturnType<typeof createClient>,

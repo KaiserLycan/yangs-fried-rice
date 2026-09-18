@@ -66,11 +66,16 @@ export type ContactDetailsField = keyof ContactDetailsValues;
  * customer can leave either blank, and nothing here invents a shape for
  * fields the design leaves free text.
  */
+const requiredString = (message: string) =>
+  z.string().refine((value) => value.trim().length > 0, message);
+
 export const deliveryAddressSchema = z.object({
   label: z.string(),
-  addressDetails: z
-    .string()
-    .refine((value) => value.trim().length > 0, "Enter an address."),
+  buildingNo: requiredString("Enter building/house number."),
+  street: requiredString("Enter street."),
+  barangay: requiredString("Enter barangay."),
+  city: requiredString("Enter city."),
+  zip: requiredString("Enter ZIP code."),
   deliveryNote: z.string(),
 });
 

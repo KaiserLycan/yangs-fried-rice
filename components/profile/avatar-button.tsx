@@ -1,51 +1,101 @@
 "use client";
 
+import { useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { Avatar } from "@/components/ui/avatar";
+import { compressImage } from "@/lib/image/compress";
+import { uploadProfileImage } from "@/lib/actions/profile";
 import { useToast } from "@/components/ui/toast";
+import { Loader2, Camera } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const CHANGE_PHOTO_TOAST =
-  "Changing your photo isn’t available yet. We’re still building it.";
 
 /**
  * The avatar, everywhere it renders on the profile screen, as the control for
  * changing the photo.
- *
- * The frames draw a "Change photo" button on desktop and a "Photo" button on
- * mobile alongside the avatar itself. Both are removed: three affordances for
- * one action is two too many, and the avatar is the one a customer reaches for
- * without being told. The desktop hover-enlarge is decoration layered on top
- * of that, not the affordance — a touch device has no hover, so anything that
- * only appears on hover cannot be how the feature is discovered.
- *
- * There is no photo column and no upload path, so pressing it says so. See
- * `.scratch/profile-page/issues/05-backend-handoff.md`.
  */
 export function AvatarButton({
   initials,
+  imageUrl,
   className,
-  /** Applied to the button, not the circle — hover growth, mainly. */
   wrapperClassName,
 }: {
   initials: string;
+  imageUrl?: string | null;
   className?: string;
   wrapperClassName?: string;
 }) {
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const showToast = useToast();
+  const router = useRouter();
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsUploading(true);
+      const compressedFile = await compressImage(file, 400);
+
+      const formData = new FormData();
+      formData.append("file", compressedFile);
+
+      const result = await uploadProfileImage(formData);
+
+      if (result.error) {
+        showToast(result.error);
+      } else {
+        showToast("Photo updated successfully!");
+        router.refresh();
+      }
+    } catch (error) {
+      showToast("Error processing photo.");
+      console.error(error);
+    } finally {
+      setIsUploading(false);
+      // Reset input so the same file can be selected again if needed
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
 
   return (
-    <button
-      type="button"
-      // `Avatar` is aria-hidden — the initials repeat a name that is already
-      // on screen — so the button carries the accessible name instead.
-      aria-label="Change your photo"
-      onClick={() => showToast(CHANGE_PHOTO_TOAST)}
-      className={cn(
-        "rounded-pill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2",
-        wrapperClassName,
-      )}
-    >
-      <Avatar initials={initials} className={cn("flex", className)} />
-    </button>
+    <div className={cn("relative group", wrapperClassName)}>
+      <input
+        type="file"
+        accept="image/*"
+        className="hidden"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+      />
+      <button
+        type="button"
+        disabled={isUploading}
+        aria-label="Change your photo"
+        onClick={() => fileInputRef.current?.click()}
+        className="block relative rounded-pill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 overflow-hidden w-full h-full"
+      >
+        <Avatar
+          initials={initials}
+          imageUrl={imageUrl}
+          className={cn("flex size-full", className)}
+        />
+
+        {/* Hover overlay with camera icon */}
+        <div
+          className={cn(
+            "absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-pill",
+            isUploading && "opacity-100"
+          )}
+        >
+          {isUploading ? (
+            <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 text-white animate-spin" />
+          ) : (
+            <Camera className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+          )}
+        </div>
+      </button>
+    </div>
   );
 }

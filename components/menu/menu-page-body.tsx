@@ -44,28 +44,19 @@ import { readCustomerProfile } from "@/lib/profile/customer-profile";
  * read from `readCart()`, so the rail's item count and the mobile tab bar's
  * count (derived from the same rows) can't drift apart from each other.
  */
-export async function MenuPageBody({ fulfilment }: { fulfilment?: Fulfilment }) {
-  const [profile, productsResult, categoriesResult, { lines: cartLines }] =
-    await Promise.all([
-      readCustomerProfile(),
-      getProducts(),
-      getCategories(),
-      readCart(),
-    ]);
-
-  const initialProducts = (productsResult.data ?? []).map(mapProductRow);
-  const initialCategories = (categoriesResult.data ?? []).map((category) => ({
-    id: category.category_id,
-    name: category.category_name,
-  }));
+export function MenuPageBody({ fulfilment }: { fulfilment?: Fulfilment }) {
+  const profilePromise = readCustomerProfile();
+  const productsPromise = getProducts().then(r => (r.data ?? []).map(mapProductRow));
+  const categoriesPromise = getCategories().then(r => (r.data ?? []).map(c => ({ id: c.category_id, name: c.category_name })));
+  const cartPromise = readCart();
 
   return (
     <ToastProvider aboveTabBar>
       <MenuScreen
-        profile={profile}
-        initialProducts={initialProducts}
-        initialCategories={initialCategories}
-        cartLines={cartLines}
+        profilePromise={profilePromise}
+        productsPromise={productsPromise}
+        categoriesPromise={categoriesPromise}
+        cartPromise={cartPromise}
         initialFulfilment={fulfilment}
       />
     </ToastProvider>

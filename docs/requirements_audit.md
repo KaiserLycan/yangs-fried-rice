@@ -10,11 +10,11 @@ This document maps the master list of requirements to the current state of the c
 - [x] **Cust5 - Delete account:** **Implemented** (Customer profile deletion wired via PR #74)
 
 ## 🟡 Menu Management
-- [~] **Menu1 - Add food items:** **Partially Implemented** (Admin CRUD UI built, partial API integration)
-- [~] **Menu2 - Edit food items:** **Partially Implemented** (Admin CRUD UI built, partial API integration)
-- [~] **Menu3 - Remove food items:** **Partially Implemented** (Admin CRUD UI built, partial API integration)
-- [~] **Menu4 - Categorize items:** **Partially Implemented** 
-- [ ] **Menu5 - Real time updates:** **Missing** 
+- [x] **Menu1 - Add food items:** **Implemented** (Admin CRUD UI built and wired to API)
+- [x] **Menu2 - Edit food items:** **Implemented** (Admin CRUD UI built and wired to API)
+- [x] **Menu3 - Remove food items:** **Implemented** (Admin CRUD UI built and wired to API)
+- [x] **Menu4 - Categorize items:** **Implemented** (Categories fully supported in DB, Admin UI, and Customer filtering)
+- [x] **Menu5 - Real time updates:** **Implemented** (MenuScreen uses Supabase Realtime channels for instant UI updates)
 
 ## 🟡 Browsing and Ordering
 - [x] **Browsing1 - Browse menu:** **Implemented** (`/menu` page)
@@ -30,8 +30,8 @@ This document maps the master list of requirements to the current state of the c
 - [x] **Browsing12 - Lock cart post-submit:** **Implemented** (Wired to cart writes via PR #77)
 - [x] **Browsing13 - Cancel unconfirmed order:** **Implemented** (`CancelOrderControl`)
 - [x] **Browsing14 - Cancel confirmation prompt:** **Implemented**
-- [ ] **Browsing15 - Prevent cancel confirmed order:** **Missing** (Backend validation missing)
-- [ ] **Browsing16 - Smart ETA range:** **Missing** (Using static placeholders - *Issue #10*)
+- [x] **Browsing15 - Prevent cancel confirmed order:** **Implemented** (Backend validation properly restricts cancellation to 'pending' state)
+- [x] **Browsing16 - Smart ETA range:** **Implemented** (Using lib/eta/engine to calculate dynamic ETA based on kitchen queue and transit distance)
 
 ## 🟢 Order Tracking and Management
 - [x] **Order1 - Admin update order status:** **Implemented** (Wired to `updateOrderStatus` via PR #73)
@@ -43,12 +43,12 @@ This document maps the master list of requirements to the current state of the c
 - [x] **Order7 - Driver mark delivered with proof:** **Implemented** (`ProofOfDeliveryModal`)
 
 ## 🟡 Payment Processing
-- [ ] **PP1 - Online payments (Cards/Wallets):** **Missing** (No Stripe/Paymongo integration - *Issue #9*)
+- [x] **PP1 - Online payments (Cards/Wallets):** **Implemented** (PayMongo integration for GCash/Maya added)
 - [x] **PP2 - COD and In-store payments:** **Implemented** 
 
 ## 🟡 System Administration and Support
 - [x] **SAS1 - Manage users, orders, payments:** **Implemented** (Admin Dashboards wired to real API via PR #73)
-- [~] **SAS2 - Generate performance/sales reports:** **Partially Implemented** (Backend `/api/reports/pdf` works, but frontend `/manage/reports` uses mock data)
+- [x] **SAS2 - Generate performance/sales reports:** **Implemented** (PDF export and frontend charts wired to real data)
 
 ## 🟢 Search, Filters, and Recommendations
 - [x] **SFR1 - Search by keywords:** **Implemented**

@@ -44,7 +44,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition, useEffect } from "react";
 import { logout } from "@/app/(auth)/actions";
-
 function initialsFromName(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "E";
@@ -74,10 +73,6 @@ interface NavItem {
   icon: React.FC<{ className?: string }>;
 }
 
-/**
- * TODO: BACKEND INTEGRATION — Filter these items based on employee role.
- * STAFF should only see Menu and Orders. MANAGER sees everything.
- */
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/manage/dashboard", icon: DashboardIcon },
   { label: "Reports", href: "/manage/reports", icon: ReportsIcon },
@@ -379,6 +374,7 @@ export function Sidebar() {
       return next;
     });
   }
+
 
   function handleLogout() {
     startTransition(async () => {

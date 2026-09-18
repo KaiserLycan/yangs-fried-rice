@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Search, ChevronDown, ChevronUp, ChevronsUpDown, Loader2 } from "lucide-react";
 import { ManagePagination } from "@/components/manage/manage-pagination";
 import { CustomerModal, CustomerData } from "@/components/manage/customers/customer-modal";
+import { useDebounce } from "@/lib/hooks/use-debounce";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast, ToastProvider } from "@/components/ui/toast";
@@ -29,7 +30,9 @@ function ManageCustomersInner() {
 
   // UI State
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerData | null>(null);
   const [customerToDelete, setCustomerToDelete] = useState<CustomerData | null>(null);
   const [nameSort, setNameSort] = useState<"asc" | "desc" | "none">("none");
@@ -51,6 +54,7 @@ function ManageCustomersInner() {
           contact: c.phone_number || "No contact",
           // Fallback to "Unknown" if created_at doesn't exist on the table yet
           customerSince: c.created_at ? new Date(c.created_at).toLocaleDateString() : "Unknown",
+          imageUrl: c.profileImage_URL || undefined,
         }));
         setCustomers(mappedData);
       }
@@ -83,8 +87,8 @@ function ManageCustomersInner() {
   // Derive filtered and sorted customers client-side
   let filteredCustomers = [...customers];
 
-  if (searchQuery) {
-    const q = searchQuery.toLowerCase();
+  if (debouncedSearchQuery) {
+    const q = debouncedSearchQuery.toLowerCase();
     filteredCustomers = filteredCustomers.filter(c =>
       c.name.toLowerCase().includes(q) ||
       c.email.toLowerCase().includes(q) ||
@@ -97,6 +101,18 @@ function ManageCustomersInner() {
   } else if (nameSort === "desc") {
     filteredCustomers.sort((a, b) => b.name.localeCompare(a.name));
   }
+
+  const totalPages = Math.max(1, Math.ceil(filteredCustomers.length / pageSize));
+  
+  // Ensure current page is valid after filtering
+  if (currentPage > totalPages) {
+    setCurrentPage(totalPages);
+  }
+
+  const paginatedCustomers = filteredCustomers.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
 
   return (
     <div className="flex flex-col h-full gap-4 md:gap-0">
@@ -138,20 +154,26 @@ function ManageCustomersInner() {
           {/* Table Body */}
           <div className="flex-1 overflow-y-auto">
             {isLoading ? (
-              <div className="flex items-center justify-center p-12 text-[#7A6A60]">
-                <Loader2 className="w-6 h-6 animate-spin mr-2" />
-                Loading customers...
+              <div className="flex flex-col">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex flex-col md:grid md:grid-cols-[1.5fr_1.5fr_1fr_1fr] px-5 md:px-8 py-4 md:py-5 border-b border-[#F0E6D8] gap-2 md:gap-0 items-start md:items-center">
+                    <div className="h-[18px] w-[140px] bg-[#efe6d8] rounded-full animate-pulse" />
+                    <div className="h-[18px] w-[180px] bg-[#efe6d8] rounded-full animate-pulse" />
+                    <div className="h-[18px] w-[120px] bg-[#efe6d8] rounded-full animate-pulse" />
+                    <div className="hidden md:block h-[18px] w-[100px] bg-[#efe6d8] rounded-full animate-pulse" />
+                  </div>
+                ))}
               </div>
-            ) : filteredCustomers.length === 0 ? (
+            ) : paginatedCustomers.length === 0 ? (
               <div className="p-8 text-center text-[#7A6A60]">
                 No customers found.
               </div>
             ) : (
-              filteredCustomers.map((customer, index) => (
+              paginatedCustomers.map((customer, index) => (
                 <div
                   key={customer.id}
                   onClick={() => setSelectedCustomer(customer)}
-                  className={`flex flex-col md:grid md:grid-cols-[1.5fr_1.5fr_1fr_1fr] px-5 md:px-8 py-4 md:py-5 cursor-pointer transition-colors hover:bg-[#FAF7F0] gap-1 md:gap-0 ${index !== filteredCustomers.length - 1 ? "border-b border-[#F0E6D8]" : ""
+                  className={`flex flex-col md:grid md:grid-cols-[1.5fr_1.5fr_1fr_1fr] px-5 md:px-8 py-4 md:py-5 cursor-pointer transition-colors hover:bg-[#FAF7F0] gap-1 md:gap-0 ${index !== paginatedCustomers.length - 1 ? "border-b border-[#F0E6D8]" : ""
                     }`}
                 >
                   <div className="font-bold text-[#1A1210] flex items-center justify-between text-[15px]">
@@ -171,8 +193,13 @@ function ManageCustomersInner() {
         <div className="mt-4 md:mt-8 mb-4 flex justify-center md:justify-end">
           <ManagePagination
             currentPage={currentPage}
-            totalPages={3}
+            totalPages={totalPages}
             onPageChange={setCurrentPage}
+            pageSize={pageSize}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setCurrentPage(1);
+            }}
           />
         </div>
       </div>

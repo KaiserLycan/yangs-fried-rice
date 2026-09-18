@@ -50,6 +50,7 @@ export function ProfileHeader({ profile }: { profile: CustomerProfile }) {
         </span>
         <AvatarButton
           initials={initials}
+          imageUrl={profile.profileImageUrl}
           className="size-[30px] bg-accent text-[11.5px] font-bold text-white"
           wrapperClassName="ml-auto"
         />

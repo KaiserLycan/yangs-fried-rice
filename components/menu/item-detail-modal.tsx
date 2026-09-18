@@ -39,11 +39,13 @@ const SPECIAL_INSTRUCTIONS_PLACEHOLDER = "e.g. extra chili, no egg";
 export function ItemDetailModal({
   product,
   onClose,
+  onAdd,
 }: {
   /** `null` closes the dialog — there is no separate `open` boolean to keep
    * in sync with which product it is showing. */
   product: ProductListing | null;
   onClose: () => void;
+  onAdd?: (quantity: number, instructions: string) => void;
 }) {
   const { run, pending } = useCartAction();
   const ref = React.useRef<HTMLDialogElement>(null);
@@ -82,21 +84,24 @@ export function ItemDetailModal({
 
   const lineTotal = formatPeso(product.price * quantity);
 
-  // `addCartItem` is the backend's write (PR #68). The modal closes only on
-  // success, so a failed add leaves the customer looking at what they were
-  // trying to add, with the backend's reason in a toast, rather than at a
-  // menu that silently didn't change.
+  // Optimistic UI requested by user: The modal closes immediately and updates the cart 
+  // without waiting for the server roundtrip, making the interaction feel instantaneous.
   function handleAddToCart() {
     if (!product) return;
     const { id: product_id } = product;
+    const qty = quantity;
+    const inst = instructions.trim();
+    
+    onAdd?.(qty, inst);
+    onClose();
+
     run(
       () =>
         addCartItem({
           product_id,
-          quantity,
-          special_instructions: instructions.trim() || null,
-        }),
-      onClose,
+          quantity: qty,
+          special_instructions: inst || null,
+        })
     );
   }
 
@@ -130,12 +135,21 @@ export function ItemDetailModal({
           ever touching the property the centering trick needs untouched. */}
       <div className="flex min-h-screen w-full flex-col overflow-y-auto bg-background md:hidden">
         <div className="relative h-[240px] shrink-0">
-          <ProductPhotoPlaceholder className="size-full" />
+          {product.imageUrl ? (
+            <img
+              src={product.imageUrl}
+              alt={product.name}
+              className="size-full object-cover"
+            />
+          ) : (
+            <ProductPhotoPlaceholder className="size-full" />
+          )}
           <button
             type="button"
             aria-label="Back to menu"
             onClick={onClose}
-            className="absolute left-[16px] top-[16px] flex size-[38px] items-center justify-center rounded-pill bg-background text-[16px] font-bold text-foreground"
+            disabled={pending}
+            className="absolute left-[16px] top-[16px] flex size-[38px] items-center justify-center rounded-pill bg-background text-[16px] font-bold text-foreground disabled:opacity-60"
           >
             ←
           </button>
@@ -178,7 +192,15 @@ export function ItemDetailModal({
           scroll live here, not on the `<dialog>` element — same reason as
           the mobile wrapper's comment above. */}
       <div className="hidden max-h-[calc(100vh-4rem)] overflow-x-hidden overflow-y-auto rounded-[20px] bg-background shadow-[0_30px_70px_rgba(26,18,16,0.26)] md:flex">
-        <ProductPhotoPlaceholder className="h-full w-[300px] shrink-0" />
+        {product.imageUrl ? (
+          <img
+            src={product.imageUrl}
+            alt={product.name}
+            className="w-[300px] shrink-0 object-cover"
+          />
+        ) : (
+          <ProductPhotoPlaceholder className="w-[300px] shrink-0" />
+        )}
 
         <div className="flex w-[420px] flex-col gap-[14px] px-[26px] pb-[26px] pt-[25px]">
           <ItemSummary product={product} titleClassName="text-[28px]" />
@@ -198,7 +220,8 @@ export function ItemDetailModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-[13px] border border-field-border p-[15px] text-[14px] font-bold text-muted-foreground"
+              disabled={pending}
+              className="rounded-[13px] border border-field-border p-[15px] text-[14px] font-bold text-muted-foreground disabled:opacity-60"
             >
               Cancel
             </button>

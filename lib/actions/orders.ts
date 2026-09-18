@@ -114,7 +114,7 @@ async function requireManageAccess(): Promise<
  */
 export async function getAllOrders(
   rawFilters?: Partial<OrderFilters>,
-): Promise<ActionResult<OrderSummary[]>> {
+): Promise<ActionResult<{ data: OrderSummary[]; totalCount: number }>> {
   const auth = await requireManageAccess();
   if (!auth.data) return { data: null, error: auth.error };
 
@@ -138,6 +138,7 @@ export async function getAllOrders(
       order_item ( order_item_id ),
       transaction ( total_paid )
     `,
+      { count: "exact" }
     )
     .order("created_at", { ascending: false })
     .range(filters.offset, filters.offset + filters.limit - 1);
@@ -159,7 +160,7 @@ export async function getAllOrders(
     query = query.lte("created_at", filters.date_to);
   }
 
-  const { data, error } = await query;
+  const { data, count, error } = await query;
 
   if (error) return { data: null, error: error.message };
 
@@ -175,7 +176,85 @@ export async function getAllOrders(
       : null,
   }));
 
-  return { data: summaries, error: null };
+  return { data: { data: summaries, totalCount: count ?? 0 }, error: null };
+}
+
+/**
+ * List all orders with full details: customer, items with product info, 
+ * transactions, and delivery info. Supports filtering by status, date range, 
+ * and pagination. Highly optimized to avoid N+1 queries.
+ *
+ * Requires: admin, manager, or staff.
+ */
+export async function getDetailedOrders(
+  rawFilters?: Partial<OrderFilters>,
+): Promise<ActionResult<{ data: OrderWithDetails[]; totalCount: number }>> {
+  const auth = await requireManageAccess();
+  if (!auth.data) return { data: null, error: auth.error };
+
+  const parsed = orderFilterSchema.safeParse(rawFilters ?? {});
+  if (!parsed.success) {
+    return { data: null, error: parsed.error.errors[0].message };
+  }
+  const filters = parsed.data;
+
+  const supabase = createClient();
+
+  let query = supabase
+    .from("order")
+    .select(
+      `
+      *,
+      customer:customer_id ( name, email ),
+      order_item (
+        order_item_id,
+        quantity,
+        subtotal,
+        special_instructions,
+        product:product_id ( product_name, product_price )
+      ),
+      transaction (
+        transaction_id,
+        payment_method,
+        payment_status,
+        total_paid
+      ),
+      delivery (
+        delivery_id,
+        delivery_status,
+        rider_id
+      )
+    `,
+      { count: "exact" }
+    )
+    .order("created_at", { ascending: false })
+    .range(filters.offset, filters.offset + filters.limit - 1);
+
+  if (filters.status) {
+    if (Array.isArray(filters.status)) {
+      query = query.in("order_status", filters.status);
+    } else {
+      query = query.eq("order_status", filters.status);
+    }
+  }
+  if (filters.date_from) {
+    query = query.gte("created_at", filters.date_from);
+  }
+  if (filters.date_to) {
+    query = query.lte("created_at", filters.date_to);
+  }
+
+  const { data, count, error } = await query;
+
+  if (error) return { data: null, error: error.message };
+
+  return { 
+    data: { 
+      data: data as unknown as OrderWithDetails[], 
+      totalCount: count ?? 0 
+    }, 
+    error: null 
+  };
 }
 
 /**

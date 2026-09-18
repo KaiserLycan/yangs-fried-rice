@@ -5,6 +5,7 @@ import { MenuItem, MenuCategory, MOCK_CATEGORIES } from "@/components/manage/men
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Camera, ChevronDown, ChevronRight } from "lucide-react";
+import { compressImage } from "@/lib/image/compress";
 
 // ---------------------------------------------------------------------------
 // Toggle Switch
@@ -44,6 +45,7 @@ interface MenuItemDetailModalProps {
   onEdit: (item: MenuItem, file?: File) => void;
   onDelete: (itemId: string) => void;
   item: MenuItem;
+  categories?: string[];
 }
 
 export function MenuItemDetailModal({
@@ -52,6 +54,7 @@ export function MenuItemDetailModal({
   onEdit,
   onDelete,
   item,
+  categories,
 }: MenuItemDetailModalProps) {
   // CHANGED: Created this detailed modal to replace the legacy confirmation modal.
   // WHY: To implement the Figma design (node 2102-5252) which requires full editing capabilities and image updates.
@@ -62,7 +65,12 @@ export function MenuItemDetailModal({
   const [price, setPrice] = useState(item.price.toFixed(2));
   const [available, setAvailable] = useState(item.available);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [categoryOpen, setCategoryOpen] = useState(false);
+
+  const selectableCategories = (categories ?? MOCK_CATEGORIES).filter(
+    (c) => c !== "All"
+  );
 
   // Confirmation dialog state
   const [showEditConfirm, setShowEditConfirm] = useState(false);
@@ -78,6 +86,7 @@ export function MenuItemDetailModal({
     setPrice(item.price.toFixed(2));
     setAvailable(item.available);
     setImagePreview(null);
+    setSelectedFile(null);
   }, [item]);
 
   if (!isOpen) return null;
@@ -86,30 +95,37 @@ export function MenuItemDetailModal({
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // TODO (Backend): Like in the Add modal, wait to upload this file until the user confirms the edit.
-      const url = URL.createObjectURL(file);
-      setImagePreview(url);
+      try {
+        const compressed = await compressImage(file, 800);
+        setSelectedFile(compressed);
+        const url = URL.createObjectURL(compressed);
+        setImagePreview(url);
+      } catch {
+        // Fallback to uncompressed if compression fails
+        setSelectedFile(file);
+        const url = URL.createObjectURL(file);
+        setImagePreview(url);
+      }
     }
   };
 
   const handleEditConfirm = (e: React.MouseEvent) => {
-  e.preventDefault();
-  const file = fileInputRef.current?.files?.[0]; 
-  
-  onEdit({
+    e.preventDefault();
+    
+    onEdit({
     ...item,
     name,
     category,
-    description,
-    price: parseFloat(price) || 0,
-    available,
-  }, file);
-  
-  setShowEditConfirm(false); // Safe to keep: this just closes the small confirmation popup
-};
+      description,
+      price: parseFloat(price) || 0,
+      available,
+    }, selectedFile || undefined);
+    
+    setShowEditConfirm(false); // Safe to keep: this just closes the small confirmation popup
+  };
 
   const handleDeleteConfirm = () => {
     onDelete(item.id);
@@ -171,7 +187,7 @@ export function MenuItemDetailModal({
             {/* Product Name */}
             <div className="flex flex-col gap-1.5">
               <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
-                Product Name
+                Product Name <span className="text-[#bf4342]">*</span>
               </label>
               <input
                 value={name}
@@ -184,7 +200,7 @@ export function MenuItemDetailModal({
             {/* Category */}
             <div className="flex flex-col gap-1.5">
               <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
-                Category
+                Category <span className="text-[#bf4342]">*</span>
               </label>
               <div className="relative">
                 <button
@@ -209,12 +225,12 @@ export function MenuItemDetailModal({
                       onClick={() => setCategoryOpen(false)}
                     />
                     <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 rounded-[12px] border border-[#ddcdb8] bg-white p-[5px] shadow-[0px_8px_20px_rgba(26,18,16,0.12)]">
-                      {MOCK_CATEGORIES.filter((c) => c !== "All").map((cat) => (
+                      {selectableCategories.map((cat) => (
                         <button
                           key={cat}
                           type="button"
                           onClick={() => {
-                            setCategory(cat);
+                            setCategory(cat as MenuCategory);
                             setCategoryOpen(false);
                           }}
                           className={`flex w-full items-center rounded-[8px] px-3 py-2.5 text-left text-[14px] transition-colors ${
@@ -249,7 +265,7 @@ export function MenuItemDetailModal({
             {/* Price */}
             <div className="flex flex-col gap-1.5">
               <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
-                Price ₱
+                Price ₱ <span className="text-[#bf4342]">*</span>
               </label>
               <input
                 type="text"
@@ -286,7 +302,8 @@ export function MenuItemDetailModal({
               </button>
               <button
                 onClick={() => setShowEditConfirm(true)}
-                className="flex flex-1 items-center justify-center rounded-[12px] bg-[#ca762d] px-[14px] py-[15px] transition-opacity hover:opacity-90"
+                disabled={!name.trim() || !price || parseFloat(price) <= 0}
+                className="flex flex-1 items-center justify-center rounded-[12px] bg-[#ca762d] px-[14px] py-[15px] transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span className="text-[14px] font-bold leading-none text-white">
                   Edit

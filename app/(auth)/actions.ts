@@ -39,10 +39,17 @@ export async function registerCustomer(
       error: "Some fields need fixing before we can create your account.",
     };
   }
-  const { name, email, phone, password, address } = parsed.data;
+  const { firstName, lastName, email, phone, password, buildingNo, street, barangay, city, zip } = parsed.data;
+
+  const name = `${firstName} ${lastName}`.trim();
+
+  // Combine for database storage
+  const fullAddress = `${buildingNo} ${street}, ${barangay}, ${city} ${zip}`;
+  // Extract essential info for Nominatim validation (avoids barangay/zip confusing the geocoder)
+  const essentialAddress = `${buildingNo} ${street}, ${city}`;
 
   // Enforce delivery boundary: customer address must be within NCR
-  const ncrCheck = await validateNcrAddress(address);
+  const ncrCheck = await validateNcrAddress(essentialAddress);
   if (!ncrCheck.valid) {
     return {
       success: false,
@@ -70,6 +77,15 @@ export async function registerCustomer(
     };
   }
 
+  // Supabase returns a user with an empty identities array if the email already
+  // exists and email confirmations are enabled (to prevent email enumeration).
+  if (authData.user.identities && authData.user.identities.length === 0) {
+    return {
+      success: false,
+      error: "An account with this email already exists. Please log in instead.",
+    };
+  }
+
   const customerId = authData.user.id;
 
   // customer.customer_id is set to the Supabase Auth user id — there's no
@@ -94,7 +110,7 @@ export async function registerCustomer(
     .insert({
       customer_id: customerId,
       label: DEFAULT_ADDRESS_LABEL,
-      address_details: address,
+      address_details: fullAddress,
     });
   if (addressError) {
     return {
@@ -175,15 +191,6 @@ type EmployeeLoginResult =
  *  - manager and staff all land in /manage (the back office)
  *  - rider lands in /deliver (the delivery queue)
  */
-/**
- * TODO: BACKEND INTEGRATION — Role-based redirects after employee login.
- *
- * MANAGER (Business Owner) → /manage/dashboard (full back-office access)
- * STAFF (server, kitchen, etc.) → /manage/orders (no dashboard access)
- * RIDER → /deliver (delivery queue, separate app area)
- *
- * If additional roles are added, register their redirect here.
- */
 const EMPLOYEE_ROLE_REDIRECTS: Record<string, string> = {
   MANAGER: "/manage/dashboard",
   STAFF: "/manage/orders",
@@ -222,14 +229,6 @@ export async function loginEmployee(
     return { success: false, error: EMPLOYEE_SIGN_IN_FAILED };
   }
   const { identifier, password } = parsed.data;
-
-  if (!identifier.includes("@")) {
-    return {
-      success: false,
-      error:
-        "Staff ID sign-in isn't set up yet — please sign in with your work email for now.",
-    };
-  }
 
   const supabase = createClient();
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Camera } from "lucide-react";
+import { compressImage } from "@/lib/image/compress";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
@@ -27,6 +28,15 @@ export function EmployeeAvatarCard({
     if (!file) return;
 
     try {
+      let uploadFile: File | Blob = file;
+      try {
+        const compressed = await compressImage(file, 400);
+        setAvatarPreview(URL.createObjectURL(compressed));
+        uploadFile = compressed;
+      } catch {
+        setAvatarPreview(URL.createObjectURL(file));
+      }
+
       const supabase = createClient();
       const {
         data: { user },
@@ -42,7 +52,7 @@ export function EmployeeAvatarCard({
       const filePath = `employee-${user.id}-${Date.now()}.${fileExt}`;
       const { error: uploadError } = await supabase.storage
         .from("emp-pfp")
-        .upload(filePath, file, { upsert: true, contentType: file.type });
+        .upload(filePath, uploadFile, { upsert: true, contentType: uploadFile.type });
 
       if (uploadError) {
         showToast(uploadError.message || "Could not upload your profile photo.");

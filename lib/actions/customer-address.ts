@@ -6,7 +6,11 @@ import { validateNcrAddress } from "@/lib/address/validate-ncr";
 
 export interface SaveAddressInput {
   label?: string | null;
-  addressDetails: string;
+  buildingNo: string;
+  street: string;
+  barangay: string;
+  city: string;
+  zip: string;
   deliveryNote?: string | null;
   isDefault?: boolean;
 }
@@ -39,13 +43,21 @@ export async function addCustomerAddressAction(
     return { success: false, error: "You must be logged in to save an address." };
   }
 
-  const trimmedAddress = input.addressDetails?.trim();
-  if (!trimmedAddress || trimmedAddress.length < 5) {
-    return { success: false, error: "Please enter a complete address." };
+  const buildingNo = input.buildingNo?.trim() || "";
+  const street = input.street?.trim() || "";
+  const barangay = input.barangay?.trim() || "";
+  const city = input.city?.trim() || "";
+  const zip = input.zip?.trim() || "";
+
+  if (!buildingNo || !street || !barangay || !city || !zip) {
+    return { success: false, error: "Please fill out all address fields." };
   }
 
+  const fullAddress = `${buildingNo} ${street}, ${barangay}, ${city} ${zip}`;
+  const essentialAddress = `${buildingNo} ${street}, ${city}`;
+
   // Enforce NCR delivery boundary check
-  const ncrValidation = await validateNcrAddress(trimmedAddress);
+  const ncrValidation = await validateNcrAddress(essentialAddress);
   if (!ncrValidation.valid) {
     return {
       success: false,
@@ -60,7 +72,7 @@ export async function addCustomerAddressAction(
     .insert({
       customer_id: user.id,
       label: input.label?.trim() || "Home",
-      address_details: trimmedAddress,
+      address_details: fullAddress,
       address_note: input.deliveryNote?.trim() || null,
       is_default: input.isDefault ?? false,
     })

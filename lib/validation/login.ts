@@ -14,13 +14,13 @@ import { z } from "zod";
 /**
  * The two fields, exported separately because the sign-up screen has to use
  * the same ones. Sharing the schema rather than re-typing the rules is what
- * keeps the promise that "the email field behaves identically to login" true
  * as either screen changes.
  */
 export const customerEmailSchema = z
   .string()
   .trim()
-  .email("Enter a valid email address.");
+  .email("Enter a valid email address.")
+  .regex(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i, "Enter a valid email address.");
 
 export const customerPasswordSchema = z
   .string()

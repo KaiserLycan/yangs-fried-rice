@@ -1,6 +1,8 @@
+// trigger rebuild
+import { Suspense, use } from "react";
 import Link from "next/link";
-import { AvatarButton } from "@/components/profile/avatar-button";
-import { shortAddressLabel } from "@/lib/profile/address-label";
+import { NavAddressDropdown } from "@/components/nav/nav-address-dropdown";
+import { Avatar } from "@/components/ui/avatar";
 import type { CustomerProfile } from "@/lib/profile/customer-profile";
 import { initialsFrom } from "@/lib/profile/identity";
 import { cn } from "@/lib/utils";
@@ -50,23 +52,64 @@ export type NavSection = "menu" | "track-order" | "orders" | "account";
  */
 const NAV_LINKS: { id: NavSection; href: string; label: string }[] = [
   { id: "menu", href: "/menu", label: "Menu" },
-  { id: "track-order", href: "/orders", label: "Track order" },
   { id: "orders", href: "/orders", label: "My orders" },
   { id: "account", href: "/profile", label: "Account" },
 ];
 
+function ResolvedProfileActions({
+  profile: initialProfile,
+  profilePromise
+}: {
+  profile?: CustomerProfile | null;
+  profilePromise?: Promise<CustomerProfile | null>;
+}) {
+  // If we have a promise, unwrap it. Otherwise use the profile directly.
+  const profile = profilePromise ? use(profilePromise) : (initialProfile ?? null);
+  const initials = profile ? initialsFrom(profile.name) : "";
+
+  return (
+    <div className="flex items-center gap-[14px]">
+      {profile && profile.addresses.length > 0 ? (
+        <NavAddressDropdown
+          addresses={profile.addresses}
+          activeAddressId={profile.activeAddressId}
+        />
+      ) : null}
+      {profile ? (
+        <Link
+          href="/profile"
+          className="rounded-pill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          aria-label="Go to your account"
+        >
+          <Avatar
+            initials={initials}
+            imageUrl={profile.profileImageUrl}
+            className="size-[32px] bg-accent text-[12px] font-bold text-white"
+          />
+        </Link>
+      ) : (
+        <Link
+          href="/login"
+          className="text-[13px] font-bold text-white hover:underline"
+        >
+          Log in
+        </Link>
+      )}
+    </div>
+  );
+}
+
 export function SiteNavBar({
   profile,
+  profilePromise,
   currentSection,
   search,
 }: {
-  profile: CustomerProfile | null;
+  profile?: CustomerProfile | null;
+  profilePromise?: Promise<CustomerProfile | null>;
   currentSection: NavSection;
   search?: React.ReactNode;
 }) {
-  const deliverTo = profile ? shortAddressLabel(profile.deliverToAddress) : "";
-  const initials = profile ? initialsFrom(profile.name) : "";
-
   return (
     <nav className="hidden h-[58px] items-center gap-[26px] bg-primary px-[22px] md:flex">
       <Link
@@ -105,34 +148,14 @@ export function SiteNavBar({
           unchanged from the pre-extraction markup. */}
       <div className="ml-auto flex items-center gap-[16px]">
         {search}
-        <div className="flex items-center gap-[14px]">
-          {/* Hidden rather than replaced when there is no saved address.
-              Managing addresses belongs to a later ticket, and an empty state
-              here would be a control the design does not draw. */}
-          {deliverTo ? (
-            <div className="flex flex-col items-end gap-px">
-              <span className="text-[11px] text-background/[0.72]">
-                Deliver to
-              </span>
-              <span className="text-[11px] font-bold text-white">
-                {deliverTo} &#9662;
-              </span>
-            </div>
-          ) : null}
-          {profile ? (
-            <AvatarButton
-              initials={initials}
-              className="size-[32px] bg-accent text-[12px] font-bold text-white"
-            />
-          ) : (
-            <Link
-              href="/login"
-              className="text-[13px] font-bold text-white hover:underline"
-            >
-              Log in
-            </Link>
-          )}
-        </div>
+
+        {profilePromise ? (
+          <Suspense fallback={<div className="size-[32px] animate-pulse rounded-full bg-white/20" />}>
+            <ResolvedProfileActions profilePromise={profilePromise} />
+          </Suspense>
+        ) : (
+          <ResolvedProfileActions profile={profile} />
+        )}
       </div>
     </nav>
   );

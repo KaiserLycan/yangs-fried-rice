@@ -23,6 +23,7 @@ export type ProductListing = {
    * because someone actually marked it unavailable.
    */
   isAvailable: boolean;
+  imageUrl?: string | null;
 };
 
 /** What `GET /api/menu/products` and `getProducts()` both actually return. */
@@ -32,6 +33,7 @@ export type RawProductRow = {
   product_details: string | null;
   product_price: number;
   is_available: boolean | null;
+  image_url?: string | null;
   categories: { category_name: string } | null;
 };
 
@@ -43,6 +45,7 @@ export function mapProductRow(row: RawProductRow): ProductListing {
     price: row.product_price,
     categoryName: row.categories?.category_name ?? null,
     isAvailable: row.is_available !== false,
+    imageUrl: row.image_url ?? null,
   };
 }
 
