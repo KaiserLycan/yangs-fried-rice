@@ -6,6 +6,7 @@ import { formatMobileNumber } from "@/lib/profile/mobile-number";
 import type { CustomerProfile } from "@/lib/profile/customer-profile";
 import { setActiveAddress, upsertCustomerAddress } from "@/lib/actions/address";
 import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+import { CardField, CardInput } from "@/components/profile/profile-card";
 
 export function DeliveryDetailsCard({ profile }: { profile: CustomerProfile }) {
   const [isEditing, setIsEditing] = React.useState(false);
@@ -16,18 +17,33 @@ export function DeliveryDetailsCard({ profile }: { profile: CustomerProfile }) {
   const [draftDetails, setDraftDetails] = React.useState("");
   const [draftLabel, setDraftLabel] = React.useState("");
   const [draftNote, setDraftNote] = React.useState("");
+  const [draftBuildingNo, setDraftBuildingNo] = React.useState("");
+  const [draftStreet, setDraftStreet] = React.useState("");
+  const [draftBarangay, setDraftBarangay] = React.useState("");
+  const [draftCity, setDraftCity] = React.useState("");
+  const [draftZip, setDraftZip] = React.useState("");
   const [editingAddressId, setEditingAddressId] = React.useState<string | null>(null);
 
   const startEditing = (addressId?: string) => {
     if (addressId) {
       const addr = profile.addresses.find(a => a.id === addressId);
       setEditingAddressId(addressId);
-      setDraftDetails(addr?.addressDetails || "");
       setDraftLabel(addr?.label || "");
       setDraftNote(addr?.deliveryNote || "");
+      
+      const parsed = parseAddress(addr?.addressDetails);
+      setDraftBuildingNo(parsed.buildingNo);
+      setDraftStreet(parsed.street);
+      setDraftBarangay(parsed.barangay);
+      setDraftCity(parsed.city);
+      setDraftZip(parsed.zip);
     } else {
       setEditingAddressId(null);
-      setDraftDetails("");
+      setDraftBuildingNo("");
+      setDraftStreet("");
+      setDraftBarangay("");
+      setDraftCity("");
+      setDraftZip("");
       setDraftLabel("");
       setDraftNote("");
     }
@@ -35,12 +51,19 @@ export function DeliveryDetailsCard({ profile }: { profile: CustomerProfile }) {
   };
 
   const handleSave = async () => {
-    if (!draftDetails) return;
+    const combinedAddress = [
+      draftBuildingNo && draftStreet ? `${draftBuildingNo} ${draftStreet}` : (draftBuildingNo || draftStreet),
+      draftBarangay,
+      draftCity && draftZip ? `${draftCity} ${draftZip}` : (draftCity || draftZip)
+    ].filter(Boolean).join(", ");
+    
+    if (!combinedAddress) return;
+    
     setIsSaving(true);
     try {
       await upsertCustomerAddress({
         address_id: editingAddressId || undefined,
-        address_details: draftDetails,
+        address_details: combinedAddress,
         label: draftLabel,
         address_note: draftNote,
       });
@@ -71,49 +94,101 @@ export function DeliveryDetailsCard({ profile }: { profile: CustomerProfile }) {
       </div>
 
       {isEditing ? (
-        <div className="flex flex-col gap-[12px] rounded-[11px] border border-field-border bg-background p-[16px] mt-[4px]">
-          <div className="flex flex-col gap-[5px]">
-            <label className="text-[11px] font-bold uppercase text-muted-foreground">Address Details</label>
-            <input 
-              type="text" 
-              value={draftDetails} 
-              onChange={e => setDraftDetails(e.target.value)} 
-              placeholder="123 Main St..." 
-              className="rounded-[7px] border border-field-border bg-card p-[10px] text-[14px]"
+        <div className="flex flex-col gap-[12px] rounded-[11px] border border-rule bg-background p-[16px] mt-[4px]">
+          <CardField
+            label="Label"
+            htmlFor="address-label"
+            hint="Optional. e.g. Home or Work."
+          >
+            <CardInput
+              id="address-label"
+              name="label"
+              value={draftLabel}
+              onChange={e => setDraftLabel(e.target.value)}
+              maxLength={50}
             />
+          </CardField>
+
+          <div className="flex flex-col gap-[12px] md:flex-row md:gap-[16px]">
+            <CardField className="flex-1" label="Building / House No. *" htmlFor="address-buildingNo">
+              <CardInput
+                id="address-buildingNo"
+                name="buildingNo"
+                value={draftBuildingNo}
+                onChange={e => setDraftBuildingNo(e.target.value)}
+                maxLength={100}
+              />
+            </CardField>
+
+            <CardField className="flex-1" label="Street *" htmlFor="address-street">
+              <CardInput
+                id="address-street"
+                name="street"
+                value={draftStreet}
+                onChange={e => setDraftStreet(e.target.value)}
+                maxLength={100}
+              />
+            </CardField>
           </div>
-          <div className="flex flex-col gap-[5px]">
-            <label className="text-[11px] font-bold uppercase text-muted-foreground">Label (Optional)</label>
-            <input 
-              type="text" 
-              value={draftLabel} 
-              onChange={e => setDraftLabel(e.target.value)} 
-              placeholder="Home, Work..." 
-              className="rounded-[7px] border border-field-border bg-card p-[10px] text-[14px]"
+
+          <CardField label="Barangay *" htmlFor="address-barangay">
+            <CardInput
+              id="address-barangay"
+              name="barangay"
+              value={draftBarangay}
+              onChange={e => setDraftBarangay(e.target.value)}
+              maxLength={100}
             />
+          </CardField>
+
+          <div className="flex flex-col gap-[12px] md:flex-row md:gap-[16px]">
+            <CardField className="flex-1" label="City *" htmlFor="address-city">
+              <CardInput
+                id="address-city"
+                name="city"
+                value={draftCity}
+                onChange={e => setDraftCity(e.target.value)}
+                maxLength={50}
+              />
+            </CardField>
+
+            <CardField className="flex-1" label="ZIP Code *" htmlFor="address-zip">
+              <CardInput
+                id="address-zip"
+                name="zip"
+                value={draftZip}
+                onChange={e => setDraftZip(e.target.value)}
+                maxLength={4}
+              />
+            </CardField>
           </div>
-          <div className="flex flex-col gap-[5px]">
-            <label className="text-[11px] font-bold uppercase text-muted-foreground">Delivery Note (Optional)</label>
-            <input 
-              type="text" 
-              value={draftNote} 
-              onChange={e => setDraftNote(e.target.value)} 
-              placeholder="Leave at the front door..." 
-              className="rounded-[7px] border border-field-border bg-card p-[10px] text-[14px]"
+
+          <CardField
+            label="Delivery note"
+            htmlFor="address-note"
+            hint="Optional. e.g. Beside the blue gate."
+          >
+            <CardInput
+              id="address-note"
+              name="deliveryNote"
+              value={draftNote}
+              onChange={e => setDraftNote(e.target.value)}
+              maxLength={255}
             />
-          </div>
+          </CardField>
+
           <div className="flex items-center gap-[8px] mt-[8px]">
             <button 
               onClick={handleSave} 
-              disabled={isSaving || !draftDetails}
-              className="rounded-[7px] bg-foreground px-[16px] py-[10px] text-[13px] font-bold text-background disabled:opacity-60"
+              disabled={isSaving || !draftStreet || !draftBarangay || !draftCity || !draftZip}
+              className="rounded-sm bg-foreground px-[16px] py-[10px] text-[13px] font-bold text-background hover:bg-foreground/90 disabled:opacity-60 transition-colors"
             >
               {isSaving ? "Saving..." : "Save Address"}
             </button>
             <button 
               onClick={() => setIsEditing(false)} 
               disabled={isSaving}
-              className="rounded-[7px] border border-field-border bg-card px-[16px] py-[10px] text-[13px] font-bold text-foreground disabled:opacity-60"
+              className="rounded-sm border border-rule bg-card px-[16px] py-[10px] text-[13px] font-bold text-foreground hover:bg-background disabled:opacity-60 transition-colors"
             >
               Cancel
             </button>
@@ -221,4 +296,36 @@ function Field({ label, value }: { label: string; value: string }) {
       </p>
     </div>
   );
+}
+
+function parseAddress(fullAddress: string = "") {
+  if (!fullAddress) {
+    return { buildingNo: "", street: "", barangay: "", city: "", zip: "" };
+  }
+  const parts = fullAddress.split(",").map((p) => p.trim());
+  let buildingNo = "";
+  let street = "";
+  let barangay = "";
+  let city = "";
+  let zip = "";
+
+  if (parts.length >= 3) {
+    const bldStreet = parts[0];
+    street = bldStreet;
+    
+    barangay = parts[1];
+    
+    const cityZip = parts[parts.length - 1];
+    const match = cityZip.match(/^(.*?)\s+(\d+)$/);
+    if (match) {
+      city = match[1];
+      zip = match[2];
+    } else {
+      city = cityZip;
+    }
+  } else {
+    street = fullAddress;
+  }
+
+  return { buildingNo, street, barangay, city, zip };
 }

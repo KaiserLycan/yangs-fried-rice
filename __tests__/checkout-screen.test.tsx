@@ -32,10 +32,20 @@ const profile: CustomerProfile = {
   dateOfBirth: null,
   mobile: "09175550123",
   email: "liza@example.com",
+  profileImageUrl: null,
+  activeAddressId: "addr-1",
   memberSince: null,
   orderCount: 0,
   deliverToAddress: "21 Mabini St, Malate, Manila",
-  addresses: [],
+  addresses: [
+    {
+      id: "addr-1",
+      addressDetails: "21 Mabini St, Malate, Manila",
+      label: "Home",
+      deliveryNote: "",
+      isDefault: true,
+    }
+  ],
 };
 
 const lines: CartLine[] = [
@@ -81,17 +91,16 @@ function countOf(text: string | RegExp) {
   return screen.queryAllByText(text).length;
 }
 
-beforeEach(() => {
-  // The address note calls the real validation route on mount. Stubbed so
-  // these tests don't depend on Nominatim being reachable.
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ valid: true }),
-    }),
-  );
-});
+  beforeEach(() => {
+    // The address note calls the real validation route on mount. Stubbed so
+    // these tests don't depend on Nominatim being reachable.
+    // Return an unresolved promise by default to prevent act() warnings in
+    // tests that don't wait for the validation note to settle.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockReturnValue(new Promise(() => {}))
+    );
+  });
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -138,11 +147,20 @@ describe("Checkout order summary", () => {
   // The nav bar's shortened form clips at 18 characters, and mobile has no
   // delivery details card, so this row is the only place the destination
   // appears at that width.
-  it("shows the delivery address in full, not the nav bar's short form", () => {
+  it("shows the delivery address in full, not the nav bar's short form", async () => {
     renderCheckout({
       profile: {
         ...profile,
         deliverToAddress: "Blk 12 Lot 4 Barangay San Isidro, Quezon City",
+        addresses: [
+          {
+            id: "addr-2",
+            addressDetails: "Blk 12 Lot 4 Barangay San Isidro, Quezon City",
+            label: "Home",
+            deliveryNote: "",
+            isDefault: true,
+          }
+        ]
       },
     });
 
@@ -300,7 +318,7 @@ describe("Checkout place order", () => {
 describe("Checkout delivery details", () => {
   it("says so deliberately when the customer has no saved address", () => {
     renderCheckout({
-      profile: { ...profile, deliverToAddress: null },
+      profile: { ...profile, deliverToAddress: null, addresses: [], activeAddressId: null },
     });
 
     expect(
@@ -312,6 +330,13 @@ describe("Checkout delivery details", () => {
   });
 
   it("confirms the address once the mapping service validates it", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ valid: true }),
+      })
+    );
     renderCheckout();
 
     await waitFor(() =>
