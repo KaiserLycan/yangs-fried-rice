@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { Camera, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { compressImage } from "@/lib/image/compress";
 
 interface ProofOfDeliveryModalProps {
   isOpen: boolean;
@@ -26,10 +27,16 @@ export function ProofOfDeliveryModal({ isOpen, onClose, deliveryId, customerName
     if (!isOpen && dialog.open) dialog.close();
   }, [isOpen]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setProofPreview(URL.createObjectURL(file));
+      try {
+        const compressed = await compressImage(file, 800);
+        setProofPreview(URL.createObjectURL(compressed));
+      } catch {
+        // Fallback to uncompressed if compression fails
+        setProofPreview(URL.createObjectURL(file));
+      }
     }
   };
 

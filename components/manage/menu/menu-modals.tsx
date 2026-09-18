@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { MenuItem, MenuCategory, MOCK_CATEGORIES } from "@/components/manage/menu/mock-menu";
 import { cn } from "@/lib/utils";
 import { Camera, ChevronDown, ChevronRight } from "lucide-react";
+import { compressImage } from "@/lib/image/compress";
 import { Dialog, DialogRoot } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
@@ -79,12 +80,16 @@ export function MenuItemModal({
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // TODO (Backend): Wait to upload this file until the user clicks "Add" (in handleSave).
-      // Here we just generate a local preview URL.
-      setImagePreview(URL.createObjectURL(file));
+      try {
+        const compressed = await compressImage(file, 800);
+        setImagePreview(URL.createObjectURL(compressed));
+      } catch {
+        // Fallback to uncompressed if compression fails
+        setImagePreview(URL.createObjectURL(file));
+      }
     }
   };
 

@@ -63,8 +63,8 @@ function ManageMenuInner() {
         price: p.product_price,
         rating: 5.0, // Backend doesn't have ratings yet
         category: p.categories?.category_name || "Uncategorized",
-        // Map the real image_url from the database, fallback to a placeholder
-        image: p.image_url || "/images/placeholder.jpg",
+        // Map the real image_url from the database, fallback to empty string so components can show placeholders
+        image: p.image_url || "",
         available: p.is_available,
       }));
       setMenuItems(mapped);

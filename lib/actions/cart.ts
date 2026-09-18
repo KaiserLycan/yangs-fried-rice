@@ -811,3 +811,120 @@ export async function cancelCustomerOrder(
     error: null,
   };
 }
+
+// ---------------------------------------------------------------------------
+// 7. Reorder Past Order
+// ---------------------------------------------------------------------------
+
+export async function reorderPastOrder(
+  orderId: string
+): Promise<ActionResult<{ addedCount: number; unavailableCount: number }>> {
+  const auth = await requireCustomer();
+  if (!auth.data) return { data: null, error: auth.error, code: auth.code };
+
+  const supabase = createClient();
+
+  // 1. Verify order belongs to customer
+  const { data: order, error: orderError } = await supabase
+    .from("order")
+    .select("order_id")
+    .eq("order_id", orderId)
+    .eq("customer_id", auth.data.customer_id)
+    .single();
+
+  if (orderError || !order) {
+    return { data: null, error: "Order not found or access denied.", code: "FORBIDDEN" };
+  }
+
+  // 2. Fetch order items and their products
+  const { data: items, error: itemsError } = await supabase
+    .from("order_item")
+    .select(`
+      quantity,
+      special_instructions,
+      product!inner (
+        product_id,
+        is_available
+      )
+    `)
+    .eq("order_id", orderId);
+
+  if (itemsError || !items || items.length === 0) {
+    return { data: null, error: "No items found in this order." };
+  }
+
+  // 3. Filter available products
+  const availableItems = items.filter((item) => {
+    const p = (Array.isArray(item.product) ? item.product[0] : item.product) as unknown as { is_available: boolean; product_id: string } | null;
+    return p?.is_available === true;
+  });
+
+  const addedCount = availableItems.length;
+  const unavailableCount = items.length - addedCount;
+
+  if (addedCount === 0) {
+    return { data: null, error: "None of the items from this order are currently available." };
+  }
+
+  // 4. Get active cart
+  let { data: cart } = await supabase
+    .from("cart")
+    .select("cart_id, is_final")
+    .eq("customer_id", auth.data.customer_id)
+    .eq("is_final", false)
+    .maybeSingle();
+
+  if (!cart) {
+    const { data: newCart, error: createError } = await supabase
+      .from("cart")
+      .insert({
+        customer_id: auth.data.customer_id,
+        is_final: false,
+        status: "active",
+      })
+      .select("cart_id, is_final")
+      .single();
+
+    if (createError || !newCart) {
+      return { data: null, error: createError?.message ?? "Failed to initialize cart." };
+    }
+    cart = newCart;
+  } else if (cart.is_final) {
+    return {
+      data: null,
+      error: "Cart is locked and cannot be modified.",
+      code: "CART_LOCKED",
+    };
+  }
+
+  // 5. Insert available items into cart
+  const cartItemsToInsert = availableItems.map((item) => {
+    const p = (Array.isArray(item.product) ? item.product[0] : item.product) as unknown as { product_id: string };
+    return {
+      cart_id: cart!.cart_id,
+      product_id: p.product_id,
+      quantity: item.quantity,
+      special_instructions: item.special_instructions,
+    };
+  });
+
+  const [insertResult] = await Promise.all([
+    supabase.from("cart_item").insert(cartItemsToInsert),
+    supabase
+      .from("cart")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("cart_id", cart.cart_id),
+  ]);
+
+  if (insertResult.error) {
+    return { data: null, error: insertResult.error.message ?? "Failed to add items to cart." };
+  }
+
+  const { revalidatePath } = await import("next/cache");
+  revalidatePath("/", "layout");
+
+  return {
+    data: { addedCount, unavailableCount },
+    error: null,
+  };
+}

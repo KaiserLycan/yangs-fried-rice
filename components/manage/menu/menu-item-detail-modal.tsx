@@ -5,6 +5,7 @@ import { MenuItem, MenuCategory, MOCK_CATEGORIES } from "@/components/manage/men
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Camera, ChevronDown, ChevronRight } from "lucide-react";
+import { compressImage } from "@/lib/image/compress";
 
 // ---------------------------------------------------------------------------
 // Toggle Switch
@@ -92,12 +93,18 @@ export function MenuItemDetailModal({
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // TODO (Backend): Like in the Add modal, wait to upload this file until the user confirms the edit.
-      const url = URL.createObjectURL(file);
-      setImagePreview(url);
+      try {
+        const compressed = await compressImage(file, 800);
+        const url = URL.createObjectURL(compressed);
+        setImagePreview(url);
+      } catch {
+        // Fallback to uncompressed if compression fails
+        const url = URL.createObjectURL(file);
+        setImagePreview(url);
+      }
     }
   };
 

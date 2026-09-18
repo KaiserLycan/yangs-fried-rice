@@ -56,7 +56,7 @@ function ManageOrdersInner() {
     
     if (uiTab === "queue") dbStatus = ["pending", "received"]; 
     else if (uiTab === "preparation" || uiTab === "prep") dbStatus = "preparing";
-    else if (uiTab === "delivery") dbStatus = "out_for_delivery";
+    else if (uiTab === "delivery") dbStatus = ["ready", "out_for_delivery"];
     else if (uiTab === "completed") dbStatus = "completed";
     else if (uiTab === "canceled" || uiTab === "cancelled") dbStatus = "cancelled";
 
@@ -84,7 +84,7 @@ function ManageOrdersInner() {
           let uiStatus: any = "QUEUE";
           if (order.order_status === "pending" || order.order_status === "received") uiStatus = "QUEUE";
           else if (order.order_status === "preparing") uiStatus = "PREP";
-          else if (order.order_status === "out_for_delivery") uiStatus = "DELIVERY";
+          else if (order.order_status === "ready" || order.order_status === "out_for_delivery") uiStatus = "DELIVERY";
           else if (order.order_status === "completed") uiStatus = "COMPLETED";
           else if (order.order_status === "cancelled") uiStatus = "CANCELED";
 

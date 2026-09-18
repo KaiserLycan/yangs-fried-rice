@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   canRate,
@@ -17,6 +18,7 @@ import {
   OrderRatingInput,
 } from "@/components/orders/order-rating";
 import { useToast } from "@/components/ui/toast";
+import { reorderPastOrder } from "@/lib/actions/cart";
 
 /**
  * One finished order — the card drawn three times across desktop `133:1268`
@@ -32,16 +34,35 @@ import { useToast } from "@/components/ui/toast";
  * A Client Component because reordering and rating both raise toasts.
  */
 
-const REORDER_NOT_IMPLEMENTED =
-  "Reordering isn’t available yet. We’re still building it.";
-
 export function PastOrderCard({ order }: { order: PastOrder }) {
+  const router = useRouter();
   const showToast = useToast();
   const firstStarRef = React.useRef<HTMLButtonElement>(null);
+  const [isPending, startTransition] = React.useTransition();
 
   const outcome = outcomeOf(order);
   const rateable = canRate(order);
   const action = primaryActionOf(order);
+
+  const handleReorder = () => {
+    startTransition(async () => {
+      const result = await reorderPastOrder(order.orderId);
+      
+      if (!result.data) {
+        showToast(result.error ?? "Failed to reorder");
+        return;
+      }
+      
+      const { addedCount, unavailableCount } = result.data;
+      if (unavailableCount > 0) {
+        showToast(`Added ${addedCount} item(s) to your cart. ${unavailableCount} item(s) are no longer available.`);
+      } else {
+        showToast(`Added ${addedCount} item(s) to your cart.`);
+      }
+      
+      router.push("/checkout");
+    });
+  };
 
   // `md:h-full` makes a card fill the grid row its neighbours set, and the
   // total row below carries `md:mt-auto` so it sits on the bottom edge rather
@@ -119,10 +140,11 @@ export function PastOrderCard({ order }: { order: PastOrder }) {
         ) : (
           <button
             type="button"
-            onClick={() => showToast(REORDER_NOT_IMPLEMENTED)}
-            className="shrink-0 text-[13px] font-bold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            onClick={handleReorder}
+            disabled={isPending}
+            className="shrink-0 text-[13px] font-bold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50"
           >
-            Reorder
+            {isPending ? "Reordering..." : "Reorder"}
             <span className="sr-only"> order #{order.orderNumber}</span>
           </button>
         )}
