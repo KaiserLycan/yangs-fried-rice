@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { z } from "zod";
 import {
   CardField,
@@ -23,6 +24,7 @@ export function EmployeeDetailsCard({
   role: string;
   shift: string;
 }) {
+  const router = useRouter();
   const showToast = useToast();
   const { isEditing, edit, cancel, errors, handleSubmit } = useCardEditor({
     schema: employeeDetailsSchema,
@@ -30,10 +32,37 @@ export function EmployeeDetailsCard({
       role: String(form.get("role") ?? ""),
       shift: String(form.get("shift") ?? ""),
     }),
-    onValid: () =>
-      showToast(
-        "Saving your employee details isn’t available yet. We’re still building it.",
-      ),
+    onValid: async (values) => {
+      const body: { scheduleShift?: string } = {};
+
+      if (values.shift !== shift) {
+        body.scheduleShift = values.shift;
+      }
+
+      if (Object.keys(body).length === 0) {
+        showToast("No changes to save.");
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/employee/profile", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const json = await res.json();
+
+        if (!res.ok) {
+          showToast(json.error ?? "Could not save your employee details.");
+          return;
+        }
+
+        showToast("Employee details saved.");
+        router.refresh();
+      } catch {
+        showToast("Could not save your employee details. Check your connection.");
+      }
+    },
   });
 
   return (
@@ -100,6 +129,7 @@ export function DriverDetailsCard({
   vehicleMakeModel: string;
   vehiclePlateNumber: string;
 }) {
+  const router = useRouter();
   const showToast = useToast();
   const { isEditing, edit, cancel, errors, handleSubmit } = useCardEditor({
     schema: driverDetailsSchema,
@@ -107,10 +137,40 @@ export function DriverDetailsCard({
       vehicleMakeModel: String(form.get("vehicleMakeModel") ?? ""),
       vehiclePlateNumber: String(form.get("vehiclePlateNumber") ?? ""),
     }),
-    onValid: () =>
-      showToast(
-        "Saving your driver details isn’t available yet. We’re still building it.",
-      ),
+    onValid: async (values) => {
+      const body: { vehicleMakeModel?: string; vehiclePlateNumber?: string } = {};
+
+      if (values.vehicleMakeModel !== vehicleMakeModel) {
+        body.vehicleMakeModel = values.vehicleMakeModel;
+      }
+      if (values.vehiclePlateNumber !== vehiclePlateNumber) {
+        body.vehiclePlateNumber = values.vehiclePlateNumber;
+      }
+
+      if (Object.keys(body).length === 0) {
+        showToast("No changes to save.");
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/employee/profile/rider", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const json = await res.json();
+
+        if (!res.ok) {
+          showToast(json.error ?? "Could not save your driver details.");
+          return;
+        }
+
+        showToast("Driver details saved.");
+        router.refresh();
+      } catch {
+        showToast("Could not save your driver details. Check your connection.");
+      }
+    },
   });
 
   return (
