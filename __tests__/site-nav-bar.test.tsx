@@ -94,4 +94,21 @@ describe("SiteNavBar", () => {
 
     expect(screen.getByRole("searchbox")).toBeInTheDocument();
   });
+
+  // /menu is public (middleware.ts's matcher doesn't include it), so this
+  // component's second consumer can render for a guest with no profile.
+  it("offers to log in instead of an avatar when there is no profile", () => {
+    renderNavBar(<SiteNavBar profile={null} currentSection="menu" />);
+
+    expect(screen.getByRole("link", { name: "Log in" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /change your photo/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides the delivery address for a guest", () => {
+    renderNavBar(<SiteNavBar profile={null} currentSection="menu" />);
+
+    expect(screen.queryByText("Deliver to")).not.toBeInTheDocument();
+  });
 });

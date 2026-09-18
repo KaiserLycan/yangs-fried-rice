@@ -8,6 +8,7 @@ import {
   canChangeRole,
   canDisableEmployee,
   canResetEmployeePassword,
+  normalizeEmployeeRoleLabel,
   type EmployeeRole,
 } from "@/lib/auth/roles";
 import {
@@ -130,7 +131,19 @@ export async function createEmployee(
     return { data: null, error: parsed.error.errors[0].message };
   }
 
-  const { name, email, password, role } = parsed.data;
+  const normalizedRole =
+    normalizeEmployeeRoleLabel(parsed.data.role) ?? parsed.data.role;
+  const {
+    name,
+    email,
+    password,
+    role: canonicalRole,
+    scheduleShift,
+    riderDetails,
+  } = {
+    ...parsed.data,
+    role: normalizedRole,
+  } as typeof parsed.data & { role: EmployeeRole };
 
   try {
     // Use the admin client to create the Auth user — the session-scoped
@@ -155,14 +168,17 @@ export async function createEmployee(
     }
 
     const supabase = createClient();
+    const employeeRow = {
+      employee_id: authData.user.id,
+      name,
+      email,
+      role: canonicalRole,
+      schedule_shift: canonicalRole === "RIDER" ? null : scheduleShift ?? null,
+    };
+
     const { data: employee, error: insertError } = await supabase
       .from("employee")
-      .insert({
-        employee_id: authData.user.id,
-        name,
-        email,
-        role,
-      })
+      .insert(employeeRow)
       .select()
       .single();
 
@@ -170,6 +186,26 @@ export async function createEmployee(
       // Roll back the Auth user — we don't want an orphan.
       await adminClient.auth.admin.deleteUser(authData.user.id);
       return { data: null, error: insertError.message };
+    }
+
+    if (canonicalRole === "RIDER") {
+      const riderPayload = {
+        employee_id: employee.employee_id,
+        vehicle_plate_number: riderDetails?.vehicle_plate_number ?? null,
+        vehicle_make_model: riderDetails?.vehicle_make_model ?? null,
+        driver_license_number: riderDetails?.driver_license_number ?? null,
+        license_expiry_date: riderDetails?.license_expiry_date ?? null,
+      };
+
+      const { error: riderInsertError } = await supabase
+        .from("rider")
+        .insert(riderPayload);
+
+      if (riderInsertError) {
+        await adminClient.auth.admin.deleteUser(authData.user.id);
+        await supabase.from("employee").delete().eq("employee_id", authData.user.id);
+        return { data: null, error: riderInsertError.message };
+      }
     }
 
     return { data: employee, error: null };
@@ -382,7 +418,57 @@ export async function resetEmployeePassword(
     };
   }
 }
+/**
+ * Update an employee's role, scheduled shift, and password.
+ * Requires: MANAGER.
+ */
+export async function updateEmployeeDetails(
+  employeeId: string,
+  input: { role?: string; shift?: string; password?: string }
+): Promise<ActionResult<Employee>> {
+  const auth = await requireRole("MANAGER");
+  if (!auth.data) return { data: null, error: auth.error };
 
+  const supabase = createClient();
+  const adminClient = createAdminClient();
+
+  // 1. Update Auth Password if a new one was provided
+  if (input.password && input.password.trim() !== "") {
+    const { error: authError } = await adminClient.auth.admin.updateUserById(employeeId, {
+      password: input.password,
+    });
+    if (authError) return { data: null, error: authError.message };
+  }
+
+  // 2. Update Employee Table (Role and Shift)
+  const updates: any = {};
+  if (input.role) updates.role = input.role;
+  if (input.shift) updates.schedule_shift = input.shift;
+
+  if (Object.keys(updates).length > 0) {
+    const { data, error } = await supabase
+      .from("employee")
+      .update(updates)
+      .eq("employee_id", employeeId)
+      .select()
+      .single();
+
+    if (error) return { data: null, error: error.message };
+    return { data, error: null };
+  }
+
+  // If only the password was updated, fetch and return the unmodified employee row
+  // If only the password was updated, fetch and return the unmodified employee row
+  const { data, error } = await supabase
+    .from("employee")
+    .select("*")
+    .eq("employee_id", employeeId)
+    .single();
+
+  if (error) return { data: null, error: error.message };
+  return { data, error: null };
+
+}
 
 
 /**
@@ -425,18 +511,34 @@ export async function deleteEmployee(
  * List all customer accounts.
  * Requires: manager.
  */
-export async function getAllCustomers(): Promise<ActionResult<Customer[]>> {
+export async function getAllCustomers(): Promise<ActionResult<(Customer & { created_at?: string })[]>> {
   const auth = await requireRole("MANAGER");
   if (!auth.data) return { data: null, error: auth.error };
 
   const supabase = createClient();
-  const { data, error } = await supabase
+  const { data: customers, error } = await supabase
     .from("customer")
     .select("*")
     .order("name");
 
   if (error) return { data: null, error: error.message };
-  return { data, error: null };
+
+  // Fetch created_at from auth.users
+  const adminClient = createAdminClient();
+  const { data: { users }, error: authError } = await adminClient.auth.admin.listUsers();
+  
+  let enrichedCustomers = customers as (Customer & { created_at?: string })[];
+  if (!authError && users) {
+    enrichedCustomers = customers.map(c => {
+      const authUser = users.find(u => u.id === c.customer_id);
+      return {
+        ...c,
+        created_at: authUser?.created_at
+      };
+    });
+  }
+
+  return { data: enrichedCustomers, error: null };
 }
 
 /**

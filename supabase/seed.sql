@@ -1,10 +1,9 @@
-insert into categories (category_name, status) values
-  ('Fried Rice', 'active'),
-  ('Noodles', 'active'),
-  ('Drinks', 'active')
-on conflict do nothing;
+insert into categories (category_name) values
+  ('Fried Rice'),
+  ('Noodles'),
+  ('Drinks');
 
-insert into menu_items (category_id, name, price, availability, description)
+insert into product (category_id, product_name, product_price, is_available, product_details)
 select category_id, 'Yang Special Fried Rice', 185.00, true, 'House special with egg, char siu, and scallions'
 from categories where category_name = 'Fried Rice'
 union all

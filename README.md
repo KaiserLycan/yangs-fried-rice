@@ -1,82 +1,81 @@
 # Yang's Fried Rice — Ordering System
 
-## Current phase: Remote Customer Ordering (R15–R25)
+A comprehensive, real-time ordering and restaurant management platform built for Yang's Fried Rice.
 
-This scaffold covers only the remote customer browse → cart → checkout
-flow, per the project doc's phasing:
+## 🚀 Current Project Status
 
-- R15 Browse menu
-- R16 Add to cart
-- R17 Specify quantity
-- R18 Calculate total
-- R19 Special instructions
-- R20 Review order before confirming
-- R21 Pickup vs. delivery
-- R22 Choose payment method (selection only — no processing yet)
-- R23 Modify cart before confirmation
-- R24 Cancel before confirmation
-- R25 Confirmation prompt on cancel
+The project has advanced significantly beyond the initial customer cart scaffold. We now have a robust multi-role system featuring:
 
-Auth (R8–R11), order tracking (R26–R30), payment processing (R31),
-and admin/kitchen/cashier tooling are **not** part of this phase — the
-schema is scaffolded for them (see `supabase/schema.sql`) so nothing
-has to be migrated later, but no app code depends on them yet.
+* **Customer Ordering & Tracking**: Full browse, cart, and checkout flow. Live order tracking powered by Supabase Real-time subscriptions.
+* **Authentication**: Supabase-backed role management for Customers, Administrators, Managers, and Delivery Drivers.
+* **Kitchen Display System (KDS)**: Real-time sequential order queuing for the kitchen staff.
+* **Driver Operations**: A dedicated driver dashboard featuring map integrations and a Proof of Delivery capture modal.
+* **Admin Analytics**: PDF report generation for daily sales and platform summaries.
 
-## Stack
+### 📋 Documentation & Missing Features
+For a detailed look at what is currently built, what is using dummy data, and what is missing entirely (such as Stripe payment processing), please see the following audit files in the `docs/` directory:
+* [`docs/requirements_audit.md`](docs/requirements_audit.md) - A master checklist of all original project requirements.
+* [`docs/codebase_comparison.md`](docs/codebase_comparison.md) - Analysis of frontend components waiting on backend integration.
+* [`docs/unimplemented_issues.md`](docs/unimplemented_issues.md) - Remaining Github issues and acceptance criteria.
 
-Next.js (App Router) · TypeScript · Tailwind · ShadCN · Supabase
-(Postgres + Auth + Storage) · Recharts (later, for admin) ·
-Stripe/Paymongo (later, for R31)
+---
 
-## Setup
+## 🛠️ Tech Stack
+
+* **Frontend**: Next.js 14 (App Router), React 18, Tailwind CSS, Shadcn UI
+* **Backend & Database**: Supabase (PostgreSQL, Auth, Realtime, Storage)
+* **Testing**: Vitest, React Testing Library
+* **PDF Generation**: jsPDF, jspdf-autotable
+* **Maps**: Leaflet, React-Leaflet
+
+---
+
+## 💻 Local Development Setup
 
 1. **Install dependencies**
    ```bash
    npm install
    ```
 
-2. **Create a Supabase project** at https://supabase.com, then copy
-   its URL and anon key.
-
-3. **Set up environment variables**
+2. **Supabase Environment Variables**
+   Create a `.env.local` file by copying the example:
    ```bash
    cp .env.local.example .env.local
-   # fill in NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY
    ```
+   Fill in `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` from your Supabase dashboard.
 
-4. **Apply the schema.** In the Supabase SQL Editor, run
-   `supabase/schema.sql`, then `supabase/seed.sql` for dev data.
-   (Or via CLI: `npx supabase db push` if you've linked the project.)
+3. **Database Schema & Seed** 
+   In the Supabase SQL Editor, run `supabase/schema.sql` to generate the ERD tables, followed by `supabase/seed.sql` to populate mock data for local testing.
 
-5. **Generate real DB types** (replaces the placeholder in
-   `types/database.types.ts`):
+4. **Generate Real DB Types** (replaces the placeholder in `types/database.types.ts`):
    ```bash
    npx supabase login
    npx supabase link --project-ref <your-project-ref>
    npm run supabase:types
    ```
 
-6. **Run the dev server**
+5. **Run the dev server**
    ```bash
    npm run dev
    ```
-   Visit http://localhost:3000
+   Visit http://localhost:3000 to view the application.
 
-## Folder structure
+6. **Run tests**
+   ```bash
+   npm run test
+   ```
+
+## 📁 Key Folder Structure
 
 ```
-app/                  # Next.js App Router pages
-  layout.tsx
-  page.tsx            # menu browsing entry point (R15)
-  globals.css
-lib/
-  supabase/
-    client.ts          # browser client — use in Client Components
-    server.ts           # server client — use in Server Components/Route Handlers
-types/
-  database.types.ts     # generated Supabase types (placeholder until linked)
-supabase/
-  schema.sql             # full ERD from the project doc
-  seed.sql                # dev seed data
+app/                  # Next.js App Router (pages & API routes)
+  (account)/          # Customer-facing checkout and order history
+  (shop)/             # Customer-facing menu browsing
+  api/                # Backend routers and PDF generators
+  deliver/            # Delivery Driver UI
+  manage/             # Admin/Manager Dashboard and KDS
+components/           # Reusable UI components grouped by feature domain
+docs/                 # Project tracking, gap analysis, and audits
+lib/                  # Server actions, validation, and Supabase clients
+__tests__/            # Vitest unit and component tests
 ```
-

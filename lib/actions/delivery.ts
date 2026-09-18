@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { revalidatePath } from "next/cache";
 
 /**
  * Storage bucket for proof-of-delivery photos. Must be created manually
@@ -25,9 +26,22 @@ type DeliveryDetail = {
   deliveryStatus: string | null;
   estimatedTime: string | null;
   proofOfDelivery: string | null;
-  customer: { name: string; address: string | null } | null;
+  customer: { name: string; address: string | null; phone: string | null } | null;
   items: { productName: string; quantity: number }[];
 };
+
+function getProofFile(formData: FormData): File | null {
+  const candidateKeys = ["proof", "proofPhoto"];
+
+  for (const key of candidateKeys) {
+    const value = formData.get(key);
+    if (value instanceof File && value.size > 0) {
+      return value;
+    }
+  }
+
+  return null;
+}
 
 /**
  * Resolves the current session to a rider row, or null if the caller
@@ -76,11 +90,11 @@ export async function getAssignedDeliveries(): Promise<{
     };
   }
 
+  // Fetch deliveries that are EITHER assigned to this rider OR have no rider yet (the pending queue)
   const { data, error } = await supabase
     .from("delivery")
     .select("delivery_id, order_id, delivery_status, estimated_time")
-    .eq("rider_id", rider.rider_id)
-    .neq("delivery_status", "delivered")
+    .or(`rider_id.eq.${rider.rider_id},rider_id.is.null`)
     .order("estimated_time", { ascending: true, nullsFirst: false });
 
   if (error) {
@@ -128,11 +142,12 @@ export async function getDeliveryDetail(deliveryId: string): Promise<{
     .eq("delivery_id", deliveryId)
     .single();
 
-  if (deliveryError || !delivery || delivery.rider_id !== rider.rider_id) {
+// Allow the order to load if it belongs to this rider OR if it is unassigned
+  if (deliveryError || !delivery || (delivery.rider_id !== null && delivery.rider_id !== rider.rider_id)) {
     return { delivery: null, error: "Delivery not found." };
   }
 
-  let customer: { name: string; address: string | null } | null = null;
+  let customer: { name: string; address: string | null; phone: string | null } | null = null;
   let items: { productName: string; quantity: number }[] = [];
 
   if (delivery.order_id) {
@@ -145,7 +160,7 @@ export async function getDeliveryDetail(deliveryId: string): Promise<{
     if (order?.customer_id) {
       const { data: customerRow } = await supabase
         .from("customer")
-        .select("name")
+        .select("name, phone_number")
         .eq("customer_id", order.customer_id)
         .single();
 
@@ -153,12 +168,14 @@ export async function getDeliveryDetail(deliveryId: string): Promise<{
         .from("customer_address")
         .select("address_details")
         .eq("customer_id", order.customer_id)
+        .limit(1)
         .single();
 
       if (customerRow) {
         customer = {
           name: customerRow.name,
           address: addressRow?.address_details ?? null,
+          phone: customerRow.phone_number ?? null,
         };
       }
     }
@@ -229,8 +246,8 @@ export async function markDelivered(
     };
   }
 
-  const proofFile = formData.get("proof");
-  if (!(proofFile instanceof File) || proofFile.size === 0) {
+  const proofFile = getProofFile(formData);
+  if (!proofFile) {
     return { success: false, error: "A proof-of-delivery photo is required." };
   }
   if (!ALLOWED_PROOF_TYPES.includes(proofFile.type)) {
@@ -280,6 +297,44 @@ export async function markDelivered(
         "Proof was uploaded, but we couldn't update the delivery. Please try again.",
     };
   }
+
+  revalidatePath("/deliver");
+  revalidatePath("/deliver/[deliveryId]", "page");
+
+  return { success: true, error: null };
+}
+
+/**
+ * Order10: Atomically accept a pending delivery.
+ * Ensures the delivery is still unassigned to prevent race conditions.
+ */
+export async function acceptDelivery(deliveryId: string): Promise<{ success: boolean; error: string | null }> {
+  const supabase = createClient();
+  const rider = await getCurrentRider(supabase);
+  
+  if (!rider) {
+    return { success: false, error: "You must be signed in as a rider to accept deliveries." };
+  }
+
+  // Atomic update: Only succeeds if rider_id is still exactly NULL
+  const { data, error } = await supabase
+    .from("delivery")
+    .update({
+      rider_id: rider.rider_id,
+      delivery_status: "delivering" // Updating status to match the active queue
+    })
+    .eq("delivery_id", deliveryId)
+    .is("rider_id", null)
+    .select()
+    .single();
+
+  if (error || !data) {
+    return { 
+      success: false, 
+      error: "This order was just accepted by another rider or is no longer available." 
+    };
+  }
+  revalidatePath("/deliver", "layout");
 
   return { success: true, error: null };
 }
