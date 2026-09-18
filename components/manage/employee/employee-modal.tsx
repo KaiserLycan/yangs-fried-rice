@@ -43,10 +43,18 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee }: E
   const [shift, setShift] = useState(SHIFTS[0]);
   const [password, setPassword] = useState("");
   const [lastAccessLog, setLastAccessLog] = useState("");
+  const [riderDetails, setRiderDetails] = useState({
+    vehicle_make_model: "",
+    vehicle_plate_number: "",
+    driver_license_number: "",
+    license_expiry_date: "",
+  });
 
   const [roleOpen, setRoleOpen] = useState(false);
   const [shiftOpen, setShiftOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  const isRiderRole = role === "Delivery" || role === "Rider" || role === "RIDER";
 
   useEffect(() => {
     if (isOpen) {
@@ -57,6 +65,12 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee }: E
         setShift(employee.shift || SHIFTS[0]); 
         setPassword(""); // Admin shouldn't see passwords. Leave blank unless changing it.
         setLastAccessLog(employee.lastAccessLog || "No login history"); 
+        setRiderDetails({
+          vehicle_make_model: "",
+          vehicle_plate_number: "",
+          driver_license_number: "",
+          license_expiry_date: "",
+        });
       } else {
         setName("");
         setEmail("");
@@ -64,6 +78,12 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee }: E
         setShift(SHIFTS[0]);
         setPassword("");
         setLastAccessLog("");
+        setRiderDetails({
+          vehicle_make_model: "",
+          vehicle_plate_number: "",
+          driver_license_number: "",
+          license_expiry_date: "",
+        });
       }
     }
   }, [isOpen, employee]);
@@ -76,14 +96,28 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee }: E
     : 'LR';
 
   const handleSave = () => {
-    onSave?.({ name, email, role, shift, password, lastAccessLog });
-    // Reset form for next open
+    onSave?.({
+      name,
+      email,
+      role,
+      shift: isRiderRole ? null : shift,
+      password,
+      lastAccessLog,
+      riderDetails: isRiderRole ? riderDetails : null,
+    });
+
     setName("");
     setEmail("");
     setRole(ROLES[1]);
     setShift(SHIFTS[0]);
     setPassword("");
     setLastAccessLog("");
+    setRiderDetails({
+      vehicle_make_model: "",
+      vehicle_plate_number: "",
+      driver_license_number: "",
+      license_expiry_date: "",
+    });
   };
 
   return (
@@ -169,42 +203,99 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee }: E
             </div>
           </div>
 
-          {/* Shift Dropdown */}
-          <div className="flex flex-col gap-1.5 w-full">
-            <label className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase">
-              Scheduled Shift
-            </label>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShiftOpen(!shiftOpen)}
-                className="flex w-full items-center justify-between bg-white border border-[#DDCDB8] rounded-[12px] p-[14px] text-[15px] text-[#1A1210] transition-colors hover:bg-[#FAF5EB] focus:outline-none focus:ring-2 focus:ring-[#E8541F]"
-              >
-                <span>{shift}</span>
-                {shiftOpen ? <ChevronDown className="w-6 h-6 text-[#1A1210]" /> : <ChevronRight className="w-6 h-6 text-[#1A1210]" />}
-              </button>
-              {shiftOpen && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setShiftOpen(false)} />
-                  <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 bg-white border border-[#DDCDB8] rounded-[12px] p-1 shadow-lg max-h-[160px] overflow-y-auto">
-                    {SHIFTS.map(s => (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => { setShift(s); setShiftOpen(false); }}
-                        className={cn(
-                          "w-full text-left px-3 py-2.5 rounded-lg text-[14px] transition-colors",
-                          shift === s ? "bg-[#F6E9D9] font-bold text-[#8C1C13]" : "text-[#1A1210] hover:bg-[#FAF5EB]"
-                        )}
-                      >
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
+          {!isRiderRole && (
+            <div className="flex flex-col gap-1.5 w-full">
+              <label className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase">
+                Scheduled Shift
+              </label>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShiftOpen(!shiftOpen)}
+                  className="flex w-full items-center justify-between bg-white border border-[#DDCDB8] rounded-[12px] p-[14px] text-[15px] text-[#1A1210] transition-colors hover:bg-[#FAF5EB] focus:outline-none focus:ring-2 focus:ring-[#E8541F]"
+                >
+                  <span>{shift}</span>
+                  {shiftOpen ? <ChevronDown className="w-6 h-6 text-[#1A1210]" /> : <ChevronRight className="w-6 h-6 text-[#1A1210]" />}
+                </button>
+                {shiftOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setShiftOpen(false)} />
+                    <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 bg-white border border-[#DDCDB8] rounded-[12px] p-1 shadow-lg max-h-[160px] overflow-y-auto">
+                      {SHIFTS.map(s => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => { setShift(s); setShiftOpen(false); }}
+                          className={cn(
+                            "w-full text-left px-3 py-2.5 rounded-lg text-[14px] transition-colors",
+                            shift === s ? "bg-[#F6E9D9] font-bold text-[#8C1C13]" : "text-[#1A1210] hover:bg-[#FAF5EB]"
+                          )}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
+          )}
+
+          {isRiderRole && (
+            <div className="flex flex-col gap-3 w-full rounded-[12px] border border-[#DDCDB8] bg-[#F8F1E6] p-3">
+              <div className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase">
+                Rider Details
+              </div>
+
+              <div className="flex flex-col gap-1.5 w-full">
+                <label className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase">
+                  Driver License Number
+                </label>
+                <input
+                  value={riderDetails.driver_license_number}
+                  onChange={e => setRiderDetails(prev => ({ ...prev, driver_license_number: e.target.value }))}
+                  placeholder="e.g. N01-1234567"
+                  className="bg-white border border-[#DDCDB8] rounded-[12px] p-[14px] text-[15px] text-[#1A1210] focus:outline-none focus:ring-2 focus:ring-[#E8541F] placeholder:text-[#A2938A]"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5 w-full">
+                <label className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase">
+                  Vehicle Make / Model
+                </label>
+                <input
+                  value={riderDetails.vehicle_make_model}
+                  onChange={e => setRiderDetails(prev => ({ ...prev, vehicle_make_model: e.target.value }))}
+                  placeholder="e.g. Toyota Hiace"
+                  className="bg-white border border-[#DDCDB8] rounded-[12px] p-[14px] text-[15px] text-[#1A1210] focus:outline-none focus:ring-2 focus:ring-[#E8541F] placeholder:text-[#A2938A]"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5 w-full">
+                <label className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase">
+                  Vehicle Plate Number
+                </label>
+                <input
+                  value={riderDetails.vehicle_plate_number}
+                  onChange={e => setRiderDetails(prev => ({ ...prev, vehicle_plate_number: e.target.value }))}
+                  placeholder="e.g. ABC 1234"
+                  className="bg-white border border-[#DDCDB8] rounded-[12px] p-[14px] text-[15px] text-[#1A1210] focus:outline-none focus:ring-2 focus:ring-[#E8541F] placeholder:text-[#A2938A]"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5 w-full">
+                <label className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase">
+                  License Expiry Date
+                </label>
+                <input
+                  type="date"
+                  value={riderDetails.license_expiry_date}
+                  onChange={e => setRiderDetails(prev => ({ ...prev, license_expiry_date: e.target.value }))}
+                  className="bg-white border border-[#DDCDB8] rounded-[12px] p-[14px] text-[15px] text-[#1A1210] focus:outline-none focus:ring-2 focus:ring-[#E8541F]"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Password */}
           <div className="flex flex-col gap-1.5 w-full">
