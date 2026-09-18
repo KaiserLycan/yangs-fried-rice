@@ -13,6 +13,7 @@ import {
   deleteEmployee, 
   updateEmployeeDetails 
 } from "@/lib/actions/admin";
+import { normalizeEmployeeRoleLabel } from "@/lib/auth/roles";
 
 export type EmployeeData = {
   id: string;
@@ -92,15 +93,23 @@ function ManageEmployeeInner() {
   const handleAddConfirm = async () => {
     if (!employeeToAdd) return;
     setIsProcessing(true);
-    
-    // Map the modal's role format to the uppercase ENUM format typical in Supabase
-    const dbRole = employeeToAdd.role.toUpperCase() === "SERVER" ? "STAFF" : employeeToAdd.role.toUpperCase();
+
+    const dbRole = normalizeEmployeeRoleLabel(employeeToAdd.role ?? "Server") ?? "STAFF";
 
     const result = await createEmployee({
       name: employeeToAdd.name,
       email: employeeToAdd.email,
-      password: employeeToAdd.password || "Yangstemp123!", // Enforce secure fallback
-      role: dbRole as any, 
+      password: employeeToAdd.password || "Yangstemp123!",
+      role: dbRole as any,
+      scheduleShift: dbRole === "RIDER" ? null : employeeToAdd.shift ?? null,
+      riderDetails: dbRole === "RIDER"
+        ? {
+            vehicle_make_model: employeeToAdd.riderDetails?.vehicle_make_model ?? "",
+            vehicle_plate_number: employeeToAdd.riderDetails?.vehicle_plate_number ?? "",
+            driver_license_number: employeeToAdd.riderDetails?.driver_license_number ?? "",
+            license_expiry_date: employeeToAdd.riderDetails?.license_expiry_date ?? "",
+          }
+        : undefined,
     });
 
     if (result.error) {
@@ -118,11 +127,10 @@ function ManageEmployeeInner() {
     if (!employeeToEdit || !selectedEmployee) return;
     setIsProcessing(true);
 
-    const dbRole = employeeToEdit.role.toUpperCase() === "SERVER" ? "STAFF" : employeeToEdit.role.toUpperCase();
+    const dbRole = normalizeEmployeeRoleLabel(employeeToEdit.role ?? "Server") ?? "STAFF";
 
-    // Call our new backend function to save everything!
     const result = await updateEmployeeDetails(selectedEmployee.id, {
-      role: dbRole as any,
+      role: dbRole,
       shift: employeeToEdit.shift,
       password: employeeToEdit.password,
     });
@@ -169,9 +177,10 @@ function ManageEmployeeInner() {
   }
 
   if (roleFilter !== "All Roles") {
-    // Basic mapping for UI filter names vs Database enums
-    const filterMapped = roleFilter === "Server" ? "STAFF" : roleFilter.toUpperCase();
-    filteredEmployees = filteredEmployees.filter(e => e.role.toUpperCase() === filterMapped || e.role === roleFilter);
+    const filterMapped = normalizeEmployeeRoleLabel(roleFilter) ?? "STAFF";
+    filteredEmployees = filteredEmployees.filter(
+      (e) => normalizeEmployeeRoleLabel(e.role) === filterMapped || e.role === roleFilter
+    );
   }
 
   if (nameSort === "asc") {

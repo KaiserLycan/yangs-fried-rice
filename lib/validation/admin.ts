@@ -34,6 +34,25 @@ export const createEmployeeSchema = z.object({
       message: `Role must be one of: ${EMPLOYEE_ROLES.join(", ")}.`,
     }),
   }),
+
+  scheduleShift: z.string().nullable().optional(),
+
+  riderDetails: z
+    .object({
+      vehicle_make_model: z.string().trim().min(1, "Vehicle make/model is required.").optional(),
+      vehicle_plate_number: z.string().trim().min(1, "Vehicle plate number is required.").optional(),
+      driver_license_number: z.string().trim().min(1, "Driver license number is required.").optional(),
+      license_expiry_date: z.string().trim().min(1, "License expiry date is required.").optional(),
+    })
+    .strict()
+    .optional()
+    .refine((details) => {
+      if (!details) return true;
+      const values = Object.values(details).filter((value) => value !== undefined && value !== null && value !== "");
+      return values.length === 0 || values.length === 4;
+    }, {
+      message: "Rider details must include all required vehicle and license fields.",
+    }),
 });
 
 export type CreateEmployeeInput = z.infer<typeof createEmployeeSchema>;
