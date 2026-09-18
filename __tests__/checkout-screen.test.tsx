@@ -5,6 +5,10 @@ import { ToastProvider } from "@/components/ui/toast";
 import type { CartLine } from "@/lib/menu/cart-totals";
 import type { CustomerProfile } from "@/lib/profile/customer-profile";
 import { submitCart } from "@/lib/actions/cart";
+import {
+  isOnlinePaymentConfigured,
+  startWalletPayment,
+} from "@/lib/checkout/paymongo";
 
 const push = vi.fn();
 const refresh = vi.fn();
@@ -15,6 +19,11 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/lib/actions/cart", () => ({
   submitCart: vi.fn(),
+}));
+
+vi.mock("@/lib/checkout/paymongo", () => ({
+  isOnlinePaymentConfigured: vi.fn(() => true),
+  startWalletPayment: vi.fn(),
 }));
 
 /**
@@ -311,6 +320,136 @@ describe("Checkout place order", () => {
     fireEvent.click(screen.getAllByRole("button", { name: /Place order/ })[0]);
 
     expect(await screen.findByText("Cart is empty.")).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+  });
+});
+
+describe("Checkout online payment", () => {
+  const placedOrder = {
+    data: {
+      order_id: "order-79",
+      order_status: "pending",
+      cart_id: "cart-1",
+      is_final: true,
+    },
+    error: null,
+  };
+  const assign = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(isOnlinePaymentConfigured).mockReturnValue(true);
+    // jsdom's `location` cannot be spied on directly; swap the whole object
+    // so the redirect to the wallet's page can be observed.
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { origin: "https://yangs.test", assign },
+    });
+  });
+
+  function chooseWallet(which: "GCash" | "Maya" = "GCash") {
+    fireEvent.click(
+      screen.getAllByRole("radio", { name: "GCash / Maya wallet" })[0],
+    );
+    fireEvent.click(screen.getAllByRole("radio", { name: which })[0]);
+  }
+
+  it("asks which wallet only once GCash / Maya is chosen", () => {
+    renderCheckout();
+    expect(screen.queryByRole("radio", { name: "GCash" })).toBeNull();
+
+    fireEvent.click(
+      screen.getAllByRole("radio", { name: "GCash / Maya wallet" })[0],
+    );
+    expect(screen.getAllByRole("radio", { name: "GCash" })[0]).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(screen.getAllByRole("radio", { name: "Maya" })[0]).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+  });
+
+  it("creates the order, then sends the customer to the wallet's page", async () => {
+    vi.mocked(submitCart).mockResolvedValue(placedOrder);
+    vi.mocked(startWalletPayment).mockResolvedValue({
+      kind: "redirect",
+      url: "https://gcash.test/pay",
+    });
+    renderCheckout();
+    chooseWallet("Maya");
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Place order/ })[0]);
+
+    await waitFor(() =>
+      expect(startWalletPayment).toHaveBeenCalledWith({
+        orderId: "order-79",
+        wallet: "paymaya",
+        returnUrl:
+          "https://yangs.test/checkout/confirmation?order=order-79&pay=paymaya",
+      }),
+    );
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("https://gcash.test/pay"));
+    expect(push).not.toHaveBeenCalled();
+    // Still disabled while the browser leaves — a second press would submit
+    // a cart that is already locked.
+    const [button] = screen.getAllByRole("button", { name: /Opening wallet/ });
+    expect(button).toBeDisabled();
+  });
+
+  it("still opens the receipt, with the wallet named and the failure flagged, when the payment cannot start", async () => {
+    vi.mocked(submitCart).mockResolvedValue(placedOrder);
+    vi.mocked(startWalletPayment).mockRejectedValue(new Error("Gateway down."));
+    renderCheckout();
+    chooseWallet();
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Place order/ })[0]);
+
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith(
+        "/checkout/confirmation?order=order-79&pay=gcash&pay_error=1",
+      ),
+    );
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  it("refuses a wallet order before creating it when online payment is not configured", async () => {
+    vi.mocked(isOnlinePaymentConfigured).mockReturnValue(false);
+    renderCheckout();
+    chooseWallet();
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Place order/ })[0]);
+
+    expect(
+      await screen.findByText(/Online payment isn’t set up on this site yet/),
+    ).toBeInTheDocument();
+    expect(submitCart).not.toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("does not start a payment for cash on delivery or pay in store", async () => {
+    vi.mocked(submitCart).mockResolvedValue(placedOrder);
+    renderCheckout();
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Place order/ })[0]);
+
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith("/checkout/confirmation?order=order-79"),
+    );
+    expect(startWalletPayment).not.toHaveBeenCalled();
+  });
+
+  it("refuses a card before any order is created", async () => {
+    renderCheckout();
+    fireEvent.click(
+      screen.getAllByRole("radio", { name: "Credit / debit card" })[0],
+    );
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Place order/ })[0]);
+
+    expect(await screen.findByText(/Card payments aren’t available yet/)).toBeInTheDocument();
+    expect(submitCart).not.toHaveBeenCalled();
     expect(push).not.toHaveBeenCalled();
   });
 });
