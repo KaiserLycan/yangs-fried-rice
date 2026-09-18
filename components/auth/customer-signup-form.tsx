@@ -7,6 +7,7 @@ import { useState, useTransition } from "react";
 import { cn } from "@/lib/utils";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ShowHideToggle } from "@/components/ui/show-hide-toggle";
