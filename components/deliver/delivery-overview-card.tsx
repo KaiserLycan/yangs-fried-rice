@@ -1,6 +1,17 @@
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { DeliveryData } from "@/lib/mock-deliveries";
+
+export type DeliveryData = {
+  id: string;
+  customer: string;
+  address: string;
+  phone: string;
+  notes: string;
+  paymentMethod: string;
+  total: number | string;
+  status: "ready" | "delivering" | "completed";
+  items: { qty: number; name: string }[];
+};
 
 interface DeliveryOverviewCardProps {
   delivery: DeliveryData;
@@ -9,6 +20,7 @@ interface DeliveryOverviewCardProps {
 
 export function DeliveryOverviewCard({ delivery, isActive }: DeliveryOverviewCardProps) {
   const isReady = delivery.status === "ready";
+  // The unused variables are kept here in case you need them for future UI states
   const isDelivering = delivery.status === "delivering";
   const isCompleted = delivery.status === "completed";
 
@@ -45,7 +57,7 @@ export function DeliveryOverviewCard({ delivery, isActive }: DeliveryOverviewCar
           {delivery.phone}
         </p>
         <p className="text-[12px] text-[#7A6A60] mt-1">
-          {itemCount} items · {delivery.paymentMethod} · {delivery.total}
+          {itemCount} items · {delivery.paymentMethod} · {delivery.total ? `₱${Number(delivery.total).toFixed(2)}` : "Paid"}
         </p>
       </div>
 
