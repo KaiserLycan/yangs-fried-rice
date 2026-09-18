@@ -185,8 +185,13 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
     etaPending && arrivalWindow === null
       ? "Updating arrival time…"
       : arrivalLineFor(arrivalWindow);
+  // `order_type` is stored lowercase ("delivery", "take_out"); the header
+  // reads it as a sentence, so it gets a capital and loses the underscore.
+  const orderType = order.orderType
+    ? order.orderType.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())
+    : "Delivery";
   const destination = order.destination
-    ? `${order.orderType ?? "Delivery"} to ${order.destination}`
+    ? `${orderType} to ${order.destination}`
     : null;
   const subline = [arrival, destination].filter(Boolean).join(" · ");
 

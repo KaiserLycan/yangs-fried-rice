@@ -147,6 +147,14 @@ describe("TrackOrderScreen", () => {
     expect(stageStates()).toEqual(["—", "—", "—", "—"]);
   });
 
+  it("reads the stored order type as a sentence", () => {
+    renderScreen(trackedOrder({ orderType: "take_out" }));
+
+    expect(
+      screen.getByText("Arriving 35–45 min · Take out to 21 Mabini St"),
+    ).toBeInTheDocument();
+  });
+
   it("falls back to a neutral arrival line when nothing has been estimated", () => {
     renderScreen(trackedOrder({ arrivalWindow: null }));
 
