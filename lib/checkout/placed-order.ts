@@ -1,3 +1,4 @@
+import type { PaymentStatus } from "@/lib/checkout/payment-status";
 import type { CartLine, Fulfilment } from "@/lib/menu/cart-totals";
 
 /**
@@ -22,6 +23,10 @@ export type PlacedOrder = {
   lines: CartLine[];
   /** "Cash on delivery" — what they chose, not what was charged. */
   paymentMethodLabel: string;
+  /** Where an online payment stands. Null when nothing was ever charged —
+   * every pay-on-collection order, and a wallet order whose payment never
+   * started. */
+  paymentStatus: PaymentStatus | null;
 };
 
 /**

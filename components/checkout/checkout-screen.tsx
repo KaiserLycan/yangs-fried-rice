@@ -8,7 +8,9 @@ import { OrderSummaryCard } from "@/components/checkout/order-summary-card";
 import { PaymentMethodPicker } from "@/components/checkout/payment-method-picker";
 import {
   DEFAULT_PAYMENT_METHOD,
+  DEFAULT_WALLET_PROVIDER,
   type PaymentMethodId,
+  type WalletProvider,
 } from "@/lib/checkout/payment-methods";
 import {
   computeCartTotals,
@@ -28,8 +30,9 @@ import type { CustomerProfile } from "@/lib/profile/customer-profile";
  * the summary first, then payment, then the button. Building two components
  * would mean two copies of the same summary drifting apart.
  *
- * The selected payment method is the only state here, and it never leaves
- * the browser.
+ * The selected payment method (and, for a wallet, which wallet) is the only
+ * state here. It goes down to `OrderSummaryCard`, which decides on "Place
+ * order" whether the order is simply created or also sent off for payment.
  */
 export function CheckoutScreen({
   profile,
@@ -48,6 +51,9 @@ export function CheckoutScreen({
 }) {
   const [paymentMethod, setPaymentMethod] = React.useState<PaymentMethodId>(
     DEFAULT_PAYMENT_METHOD,
+  );
+  const [wallet, setWallet] = React.useState<WalletProvider>(
+    DEFAULT_WALLET_PROVIDER,
   );
 
   const totals = computeCartTotals({ lines, fulfilment });
@@ -117,6 +123,8 @@ export function CheckoutScreen({
                 <PaymentMethodPicker
                   value={paymentMethod}
                   onChange={setPaymentMethod}
+                  wallet={wallet}
+                  onWalletChange={setWallet}
                 />
               </section>
             </div>
@@ -130,6 +138,8 @@ export function CheckoutScreen({
                 fulfilment={fulfilment}
                 lines={lines}
                 totals={totals}
+                paymentMethod={paymentMethod}
+                wallet={wallet}
               />
             </div>
           </div>

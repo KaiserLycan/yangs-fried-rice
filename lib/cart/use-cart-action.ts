@@ -12,8 +12,7 @@ import { useToast } from "@/components/ui/toast";
 const NETWORK_FAILED = "Couldn’t reach the server. Please try again.";
 
 type ActionResult =
-  | { data: unknown; error: null }
-  | { data: null; error: string; code?: string };
+  { data: unknown; error: null } | { data: null; error: string; code?: string };
 
 /**
  * Runs one cart write from a button, the same way for all of them: the
@@ -46,7 +45,7 @@ export function useCartAction() {
   const run = React.useCallback(
     <R extends ActionResult>(
       action: () => Promise<R>,
-      onSuccess?: (data: NonNullable<R["data"]>) => void,
+      onSuccess?: (data: NonNullable<R["data"]>) => void | Promise<void>,
     ) => {
       setInFlight(true);
       void (async () => {
@@ -66,7 +65,10 @@ export function useCartAction() {
             showToast(result.error);
             return;
           }
-          onSuccess?.(result.data as NonNullable<R["data"]>);
+          // Awaited so a follow-up that is itself a network call — starting
+          // an online payment after the order exists — keeps the button
+          // disabled until it has finished too.
+          await onSuccess?.(result.data as NonNullable<R["data"]>);
           startTransition(() => router.refresh());
         } finally {
           setInFlight(false);
