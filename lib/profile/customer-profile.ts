@@ -25,6 +25,7 @@ export type CustomerProfile = {
   dateOfBirth: string | null;
   /** As stored, in whatever shape it was typed — see `formatMobileNumber`. */
   mobile: string | null;
+  profileImageUrl: string | null;
   /**
    * The customer's sign-in identity, read from the authenticated user rather
    * than the customer row. The two are written separately at registration and
@@ -105,7 +106,7 @@ export async function readCustomerProfile(): Promise<CustomerProfile | null> {
   const [customerResult, orderCountResult, addressesResult] = await Promise.all([
     supabase
       .from("customer")
-      .select("name, phone_number")
+      .select("name, phone_number, profileImage_URL")
       .eq("customer_id", user.id)
       .maybeSingle(),
     supabase
@@ -156,6 +157,7 @@ export async function readCustomerProfile(): Promise<CustomerProfile | null> {
     // column lands this file is the only one that changes.
     dateOfBirth: null,
     mobile: customerResult.data?.phone_number ?? null,
+    profileImageUrl: customerResult.data?.profileImage_URL ?? null,
     email: user.email ?? "",
     memberSince: user.created_at ?? null,
     orderCount: orderCountResult.count ?? 0,
