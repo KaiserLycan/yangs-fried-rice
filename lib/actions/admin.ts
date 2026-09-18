@@ -8,6 +8,7 @@ import {
   canChangeRole,
   canDisableEmployee,
   canResetEmployeePassword,
+  normalizeEmployeeRoleLabel,
   type EmployeeRole,
 } from "@/lib/auth/roles";
 import {
@@ -130,7 +131,19 @@ export async function createEmployee(
     return { data: null, error: parsed.error.errors[0].message };
   }
 
-  const { name, email, password, role } = parsed.data;
+  const normalizedRole =
+    normalizeEmployeeRoleLabel(parsed.data.role) ?? parsed.data.role;
+  const {
+    name,
+    email,
+    password,
+    role: canonicalRole,
+    scheduleShift,
+    riderDetails,
+  } = {
+    ...parsed.data,
+    role: normalizedRole,
+  } as typeof parsed.data & { role: EmployeeRole };
 
   try {
     // Use the admin client to create the Auth user — the session-scoped
@@ -155,14 +168,17 @@ export async function createEmployee(
     }
 
     const supabase = createClient();
+    const employeeRow = {
+      employee_id: authData.user.id,
+      name,
+      email,
+      role: canonicalRole,
+      schedule_shift: canonicalRole === "RIDER" ? null : scheduleShift ?? null,
+    };
+
     const { data: employee, error: insertError } = await supabase
       .from("employee")
-      .insert({
-        employee_id: authData.user.id,
-        name,
-        email,
-        role,
-      })
+      .insert(employeeRow)
       .select()
       .single();
 
@@ -170,6 +186,26 @@ export async function createEmployee(
       // Roll back the Auth user — we don't want an orphan.
       await adminClient.auth.admin.deleteUser(authData.user.id);
       return { data: null, error: insertError.message };
+    }
+
+    if (canonicalRole === "RIDER") {
+      const riderPayload = {
+        employee_id: employee.employee_id,
+        vehicle_plate_number: riderDetails?.vehicle_plate_number ?? null,
+        vehicle_make_model: riderDetails?.vehicle_make_model ?? null,
+        driver_license_number: riderDetails?.driver_license_number ?? null,
+        license_expiry_date: riderDetails?.license_expiry_date ?? null,
+      };
+
+      const { error: riderInsertError } = await supabase
+        .from("rider")
+        .insert(riderPayload);
+
+      if (riderInsertError) {
+        await adminClient.auth.admin.deleteUser(authData.user.id);
+        await supabase.from("employee").delete().eq("employee_id", authData.user.id);
+        return { data: null, error: riderInsertError.message };
+      }
     }
 
     return { data: employee, error: null };
