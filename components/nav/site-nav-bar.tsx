@@ -1,7 +1,8 @@
+// trigger rebuild
 import { Suspense, use } from "react";
 import Link from "next/link";
 import { NavAddressDropdown } from "@/components/nav/nav-address-dropdown";
-import { AvatarButton } from "@/components/profile/avatar-button";
+import { Avatar } from "@/components/ui/avatar";
 import type { CustomerProfile } from "@/lib/profile/customer-profile";
 import { initialsFrom } from "@/lib/profile/identity";
 import { cn } from "@/lib/utils";
@@ -55,10 +56,10 @@ const NAV_LINKS: { id: NavSection; href: string; label: string }[] = [
   { id: "account", href: "/profile", label: "Account" },
 ];
 
-function ResolvedProfileActions({ 
+function ResolvedProfileActions({
   profile: initialProfile,
-  profilePromise 
-}: { 
+  profilePromise
+}: {
   profile?: CustomerProfile | null;
   profilePromise?: Promise<CustomerProfile | null>;
 }) {
@@ -69,16 +70,23 @@ function ResolvedProfileActions({
   return (
     <div className="flex items-center gap-[14px]">
       {profile && profile.addresses.length > 0 ? (
-        <NavAddressDropdown 
-          addresses={profile.addresses} 
+        <NavAddressDropdown
+          addresses={profile.addresses}
           activeAddressId={profile.activeAddressId}
         />
       ) : null}
       {profile ? (
-        <AvatarButton
-          initials={initials}
-          className="size-[32px] bg-accent text-[12px] font-bold text-white"
-        />
+        <Link
+          href="/profile"
+          className="rounded-pill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          aria-label="Go to your account"
+        >
+          <Avatar
+            initials={initials}
+            imageUrl={profile.profileImageUrl}
+            className="size-[32px] bg-accent text-[12px] font-bold text-white"
+          />
+        </Link>
       ) : (
         <Link
           href="/login"
@@ -140,7 +148,7 @@ export function SiteNavBar({
           unchanged from the pre-extraction markup. */}
       <div className="ml-auto flex items-center gap-[16px]">
         {search}
-        
+
         {profilePromise ? (
           <Suspense fallback={<div className="size-[32px] animate-pulse rounded-full bg-white/20" />}>
             <ResolvedProfileActions profilePromise={profilePromise} />

@@ -18,9 +18,11 @@ import { cn } from "@/lib/utils";
  */
 export function Avatar({
   initials,
+  imageUrl,
   className,
 }: {
   initials: string;
+  imageUrl?: string | null;
   className?: string;
 }) {
   return (
@@ -30,11 +32,20 @@ export function Avatar({
       // screen reader to gain from reading it a second time.
       aria-hidden
       className={cn(
-        "inline-flex shrink-0 items-center justify-center rounded-pill",
+        "inline-flex shrink-0 items-center justify-center rounded-pill overflow-hidden relative bg-accent",
         className,
       )}
     >
-      {initials}
+      {imageUrl ? (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          src={imageUrl}
+          alt={initials}
+          className="w-full h-full object-cover"
+        />
+      ) : (
+        initials
+      )}
     </span>
   );
 }

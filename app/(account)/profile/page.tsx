@@ -60,7 +60,10 @@ export default async function ProfilePage() {
               {/* The avatar card is desktop-only, so on mobile this row is
                   just the personal details card at full width. */}
               <div className="flex flex-col gap-[12px] md:flex-row md:items-start md:gap-[18px]">
-                <ProfileAvatarCard initials={initialsFrom(profile.name)} />
+                <ProfileAvatarCard
+                  initials={initialsFrom(profile.name)}
+                  imageUrl={profile.profileImageUrl}
+                />
                 <div className="min-w-0 flex-1">
                   <PersonalDetailsCard profile={profile} />
                 </div>
