@@ -171,7 +171,7 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
             {subline}
           </p>
 
-          {progress.stage === "cancelled" && status.cancellationReason && (
+          {progress.kind === "cancelled" && status.cancellationReason && (
             <div className="mt-4">
               <Alert className="bg-destructive/10 border-destructive/20 text-destructive md:text-destructive md:bg-error-surface md:border-error-border">
                 {status.cancellationReason}
@@ -201,7 +201,7 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
               progress={progress}
             />
           </div>
-          {progress.stage === "completed" && (
+          {progress.kind === "stage" && progress.stage === "delivered" && (
             <div className="w-full pt-[6px] md:pt-4 border-t border-rule mt-4">
               <ProductReviewControl order={order} />
             </div>

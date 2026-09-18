@@ -36,7 +36,7 @@ export function ProductReviewControl({ order }: { order: TrackedOrder }) {
               ))}
             </div>
             <div className="mt-6 pt-4 border-t flex justify-end">
-              <Button onClick={() => setIsOpen(false)} variant="ghost">Close</Button>
+              <Button onClick={() => setIsOpen(false)} variant="outline">Close</Button>
             </div>
           </div>
         </div>
@@ -88,7 +88,6 @@ function ReviewItem({ orderId, item }: { orderId: string, item: { productId: str
           <Button 
             onClick={handleSubmit} 
             disabled={rating === 0} 
-            size="sm" 
             className="mt-2"
           >
             Submit

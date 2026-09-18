@@ -221,7 +221,7 @@ export async function createProduct(
     is_available: parsed.data.is_available,
     image_url: parsed.data.image_url ?? null,
     ...(parsed.data.product_id ? { product_id: parsed.data.product_id } : {}),
-  };
+  } as any;
 
   const { data, error } = await supabase
     .from("product")

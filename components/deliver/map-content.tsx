@@ -44,7 +44,7 @@ function RoutingMachine({
   destinationLabel?: string;
 }) {
   const map = useMap();
-  const routingControlRef = useRef<L.Routing.Control | null>(null);
+  const routingControlRef = useRef<any>(null);
 
   useEffect(() => {
     if (!map) return;
@@ -74,7 +74,7 @@ function RoutingMachine({
 
     if (!routingControlRef.current) {
       // First time initialization
-      const routingControl = L.Routing.control({
+      const routingControl = (L as any).Routing.control({
         waypoints: [originLatLng, destLatLng],
         lineOptions: {
           styles: [{ color: "#E8541F", opacity: 0.8, weight: 6 }],

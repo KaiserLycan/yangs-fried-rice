@@ -220,7 +220,7 @@ export function MenuItemDetailModal({
                           key={cat}
                           type="button"
                           onClick={() => {
-                            setCategory(cat);
+                            setCategory(cat as MenuCategory);
                             setCategoryOpen(false);
                           }}
                           className={`flex w-full items-center rounded-[8px] px-3 py-2.5 text-left text-[14px] transition-colors ${
