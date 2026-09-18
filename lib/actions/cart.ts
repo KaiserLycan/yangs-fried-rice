@@ -538,7 +538,7 @@ export async function submitCart(
 
   // Try RPC first (if installed in Supabase)
   const { data: rpcData, error: rpcError } = await supabase.rpc(
-    "submit_cart_to_order",
+    "submit_cart_to_order" as any,
     {
       p_cart_id: parsed.data.cart_id,
       p_order_type: parsed.data.order_type,
@@ -734,7 +734,7 @@ export async function cancelCustomerOrder(
 
   // Try RPC first (if installed in Supabase)
   const { data: rpcData, error: rpcError } = await supabase.rpc(
-    "cancel_customer_order",
+    "cancel_customer_order" as any,
     {
       p_order_id: orderId,
       p_reason: parsed.data.cancellation_reason,

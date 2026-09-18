@@ -20,6 +20,7 @@ export default function RiderProfilePage() {
     deliverToAddress: null,
     activeAddressId: null,
     addresses: [],
+    profileImageUrl: null,
   };
 
   const employeeData = {

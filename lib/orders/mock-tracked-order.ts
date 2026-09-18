@@ -60,6 +60,7 @@ const BASE = {
   orderNumber: "1042",
   orderStatus: null as string | null,
   cancelledAt: null as string | null,
+  cancellationReason: null as string | null,
   deliveryStatus: null as string | null,
   deliveryId: null as string | null,
   orderType: "Delivery",
