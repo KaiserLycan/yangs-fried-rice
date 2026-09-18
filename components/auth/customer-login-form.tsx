@@ -40,6 +40,11 @@ function LoginFormInner() {
   const [submitted, setSubmitted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [isFormValid, setIsFormValid] = useState(false);
+
+  function handleFormChange(event: React.FormEvent<HTMLFormElement>) {
+    setIsFormValid(event.currentTarget.checkValidity());
+  }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -81,6 +86,7 @@ function LoginFormInner() {
     <div className="relative flex flex-col px-6 pb-[30px] md:justify-center md:bg-background md:px-[52px] md:py-[48px]">
       <form
         noValidate
+        onChange={handleFormChange}
         onSubmit={handleSubmit}
         className="flex flex-col gap-[14px] rounded-[22px] bg-background p-5 md:gap-[18px] md:rounded-none md:bg-transparent md:p-0"
       >
@@ -110,6 +116,7 @@ function LoginFormInner() {
             type="email"
             autoComplete="email"
             placeholder="you@example.com"
+            required
             invalid={Boolean(errors.email)}
           />
         </Field>
@@ -131,6 +138,7 @@ function LoginFormInner() {
             type={showPassword ? "text" : "password"}
             autoComplete="current-password"
             placeholder="At least 8 characters"
+            required
             invalid={Boolean(errors.password)}
           />
         </Field>
@@ -146,7 +154,7 @@ function LoginFormInner() {
           </Link>
         </div>
 
-        <Button type="submit" disabled={isPending}>
+        <Button type="submit" disabled={isPending || !isFormValid}>
           {isPending ? "Logging in…" : "Log in"}
         </Button>
       </form>

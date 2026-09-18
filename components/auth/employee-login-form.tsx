@@ -45,6 +45,11 @@ export function EmployeeLoginForm() {
   const [submitted, setSubmitted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [isFormValid, setIsFormValid] = useState(false);
+
+  function handleFormChange(event: React.FormEvent<HTMLFormElement>) {
+    setIsFormValid(event.currentTarget.checkValidity());
+  }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -88,6 +93,7 @@ export function EmployeeLoginForm() {
     <div className="relative flex flex-1 flex-col px-6 pb-[28px] pt-[22px] md:justify-center md:gap-[18px] md:bg-background md:px-[52px] md:pb-[46px] md:pt-[46px]">
       <form
         noValidate
+        onChange={handleFormChange}
         onSubmit={handleSubmit}
         className="flex flex-col gap-[14px] rounded-[20px] bg-background p-5 md:gap-[18px] md:rounded-none md:bg-transparent md:p-0"
       >
@@ -118,6 +124,7 @@ export function EmployeeLoginForm() {
             // `username` rather than `email` to play nicely with autofill
             autoComplete="username"
             placeholder="name@yangs.ph"
+            required
             invalid={Boolean(errors.identifier)}
           />
         </Field>
@@ -139,11 +146,12 @@ export function EmployeeLoginForm() {
             type={showPassword ? "text" : "password"}
             autoComplete="current-password"
             placeholder="At least 8 characters"
+            required
             invalid={Boolean(errors.password)}
           />
         </Field>
 
-        <Button type="submit" disabled={isPending}>
+        <Button type="submit" disabled={isPending || !isFormValid}>
           {isPending ? "Signing in…" : "Sign in"}
         </Button>
 
