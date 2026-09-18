@@ -9,7 +9,7 @@ This document tracks all the pending/unimplemented acceptance criteria from open
 - [x] **Implemented:** Customers can view the current preparation status of their orders in real-time.
 - [x] **Implemented:** Customers can track the current delivery status of their orders.
 - [x] **Implemented:** The system updates the customer interface automatically as staff and drivers change the order stages (via Supabase realtime channels).
-- [ ] **Still Needed:** The staff and driver interfaces need their state mutations connected so they actually trigger these live updates.
+- [x] **Implemented:** The staff and driver interfaces need their state mutations connected so they actually trigger these live updates.
 
 ## Issue #22: US-12: Order Review & Flexible Payment Options (CLOSED)
 - [x] **Implemented:** Customers must be able to review their complete order details (name, date, address, items ordered, estimated completion time, and amount payable) before confirming the placement.
@@ -31,7 +31,7 @@ This document tracks all the pending/unimplemented acceptance criteria from open
 - [ ] **Still Needed:** The ETA calculation must account for real-time kitchen queue traffic.
 - [ ] **Still Needed:** The ETA calculation must factor in the delivery distance.
 
-## Issue #9: US-04: Payment Processing & Kitchen Queue
+## Issue #9: US-04: Payment Processing & Kitchen Queue (PARTIALLY CLOSED)
 - [ ] **Still Needed:** The Stripe/Paymongo API processes digital payments successfully. (No integration present).
 - [x] **Implemented:** Incoming orders display sequentially on a kitchen display system. (KDS button/layout exists).
 - [x] **Implemented:** Staff can click to mark prepared orders as completed. (Backend and frontend wired).
@@ -49,8 +49,8 @@ This document tracks all the pending/unimplemented acceptance criteria from open
 - [x] **Implemented:** The system must display a confirmation prompt when a customer attempts to cancel an order.
 - [x] **Implemented:** The system prevents order cancellation once the restaurant has confirmed it.
 
-## Issue #6: US-09: Administration Analytics & System Oversight
-- [ ] **Still Needed:** The system must allow administrators to generate basic reports regarding platform performance. (Basic UI layout exists in `manage`, but reports are missing).
+## Issue #6: US-09: Administration Analytics & System Oversight (CLOSED)
+- [x] **Implemented:** The system must allow administrators to generate basic reports regarding platform performance. (PDF export and frontend charts built and wired).
 
 ## Issue #5: US-03: Menu Browsing & Checkout (CLOSED)
 - [x] **Implemented:** The system automatically calculates the total cost, including delivery fees.
