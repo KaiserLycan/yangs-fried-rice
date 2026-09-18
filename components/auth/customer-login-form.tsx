@@ -159,10 +159,6 @@ function LoginFormInner() {
         </Button>
       </form>
 
-      <p className="relative hidden text-[11px] leading-[16.5px] text-placeholder md:mt-[18px] md:block">
-        By continuing you agree to Yang&apos;s terms of service and privacy
-        policy.
-      </p>
     </div>
   );
 }
