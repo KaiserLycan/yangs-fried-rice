@@ -35,3 +35,25 @@ export const PAYMENT_METHODS: PaymentMethod[] = [
 
 /** Cash on delivery, which is the option both frames draw as selected. */
 export const DEFAULT_PAYMENT_METHOD: PaymentMethodId = "cash-on-delivery";
+
+/**
+ * Which e-wallet a "GCash / Maya wallet" customer actually holds. The picker
+ * draws the two as one option (that is what the frames draw), but PayMongo
+ * redirects to one wallet or the other, so the choice has to be made before
+ * "Place order" fires. See `lib/checkout/paymongo.ts`.
+ */
+export type WalletProvider = "gcash" | "paymaya";
+
+export const WALLET_PROVIDERS: { id: WalletProvider; label: string }[] = [
+  { id: "gcash", label: "GCash" },
+  { id: "paymaya", label: "Maya" },
+];
+
+export const DEFAULT_WALLET_PROVIDER: WalletProvider = "gcash";
+
+/** Reads a `?pay=` query value back into a wallet, or null for anything else. */
+export function walletFromParam(
+  value: string | undefined,
+): WalletProvider | null {
+  return value === "gcash" || value === "paymaya" ? value : null;
+}

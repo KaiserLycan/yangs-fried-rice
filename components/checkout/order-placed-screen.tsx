@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { SiteNavBar } from "@/components/nav/site-nav-bar";
 import { OrderSummaryRows } from "@/components/checkout/order-summary-rows";
+import { PaymentStatusCard } from "@/components/checkout/payment-status-card";
 import { ARRIVAL_ESTIMATE } from "@/lib/checkout/arrival-estimate";
+import type { WalletProvider } from "@/lib/checkout/payment-methods";
 import type { PlacedOrder } from "@/lib/checkout/placed-order";
 import { computeCartTotals } from "@/lib/menu/cart-totals";
 import type { CustomerProfile } from "@/lib/profile/customer-profile";
@@ -17,7 +19,9 @@ import type { CustomerProfile } from "@/lib/profile/customer-profile";
  * (`133:1164`) at stage zero. It wants a look from the PM — see
  * `.scratch/ordering-flow/issues/13-order-placed-confirmation.md`.
  *
- * A Server Component. Nothing here is interactive, which is the point:
+ * A Server Component. Apart from the payment block — which watches an online
+ * payment settle, see `PaymentStatusCard` — nothing here is interactive,
+ * which is the point:
  *
  *   - **Nothing can be modified.** The cart is frozen once the order is
  *     placed, so there are no quantity steppers, no remove controls and no
@@ -34,9 +38,15 @@ import type { CustomerProfile } from "@/lib/profile/customer-profile";
 export function OrderPlacedScreen({
   profile,
   order,
+  wallet = null,
+  startFailed = false,
 }: {
   profile: CustomerProfile;
   order: PlacedOrder;
+  /** From `?pay=` — the wallet the customer was sent to, if any. */
+  wallet?: WalletProvider | null;
+  /** From `?pay_error=1` — checkout could not open the wallet page. */
+  startFailed?: boolean;
 }) {
   // The same module the cart and checkout use. Checkout must not compute
   // money one way and its own receipt another.
@@ -87,24 +97,13 @@ export function OrderPlacedScreen({
           />
         </section>
 
-        {/* What they chose, not what was taken. Nothing processes a payment
-            in this phase (ticket 05), so the wording has to stop short of
-            claiming one happened — a customer who reads "paid" here and is
-            then asked for cash at the door has been misled by this screen. */}
-        <section
-          data-testid="payment-method"
-          className="flex flex-col gap-[4px] rounded-lg border border-rule bg-card p-[20px]"
-        >
-          <h2 className="text-[11px] font-bold uppercase tracking-[1.54px] text-muted-foreground">
-            Payment method
-          </h2>
-          <p className="text-[14px] font-bold text-foreground">
-            {order.paymentMethodLabel}
-          </p>
-          <p className="text-[12px] leading-[18px] text-muted-strong">
-            Nothing has been taken yet — settle up when your order reaches you.
-          </p>
-        </section>
+        <PaymentStatusCard
+          orderId={order.orderId}
+          methodLabel={order.paymentMethodLabel}
+          initialStatus={order.paymentStatus}
+          wallet={wallet}
+          startFailed={startFailed}
+        />
 
         <Link
           href={`/orders/${order.orderId}`}
