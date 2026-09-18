@@ -8,10 +8,10 @@ export default function NotFound() {
       <div className="relative flex flex-col px-6 pb-[30px] pt-[30px] md:justify-center md:bg-background md:px-[52px] md:py-[48px]">
         <div className="flex flex-col gap-[14px] rounded-[22px] bg-background p-5 shadow-sm md:gap-[18px] md:rounded-none md:bg-transparent md:p-0 md:shadow-none">
           <div className="flex flex-col gap-[5px]">
-            <h1 className="font-display text-[60px] leading-none text-primary md:text-[80px]">
+            <h1 className="font-display text-[60px] leading-none text-[#e8541f] md:text-[80px]">
               404
             </h1>
-            <h2 className="font-display text-[24px] leading-tight text-foreground md:text-[30px]">
+            <h2 className="font-display text-[24px] leading-tight text-[#e8541f] md:text-[30px]">
               Page Not Found
             </h2>
             <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground md:text-[15px]">
