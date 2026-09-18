@@ -10,9 +10,9 @@ This document maps the master list of requirements to the current state of the c
 - [x] **Cust5 - Delete account:** **Implemented** (Customer profile deletion wired via PR #74)
 
 ## 🟡 Menu Management
-- [~] **Menu1 - Add food items:** **Partially Implemented** (Admin CRUD UI built, partial API integration)
-- [~] **Menu2 - Edit food items:** **Partially Implemented** (Admin CRUD UI built, partial API integration)
-- [~] **Menu3 - Remove food items:** **Partially Implemented** (Admin CRUD UI built, partial API integration)
+- [x] **Menu1 - Add food items:** **Implemented** (Admin CRUD UI built and wired to API)
+- [x] **Menu2 - Edit food items:** **Implemented** (Admin CRUD UI built and wired to API)
+- [x] **Menu3 - Remove food items:** **Implemented** (Admin CRUD UI built and wired to API)
 - [~] **Menu4 - Categorize items:** **Partially Implemented** 
 - [ ] **Menu5 - Real time updates:** **Missing** 
 
@@ -48,7 +48,7 @@ This document maps the master list of requirements to the current state of the c
 
 ## 🟡 System Administration and Support
 - [x] **SAS1 - Manage users, orders, payments:** **Implemented** (Admin Dashboards wired to real API via PR #73)
-- [~] **SAS2 - Generate performance/sales reports:** **Partially Implemented** (Backend `/api/reports/pdf` works, but frontend `/manage/reports` uses mock data)
+- [x] **SAS2 - Generate performance/sales reports:** **Implemented** (PDF export and frontend charts wired to real data)
 
 ## 🟢 Search, Filters, and Recommendations
 - [x] **SFR1 - Search by keywords:** **Implemented**
