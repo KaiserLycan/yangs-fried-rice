@@ -36,6 +36,12 @@ import { createClient } from "@/lib/supabase/client";
  */
 
 const POLL_MS = 4000;
+/** How long a pending payment is left alone before "Pay now" is offered.
+ * The webhook usually lands within seconds of the customer returning; a
+ * button shown sooner invites a second intent on top of a payment that is
+ * already going through (`create-payment-intent` reuses the pending row and
+ * overwrites its reference, so the late webhook would then match nothing). */
+const PENDING_GRACE_MS = 20000;
 
 const WALLET_LABEL = new Map(
   WALLET_PROVIDERS.map((provider) => [provider.id, provider.label]),
@@ -60,6 +66,7 @@ export function PaymentStatusCard({
   const showToast = useToast();
   const [status, setStatus] = React.useState(initialStatus);
   const [starting, setStarting] = React.useState<WalletProvider | null>(null);
+  const [stalePending, setStalePending] = React.useState(false);
 
   const reread = React.useCallback(async () => {
     const supabase = createClient();
@@ -92,9 +99,16 @@ export function PaymentStatusCard({
   }, [orderId, reread]);
 
   React.useEffect(() => {
-    if (status !== "pending") return;
+    if (status !== "pending") {
+      setStalePending(false);
+      return;
+    }
 
     const timer = window.setInterval(() => void reread(), POLL_MS);
+    const grace = window.setTimeout(
+      () => setStalePending(true),
+      PENDING_GRACE_MS,
+    );
     const onVisible = () => {
       if (document.visibilityState === "visible") void reread();
     };
@@ -102,9 +116,24 @@ export function PaymentStatusCard({
 
     return () => {
       window.clearInterval(timer);
+      window.clearTimeout(grace);
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, [status, reread]);
+
+  // Coming *back* from the wallet page with the browser's Back button can
+  // restore this page from cache exactly as it was left — buttons disabled,
+  // "Opening wallet…" still showing. `pageshow` with `persisted` is that
+  // case; wake the buttons up and re-read the row.
+  React.useEffect(() => {
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+      setStarting(null);
+      void reread();
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, [reread]);
 
   async function payWith(provider: WalletProvider) {
     setStarting(provider);
@@ -131,16 +160,22 @@ export function PaymentStatusCard({
     }
   }
 
-  // Which wallet buttons to draw. Known from the URL: just that one. A
-  // pending or failed row with no wallet in the URL (the customer reopened
-  // the receipt later): offer both, since the row does not say which.
+  // Which wallet buttons to draw. None once money has moved, and none
+  // while a pending payment is still fresh enough to be settling. Known
+  // from the URL: just that one. A pending or failed row with no wallet in
+  // the URL (the customer reopened the receipt later): offer both, since
+  // the row does not say which.
   const isOnlineOrder = wallet !== null || status !== null;
-  const offer =
-    status === "paid" || !isOnlineOrder
-      ? []
-      : wallet
-        ? [wallet]
-        : WALLET_PROVIDERS.map((provider) => provider.id);
+  const canPay =
+    isOnlineOrder &&
+    (status === null ||
+      status === "failed" ||
+      (status === "pending" && stalePending));
+  const offer = !canPay
+    ? []
+    : wallet
+      ? [wallet]
+      : WALLET_PROVIDERS.map((provider) => provider.id);
 
   return (
     <section
@@ -160,7 +195,7 @@ export function PaymentStatusCard({
         role={status === "pending" ? "status" : undefined}
         className="text-[12px] leading-[18px] text-muted-strong"
       >
-        {note(status, isOnlineOrder, startFailed)}
+        {note(status, isOnlineOrder, startFailed, stalePending)}
       </p>
 
       {offer.length > 0 ? (
@@ -188,15 +223,22 @@ function note(
   status: PaymentStatus | null,
   isOnlineOrder: boolean,
   startFailed: boolean,
+  stalePending: boolean,
 ): string {
-  if (startFailed && status !== "paid") {
+  // Only while nothing has been recorded — once a row exists the row's own
+  // state is the truer story than what checkout saw earlier.
+  if (startFailed && status === null) {
     return "We couldn’t open your wallet just now. Your order is placed — pay now to finish it.";
   }
   switch (status) {
     case "paid":
       return "Payment received — thank you.";
+    case "refunded":
+      return "This payment was refunded.";
     case "pending":
-      return "Waiting for your wallet to confirm the payment… If you closed the wallet page, pay now to finish.";
+      return stalePending
+        ? "Still waiting for your wallet to confirm. If you closed the wallet page, pay now to finish."
+        : "Waiting for your wallet to confirm the payment…";
     case "failed":
       return "The payment didn’t go through. Nothing was taken — try again below.";
     default:

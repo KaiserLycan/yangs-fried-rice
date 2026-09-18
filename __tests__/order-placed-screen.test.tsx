@@ -196,13 +196,47 @@ describe("OrderPlacedScreen online payment", () => {
     expect(screen.queryByRole("button", { name: /pay now/i })).toBeNull();
   });
 
-  it("offers to finish a pending payment with the wallet the customer chose", () => {
+  it("leaves a fresh pending payment alone — the webhook is probably seconds away", () => {
     renderScreen(walletOrder("pending"), "paymaya");
     expect(screen.getByTestId("payment-method")).toHaveTextContent(/waiting/i);
+    expect(screen.queryByRole("button", { name: /pay now/i })).toBeNull();
+  });
+
+  it("offers to finish a pending payment once it has waited long enough", async () => {
+    vi.useFakeTimers();
+    // The card re-reads the row every few seconds while pending; keep it
+    // pending so the grace period is what the test measures.
+    select.mockResolvedValue({ data: [{ payment_status: "pending" }] });
+    try {
+      renderScreen(walletOrder("pending"), "paymaya");
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(20000);
+      });
+      expect(
+        screen.getByRole("button", { name: "Pay now with Maya" }),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /GCash/ })).toBeNull();
+      expect(screen.getByTestId("payment-method")).toHaveTextContent(
+        /still waiting/i,
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("says a refunded payment was refunded and offers nothing", () => {
+    renderScreen(walletOrder("refunded"));
+    expect(screen.getByTestId("payment-method")).toHaveTextContent(/refunded/i);
     expect(
-      screen.getByRole("button", { name: "Pay now with Maya" }),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /GCash/ })).toBeNull();
+      screen.queryByRole("button", { name: /pay now|try again/i }),
+    ).toBeNull();
+  });
+
+  it("drops the failed-start message once a transaction row exists", () => {
+    renderScreen(walletOrder("failed"), "gcash", true);
+    const payment = screen.getByTestId("payment-method");
+    expect(payment).not.toHaveTextContent(/couldn’t open your wallet/i);
+    expect(payment).toHaveTextContent(/didn’t go through/i);
   });
 
   it("offers both wallets when the receipt is reopened without one named", () => {
@@ -245,9 +279,11 @@ describe("OrderPlacedScreen online payment", () => {
       kind: "redirect",
       url: "https://gcash.test/pay",
     });
-    renderScreen(walletOrder("pending"), "gcash");
+    renderScreen(walletOrder("failed"), "gcash");
 
-    fireEvent.click(screen.getByRole("button", { name: "Pay now with GCash" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Try again with GCash" }),
+    );
 
     await waitFor(() =>
       expect(startWalletPayment).toHaveBeenCalledWith({

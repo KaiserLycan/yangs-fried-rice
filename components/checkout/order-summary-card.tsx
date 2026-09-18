@@ -64,6 +64,20 @@ export function OrderSummaryCard({
   // press would submit a cart that is already locked.
   const [redirecting, setRedirecting] = React.useState(false);
 
+  // Back from the wallet page can restore this screen from the browser's
+  // cache with the button still disabled. `pageshow` + `persisted` is that
+  // case; the cart behind it is locked by then, so a refresh shows the
+  // empty state rather than a stale summary.
+  React.useEffect(() => {
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+      setRedirecting(false);
+      router.refresh();
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, [router]);
+
   // `submitCart` locks the cart, creates the `order` and hands back its id.
   // The fee is sent along because the backend has no fee rule of its own
   // (see the handoff doc) — the ₱95 `computeCartTotals` already applied is
