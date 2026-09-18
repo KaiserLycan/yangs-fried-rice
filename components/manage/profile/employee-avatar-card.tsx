@@ -1,31 +1,75 @@
 "use client";
 
-/**
- * Employee Avatar Card
- * 
- * What's Added/Changed:
- * - Implemented a hover overlay that dims the avatar and shows a camera icon.
- * - Added a hidden file input to allow selecting an image from the local device.
- * - Uses URL.createObjectURL to instantly preview the selected image.
- * 
- * TODO (Backend Integration & Improvements):
- * - [ ] Connect the file input to upload the image to Supabase Storage.
- * - [ ] Fetch and display the user's actual avatar URL instead of initials.
- * - [ ] Add error handling for upload failures and file size/type restrictions.
- */
-
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Camera } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/ui/toast";
 
-export function EmployeeAvatarCard({ initials }: { initials: string }) {
+export function EmployeeAvatarCard({
+  initials,
+  avatarUrl,
+}: {
+  initials: string;
+  avatarUrl?: string | null;
+}) {
+  const router = useRouter();
+  const showToast = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(avatarUrl ?? null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  useEffect(() => {
+    setAvatarPreview(avatarUrl ?? null);
+  }, [avatarUrl]);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setAvatarPreview(URL.createObjectURL(file));
-      // TODO: upload file to backend
+    if (!file) return;
+
+    try {
+      const supabase = createClient();
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        showToast("You must be signed in to upload a profile photo.");
+        return;
+      }
+
+      const fileExt = file.name.split(".").pop() || "png";
+      const filePath = `employee-${user.id}-${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from("emp-pfp")
+        .upload(filePath, file, { upsert: true, contentType: file.type });
+
+      if (uploadError) {
+        showToast(uploadError.message || "Could not upload your profile photo.");
+        return;
+      }
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("emp-pfp").getPublicUrl(filePath);
+
+      const { error: profileError } = await supabase
+        .from("employee")
+        .update({ profileImage_URL: publicUrl })
+        .eq("employee_id", user.id);
+
+      if (profileError) {
+        showToast(profileError.message || "Could not save your profile photo.");
+        return;
+      }
+
+      setAvatarPreview(publicUrl);
+      router.refresh();
+      showToast("Profile photo updated.");
+    } catch {
+      showToast("Could not upload your profile photo. Please try again.");
+    } finally {
+      if (e.target) e.target.value = "";
     }
   };
 
@@ -55,7 +99,6 @@ export function EmployeeAvatarCard({ initials }: { initials: string }) {
         </span>
       )}
 
-      {/* Hover Overlay */}
       <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
         <Camera className="w-8 h-8 md:w-10 md:h-10 text-white" />
       </div>

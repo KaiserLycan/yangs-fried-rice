@@ -14,6 +14,7 @@
  * - [ ] Enhance validation error messaging if backend rejects the update.
  */
 
+import { useRouter } from "next/navigation";
 import {
   CardField,
   CardInput,
@@ -34,13 +35,36 @@ export function EmployeePersonalDetailsCard({
   profile: { name: string; dateOfBirth: string | null };
 }) {
   const showToast = useToast();
+  const router = useRouter();
   const { isEditing, edit, cancel, errors, handleSubmit } = useCardEditor({
     schema: personalDetailsSchema,
     read: (form) => ({
       name: String(form.get("name") ?? ""),
       dateOfBirth: String(form.get("dateOfBirth") ?? ""),
     }),
-    onValid: () => showToast(SAVE_TOAST),
+    onValid: async (values) => {
+      try {
+        const res = await fetch("/api/employee/profile", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: values.name,
+            dateOfBirth: values.dateOfBirth || null,
+          }),
+        });
+        const json = await res.json();
+
+        if (!res.ok) {
+          showToast(json.error ?? "Could not save your personal details.");
+          return;
+        }
+
+        showToast("Personal details saved.");
+        router.refresh();
+      } catch {
+        showToast("Could not save your personal details. Check your connection.");
+      }
+    },
   });
 
   return (

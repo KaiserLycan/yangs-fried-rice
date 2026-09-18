@@ -16,6 +16,7 @@
  */
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -29,11 +30,20 @@ import { useCardEditor } from "@/components/profile/use-card-editor";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 
-const ROLES = ["Manager", "Server", "Cook", "Cashier", "Delivery"];
+const ROLES = ["Manager", "Staff", "Rider"];
 const SHIFTS = ["MWF – 12-3PM", "TThS – 9-5PM", "Weekends – 10-10PM", "Mon-Fri – 8-4PM"];
 
-const SAVE_TOAST =
-  "Updating employee role details isn’t available yet. We’re still building it.";
+const roleMap: Record<string, string> = {
+  MANAGER: "Manager",
+  STAFF: "Staff",
+  RIDER: "Rider",
+};
+
+const reverseRoleMap: Record<string, string> = {
+  Manager: "MANAGER",
+  Staff: "STAFF",
+  Rider: "RIDER",
+};
 
 const roleDetailsSchema = z.object({
   role: z.string().min(1, "Role is required"),
@@ -48,10 +58,11 @@ export function EmployeeRoleDetailsCard({
   isManager?: boolean;
 }) {
   const showToast = useToast();
-  
+  const router = useRouter();
+
   const [roleOpen, setRoleOpen] = useState(false);
   const [shiftOpen, setShiftOpen] = useState(false);
-  const [roleValue, setRoleValue] = useState(profile.role);
+  const [roleValue, setRoleValue] = useState(roleMap[profile.role] ?? profile.role);
   const [shiftValue, setShiftValue] = useState(profile.shift);
 
   const { isEditing, edit, cancel, errors, handleSubmit } = useCardEditor({
@@ -60,7 +71,30 @@ export function EmployeeRoleDetailsCard({
       role: String(form.get("role") ?? ""),
       shift: String(form.get("shift") ?? ""),
     }),
-    onValid: () => showToast(SAVE_TOAST),
+    onValid: async (values) => {
+      try {
+        const res = await fetch("/api/employee/profile", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            role: reverseRoleMap[values.role] ?? values.role,
+            scheduleShift: values.shift,
+          }),
+        });
+
+        const json = await res.json();
+
+        if (!res.ok) {
+          showToast(json.error ?? "Could not save employee details.");
+          return;
+        }
+
+        showToast("Employee details saved.");
+        router.refresh();
+      } catch {
+        showToast("Could not save employee details. Check your connection.");
+      }
+    },
   });
 
   return (
