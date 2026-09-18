@@ -26,10 +26,10 @@ This document tracks all the pending/unimplemented acceptance criteria from open
 - [x] **Implemented:** The Delivery Driver must be able to mark an order as "delivered" (basic action exists).
 - [x] **Implemented:** The system must require and accept **proof of delivery** (e.g. photo upload, signature) when an order is marked as delivered (Proof of Delivery Modal implemented).
 
-## Issue #10: US-07: Real-Time Estimated Time of Arrival (ETA)
-- [ ] **Still Needed:** The system must calculate an estimated time of arrival (ETA) range. (Currently uses a static, hardcoded arrival window).
-- [ ] **Still Needed:** The ETA calculation must account for real-time kitchen queue traffic.
-- [ ] **Still Needed:** The ETA calculation must factor in the delivery distance.
+## Issue #10: US-07: Real-Time Estimated Time of Arrival (ETA) (CLOSED)
+- [x] **Implemented:** The system must calculate an estimated time of arrival (ETA) range. (Uses `getOrderEtaAction`).
+- [x] **Implemented:** The ETA calculation must account for real-time kitchen queue traffic.
+- [x] **Implemented:** The ETA calculation must factor in the delivery distance.
 
 ## Issue #9: US-04: Payment Processing & Kitchen Queue (CLOSED)
 - [x] **Implemented:** The Stripe/Paymongo API processes digital payments successfully. (PayMongo integration via Edge Functions).
@@ -56,5 +56,5 @@ This document tracks all the pending/unimplemented acceptance criteria from open
 - [x] **Implemented:** The system automatically calculates the total cost, including delivery fees.
 - [x] **Implemented:** The checkout process requires selecting between pickup or delivery options.
 
-## Issue #3: US-02: Menu Management & Database Setup
-- [ ] **Still Needed:** Menu changes reflect instantly on the user interface.
+## Issue #3: US-02: Menu Management & Database Setup (CLOSED)
+- [x] **Implemented:** Menu changes reflect instantly on the user interface. (MenuScreen subscribes to Supabase postgres changes).
