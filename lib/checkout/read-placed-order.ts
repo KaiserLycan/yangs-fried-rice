@@ -1,18 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
 import { orderNumberFrom, type PlacedOrder } from "@/lib/checkout/placed-order";
 import { PAYMENT_METHODS } from "@/lib/checkout/payment-methods";
+import { foldPaymentStatus } from "@/lib/checkout/payment-status";
 import { formatOrderTime } from "@/lib/checkout/order-time";
 import type { Fulfilment } from "@/lib/menu/cart-totals";
 
 /**
  * One order the customer has just placed, read back for its confirmation.
  *
- * This returns null for every customer today, and that is correct rather than
- * a bug to work around: nothing writes an `order` row yet — placing an order
- * is still a stubbed write (see `docs/reference/ordering-flow-handoff.md`).
- * The read is built for real regardless, the same reasoning
- * `lib/cart/read-cart.ts` gives, so the moment the write lands this starts
- * working with no frontend change.
+ * Null when the id is not one of this customer's orders, which the page
+ * turns into a 404.
  *
  * NOTE: the order history screen on its own branch reads the same three
  * tables for its own purposes. Whichever merges second is worth a pass to see
@@ -47,11 +44,13 @@ export async function readPlacedOrder(
       .from("order_item")
       .select("order_item_id, quantity, subtotal, product(product_name)")
       .eq("order_id", order.order_id),
+    // Every row, not one: a retried online payment leaves a failed row next
+    // to a pending one. `foldPaymentStatus` decides what they add up to.
     supabase
       .from("transaction")
-      .select("payment_method")
+      .select("payment_method, payment_status")
       .eq("order_id", order.order_id)
-      .maybeSingle(),
+      .order("transaction_date", { ascending: false }),
     supabase
       .from("customer")
       .select("name")
@@ -60,9 +59,8 @@ export async function readPlacedOrder(
   ]);
 
   const fulfilment = fulfilmentFromOrderType(order.order_type);
-  const address = fulfilment === "delivery"
-    ? await readDestination(supabase, user.id)
-    : null;
+  const address =
+    fulfilment === "delivery" ? await readDestination(supabase, user.id) : null;
 
   return {
     orderId: order.order_id,
@@ -84,7 +82,8 @@ export async function readPlacedOrder(
       quantity: row.quantity,
       specialInstructions: null,
     })),
-    paymentMethodLabel: paymentLabelFor(transaction.data?.payment_method),
+    paymentMethodLabel: paymentLabelFor(transaction.data?.[0]?.payment_method),
+    paymentStatus: foldPaymentStatus(transaction.data ?? []),
   };
 }
 
@@ -97,7 +96,10 @@ export async function readPlacedOrder(
  * frame draws.
  */
 function fulfilmentFromOrderType(orderType: string | null): Fulfilment {
-  const folded = orderType?.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  const folded = orderType
+    ?.trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
   return folded === "pickup" || folded === "pick_up" || folded === "take_out"
     ? "pickup"
     : "delivery";
@@ -130,13 +132,25 @@ async function readDestination(
  * against the four the picker offers and otherwise shown as written. Saying
  * "Payment method not recorded" when the customer definitely chose one would
  * be worse than echoing an unfamiliar string.
+ *
+ * `create-payment-intent` writes the gateway's name, "paymongo", rather than
+ * which wallet was used — the intent allows any of them. It is shown as the
+ * option the customer picked.
+ *
+ * TODO (Backend): `submitCart` records no payment method for cash on
+ * delivery or pay in store, so those orders read "Not recorded" here.
  */
 function paymentLabelFor(stored: string | null | undefined): string {
   if (!stored) return "Not recorded";
-  const folded = stored.trim().toLowerCase().replace(/[\s_]+/g, "-");
+  if (stored.trim().toLowerCase() === "paymongo") return "GCash / Maya wallet";
+  const folded = stored
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, "-");
   const known = PAYMENT_METHODS.find(
     (method) =>
-      method.id === folded || method.label.toLowerCase() === stored.trim().toLowerCase(),
+      method.id === folded ||
+      method.label.toLowerCase() === stored.trim().toLowerCase(),
   );
   return known?.label ?? stored;
 }
