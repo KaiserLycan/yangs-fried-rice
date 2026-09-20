@@ -19,6 +19,7 @@ type DeliverySummary = {
   orderId: string | null;
   deliveryStatus: string | null;
   estimatedTime: string | null;
+  createdAt: string;
 };
 
 type DeliveryDetail = {
@@ -26,7 +27,9 @@ type DeliveryDetail = {
   deliveryStatus: string | null;
   estimatedTime: string | null;
   proofOfDelivery: string | null;
+  createdAt: string | null;
   customer: { name: string; address: string | null; phone: string | null } | null;
+  payment: { method: string; total: number } | null;
   items: { productName: string; quantity: number }[];
 };
 
@@ -81,6 +84,7 @@ export async function getAssignedDeliveries(): Promise<{
   deliveries: DeliverySummary[];
   error: string | null;
 }> {
+  console.log("getAssignedDeliveries called");
   const supabase = createClient();
   const rider = await getCurrentRider(supabase);
   if (!rider) {
@@ -93,7 +97,7 @@ export async function getAssignedDeliveries(): Promise<{
   // Fetch deliveries that are EITHER assigned to this rider OR have no rider yet (the pending queue)
   const { data, error } = await supabase
     .from("delivery")
-    .select("delivery_id, order_id, delivery_status, estimated_time")
+    .select("delivery_id, order_id, delivery_status, estimated_time, order:order_id(created_at)")
     .or(`rider_id.eq.${rider.rider_id},rider_id.is.null`)
     .order("estimated_time", { ascending: true, nullsFirst: false });
 
@@ -102,11 +106,12 @@ export async function getAssignedDeliveries(): Promise<{
   }
 
   return {
-    deliveries: data.map((d) => ({
+    deliveries: data.map((d: any) => ({
       deliveryId: d.delivery_id,
       orderId: d.order_id,
       deliveryStatus: d.delivery_status,
       estimatedTime: d.estimated_time,
+      createdAt: d.order?.created_at || new Date().toISOString(),
     })),
     error: null,
   };
@@ -121,6 +126,111 @@ export async function getAssignedDeliveries(): Promise<{
  * distinguishable permission-denied response that would confirm the id
  * is real. Customer name/address is PII; this boundary matters.
  */
+export async function getDeliveryDetailsBatch(deliveryIds: string[]) {
+  console.log("getDeliveryDetailsBatch called with IDs:", deliveryIds);
+  const supabase = createClient();
+  const rider = await getCurrentRider(supabase);
+  if (!rider) return { deliveries: [], error: "Unauthorized" };
+
+  if (!deliveryIds.length) return { deliveries: [], error: null };
+
+  const { data: deliveries, error } = await supabase
+    .from("delivery")
+    .select(
+      `
+      delivery_id,
+      order_id,
+      delivery_status,
+      estimated_time,
+      proof_of_delivery,
+      order:order_id (
+        created_at,
+        delivery_address,
+        customer:customer_id (
+          name,
+          phone_number
+        )
+      )
+    `
+    )
+    .in("delivery_id", deliveryIds);
+
+  console.log("Query returned deliveries length:", deliveries?.length, "error:", error?.message);
+
+  if (error || !deliveries) {
+    return { deliveries: [], error: error?.message || "Failed to fetch details" };
+  }
+
+  // Fetch transactions and items in bulk
+  const orderIds = deliveries.map(d => d.order_id).filter(Boolean);
+  
+  let transactions: any[] = [];
+  let orderItems: any[] = [];
+
+  if (orderIds.length > 0) {
+    const { data: tData } = await supabase
+      .from("transaction")
+      .select("order_id, payment_method, total_paid")
+      .in("order_id", orderIds);
+    if (tData) transactions = tData;
+
+    const { data: iData } = await supabase
+      .from("order_item")
+      .select("order_id, quantity, product:product_id (product_name)")
+      .in("order_id", orderIds);
+    if (iData) orderItems = iData;
+  }
+
+  const mappedDeliveries = deliveries.map(delivery => {
+    const orderRow = delivery.order as any;
+    const createdAt = orderRow?.created_at || new Date().toISOString();
+    
+    let customer = null;
+    if (orderRow?.customer) {
+      customer = {
+        name: orderRow.customer.name,
+        phone: orderRow.customer.phone_number || "",
+        email: "",
+        address: orderRow.delivery_address || "",
+      };
+    } else if (orderRow) {
+      customer = {
+        name: "Walk-in Customer",
+        phone: "",
+        email: "",
+        address: orderRow.delivery_address || "",
+      };
+    }
+
+    const transactionRow = transactions?.find(t => t.order_id === delivery.order_id);
+    let payment = null;
+    if (transactionRow) {
+      payment = {
+        method: transactionRow.payment_method ?? "Cash on delivery",
+        total: Number(transactionRow.total_paid) || 0,
+      };
+    }
+
+    const items = (orderItems?.filter(i => i.order_id === delivery.order_id) ?? []).map((item) => ({
+      productName: item.product?.product_name ?? "Unknown item",
+      quantity: item.quantity,
+    }));
+
+    return {
+      deliveryId: delivery.delivery_id,
+      deliveryStatus: delivery.delivery_status,
+      estimatedTime: delivery.estimated_time,
+      proofOfDelivery: delivery.proof_of_delivery,
+      createdAt,
+      customer,
+      payment,
+      items,
+    };
+  });
+
+  return { deliveries: mappedDeliveries, error: null };
+}
+
 export async function getDeliveryDetail(deliveryId: string): Promise<{
   delivery: DeliveryDetail | null;
   error: string | null;
@@ -148,14 +258,20 @@ export async function getDeliveryDetail(deliveryId: string): Promise<{
   }
 
   let customer: { name: string; address: string | null; phone: string | null } | null = null;
+  let payment: { method: string; total: number } | null = null;
   let items: { productName: string; quantity: number }[] = [];
+  let createdAt: string | null = null;
 
   if (delivery.order_id) {
     const { data: order } = await supabase
       .from("order")
-      .select("customer_id")
+      .select("customer_id, delivery_address, created_at")
       .eq("order_id", delivery.order_id)
       .single();
+
+    if (order?.created_at) {
+      createdAt = order.created_at;
+    }
 
     if (order?.customer_id) {
       const { data: customerRow } = await supabase
@@ -164,20 +280,26 @@ export async function getDeliveryDetail(deliveryId: string): Promise<{
         .eq("customer_id", order.customer_id)
         .single();
 
-      const { data: addressRow } = await supabase
-        .from("customer_address")
-        .select("address_details")
-        .eq("customer_id", order.customer_id)
-        .limit(1)
-        .single();
-
       if (customerRow) {
         customer = {
           name: customerRow.name,
-          address: addressRow?.address_details ?? null,
+          address: order.delivery_address ?? null,
           phone: customerRow.phone_number ?? null,
         };
       }
+    }
+
+    const { data: transactionRow } = await supabase
+      .from("transaction")
+      .select("payment_method, total_paid")
+      .eq("order_id", delivery.order_id)
+      .single();
+
+    if (transactionRow) {
+      payment = {
+        method: transactionRow.payment_method ?? "Cash on delivery",
+        total: Number(transactionRow.total_paid) || 0,
+      };
     }
 
     const { data: orderItems } = await supabase
@@ -197,7 +319,9 @@ export async function getDeliveryDetail(deliveryId: string): Promise<{
       deliveryStatus: delivery.delivery_status,
       estimatedTime: delivery.estimated_time,
       proofOfDelivery: delivery.proof_of_delivery,
+      createdAt,
       customer,
+      payment,
       items,
     },
     error: null,
@@ -232,7 +356,7 @@ export async function markDelivered(
 
   const { data: delivery, error: deliveryError } = await supabase
     .from("delivery")
-    .select("delivery_id, rider_id, delivery_status")
+    .select("delivery_id, rider_id, delivery_status, order_id")
     .eq("delivery_id", deliveryId)
     .single();
 
@@ -296,6 +420,17 @@ export async function markDelivered(
       error:
         "Proof was uploaded, but we couldn't update the delivery. Please try again.",
     };
+  }
+
+  // Reflect the completed status back to the original order record
+  if (delivery.order_id) {
+    await supabase
+      .from("order")
+      .update({
+        order_status: "completed",
+        completed_at: new Date().toISOString(),
+      })
+      .eq("order_id", delivery.order_id);
   }
 
   revalidatePath("/deliver");

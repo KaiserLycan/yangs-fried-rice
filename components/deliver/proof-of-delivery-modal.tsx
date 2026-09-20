@@ -95,6 +95,7 @@ export function ProofOfDeliveryModal({
 
     if (result.success) {
       onClose();
+      window.dispatchEvent(new CustomEvent("delivery-updated"));
       router.push("/deliver");
       router.refresh();
     } else {
@@ -131,16 +132,18 @@ export function ProofOfDeliveryModal({
         </div>
 
         <div className="flex-1 overflow-y-auto px-[24px] pb-[24px] flex flex-col gap-5">
-          <div className="w-full aspect-[4/3] bg-[#FAF5EB] rounded-[16px] overflow-hidden border border-[#DDCDB8]">
-            {proofPreview ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={proofPreview} alt="Delivery proof" className="w-full h-full object-cover" />
-            ) : (
-              <div className="flex h-full items-center justify-center text-[#7A6A60] text-sm font-medium">
-                No delivery proof attached.
-              </div>
-            )}
-          </div>
+          {isReadOnly && (
+            <div className="w-full aspect-[4/3] bg-[#FAF5EB] rounded-[16px] overflow-hidden border border-[#DDCDB8]">
+              {proofPreview ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={proofPreview} alt="Delivery proof" className="w-full h-full object-cover" />
+              ) : (
+                <div className="flex h-full items-center justify-center text-[#7A6A60] text-sm font-medium">
+                  No delivery proof attached.
+                </div>
+              )}
+            </div>
+          )}
 
           {!isReadOnly && (
             <>
@@ -180,21 +183,23 @@ export function ProofOfDeliveryModal({
                 />
               </div>
 
-              <label className="flex items-center gap-3 cursor-pointer group">
-                <div className={`w-6 h-6 rounded-[6px] border-2 flex items-center justify-center transition-colors ${isCashCollected ? 'bg-[#E8541F] border-[#E8541F]' : 'border-[#DDCDB8] bg-white group-hover:border-[#E8541F]'}`}>
-                  {isCashCollected && <Check className="w-4 h-4 text-white" strokeWidth={3} />}
-                </div>
-                <input
-                  type="checkbox"
-                  checked={isCashCollected}
-                  disabled={isSubmitting}
-                  onChange={(e) => setIsCashCollected(e.target.checked)}
-                  className="hidden"
-                />
-                <span className="text-[15px] font-medium text-[#1A1210] select-none">
-                  Cash payment collected
-                </span>
-              </label>
+              {deliverySummary?.paymentMethod === "cash_on_delivery" && (
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <div className={`w-6 h-6 rounded-[6px] border-2 flex items-center justify-center transition-colors ${isCashCollected ? 'bg-[#E8541F] border-[#E8541F]' : 'border-[#DDCDB8] bg-white group-hover:border-[#E8541F]'}`}>
+                    {isCashCollected && <Check className="w-4 h-4 text-white" strokeWidth={3} />}
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={isCashCollected}
+                    disabled={isSubmitting}
+                    onChange={(e) => setIsCashCollected(e.target.checked)}
+                    className="hidden"
+                  />
+                  <span className="text-[15px] font-medium text-[#1A1210] select-none">
+                    Cash payment collected
+                  </span>
+                </label>
+              )}
 
               {error && <p className="text-red-500 text-sm font-medium text-center">{error}</p>}
 
@@ -251,7 +256,7 @@ export function ProofOfDeliveryModal({
               )}
 
               <div className="flex items-center justify-between rounded-[12px] border border-[#F2E8D9] px-4 py-3 text-[14px] text-[#1A1210]">
-                <span>{deliverySummary?.paymentMethod || "Standard"}</span>
+                <span>{deliverySummary?.paymentMethod === "cash_on_delivery" ? "Cash on Delivery" : deliverySummary?.paymentMethod === "paymongo" ? "Paid Online" : deliverySummary?.paymentMethod || "Standard"}</span>
                 <span className="font-display text-[18px] text-[#1A1210]">
                   ₱{Number(deliverySummary?.total ?? 0).toFixed(2)}
                 </span>
