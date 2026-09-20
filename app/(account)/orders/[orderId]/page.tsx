@@ -60,6 +60,7 @@ export default async function OrderDetailPage({
             ? { ...order, arrivalWindow: arrivalWindowFrom(eta) }
             : mockTrackedOrder(params.orderId, searchParams.example)
         }
+        locationIqApiKey={process.env.LOCATIONIQ_API_KEY}
       />
     </ToastProvider>
   );
