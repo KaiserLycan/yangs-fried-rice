@@ -28,7 +28,26 @@ export const personalDetailsSchema = z.object({
    * BACKEND: this arrives as an ISO `YYYY-MM-DD` string, or "" when the
    * customer left it blank. Store the blank as null, not an empty string.
    */
-  dateOfBirth: z.string(),
+  dateOfBirth: z.string()
+    .refine((val) => {
+      if (!val) return true;
+      const date = new Date(val);
+      const minAgeDate = new Date();
+      minAgeDate.setFullYear(minAgeDate.getFullYear() - 13);
+      // Strip time
+      minAgeDate.setHours(0, 0, 0, 0);
+      date.setHours(0, 0, 0, 0);
+      return date <= minAgeDate;
+    }, "You must be at least 13 years old.")
+    .refine((val) => {
+      if (!val) return true;
+      const date = new Date(val);
+      const maxAgeDate = new Date();
+      maxAgeDate.setFullYear(maxAgeDate.getFullYear() - 150);
+      maxAgeDate.setHours(0, 0, 0, 0);
+      date.setHours(0, 0, 0, 0);
+      return date >= maxAgeDate;
+    }, "Please enter a valid birthdate."),
 });
 
 /**

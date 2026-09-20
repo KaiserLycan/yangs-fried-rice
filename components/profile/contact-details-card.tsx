@@ -38,7 +38,7 @@ const EMAIL_EDITING_HINT = "A new email needs verifying before your next order."
 export function ContactDetailsCard({ profile }: { profile: CustomerProfile }) {
   const router = useRouter();
   const showToast = useToast();
-  const { isEditing, edit, cancel, errors, handleSubmit } = useCardEditor({
+  const { isEditing, isSubmitting, edit, cancel, errors, handleSubmit } = useCardEditor({
     schema: contactDetailsSchema,
     read: (form) => ({
       mobile: String(form.get("mobile") ?? "").replace(/[^0-9]/g, "")
@@ -58,7 +58,7 @@ export function ContactDetailsCard({ profile }: { profile: CustomerProfile }) {
 
       if (Object.keys(body).length === 0) {
         showToast("No changes to save.");
-        return;
+        return false;
       }
 
       try {
@@ -71,7 +71,7 @@ export function ContactDetailsCard({ profile }: { profile: CustomerProfile }) {
 
         if (!res.ok) {
           showToast(json.error ?? "Could not save your contact details.");
-          return;
+          return false;
         }
 
         if (body.email) {
@@ -84,8 +84,10 @@ export function ContactDetailsCard({ profile }: { profile: CustomerProfile }) {
           showToast("Contact details saved.");
         }
         router.refresh();
+        return true;
       } catch {
         showToast("Could not save your contact details. Check your connection.");
+        return false;
       }
     },
   });
@@ -153,8 +155,8 @@ export function ContactDetailsCard({ profile }: { profile: CustomerProfile }) {
             </CardField>
           </div>
 
-          <Button type="submit" variant="save">
-            Save changes
+          <Button type="submit" variant="save" disabled={isSubmitting}>
+            {isSubmitting ? "Saving..." : "Save changes"}
           </Button>
         </form>
       ) : (

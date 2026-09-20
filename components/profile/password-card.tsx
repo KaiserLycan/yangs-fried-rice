@@ -15,13 +15,21 @@ import {
   type PasswordChangeValues,
 } from "@/lib/validation/profile";
 
-/**
- * No `password_changed_at` column exists yet — see
- * `.scratch/profile-page/issues/05-backend-handoff.md`. Confirmed as coming,
- * most likely maintained by a database trigger, so this reads as a visible
- * empty state rather than the frame's invented "4 months ago".
- */
 const LAST_CHANGED_EMPTY_STATE = "Not tracked yet.";
+
+function formatLastUpdated(isoString: string | null): string {
+  if (!isoString) return LAST_CHANGED_EMPTY_STATE;
+  const date = new Date(isoString);
+  const now = new Date();
+  const diffTime = Math.abs(now.getTime() - date.getTime());
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (diffDays === 0) return "Last changed today";
+  if (diffDays === 1) return "Last changed 1 day ago";
+  if (diffDays < 30) return `Last changed ${diffDays} days ago`;
+  
+  return `Last changed on ${date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+}
 
 function readPasswordForm(form: FormData) {
   return {
@@ -47,7 +55,7 @@ function readPasswordForm(form: FormData) {
  * shared by every other card on this screen. Worth revisiting if a field-
  * level error becomes a real requirement.
  */
-export function PasswordCard() {
+export function PasswordCard({ lastUpdated }: { lastUpdated?: string | null }) {
   const router = useRouter();
   const showToast = useToast();
 
@@ -62,13 +70,15 @@ export function PasswordCard() {
 
       if (!res.ok) {
         showToast(json.error ?? "Could not update your password.");
-        return;
+        return false;
       }
 
       showToast("Password updated.");
       router.refresh();
+      return true;
     } catch {
       showToast("Could not update your password. Check your connection.");
+      return false;
     }
   }
 
@@ -89,7 +99,7 @@ export function PasswordCard() {
       <div className="hidden md:block">
         <ProfileCard
           title="PASSWORD"
-          subtitle={LAST_CHANGED_EMPTY_STATE}
+          subtitle={formatLastUpdated(lastUpdated ?? null)}
           isEditing={desktop.isEditing}
           onEdit={desktop.edit}
           onCancel={desktop.cancel}
@@ -102,8 +112,8 @@ export function PasswordCard() {
             >
               <PasswordFields idPrefix="password-desktop" errors={desktop.errors} />
               <div className="flex items-center gap-[12px]">
-                <Button type="submit" variant="save">
-                  Update password
+                <Button type="submit" variant="save" disabled={desktop.isSubmitting}>
+                  {desktop.isSubmitting ? "Updating..." : "Update password"}
                 </Button>
                 <p className="text-[12.5px] text-muted-foreground">
                   At least 8 characters. You’ll stay logged in on this device.
@@ -125,7 +135,7 @@ export function PasswordCard() {
             PASSWORD
           </h2>
           <span className="text-[12px] text-muted-foreground">
-            {LAST_CHANGED_EMPTY_STATE}
+            {formatLastUpdated(lastUpdated ?? null)}
           </span>
         </div>
         <button
@@ -146,8 +156,8 @@ export function PasswordCard() {
             <Button variant="outline" className="flex-1 p-[14px]" onClick={mobile.cancel}>
               Cancel
             </Button>
-            <Button variant="confirm" className="flex-1" type="submit" form="password-mobile-form">
-              Update
+            <Button variant="confirm" className="flex-1" type="submit" form="password-mobile-form" disabled={mobile.isSubmitting}>
+              {mobile.isSubmitting ? "Updating..." : "Update"}
             </Button>
           </>
         }

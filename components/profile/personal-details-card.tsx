@@ -27,7 +27,7 @@ import { personalDetailsSchema } from "@/lib/validation/profile";
 export function PersonalDetailsCard({ profile }: { profile: CustomerProfile }) {
   const router = useRouter();
   const showToast = useToast();
-  const { isEditing, edit, cancel, errors, handleSubmit } = useCardEditor({
+  const { isEditing, isSubmitting, edit, cancel, errors, handleSubmit } = useCardEditor({
     schema: personalDetailsSchema,
     read: (form) => ({
       name: String(form.get("name") ?? ""),
@@ -38,22 +38,32 @@ export function PersonalDetailsCard({ profile }: { profile: CustomerProfile }) {
         const res = await fetch("/api/profile", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: values.name }),
+          body: JSON.stringify({ name: values.name, dateOfBirth: values.dateOfBirth }),
         });
         const json = await res.json();
 
         if (!res.ok) {
           showToast(json.error ?? "Could not save your details.");
-          return;
+          return false;
         }
 
         showToast("Personal details saved.");
         router.refresh();
+        return true;
       } catch {
         showToast("Could not save your details. Check your connection.");
+        return false;
       }
     },
   });
+
+  const today = new Date();
+  
+  const maxDate = new Date(today.getFullYear() - 13, today.getMonth(), today.getDate());
+  const maxDateStr = maxDate.toISOString().split("T")[0];
+
+  const minDate = new Date(today.getFullYear() - 150, today.getMonth(), today.getDate());
+  const minDateStr = minDate.toISOString().split("T")[0];
 
   return (
     <ProfileCard
@@ -94,13 +104,15 @@ export function PersonalDetailsCard({ profile }: { profile: CustomerProfile }) {
                 type="date"
                 autoComplete="bday"
                 defaultValue={profile.dateOfBirth ?? ""}
+                min={minDateStr}
+                max={maxDateStr}
                 invalid={Boolean(errors.dateOfBirth)}
               />
             </CardField>
           </div>
 
-          <Button type="submit" variant="save">
-            Save changes
+          <Button type="submit" variant="save" disabled={isSubmitting}>
+            {isSubmitting ? "Saving..." : "Save changes"}
           </Button>
         </form>
       ) : (
