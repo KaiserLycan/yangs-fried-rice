@@ -41,7 +41,13 @@ import { ProductReviewControl } from "@/components/orders/product-review-control
  * interactivity — the page around it stays a Server Component and does the
  * reading.
  */
-export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
+export function TrackOrderScreen({ 
+  order,
+  locationIqApiKey
+}: { 
+  order: TrackedOrder;
+  locationIqApiKey?: string;
+}) {
   const serverStatus = {
     orderStatus: order.orderStatus,
     cancelledAt: order.cancelledAt,
@@ -238,7 +244,9 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
         {/* Second on mobile, right-hand column on desktop. */}
         <LiveMapPanel
           riderName={order.riderName}
+          destinationCoordinates={order.destinationCoordinates}
           className="md:col-start-2 md:row-start-1 md:row-span-2"
+          locationIqApiKey={locationIqApiKey}
         />
 
         <div className="flex flex-col items-start p-[20px] md:col-start-1 md:row-start-2 md:rounded-lg md:border md:border-rule md:bg-white md:p-[20px]">
