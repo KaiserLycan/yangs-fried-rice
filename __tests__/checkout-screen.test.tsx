@@ -41,6 +41,7 @@ const profile: CustomerProfile = {
   dateOfBirth: null,
   mobile: "09175550123",
   email: "liza@example.com",
+  passwordLastUpdated: null,
   profileImageUrl: null,
   activeAddressId: "addr-1",
   memberSince: null,

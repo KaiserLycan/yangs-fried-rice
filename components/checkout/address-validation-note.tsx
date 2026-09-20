@@ -42,7 +42,7 @@ export function AddressValidationNote({ address }: { address: string }) {
   React.useEffect(() => {
     let stale = false;
 
-    async function validate() {
+    const timer = setTimeout(async () => {
       try {
         const response = await fetch("/api/address/validate", {
           method: "POST",
@@ -86,13 +86,13 @@ export function AddressValidationNote({ address }: { address: string }) {
         // address or claiming a validation that never ran.
         if (!stale) setState({ status: "unavailable" });
       }
-    }
+    }, 500);
 
     setState({ status: "checking" });
-    void validate();
 
     return () => {
       stale = true;
+      clearTimeout(timer);
     };
   }, [address]);
 

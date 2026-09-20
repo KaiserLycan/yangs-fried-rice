@@ -22,11 +22,11 @@ export function PastOrdersScreen({ orders }: { orders: PastOrder[] }) {
     <div className="min-h-screen bg-background">
       {/* Mobile's own header. The red nav bar is desktop-only by design (see
           `SiteNavBar`), so each screen brings its own. */}
-      <div className="border-b border-rule px-[20px] py-[18px] md:hidden">
-        <h1 className="font-display text-[24px] text-foreground">MY ORDERS</h1>
+      <div className="flex items-center gap-[12px] border-b border-rule px-[20px] py-[18px] md:hidden">
+        <h1 className="font-display text-[24px] uppercase text-foreground">MY ORDERS</h1>
       </div>
 
-      <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-[12px] px-[20px] pb-[24px] pt-[16px] md:gap-[20px] md:px-[40px] md:pb-[60px] md:pt-[30px]">
+      <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-[12px] px-[20px] pb-[calc(var(--tab-bar-height)+24px)] pt-[16px] md:gap-[20px] md:px-[40px] md:pb-[60px] md:pt-[30px]">
         <h1 className="hidden font-display text-[32px] text-foreground md:block">
           MY ORDERS
         </h1>

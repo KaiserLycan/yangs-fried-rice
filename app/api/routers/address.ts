@@ -94,12 +94,7 @@ export async function validateAddress(request: Request) {
       });
     }
 
-    // Nominatim responded but found nothing
-    return NextResponse.json({
-      valid: false,
-      message: "Address could not be found. Please check the address and try again.",
-      source: "nominatim",
-    });
+    // Nominatim responded but found nothing, fallback to text validation
   } catch {
     // Nominatim unreachable → fall through to text-based fallback
   }
