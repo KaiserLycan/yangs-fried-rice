@@ -1,10 +1,13 @@
 import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 import { redirect } from "next/navigation";
 import { CartContents } from "@/components/cart/cart-contents";
 import { ToastProvider } from "@/components/ui/toast";
 import { fulfilmentFromParam } from "@/lib/checkout/fulfilment-param";
 import { readCart } from "@/lib/cart/read-cart";
 import { readCustomerProfile } from "@/lib/profile/customer-profile";
+import { BottomTabBar } from "@/components/nav/bottom-tab-bar";
+import { cartItemCount } from "@/lib/menu/cart-totals";
 
 /**
  * Mobile's cart page (`132:316`, empty state `132:393`) — the one structural
@@ -36,20 +39,20 @@ export default async function CartPage({
   return (
     <ToastProvider>
       <div className="flex min-h-screen flex-col bg-background">
-        <div className="flex h-[69px] shrink-0 items-center gap-[12px] px-[20px]">
+        <div className="flex items-center gap-[12px] border-b border-rule px-[20px] py-[18px] md:hidden">
           <Link
             href="/menu"
             aria-label="Back to menu"
-            className="flex size-[36px] items-center justify-center text-[19px] text-foreground"
+            className="flex items-center justify-center"
           >
-            ←
+            <ChevronLeft className="size-[24px] text-foreground" />
           </Link>
-          <h1 className="font-display text-[24px] text-foreground">
+          <h1 className="font-display text-[24px] uppercase text-foreground">
             YOUR CART
           </h1>
         </div>
 
-        <div className="flex flex-1 flex-col px-[20px] pb-[24px]">
+        <div className="flex flex-1 flex-col px-[20px] pb-[calc(var(--tab-bar-height)+24px)]">
           <CartContents
             lines={lines}
             ctaLabel="Continue to checkout"
@@ -58,6 +61,7 @@ export default async function CartPage({
           />
         </div>
       </div>
+      <BottomTabBar current="cart" cartCount={cartItemCount(lines)} />
     </ToastProvider>
   );
 }
