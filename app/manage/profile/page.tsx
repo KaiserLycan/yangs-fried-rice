@@ -12,6 +12,8 @@
  * - [ ] Dynamically compute `isManager` based on the authenticated user's role to control access to the Employee Details card.
  */
 
+export const revalidate = 0;
+
 import { EmployeePersonalDetailsCard } from "@/components/manage/profile/employee-personal-details-card";
 import { EmployeeRoleDetailsCard } from "@/components/manage/profile/employee-role-details-card";
 import { EmployeeContactDetailsCard } from "@/components/manage/profile/employee-contact-details-card";
@@ -81,7 +83,7 @@ export default async function ProfilePage() {
 
           <EmployeeContactDetailsCard profile={profile} />
 
-          <PasswordCard />
+          <PasswordCard lastUpdated={result.data.passwordLastUpdated} />
 
         </div>
       </div>

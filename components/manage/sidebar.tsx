@@ -387,11 +387,13 @@ export function Sidebar() {
   }
 
   return (
-    <aside
-      className={`flex h-full shrink-0 flex-col gap-[6px] border-r border-[#7a6a60] bg-[#b8352a] py-[22px] transition-all duration-300 ease-in-out ${isCollapsed ? "w-[64px] px-2" : "w-[232px] px-4"
+    <div className="relative z-50 h-full w-[64px] shrink-0">
+      <aside
+        className={`absolute left-0 top-0 flex h-full flex-col gap-[6px] border-r border-[#7a6a60] bg-[#b8352a] py-[22px] transition-all duration-300 ease-in-out ${
+          isCollapsed ? "w-[64px] px-2" : "w-[232px] px-4 shadow-xl"
         }`}
-    >
-      {/* Wordmark + collapse toggle */}
+      >
+        {/* Wordmark + collapse toggle */}
       <div
         className={`flex items-center pb-4 ${isCollapsed ? "justify-center" : "px-2"}`}
       >
@@ -496,5 +498,6 @@ export function Sidebar() {
         </button>
       </div>
     </aside>
+    </div>
   );
 }
