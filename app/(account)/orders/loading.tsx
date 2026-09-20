@@ -1,4 +1,5 @@
 import * as React from "react";
+import { BottomTabBar } from "@/components/nav/bottom-tab-bar";
 
 export default function OrdersLoading() {
   return (
@@ -25,11 +26,11 @@ export default function OrdersLoading() {
       </nav>
 
       {/* Mobile header */}
-      <div className="border-b border-rule px-[20px] py-[18px] md:hidden">
-        <h1 className="font-display text-[24px] text-foreground">MY ORDERS</h1>
+      <div className="flex items-center gap-[12px] border-b border-rule px-[20px] py-[18px] md:hidden">
+        <h1 className="font-display text-[24px] uppercase text-foreground">MY ORDERS</h1>
       </div>
 
-      <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-[12px] px-[20px] pb-[24px] pt-[16px] md:gap-[20px] md:px-[40px] md:pb-[60px] md:pt-[30px]">
+      <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-[12px] px-[20px] pb-[calc(var(--tab-bar-height)+24px)] pt-[16px] md:gap-[20px] md:px-[40px] md:pb-[60px] md:pt-[30px]">
         {/* Desktop heading */}
         <h1 className="hidden font-display text-[32px] text-foreground md:block">
           MY ORDERS
@@ -41,6 +42,7 @@ export default function OrdersLoading() {
           ))}
         </ul>
       </div>
+      <BottomTabBar current="orders" cartCount={0} />
     </div>
   );
 }
