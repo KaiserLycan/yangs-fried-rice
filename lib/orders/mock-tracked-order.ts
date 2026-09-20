@@ -63,6 +63,7 @@ const BASE = {
   orderType: "Delivery",
   arrivalWindow: "12:35 PM–12:45 PM" as string | null,
   destination: "3239 Pearl Street, Unit 2B, Malate" as string | null,
+  destinationCoordinates: null as { lat: number; lng: number } | null,
   riderName: "Leo Torres" as string | null,
   items: [{ productId: "1", name: "Yangzhou Special" }],
 };
@@ -103,8 +104,9 @@ const EXAMPLES: Record<ExampleState, Partial<typeof BASE>> = {
     // Nothing is known about this order, so the arrival line and the rider
     // are absent too — which is also the only place the "Arrival time to be
     // confirmed" fallback can be seen.
-    arrivalWindow: null,
-    destination: null,
+    arrivalWindow: "35–45 min",
+    destination: "21 Mabini St",
+    destinationCoordinates: null,
     riderName: null,
     items: [],
   },

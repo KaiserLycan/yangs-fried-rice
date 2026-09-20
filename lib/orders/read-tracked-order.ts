@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { validateNcrAddress } from "@/lib/address/validate-ncr";
 
 /**
  * One customer's order and its delivery record, narrowed to what the tracking
@@ -38,6 +39,8 @@ export type TrackedOrder = {
   arrivalWindow: string | null;
   /** The address the order is going to, or null for a non-delivery order. */
   destination: string | null;
+  /** Geocoded coordinates of the destination */
+  destinationCoordinates: { lat: number; lng: number } | null;
   riderName: string | null;
   items: { productId: string; name: string }[];
 };
@@ -69,7 +72,7 @@ export async function readTrackedOrder(
   // so the filter is what actually prevents that.
   const { data: order } = await supabase
     .from("order")
-    .select("order_id, order_status, order_type, cancelled_at, cancellation_reason")
+    .select("order_id, order_status, order_type, cancelled_at, cancellation_reason, delivery_address")
     .eq("order_id", orderId)
     .eq("customer_id", user.id)
     .maybeSingle();
@@ -82,9 +85,8 @@ export async function readTrackedOrder(
     .eq("order_id", order.order_id)
     .maybeSingle();
 
-  const [riderName, destination, orderItems] = await Promise.all([
+  const [riderName, orderItems] = await Promise.all([
     readRiderName(supabase, delivery?.rider_id ?? null),
-    readDestination(supabase, user.id),
     supabase
       .from("order_item")
       .select("product_id, product(product_name)")
@@ -102,7 +104,8 @@ export async function readTrackedOrder(
     deliveryId: delivery?.delivery_id ?? null,
     orderType: order.order_type,
     arrivalWindow: null,
-    destination,
+    destination: order.delivery_address,
+    destinationCoordinates: await geocode(order.delivery_address),
     riderName,
     items: (orderItems || []).map((item) => ({
       productId: item.product_id || "",
@@ -138,25 +141,11 @@ async function readRiderName(
   return employee?.name ?? null;
 }
 
-/**
- * The order's destination is read from the customer's default address rather
- * than from the order, because `order` has no address column at all.
- *
- * We read the destination from the customer's *current* address, which means a
- * delivered order will retroactively claim it went somewhere else if they
- * move.
- */
-async function readDestination(
-  supabase: ReturnType<typeof createClient>,
-  customerId: string,
-): Promise<string | null> {
-  const { data } = await supabase
-    .from("customer_address")
-    .select("address_details, is_default")
-    .eq("customer_id", customerId)
-    .order("is_default", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  return data?.address_details ?? null;
+async function geocode(address: string | null) {
+  if (!address) return null;
+  const result = await validateNcrAddress(address);
+  if (result.latitude && result.longitude) {
+    return { lat: result.latitude, lng: result.longitude };
+  }
+  return null;
 }

@@ -32,7 +32,7 @@ export async function readPlacedOrder(
   // this filter is what actually prevents that.
   const { data: order } = await supabase
     .from("order")
-    .select("order_id, order_type, created_at")
+    .select("order_id, order_type, created_at, delivery_address")
     .eq("order_id", orderId)
     .eq("customer_id", user.id)
     .maybeSingle();
@@ -60,7 +60,7 @@ export async function readPlacedOrder(
 
   const fulfilment = fulfilmentFromOrderType(order.order_type);
   const address =
-    fulfilment === "delivery" ? await readDestination(supabase, user.id) : null;
+    fulfilment === "delivery" ? order.delivery_address : null;
 
   return {
     orderId: order.order_id,
@@ -105,28 +105,6 @@ function fulfilmentFromOrderType(orderType: string | null): Fulfilment {
     : "delivery";
 }
 
-/**
- * `order` has no address column, so the destination comes from the customer's
- * default address — the same compromise the tracking screen makes.
- *
- * We read the destination from the customer's *current* address, which means a
- * delivered order will retroactively claim it went somewhere else if they
- * move.change it.
- */
-async function readDestination(
-  supabase: ReturnType<typeof createClient>,
-  customerId: string,
-): Promise<string | null> {
-  const { data } = await supabase
-    .from("customer_address")
-    .select("address_details, is_default")
-    .eq("customer_id", customerId)
-    .order("is_default", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  return data?.address_details ?? null;
-}
 
 /**
  * `transaction.payment_method` is free text, so a stored value is matched
