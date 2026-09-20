@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef, useEffect } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -40,10 +40,40 @@ function LoginFormInner() {
   const [submitted, setSubmitted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const [isFormValid, setIsFormValid] = useState(false);
+  const [hasEmptyRequired, setHasEmptyRequired] = useState(true);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  function checkFormEmpty(form: HTMLFormElement) {
+    let empty = false;
+    const elements = form.elements;
+    for (let i = 0; i < elements.length; i++) {
+      const el = elements[i] as HTMLInputElement;
+      if (el.hasAttribute('required')) {
+        if (el.type === 'checkbox' && !el.checked) {
+          empty = true;
+          break;
+        } else if (el.type !== 'checkbox' && !el.value.trim()) {
+          empty = true;
+          break;
+        }
+      }
+    }
+    setHasEmptyRequired(empty);
+  }
+
+  useEffect(() => {
+    if (formRef.current) {
+      checkFormEmpty(formRef.current);
+    }
+    // Set a timeout to catch delayed autofill
+    const timer = setTimeout(() => {
+      if (formRef.current) checkFormEmpty(formRef.current);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
 
   function handleFormChange(event: React.FormEvent<HTMLFormElement>) {
-    setIsFormValid(event.currentTarget.checkValidity());
+    checkFormEmpty(event.currentTarget);
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -80,11 +110,10 @@ function LoginFormInner() {
     });
   }
 
-  const hasErrors = Object.keys(errors).length > 0;
-
   return (
     <div className="relative flex flex-col px-6 pb-[30px] md:justify-center md:bg-background md:px-[52px] md:py-[48px]">
       <form
+        ref={formRef}
         noValidate
         onChange={handleFormChange}
         onSubmit={handleSubmit}
@@ -103,10 +132,6 @@ function LoginFormInner() {
 
         {serverError ? (
           <Alert>{serverError}</Alert>
-        ) : submitted && hasErrors ? (
-          <Alert>
-            We couldn&apos;t sign you in. Check your details and try again.
-          </Alert>
         ) : null}
 
         <Field label="Email" htmlFor="email" error={errors.email}>
@@ -154,7 +179,7 @@ function LoginFormInner() {
           </Link>
         </div>
 
-        <Button type="submit" disabled={isPending || !isFormValid}>
+        <Button type="submit" disabled={isPending || hasEmptyRequired}>
           {isPending ? "Logging in…" : "Log in"}
         </Button>
       </form>
