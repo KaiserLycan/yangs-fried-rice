@@ -1,4 +1,6 @@
 import * as React from "react";
+import { ChevronLeft } from "lucide-react";
+import { BottomTabBar } from "@/components/nav/bottom-tab-bar";
 
 export default function ProfileLoading() {
   return (
@@ -26,16 +28,6 @@ export default function ProfileLoading() {
           </div>
         </nav>
 
-        {/* Mock Mobile Header */}
-        <div className="flex h-[46px] items-center gap-[12px] px-[16px] pb-[14px] pt-[2px] md:hidden">
-          <div className="text-[19px] text-white">
-            &#8249;
-          </div>
-          <span className="font-display text-[18px] tracking-[0.54px] text-white">
-            MY PROFILE
-          </span>
-          <div className="ml-auto size-[30px] animate-pulse rounded-full bg-white/20" />
-        </div>
       </div>
 
       <div className="flex flex-1">
@@ -74,7 +66,15 @@ export default function ProfileLoading() {
         </aside>
 
         {/* Main Content Area */}
-        <main className="flex-1 px-[14px] py-[16px] md:px-[32px] md:py-[26px]">
+        <main className="flex-1 px-[14px] py-[16px] pb-[calc(var(--tab-bar-height)+40px)] md:px-[32px] md:py-[26px]">
+          <div className="flex items-center gap-[12px] border-b border-rule px-[20px] py-[18px] md:hidden -mx-[14px] -mt-[16px] mb-[16px]">
+            <div className="flex items-center justify-center">
+              <ChevronLeft className="size-[24px] text-foreground" />
+            </div>
+            <h1 className="font-display text-[24px] uppercase text-foreground">
+              ACCOUNT
+            </h1>
+          </div>
           <div className="flex flex-col gap-[12px] md:mx-auto md:max-w-[880px] md:gap-[18px]">
             {/* Desktop Heading */}
             <div className="hidden items-baseline gap-[12px] md:flex">
@@ -107,11 +107,11 @@ export default function ProfileLoading() {
             {/* Password */}
             <div className="h-[120px] w-full animate-pulse rounded-lg bg-secondary/20 border border-rule" />
 
-            {/* Account Actions */}
             <div className="h-[80px] w-full animate-pulse rounded-lg bg-secondary/20 border border-rule" />
           </div>
         </main>
       </div>
+      <BottomTabBar current="account" cartCount={0} />
     </div>
   );
 }

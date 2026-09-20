@@ -11,6 +11,7 @@ import { fieldErrorsFrom } from "@/components/profile/use-card-editor";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
+import { AddressValidationNote } from "@/components/checkout/address-validation-note";
 import type { CustomerAddress } from "@/lib/profile/customer-profile";
 import {
   deliveryAddressSchema,
@@ -47,8 +48,12 @@ export function DeliveryAddressesCard({
   const showToast = useToast();
   const [dialog, setDialog] = React.useState<DialogState>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [formError, setFormError] = React.useState<string | null>(null);
 
-  const closeDialog = () => setDialog(null);
+  const closeDialog = () => {
+    setDialog(null);
+    setFormError(null);
+  };
 
   async function handleSave(values: DeliveryAddressValues) {
     const isEdit = dialog?.mode === "edit";
@@ -56,6 +61,7 @@ export function DeliveryAddressesCard({
       ? `/api/profile/addresses/${dialog.address.id}`
       : "/api/profile/addresses";
 
+    setFormError(null);
     setIsSubmitting(true);
     try {
       const res = await fetch(url, {
@@ -66,7 +72,7 @@ export function DeliveryAddressesCard({
       const json = await res.json();
 
       if (!res.ok) {
-        showToast(json.error ?? "Could not save address.");
+        setFormError(json.error ?? "Could not save address.");
         return;
       }
 
@@ -74,7 +80,7 @@ export function DeliveryAddressesCard({
       closeDialog();
       router.refresh();
     } catch {
-      showToast("Could not save address. Check your connection.");
+      setFormError("Could not save address. Check your connection.");
     } finally {
       setIsSubmitting(false);
     }
@@ -181,6 +187,7 @@ export function DeliveryAddressesCard({
         open={dialog?.mode === "add" || dialog?.mode === "edit"}
         address={dialog?.mode === "edit" ? dialog.address : undefined}
         isSubmitting={isSubmitting}
+        error={formError}
         onClose={closeDialog}
         onSave={handleSave}
       />
@@ -307,22 +314,47 @@ function AddressFormDialog({
   open,
   address,
   isSubmitting,
+  error: formError,
   onClose,
   onSave,
 }: {
   open: boolean;
   address?: CustomerAddress;
   isSubmitting: boolean;
+  error?: string | null;
   onClose: () => void;
   onSave: (values: DeliveryAddressValues) => void;
 }) {
   const [errors, setErrors] = React.useState<
     Partial<Record<DeliveryAddressField, string>>
   >({});
+  const [draftAddressStr, setDraftAddressStr] = React.useState("");
 
   React.useEffect(() => {
-    if (!open) setErrors({});
-  }, [open]);
+    if (!open) {
+      setErrors({});
+    } else if (address?.addressDetails) {
+      setDraftAddressStr(address.addressDetails);
+    } else {
+      setDraftAddressStr("");
+    }
+  }, [open, address]);
+
+  function handleFormChange(event: React.FormEvent<HTMLFormElement>) {
+    const form = event.currentTarget;
+    const b = (form.elements.namedItem("buildingNo") as HTMLInputElement)?.value;
+    const s = (form.elements.namedItem("street") as HTMLInputElement)?.value;
+    const br = (form.elements.namedItem("barangay") as HTMLInputElement)?.value;
+    const c = (form.elements.namedItem("city") as HTMLInputElement)?.value;
+    const z = (form.elements.namedItem("zip") as HTMLInputElement)?.value;
+
+    const combined = [
+      b && s ? `${b} ${s}` : (b || s),
+      c
+    ].filter(Boolean).join(", ");
+    
+    setDraftAddressStr(combined);
+  }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -375,6 +407,7 @@ function AddressFormDialog({
           key={address?.id ?? "add"}
           id={formId}
           noValidate
+          onChange={handleFormChange}
           onSubmit={handleSubmit}
           className="flex flex-col gap-[12px]"
         >
@@ -462,6 +495,16 @@ function AddressFormDialog({
               maxLength={255}
             />
           </CardField>
+          
+          <div className="pt-2">
+            <AddressValidationNote address={draftAddressStr} />
+          </div>
+
+          {formError && (
+            <div className="rounded-[4px] bg-destructive/10 p-[12px] text-[13px] font-medium text-destructive">
+              {formError}
+            </div>
+          )}
         </form>
       ) : null}
     </Dialog>
