@@ -33,7 +33,7 @@ export async function getOrderEtaAction(
   // 1. Fetch order details
   const { data: order, error: orderError } = await supabase
     .from("order")
-    .select("order_id, customer_id, order_status, order_type, created_at")
+    .select("order_id, customer_id, order_status, order_type, created_at, delivery_address")
     .eq("order_id", orderId)
     .single();
 
@@ -86,22 +86,13 @@ export async function getOrderEtaAction(
   // 3. Resolve customer coordinates
   let customerCoordinates: Coordinates | null = customCoords ?? null;
 
-  if (!customerCoordinates && order.customer_id) {
-    const { data: addressRow } = await supabase
-      .from("customer_address")
-      .select("address_details")
-      .eq("customer_id", order.customer_id)
-      .limit(1)
-      .maybeSingle();
-
-    if (addressRow?.address_details) {
-      const geocoded = await validateNcrAddress(addressRow.address_details);
-      if (geocoded.latitude && geocoded.longitude) {
-        customerCoordinates = {
-          latitude: geocoded.latitude,
-          longitude: geocoded.longitude,
-        };
-      }
+  if (!customerCoordinates && order.delivery_address) {
+    const geocoded = await validateNcrAddress(order.delivery_address);
+    if (geocoded.latitude && geocoded.longitude) {
+      customerCoordinates = {
+        latitude: geocoded.latitude,
+        longitude: geocoded.longitude,
+      };
     }
   }
 
