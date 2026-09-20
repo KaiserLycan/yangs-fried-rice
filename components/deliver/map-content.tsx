@@ -117,12 +117,14 @@ export default function MapContent({
   origin, 
   destination,
   originLabel,
-  destinationLabel
+  destinationLabel,
+  locationIqApiKey
 }: { 
   origin: DeliveryLocation; 
   destination: DeliveryLocation; 
   originLabel?: string;
   destinationLabel?: string;
+  locationIqApiKey?: string;
 }) {
   const [mounted, setMounted] = useState(false);
 
@@ -152,8 +154,8 @@ export default function MapContent({
         attributionControl={false}
       >
         <TileLayer
-          attribution="Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, Esri Japan, METI, Esri China (Hong Kong), Esri (Thailand), TomTom, 2012"
-          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
+          attribution="&copy; <a href='https://locationiq.com/?ref=link'>LocationIQ</a> &copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors"
+          url={locationIqApiKey ? `https://{s}-tiles.locationiq.com/v3/streets/r/{z}/{x}/{y}.png?key=${locationIqApiKey}` : "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"}
         />
         <MapResizer />
         <RoutingMachine 

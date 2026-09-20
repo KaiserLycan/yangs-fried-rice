@@ -58,7 +58,8 @@ export default async function DeliverHomePage() {
           name: item.productName
         }))
       };
-    });
+    })
+    .filter(d => d.status !== "completed");
 
   return (
     <div className="flex flex-col h-full w-full bg-[#FAF5EB]/50 p-4 md:p-8 overflow-y-auto">

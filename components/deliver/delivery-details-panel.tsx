@@ -1,17 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Phone, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProofOfDeliveryModal } from "./proof-of-delivery-modal";
 import { AcceptDeliveryModal } from "./accept-delivery-modal";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 export function DeliveryDetailsPanel({ delivery }: { delivery: any }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
   const [isProofModalOpen, setIsProofModalOpen] = useState(false);
   const [isAcceptModalOpen, setIsAcceptModalOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("action") === "upload") {
+      setIsProofModalOpen(true);
+      router.replace(pathname, { scroll: false });
+    }
+  }, [searchParams, pathname, router]);
 
   if (!delivery) return null;
 
@@ -85,7 +94,7 @@ export function DeliveryDetailsPanel({ delivery }: { delivery: any }) {
                 </div>
               ))}
               <div className="flex justify-between items-center mt-2 pt-3 border-t border-[#F2E8D9]">
-                <span className="text-[14px] text-[#7A6A60]">{delivery.paymentMethod}</span>
+                <span className="text-[14px] text-[#7A6A60]">{delivery.paymentMethod === "cash_on_delivery" ? "Cash on Delivery" : delivery.paymentMethod === "paymongo" ? "Paid via PayMongo" : delivery.paymentMethod}</span>
                 <span className="font-display text-[18px] text-[#1A1210]">₱{delivery.total?.toFixed(2)}</span>
               </div>
             </div>

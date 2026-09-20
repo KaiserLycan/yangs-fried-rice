@@ -1,5 +1,12 @@
+"use client";
+
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { acceptDelivery } from "@/lib/actions/delivery";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
+import { Loader2 } from "lucide-react";
+import { useToast } from "@/components/ui/toast";
 
 export type DeliveryData = {
   id: string;
@@ -11,6 +18,7 @@ export type DeliveryData = {
   total: number | string;
   status: "ready" | "delivering" | "completed";
   items: { qty: number; name: string }[];
+  createdAt: string;
 };
 
 interface DeliveryOverviewCardProps {
@@ -19,12 +27,29 @@ interface DeliveryOverviewCardProps {
 }
 
 export function DeliveryOverviewCard({ delivery, isActive }: DeliveryOverviewCardProps) {
+  const router = useRouter();
+  const showToast = useToast();
+  const [isPending, startTransition] = useTransition();
+
   const isReady = delivery.status === "ready";
-  // The unused variables are kept here in case you need them for future UI states
   const isDelivering = delivery.status === "delivering";
   const isCompleted = delivery.status === "completed";
 
   const itemCount = delivery.items.reduce((sum, item) => sum + item.qty, 0);
+
+  const handleAcceptClick = (e: React.MouseEvent) => {
+    e.preventDefault(); // Stop the Link from navigating instantly
+    
+    startTransition(async () => {
+      const result = await acceptDelivery(delivery.id);
+      if (result.success) {
+        window.dispatchEvent(new CustomEvent("delivery-updated"));
+        router.push(`/deliver/${delivery.id}`);
+      } else {
+        showToast(result.error || "Failed to accept delivery");
+      }
+    });
+  };
 
   return (
     <div className={cn(
@@ -37,7 +62,7 @@ export function DeliveryOverviewCard({ delivery, isActive }: DeliveryOverviewCar
         <div>
           <p className="text-[10px] text-[#7A6A60] font-bold tracking-widest uppercase mb-1">ORDER</p>
           <h3 className="font-display text-[22px] text-[#1A1210] leading-none">
-            #{delivery.id}
+            #{delivery.id.split('-')[0]}
           </h3>
         </div>
         <div className="text-right">
@@ -57,19 +82,40 @@ export function DeliveryOverviewCard({ delivery, isActive }: DeliveryOverviewCar
           {delivery.phone}
         </p>
         <p className="text-[12px] text-[#7A6A60] mt-1">
-          {itemCount} items · {delivery.paymentMethod} · {delivery.total ? `₱${Number(delivery.total).toFixed(2)}` : "Paid"}
+          {itemCount} items · {delivery.paymentMethod === "cash_on_delivery" ? "COD" : delivery.paymentMethod === "paymongo" ? "Paid Online" : delivery.paymentMethod} · {delivery.total ? `₱${Number(delivery.total).toFixed(2)}` : "Paid"}
         </p>
+        {isDelivering && (
+          <p className="text-[12px] text-[#E8541F] mt-1 font-bold">
+            ● Accepted by you
+          </p>
+        )}
       </div>
 
       {/* Footer Actions */}
       <div className="pt-2">
         {isReady ? (
-          <Button className="w-full py-5 rounded-[12px] bg-[#E8541F] hover:bg-[#d44919] text-white">
-            Accept
+          <Button 
+            className="w-full py-5 rounded-[12px] bg-[#E8541F] hover:bg-[#d44919] text-white"
+            onClick={handleAcceptClick}
+            disabled={isPending}
+          >
+            {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : "Accept"}
+          </Button>
+        ) : isDelivering ? (
+          <Button 
+            className="w-full py-5 rounded-[12px] bg-[#1A1210] hover:bg-[#2c1f1c] text-white"
+            onClick={(e) => {
+              // Just let it bubble to the link so it navigates to the details page, or prevent and push
+              // Actually, preventing and pushing ensures clean navigation without Link quirks on buttons
+              e.preventDefault();
+              router.push(`/deliver/${delivery.id}?action=upload`);
+            }}
+          >
+            Arrived & Upload Proof
           </Button>
         ) : (
-          <Button className="w-full py-5 rounded-[12px] bg-[#1A1210] hover:bg-[#2c1f1c] text-white">
-            Mark as delivered
+          <Button className="w-full py-5 rounded-[12px] bg-[#E3E8E1] text-[#7A6A60]" disabled>
+            Delivered
           </Button>
         )}
       </div>
