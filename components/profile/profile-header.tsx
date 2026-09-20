@@ -30,31 +30,7 @@ export function ProfileHeader({ profile }: { profile: CustomerProfile }) {
     <header className="bg-primary">
       <SiteNavBar profile={profile} currentSection="account" />
 
-      {/* Mobile header, pinned to the 46px the frame draws. The frame puts a
-          device status bar above this; that is mockup chrome and is not
-          reproduced, which is why the bar sits flush against the top of the
-          viewport. The padding is uneven because the frame's content sits
-          toward the top of the bar rather than centred in it. */}
-      <div className="flex h-[46px] items-center gap-[12px] px-[16px] pb-[14px] pt-[2px] md:hidden">
-        {/* A fixed destination rather than history.back() — this page is
-            reachable by direct link, where there is nothing to go back to. */}
-        <Link
-          href="/menu"
-          aria-label="Back to menu"
-          className="text-[19px] text-white"
-        >
-          &#8249;
-        </Link>
-        <span className="font-display text-[18px] tracking-[0.54px] text-white">
-          MY PROFILE
-        </span>
-        <AvatarButton
-          initials={initials}
-          imageUrl={profile.profileImageUrl}
-          className="size-[30px] bg-accent text-[11.5px] font-bold text-white"
-          wrapperClassName="ml-auto"
-        />
-      </div>
+
     </header>
   );
 }

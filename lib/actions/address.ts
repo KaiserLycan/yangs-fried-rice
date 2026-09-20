@@ -48,6 +48,18 @@ export async function upsertCustomerAddress({
 
     if (error) throw new Error("Failed to update address: " + error.message);
   } else {
+    // Check for duplicates before inserting
+    const { data: existing } = await supabase
+      .from("customer_address")
+      .select("address_id")
+      .eq("customer_id", user.id)
+      .ilike("address_details", address_details)
+      .maybeSingle();
+      
+    if (existing) {
+      throw new Error("This address is already saved in your profile.");
+    }
+
     const { data, error } = await supabase
       .from("customer_address")
       .insert(payload)

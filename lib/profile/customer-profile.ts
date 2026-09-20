@@ -23,6 +23,8 @@ export type CustomerProfile = {
    * and no empty state to draw.
    */
   dateOfBirth: string | null;
+  /** ISO timestamp of when the password was last changed, or null. */
+  passwordLastUpdated: string | null;
   /** As stored, in whatever shape it was typed — see `formatMobileNumber`. */
   mobile: string | null;
   profileImageUrl: string | null;
@@ -106,7 +108,7 @@ export async function readCustomerProfile(): Promise<CustomerProfile | null> {
   const [customerResult, orderCountResult, addressesResult] = await Promise.all([
     supabase
       .from("customer")
-      .select("name, phone_number, profileImage_URL")
+      .select("name, phone_number, profileImage_URL, password_last_updated, date_of_birth")
       .eq("customer_id", user.id)
       .maybeSingle(),
     supabase
@@ -152,10 +154,8 @@ export async function readCustomerProfile(): Promise<CustomerProfile | null> {
 
   return {
     name,
-    // Nothing writes this yet. Named rather than omitted so the card that
-    // draws its empty state is reading a real field, and so the day the
-    // column lands this file is the only one that changes.
-    dateOfBirth: null,
+    dateOfBirth: customerResult.data?.date_of_birth ?? null,
+    passwordLastUpdated: customerResult.data?.password_last_updated ?? null,
     mobile: customerResult.data?.phone_number ?? null,
     profileImageUrl: customerResult.data?.profileImage_URL ?? null,
     email: user.email ?? "",

@@ -29,7 +29,7 @@ export async function getMyProfile(): Promise<RouterResult<unknown>> {
   const [customerResult, addressesResult] = await Promise.all([
     supabase
       .from("customer")
-      .select("name, phone_number, profileImage_URL, password_last_updated")
+      .select("name, phone_number, profileImage_URL, password_last_updated, date_of_birth")
       .eq("customer_id", user.id)
       .maybeSingle(),
     supabase
@@ -50,7 +50,7 @@ export async function getMyProfile(): Promise<RouterResult<unknown>> {
       mobile: customerResult.data?.phone_number ?? null,
       profileImageUrl: customerResult.data?.profileImage_URL ?? null,
       passwordLastUpdated: customerResult.data?.password_last_updated ?? null,
-      dateOfBirth: null,
+      dateOfBirth: customerResult.data?.date_of_birth ?? null,
       addresses: (addressesResult.data ?? []).map((row) => ({
         id: row.address_id,
         label: row.label,
@@ -96,6 +96,7 @@ export async function updateMyProfile(
       .from("customer")
       .update({
         ...(input.name !== undefined ? { name: parsed.data.name } : {}),
+        ...(input.dateOfBirth !== undefined ? { date_of_birth: parsed.data.dateOfBirth } : {}),
       })
       .eq("customer_id", user.id);
 
@@ -133,6 +134,7 @@ export async function updateMyProfile(
     emailConfirmationSent = true;
   }
 
+  revalidatePath("/", "layout");
   return { data: { emailConfirmationSent }, error: null };
 }
 
@@ -170,6 +172,18 @@ export async function addMyAddress(
 
   const fullAddress = `${parsed.data.buildingNo} ${parsed.data.street}, ${parsed.data.barangay}, ${parsed.data.city} ${parsed.data.zip}`;
 
+  // Check for duplicates before inserting
+  const { data: existing } = await supabase
+    .from("customer_address")
+    .select("address_id")
+    .eq("customer_id", user.id)
+    .ilike("address_details", fullAddress)
+    .maybeSingle();
+
+  if (existing) {
+    return { data: null, error: "This address is already saved in your profile." };
+  }
+
   const { data, error } = await supabase
     .from("customer_address")
     .insert({
@@ -185,6 +199,7 @@ export async function addMyAddress(
     return { data: null, error: "Could not save address." };
   }
 
+  revalidatePath("/", "layout");
   return { data: { addressId: data.address_id }, error: null };
 }
 
@@ -351,18 +366,9 @@ export async function changeMyPassword(input: {
       .eq("employee_id", user.id),
   ]);
 
-    await Promise.all([
-    supabase
-      .from("customer")
-      .update({ password_last_updated: new Date().toISOString() })
-      .eq("customer_id", user.id),
-    supabase
-      .from("employee")
-      .update({ password_last_updated: new Date().toISOString() })
-      .eq("employee_id", user.id),
-  ]);
+  revalidatePath("/", "layout");
 
-  return { data: undefined, error: null };  // <-- this line was missing
+  return { data: undefined, error: null };
 }
 
 

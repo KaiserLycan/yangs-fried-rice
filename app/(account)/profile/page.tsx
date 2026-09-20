@@ -1,3 +1,8 @@
+export const revalidate = 0;
+
+import { Suspense } from "react";
+import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 import { redirect } from "next/navigation";
 import { AccountActions } from "@/components/profile/account-actions";
 import { ContactDetailsCard } from "@/components/profile/contact-details-card";
@@ -49,8 +54,16 @@ export default async function ProfilePage() {
 
           <main
             id="profile"
-            className="flex-1 px-[14px] py-[16px] md:px-[32px] md:py-[26px]"
+            className="flex-1 px-[14px] py-[16px] pb-[calc(var(--tab-bar-height)+40px)] md:px-[32px] md:py-[26px]"
           >
+            <div className="flex items-center gap-[12px] border-b border-rule px-[20px] py-[18px] md:hidden -mx-[14px] -mt-[16px] mb-[16px]">
+              <Link href="/menu" aria-label="Back to menu">
+                <ChevronLeft className="size-[24px] text-foreground" />
+              </Link>
+              <h1 className="font-display text-[24px] uppercase text-foreground">
+                ACCOUNT
+              </h1>
+            </div>
             <div className="flex flex-col gap-[12px] md:mx-auto md:max-w-[880px] md:gap-[18px]">
               <div className="hidden items-baseline gap-[12px] md:flex">
                 <h1 className="font-display text-[32px] tracking-[0.32px] text-foreground">
@@ -79,7 +92,7 @@ export default async function ProfilePage() {
 
               <DeliveryAddressesCard addresses={profile.addresses} />
 
-              <PasswordCard />
+              <PasswordCard lastUpdated={profile.passwordLastUpdated} />
 
               <AccountActions />
             </div>
