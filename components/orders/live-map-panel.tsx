@@ -7,13 +7,15 @@ import { RESTAURANT_LOCATION } from "@/lib/mock-deliveries";
  */
 export function LiveMapPanel({
   riderName,
+  destinationCoordinates,
   className,
+  locationIqApiKey,
 }: {
   riderName: string | null;
+  destinationCoordinates?: { lat: number; lng: number } | null;
   className?: string;
+  locationIqApiKey?: string;
 }) {
-  // Use a mock customer location for now since real geocoding isn't integrated yet
-  const MOCK_CUSTOMER_LOCATION = { lat: 14.5670, lng: 120.9850 };
 
   return (
     <div
@@ -31,11 +33,18 @@ export function LiveMapPanel({
       )}
     >
       <div className="absolute inset-0 z-0">
-        <DeliveryMap 
-          origin={RESTAURANT_LOCATION} 
-          destination={MOCK_CUSTOMER_LOCATION} 
-          originLabel={riderName ? "RIDER" : "RESTAURANT"}
-        />
+        {destinationCoordinates ? (
+          <DeliveryMap 
+            origin={RESTAURANT_LOCATION} 
+            destination={destinationCoordinates} 
+            originLabel={riderName ? "RIDER" : "RESTAURANT"}
+            locationIqApiKey={locationIqApiKey}
+          />
+        ) : (
+          <div className="w-full h-full bg-[#E3E8E1] flex items-center justify-center text-[#4A5E44]/60 font-bold tracking-widest text-[14px]">
+            MAP NOT AVAILABLE
+          </div>
+        )}
       </div>
 
       <div className="relative z-10 flex h-full items-center justify-center pointer-events-none md:hidden">
