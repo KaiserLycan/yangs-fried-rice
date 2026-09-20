@@ -44,10 +44,11 @@ export function useCardEditor<Values extends Record<string, unknown>>({
   schema: z.ZodType<Values>;
   /** Pulls this card's fields out of its form. */
   read: (form: FormData) => unknown;
-  /** Runs only when everything parsed. Today: raise the toast. */
-  onValid: (values: Values) => void;
+  /** Runs only when everything parsed. Return false to keep the form open on error. */
+  onValid: (values: Values) => Promise<boolean | void> | boolean | void;
 }) {
   const [isEditing, setIsEditing] = React.useState(false);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [errors, setErrors] = React.useState<
     Partial<Record<keyof Values, string>>
   >({});
@@ -61,7 +62,7 @@ export function useCardEditor<Values extends Record<string, unknown>>({
     setErrors({});
   }, []);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const result = schema.safeParse(read(new FormData(event.currentTarget)));
 
@@ -70,12 +71,20 @@ export function useCardEditor<Values extends Record<string, unknown>>({
       return;
     }
 
-    cancel();
-    onValid(result.data);
+    setIsSubmitting(true);
+    try {
+      const success = await onValid(result.data);
+      if (success !== false) {
+        cancel();
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return {
     isEditing,
+    isSubmitting,
     edit: () => setIsEditing(true),
     cancel,
     errors,
