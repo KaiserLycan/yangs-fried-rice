@@ -606,6 +606,7 @@ export async function submitCart(
       order_type: parsed.data.order_type,
       special_instructions: parsed.data.special_instructions ?? null,
       delivery_fee: parsed.data.delivery_fee ?? 0,
+      delivery_address: parsed.data.delivery_address ?? null,
     })
     .select()
     .single();
