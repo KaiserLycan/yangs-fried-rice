@@ -114,6 +114,7 @@ export function OrderSummaryCard({
           cart_id: cartId,
           order_type: orderTypeFor(fulfilment),
           delivery_fee: totals.deliveryFee,
+          delivery_address: address ?? undefined,
         }),
       async ({ order_id }) => {
         const receipt = `/checkout/confirmation?order=${order_id}`;

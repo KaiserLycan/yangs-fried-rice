@@ -51,6 +51,12 @@ export const submitCartSchema = z.object({
     .min(0, { message: "delivery_fee must be greater than or equal to 0" })
     .optional()
     .default(0),
+  delivery_address: z
+    .string()
+    .trim()
+    .max(500, { message: "delivery_address cannot exceed 500 characters" })
+    .nullable()
+    .optional(),
 });
 
 export const cancelOrderSchema = z.object({
