@@ -84,12 +84,15 @@ function trackedOrder(over: Partial<TrackedOrder> = {}): TrackedOrder {
     // stage but means staff have accepted, which withdraws Cancel order.
     orderStatus: "pending",
     cancelledAt: null,
+    cancellationReason: null,
     deliveryStatus: null,
     deliveryId: null,
     orderType: "Delivery",
     arrivalWindow: "35–45 min",
     destination: "21 Mabini St",
+    destinationCoordinates: null,
     riderName: null,
+    items: [],
     ...over,
   };
 }

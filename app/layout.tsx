@@ -23,6 +23,8 @@ export const metadata: Metadata = {
   description: "Order online for pickup or delivery from Yang's Fried Rice.",
 };
 
+import { ToastProvider } from "@/components/ui/toast";
+
 export default function RootLayout({
   children,
 }: {
@@ -30,7 +32,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${anton.variable} ${dmSans.variable}`}>
-      <body>{children}</body>
+      <body>
+        <ToastProvider>{children}</ToastProvider>
+      </body>
     </html>
   );
 }

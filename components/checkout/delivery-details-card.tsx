@@ -177,6 +177,13 @@ export function DeliveryDetailsCard({ profile }: { profile: CustomerProfile }) {
             />
           </CardField>
 
+          <AddressValidationNote 
+            address={[
+              draftBuildingNo && draftStreet ? `${draftBuildingNo} ${draftStreet}` : (draftBuildingNo || draftStreet),
+              draftCity
+            ].filter(Boolean).join(", ")}
+          />
+
           <div className="flex items-center gap-[8px] mt-[8px]">
             <button 
               onClick={handleSave} 
@@ -275,7 +282,12 @@ export function DeliveryDetailsCard({ profile }: { profile: CustomerProfile }) {
       )}
 
       {!isEditing && activeAddress ? (
-        <AddressValidationNote address={activeAddress.addressDetails} />
+        <AddressValidationNote 
+          address={(() => {
+            const p = parseAddress(activeAddress.addressDetails);
+            return [p.street, p.city].filter(Boolean).join(", ");
+          })()} 
+        />
       ) : !isEditing && (
         <p className="text-[12px] text-muted-foreground">
           You have no saved delivery address yet. Please add one above.
