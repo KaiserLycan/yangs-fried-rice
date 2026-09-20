@@ -55,7 +55,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith(path)
   );
 
-  const isAuthPage = ["/login", "/signup", "/employee/login"].some(path => pathname === path);
+  const isAuthPage = ["/login", "/register", "/employee/login"].some(path => pathname === path);
 
   // ========================================================================
   // FAST PATH: Employee Areas (No Supabase network requests)
