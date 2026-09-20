@@ -1,3 +1,5 @@
+export const revalidate = 0;
+
 import { ToastProvider } from "@/components/ui/toast";
 import { EmployeePersonalDetailsCard } from "@/components/manage/profile/employee-personal-details-card";
 import { EmployeeContactDetailsCard } from "@/components/manage/profile/employee-contact-details-card";
@@ -83,7 +85,7 @@ export default async function RiderProfilePage() {
 
               <EmployeeContactDetailsCard profile={profile} />
 
-              <PasswordCard />
+              <PasswordCard lastUpdated={result.data.passwordLastUpdated} />
             </div>
           </div>
         </div>

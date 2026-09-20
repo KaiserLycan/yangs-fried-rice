@@ -2,51 +2,131 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { DeliveryOverviewCard, type DeliveryData } from "./delivery-overview-card";
-import { getAssignedDeliveries, getDeliveryDetail } from "@/lib/actions/delivery";
+import { DeliveryOverviewSkeleton } from "./delivery-overview-skeleton";
+import { getAssignedDeliveries, getDeliveryDetailsBatch } from "@/lib/actions/delivery";
 import { Loader2 } from "lucide-react";
+import { ManagePagination } from "@/components/manage/manage-pagination";
 
 export function DeliverSidebar() {
   const pathname = usePathname();
   const activeDeliveryId = pathname.split("/").pop();
   
-  const [filter, setFilter] = useState<"all" | "queue" | "delivered">("all");
+  const [filter, setFilter] = useState<"all" | "queue" | "delivered">("queue");
+  const [allSummaries, setAllSummaries] = useState<any[]>([]);
   const [deliveries, setDeliveries] = useState<DeliveryData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFetchingPage, setIsFetchingPage] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(6);
 
   useEffect(() => {
     async function loadSidebarQueue() {
+      // Don't show full page loading skeleton on background refresh, just keep current data
+      if (allSummaries.length === 0) {
+        setIsLoading(true);
+      }
+      
       const { deliveries: summaries, error } = await getAssignedDeliveries();
       
       if (error || !summaries) {
         setIsLoading(false);
         return;
       }
+      
+      setAllSummaries(summaries);
+      setIsLoading(false);
+    }
 
-      // Fetch full details for the sidebar cards
-      const detailedPromises = summaries.map(s => getDeliveryDetail(s.deliveryId));
-      const detailedResults = await Promise.all(detailedPromises);
+    loadSidebarQueue();
+  }, [refreshTrigger]);
 
-      const mapped: DeliveryData[] = detailedResults
-        .filter(res => res.delivery !== null)
-        .map(res => {
-          const d = res.delivery!;
-          
+  useEffect(() => {
+    const handleUpdate = () => setRefreshTrigger(prev => prev + 1);
+    window.addEventListener("delivery-updated", handleUpdate);
+    return () => window.removeEventListener("delivery-updated", handleUpdate);
+  }, []);
+
+  // Filter and sort the entire pool of summaries
+  const filteredSummaries = useMemo(() => {
+    return allSummaries
+      .filter((s) => {
+        let cardStatus = "ready";
+        if (s.deliveryStatus === "delivering" || s.deliveryStatus === "out_for_delivery") cardStatus = "delivering";
+        if (s.deliveryStatus === "delivered") cardStatus = "completed";
+
+        if (filter === "all") return true;
+        if (filter === "queue") return cardStatus === "ready" || cardStatus === "delivering";
+        if (filter === "delivered") return cardStatus === "completed";
+        return true;
+      })
+      .sort((a, b) => {
+        let statusA = "ready";
+        if (a.deliveryStatus === "delivering" || a.deliveryStatus === "out_for_delivery") statusA = "delivering";
+        if (a.deliveryStatus === "delivered") statusA = "completed";
+        
+        let statusB = "ready";
+        if (b.deliveryStatus === "delivering" || b.deliveryStatus === "out_for_delivery") statusB = "delivering";
+        if (b.deliveryStatus === "delivered") statusB = "completed";
+
+        const statusWeight = { delivering: 0, ready: 1, completed: 2 };
+        if (statusWeight[statusA as keyof typeof statusWeight] !== statusWeight[statusB as keyof typeof statusWeight]) {
+          return statusWeight[statusA as keyof typeof statusWeight] - statusWeight[statusB as keyof typeof statusWeight];
+        }
+        
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      });
+  }, [allSummaries, filter]);
+  const totalPages = Math.ceil(filteredSummaries.length / pageSize);
+  
+  // Reset to page 1 when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter]);
+
+  useEffect(() => {
+    async function fetchPageDetails() {
+      if (allSummaries.length === 0) {
+        setDeliveries([]);
+        setIsFetchingPage(false);
+        return;
+      }
+      
+      setIsFetchingPage(true);
+      const startIdx = (currentPage - 1) * pageSize;
+      const pageSummaries = filteredSummaries.slice(startIdx, startIdx + pageSize);
+
+      const deliveryIds = pageSummaries.map(s => s.deliveryId);
+      const result = await getDeliveryDetailsBatch(deliveryIds);
+      const detailedResults = result?.deliveries || [];
+
+      // Re-order detailedResults to match deliveryIds
+      const orderedResults = deliveryIds
+        .map(id => detailedResults.find(d => d.deliveryId === id))
+        .filter(Boolean);
+
+      const mapped: DeliveryData[] = orderedResults
+        .map(d => {
+          const deliveryData = d!;
           let cardStatus: "ready" | "delivering" | "completed" = "ready";
-          if (d.deliveryStatus === "delivering" || d.deliveryStatus === "out_for_delivery") cardStatus = "delivering";
-          if (d.deliveryStatus === "delivered") cardStatus = "completed";
+          if (deliveryData.deliveryStatus === "delivering" || deliveryData.deliveryStatus === "out_for_delivery") cardStatus = "delivering";
+          if (deliveryData.deliveryStatus === "delivered") cardStatus = "completed";
 
           return {
-            id: d.deliveryId, // Keep full UUID so sidebar Links navigate to real database IDs
-            customer: d.customer?.name || "Walk-in Customer",
-            address: d.customer?.address || "Address details protected",
-            phone: d.customer?.phone || "Contact via details",
+            id: deliveryData.deliveryId,
+            customer: deliveryData.customer?.name || "Walk-in Customer",
+            address: deliveryData.customer?.address || "Address details protected",
+            phone: deliveryData.customer?.phone || "Contact via details",
             notes: "",
-            paymentMethod: "Standard",
-            total: 0,
+            paymentMethod: deliveryData.payment?.method || "Standard",
+            total: deliveryData.payment?.total || 0,
             status: cardStatus,
-            items: d.items.map(item => ({
+            createdAt: deliveryData.createdAt || new Date().toISOString(),
+            items: deliveryData.items.map(item => ({
               qty: item.quantity,
               name: item.productName
             }))
@@ -54,18 +134,13 @@ export function DeliverSidebar() {
         });
 
       setDeliveries(mapped);
-      setIsLoading(false);
+      setIsFetchingPage(false);
     }
 
-    loadSidebarQueue();
-  }, []);
+    fetchPageDetails();
+  }, [allSummaries, filter, currentPage, pageSize]);
 
-  const filteredDeliveries = deliveries.filter((d) => {
-    if (filter === "all") return d.status === "ready";
-    if (filter === "queue") return d.status === "delivering";
-    if (filter === "delivered") return d.status === "completed";
-    return false;
-  });
+
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -97,13 +172,15 @@ export function DeliverSidebar() {
       </div>
 
       <div className="flex flex-col px-[23px] py-[24px] gap-[10px] overflow-y-auto h-full">
-        {isLoading ? (
-          <div className="flex justify-center items-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin text-[#E8541F]" />
+        {isLoading || isFetchingPage ? (
+          <div className="flex flex-col gap-[10px]">
+            {Array.from({ length: pageSize }).map((_, i) => (
+              <DeliveryOverviewSkeleton key={i} />
+            ))}
           </div>
         ) : (
           <>
-            {filteredDeliveries.map((delivery) => {
+            {deliveries.map((delivery) => {
               const isActive = activeDeliveryId === delivery.id;
               
               return (
@@ -119,10 +196,26 @@ export function DeliverSidebar() {
                 </Link>
               );
             })}
-            {filteredDeliveries.length === 0 && (
+            {deliveries.length === 0 && (
               <p className="text-center text-[13px] text-[#7a6a60] mt-4">
                 No deliveries found for this filter.
               </p>
+            )}
+            
+            {totalPages > 0 && (
+              <div className="mt-auto pt-4 border-t border-[#DDCDB8]">
+                <ManagePagination 
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                  pageSize={pageSize}
+                  onPageSizeChange={(size) => {
+                    setPageSize(size);
+                    setCurrentPage(1);
+                  }}
+                  className="justify-center sm:justify-center"
+                />
+              </div>
             )}
           </>
         )}

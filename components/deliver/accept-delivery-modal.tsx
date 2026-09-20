@@ -36,6 +36,7 @@ export function AcceptDeliveryModal({ isOpen, onClose, onDecline, delivery }: Ac
       
       if (result.success) {
         onClose();
+        window.dispatchEvent(new CustomEvent("delivery-updated"));
         router.refresh(); // Triggers the sidebar and main view to refetch and move it to "Ongoing"
       } else {
         setError(result.error);
