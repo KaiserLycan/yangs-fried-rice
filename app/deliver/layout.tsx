@@ -11,18 +11,21 @@
  */
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { LogOut, ArrowLeft } from "lucide-react";
 import { DeliverSidebar } from "@/components/deliver/deliver-sidebar";
 import { initialsFrom } from "@/lib/profile/identity";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useTransition } from "react";
+import { logout } from "@/app/(auth)/actions";
+import { ToastProvider } from "@/components/ui/toast";
 
 export default function DeliverLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const router = useRouter();
   const pathname = usePathname();
   // If we're strictly on /deliver, we are at the root (list view)
   const isRoot = pathname === "/deliver";
@@ -31,6 +34,17 @@ export default function DeliverLayout({
   const [sidebarWidth, setSidebarWidth] = useState(440);
   const [isResizing, setIsResizing] = useState(false);
   const [profileName, setProfileName] = useState("Rider");
+  const [isPending, startTransition] = useTransition();
+
+  function handleLogout() {
+    startTransition(async () => {
+      const result = await logout();
+      if (result.success) {
+        router.push("/employee/login");
+        router.refresh();
+      }
+    });
+  }
 
   useEffect(() => {
     let isMounted = true;
@@ -125,7 +139,13 @@ export default function DeliverLayout({
               </div>
             </Link>
             <div className="w-[1px] h-[24px] bg-[#2e2523] opacity-50" />
-            <button className="flex items-center justify-center text-[#fbf6ec] hover:opacity-80 transition-opacity" title="Log Out">
+            <button 
+              type="button" 
+              onClick={handleLogout}
+              disabled={isPending}
+              className="flex items-center justify-center text-[#fbf6ec] hover:opacity-80 transition-opacity disabled:opacity-50" 
+              title="Log Out"
+            >
               <LogOut className="w-[18px] h-[18px]" />
             </button>
           </div>

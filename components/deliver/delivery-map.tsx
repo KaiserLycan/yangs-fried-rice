@@ -15,12 +15,14 @@ export function DeliveryMap({
   origin, 
   destination,
   originLabel,
-  destinationLabel
+  destinationLabel,
+  locationIqApiKey
 }: { 
   origin: DeliveryLocation;
   destination: DeliveryLocation;
   originLabel?: string;
   destinationLabel?: string;
+  locationIqApiKey?: string;
 }) {
   return (
     <div className="w-full h-full">
@@ -29,6 +31,7 @@ export function DeliveryMap({
         destination={destination} 
         originLabel={originLabel}
         destinationLabel={destinationLabel}
+        locationIqApiKey={locationIqApiKey}
       />
     </div>
   );

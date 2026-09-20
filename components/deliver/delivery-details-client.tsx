@@ -17,6 +17,7 @@ export type DeliveryDetailsClientProps = {
     total: number;
     status: "ready" | "delivering" | "completed";
     items: { qty: number; name: string }[];
+    createdAt: string;
     proofOfDelivery?: string | null;
     deliveryStatus?: string | null;
     origin: { lat: number; lng: number };
@@ -24,8 +25,7 @@ export type DeliveryDetailsClientProps = {
   };
 };
 
-export function DeliveryDetailsClient({ initialDelivery }: DeliveryDetailsClientProps) {
-  const [delivery, setDelivery] = useState(initialDelivery);
+export function DeliveryDetailsClient({ initialDelivery: delivery }: DeliveryDetailsClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
 
@@ -71,6 +71,7 @@ export function DeliveryDetailsClient({ initialDelivery }: DeliveryDetailsClient
           <DeliveryMap
             origin={currentLocation}
             destination={delivery.destination}
+            locationIqApiKey={(delivery as any).locationIqApiKey}
           />
         ) : (
           <div className="w-full h-full bg-[#E3E8E1] animate-pulse flex items-center justify-center text-[#4A5E44]/60 font-bold tracking-widest text-[14px]">
