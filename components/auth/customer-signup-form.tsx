@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { ShowHideToggle } from "@/components/ui/show-hide-toggle";
 import { Textarea } from "@/components/ui/textarea";
 import { AuthTabs } from "@/components/auth/auth-tabs";
+import { AddressValidationNote } from "@/components/checkout/address-validation-note";
 import { signupSchema, type SignupField } from "@/lib/validation/signup";
 import { registerCustomer } from "@/app/(auth)/actions";
 
@@ -54,10 +55,54 @@ function SignupFormInner() {
   const [submitted, setSubmitted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const [isFormValid, setIsFormValid] = useState(false);
+  const [hasEmptyRequired, setHasEmptyRequired] = useState(true);
+  const [draftAddressStr, setDraftAddressStr] = useState("");
+  const formRef = useRef<HTMLFormElement>(null);
+
+  function checkFormEmpty(form: HTMLFormElement) {
+    let empty = false;
+    const elements = form.elements;
+    for (let i = 0; i < elements.length; i++) {
+      const el = elements[i] as HTMLInputElement;
+      if (el.hasAttribute('required')) {
+        if (el.type === 'checkbox' && !el.checked) {
+          empty = true;
+          break;
+        } else if (el.type !== 'checkbox' && !el.value.trim()) {
+          empty = true;
+          break;
+        }
+      }
+    }
+    setHasEmptyRequired(empty);
+  }
+
+  useEffect(() => {
+    if (formRef.current) {
+      checkFormEmpty(formRef.current);
+    }
+    const timer = setTimeout(() => {
+      if (formRef.current) checkFormEmpty(formRef.current);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
 
   function handleFormChange(event: React.FormEvent<HTMLFormElement>) {
-    setIsFormValid(event.currentTarget.checkValidity());
+    const form = event.currentTarget;
+    checkFormEmpty(form);
+
+    const b = (form.elements.namedItem("buildingNo") as HTMLInputElement)?.value;
+    const s = (form.elements.namedItem("street") as HTMLInputElement)?.value;
+    const br = (form.elements.namedItem("barangay") as HTMLInputElement)?.value;
+    const c = (form.elements.namedItem("city") as HTMLInputElement)?.value;
+    const z = (form.elements.namedItem("zip") as HTMLInputElement)?.value;
+
+    const combined = [
+      b && s ? `${b} ${s}` : (b || s),
+      c
+    ].filter(Boolean).join(", ");
+    
+    setDraftAddressStr(combined);
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -104,11 +149,10 @@ function SignupFormInner() {
     });
   }
 
-  const hasErrors = Object.keys(errors).length > 0;
-
   return (
     <div className="relative flex flex-col px-6 pb-[30px] md:justify-center md:bg-background md:px-[52px] md:py-[48px]">
       <form
+        ref={formRef}
         noValidate
         onChange={handleFormChange}
         onSubmit={handleSubmit}
@@ -127,17 +171,6 @@ function SignupFormInner() {
 
         {serverError ? (
           <Alert>{serverError}</Alert>
-        ) : submitted && hasErrors ? (
-          <Alert>
-            <div className="flex flex-col gap-[6px]">
-              <span className="font-bold">Please fix the following:</span>
-              <ul className="list-disc pl-5 text-[13px]">
-                {Object.entries(errors).map(([field, msg]) => (
-                  <li key={field}>{msg}</li>
-                ))}
-              </ul>
-            </div>
-          </Alert>
         ) : null}
 
         <div className="flex flex-col gap-[10px] md:flex-row md:gap-[14px]">
@@ -299,6 +332,10 @@ function SignupFormInner() {
           </Field>
         </div>
 
+        <div className="-mt-1 px-1">
+          <AddressValidationNote address={draftAddressStr} />
+        </div>
+
         <label className="flex items-start gap-[9px] text-[13px] mt-1 mb-1">
           <Checkbox name="terms" required />
           <span className="text-muted-foreground leading-tight">
@@ -306,7 +343,7 @@ function SignupFormInner() {
           </span>
         </label>
 
-        <Button type="submit" disabled={isPending || !isFormValid}>
+        <Button type="submit" disabled={isPending || hasEmptyRequired}>
           {isPending ? "Creating account…" : "Create account"}
         </Button>
 
