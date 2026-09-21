@@ -127,10 +127,16 @@ export default function MapContent({
   locationIqApiKey?: string;
 }) {
   const [mounted, setMounted] = useState(false);
+  const mapRef = useRef<L.Map | null>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!mounted || !mapRef.current) return;
+    mapRef.current.invalidateSize();
+  }, [mounted]);
 
   if (!mounted) {
     return <div className="w-full h-full bg-[#E3E8E1] animate-pulse" />;
@@ -140,16 +146,23 @@ export default function MapContent({
   const centerLng = (origin.lng + destination.lng) / 2;
 
   return (
-    <div className="w-full h-full relative z-0">
+    <div className="relative z-0 h-full w-full">
       <style>{`
         .leaflet-routing-container {
           display: none !important;
         }
+        .leaflet-container {
+          height: 100% !important;
+          width: 100% !important;
+          background: #dfe6de;
+        }
       `}</style>
       <MapContainer
+        ref={mapRef}
         center={[centerLat, centerLng]}
         zoom={14}
         style={{ height: "100%", width: "100%" }}
+        className="h-full w-full"
         zoomControl={false}
         attributionControl={false}
       >
