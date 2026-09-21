@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { addressForGeocoding, outsideDeliveryRadiusMessage } from "@/lib/address/validate-ncr";
+import { escapeLikePattern } from "@/lib/validation/like-pattern";
 import { toInternationalMobile } from "@/lib/validation/phone";
 import {
   personalDetailsSchema,
@@ -197,7 +198,7 @@ export async function addMyAddress(
     .from("customer_address")
     .select("address_id")
     .eq("customer_id", user.id)
-    .ilike("address_details", fullAddress)
+    .ilike("address_details", escapeLikePattern(fullAddress))
     .maybeSingle();
 
   if (existing) {

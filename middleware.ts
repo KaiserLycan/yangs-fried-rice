@@ -71,7 +71,13 @@ export async function middleware(request: NextRequest) {
     const { decrypt } = await import("@/lib/auth/session");
     payload = await decrypt(sessionCookie);
   }
-  const isValidEmployee = !!payload?.employee_id;
+  // A session is only an employee session if its role is one we recognise.
+  // Requiring just `employee_id` meant a row whose role is NULL or something
+  // unrecognised ("Admin", "Owner") produced a session that passed the gate
+  // below but was allowed nowhere — so the redirect sent it to a page that
+  // redirected it again, forever.
+  const sessionRole = resolveEmployeeRole(payload?.role);
+  const isValidEmployee = !!payload?.employee_id && sessionRole !== null;
 
   if (isEmployeeArea) {
     if (!isValidEmployee) {
@@ -82,9 +88,9 @@ export async function middleware(request: NextRequest) {
     // Role gate. The session payload carries the role, so this costs no
     // network call. STAFF must not reach the dashboard, reports, customers or
     // employee pages by typing the URL; RIDERs belong in /deliver only.
-    const role = resolveEmployeeRole(payload?.role);
-    if (pathname.startsWith("/manage") && !canAccessManagePath(role, pathname)) {
-      return NextResponse.redirect(new URL(homePathForRole(role), request.url));
+    if (pathname.startsWith("/manage") && !canAccessManagePath(sessionRole, pathname)) {
+      // Guaranteed to be somewhere this role *can* go, so this cannot bounce.
+      return NextResponse.redirect(new URL(homePathForRole(sessionRole), request.url));
     }
 
     // Still return the response so Supabase cookies are passed through if needed
@@ -106,8 +112,7 @@ export async function middleware(request: NextRequest) {
 
   if (isAuthPage) {
     if (isValidEmployee) {
-      const role = resolveEmployeeRole(payload.role);
-      return NextResponse.redirect(new URL(homePathForRole(role), request.url));
+      return NextResponse.redirect(new URL(homePathForRole(sessionRole), request.url));
     }
     if (user) {
       return NextResponse.redirect(new URL("/", request.url));
