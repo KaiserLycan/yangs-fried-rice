@@ -693,7 +693,7 @@ export async function submitCart(
   const transactionToInsert = {
     transaction_id: crypto.randomUUID(),
     order_id: newOrder.order_id,
-    payment_method: parsed.data.payment_method || "cash_on_delivery",
+    payment_method: "cash_on_delivery",
     payment_status: "pending",
     subtotal: subtotal,
     tax_amount: 0,
