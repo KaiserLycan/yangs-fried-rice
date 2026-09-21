@@ -327,7 +327,7 @@ export async function createAddOn(
   name: string,
   price: number
 ): Promise<ActionResult<Tables<"add_on">>> {
-  const supabase = createAdminClient();
+  const supabase = createClient();
   const { data, error } = await supabase
     .from("add_on")
     .insert({ product_id: productId, name, price })
@@ -344,7 +344,7 @@ export async function updateAddOn(
   name: string,
   price: number
 ): Promise<ActionResult<Tables<"add_on">>> {
-  const supabase = createAdminClient();
+  const supabase = createClient();
   const { data, error } = await supabase
     .from("add_on")
     .update({ name, price })
@@ -360,7 +360,7 @@ export async function updateAddOn(
 export async function deleteAddOn(
   addonId: string
 ): Promise<ActionResult<{ addon_id: string }>> {
-  const supabase = createAdminClient();
+  const supabase = createClient();
   const { error } = await supabase
     .from("add_on")
     .delete()
