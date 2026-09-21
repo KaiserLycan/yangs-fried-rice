@@ -40,10 +40,9 @@ export function formatMobileNumber(stored: string | null | undefined): string {
   if (!stored) return "";
 
   const compact = stored.replace(PHONE_SEPARATORS, "");
-  const groups = compact.match(PH_MOBILE_GROUPS_PATTERN);
+  const digits = compact.replace(/^\+?63/, "").replace(/^0+/, "");
 
-  if (!groups) return stored;
+  if (!/^\d{10}$/.test(digits)) return stored;
 
-  const [, area, prefix, line] = groups;
-  return `+63 9${area} ${prefix} ${line}`;
+  return `+63 ${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
 }

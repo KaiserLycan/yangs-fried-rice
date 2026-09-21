@@ -151,8 +151,7 @@ describe("OrderPlacedScreen", () => {
     expect(screen.getByText("1× Lumpia (5pc)")).toBeInTheDocument();
     expect(screen.getByText("Delivery fee")).toBeInTheDocument();
     expect(screen.getByText("Amount payable")).toBeInTheDocument();
-    // 180×2 + 90 + 95 fee.
-    expect(screen.getByText("₱545")).toBeInTheDocument();
+    expect(screen.getByText("₱500")).toBeInTheDocument();
   });
 
   it("shows the chosen payment method without claiming money was taken", () => {

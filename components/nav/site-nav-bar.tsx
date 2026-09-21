@@ -1,5 +1,6 @@
-// trigger rebuild
-import { Suspense, use } from "react";
+"use client";
+
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { NavAddressDropdown } from "@/components/nav/nav-address-dropdown";
 import { Avatar } from "@/components/ui/avatar";
@@ -63,13 +64,25 @@ function ResolvedProfileActions({
   profile?: CustomerProfile | null;
   profilePromise?: Promise<CustomerProfile | null>;
 }) {
-  // If we have a promise, unwrap it. Otherwise use the profile directly.
-  const profile = profilePromise ? use(profilePromise) : (initialProfile ?? null);
+  const [profile, setProfile] = useState<CustomerProfile | null>(initialProfile ?? null);
+  useEffect(() => {
+    if (!profilePromise) {
+      setProfile(initialProfile ?? null);
+      return;
+    }
+    let active = true;
+    profilePromise.then((next) => {
+      if (active) setProfile(next ?? null);
+    });
+    return () => {
+      active = false;
+    };
+  }, [initialProfile, profilePromise]);
   const initials = profile ? initialsFrom(profile.name) : "";
 
   return (
     <div className="flex items-center gap-[14px]">
-      {profile && profile.addresses.length > 0 ? (
+      {profile && profile.deliverToAddress ? (
         <NavAddressDropdown
           addresses={profile.addresses}
           activeAddressId={profile.activeAddressId}

@@ -19,6 +19,7 @@ describe("mapProductRow", () => {
       price: 180,
       categoryName: "Fried Rice",
       isAvailable: true,
+      imageUrl: null,
     });
   });
 

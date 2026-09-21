@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Suspense, use } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { SiteNavBar } from "@/components/nav/site-nav-bar";
 import { BottomTabBar } from "@/components/nav/bottom-tab-bar";
 import { CategorySidebar } from "@/components/menu/category-sidebar";
@@ -398,7 +398,14 @@ function ResolvedCategoryChips({
   selected: string | null;
   onSelect: (id: string | null) => void;
 }) {
-  const categories = use(categoriesPromise);
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
+  useEffect(() => {
+    let active = true;
+    categoriesPromise.then((next) => {
+      if (active) setCategories(next);
+    });
+    return () => { active = false; };
+  }, [categoriesPromise]);
   return <CategoryChips categories={categories} selected={selected} onSelect={onSelect} />;
 }
 
@@ -411,7 +418,14 @@ function ResolvedCategorySidebar({
   selected: string | null;
   onSelect: (id: string | null) => void;
 }) {
-  const categories = use(categoriesPromise);
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
+  useEffect(() => {
+    let active = true;
+    categoriesPromise.then((next) => {
+      if (active) setCategories(next);
+    });
+    return () => { active = false; };
+  }, [categoriesPromise]);
   return <CategorySidebar categories={categories} selected={selected} onSelect={onSelect} />;
 }
 
@@ -422,7 +436,14 @@ function ResolvedProductGrid({
   productsPromise: Promise<ProductListing[]>;
   onSelect: (product: ProductListing) => void;
 }) {
-  const products = use(productsPromise);
+  const [products, setProducts] = useState<ProductListing[]>([]);
+  useEffect(() => {
+    let active = true;
+    productsPromise.then((next) => {
+      if (active) setProducts(next);
+    });
+    return () => { active = false; };
+  }, [productsPromise]);
   if (products.length === 0) {
     return <MenuEmptyState hasFilter={false} />;
   }
@@ -453,12 +474,20 @@ function ResolvedCartRail({
   setOptimisticCartLines: (lines: CartLine[]) => void;
   initialFulfilment?: Fulfilment;
 }) {
-  const cart = use(cartPromise);
+  const [cart, setCart] = useState<CartRead | null>(null);
+  useEffect(() => {
+    let active = true;
+    cartPromise.then((next) => {
+      if (active) setCart(next);
+    });
+    return () => { active = false; };
+  }, [cartPromise]);
   React.useEffect(() => {
+    if (!cart) return;
     setOptimisticCartLines(cart.lines);
-  }, [cart.lines, setOptimisticCartLines]);
+  }, [cart, setOptimisticCartLines]);
 
-  return <DesktopCartRail lines={optimisticCartLines ?? cart.lines} initialFulfilment={initialFulfilment} />;
+  return <DesktopCartRail lines={optimisticCartLines ?? cart?.lines ?? []} initialFulfilment={initialFulfilment} />;
 }
 
 function ResolvedBottomTabBar({
@@ -468,6 +497,13 @@ function ResolvedBottomTabBar({
   cartPromise: Promise<CartRead>;
   optimisticCartLines: CartLine[] | null;
 }) {
-  const cart = use(cartPromise);
-  return <BottomTabBar current="menu" cartCount={cartItemCount(optimisticCartLines ?? cart.lines)} />;
+  const [cart, setCart] = useState<CartRead | null>(null);
+  useEffect(() => {
+    let active = true;
+    cartPromise.then((next) => {
+      if (active) setCart(next);
+    });
+    return () => { active = false; };
+  }, [cartPromise]);
+  return <BottomTabBar current="menu" cartCount={cartItemCount(optimisticCartLines ?? cart?.lines ?? [])} />;
 }

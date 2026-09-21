@@ -14,8 +14,45 @@ import { z } from "zod";
  * inferred from that single example. Confirm the real format before this
  * reaches an employee — a rider with a five-digit ID would be locked out.
  */
+const staffIdPattern = /^YFR-\d{4}$/i;
+
 export const employeeLoginSchema = z.object({
-  identifier: z.string().email("Enter a valid email address."),
+  identifier: z.string().trim().superRefine((value, ctx) => {
+    const trimmed = value.trim();
+
+    if (!trimmed) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Enter your staff ID or work email.",
+      });
+      return;
+    }
+
+    if (trimmed.includes("@")) {
+      if (!z.string().email().safeParse(trimmed).success) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Enter a valid email address.",
+        });
+      }
+      return;
+    }
+
+    if (/^YFR-/i.test(trimmed)) {
+      if (!staffIdPattern.test(trimmed)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Enter your full staff ID.",
+        });
+      }
+      return;
+    }
+
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Enter your staff ID or work email.",
+    });
+  }),
   password: z.string().min(8, "Password must be at least 8 characters."),
 });
 

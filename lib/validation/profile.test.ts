@@ -150,7 +150,11 @@ describe("deliveryAddressSchema", () => {
     expect(
       deliveryAddressSchema.safeParse({
         label: "Home",
-        addressDetails: "128 Paseo del Congreso, Malolos, Bulacan",
+        buildingNo: "128",
+        street: "Paseo del Congreso",
+        barangay: "Malolos",
+        city: "Bulacan",
+        zip: "3000",
         deliveryNote: "Beside the blue gate",
       }).success,
     ).toBe(true);
@@ -163,7 +167,11 @@ describe("deliveryAddressSchema", () => {
     expect(
       deliveryAddressSchema.safeParse({
         label: "",
-        addressDetails: "128 Paseo del Congreso, Malolos, Bulacan",
+        buildingNo: "128",
+        street: "Paseo del Congreso",
+        barangay: "Malolos",
+        city: "Bulacan",
+        zip: "3000",
         deliveryNote: "",
       }).success,
     ).toBe(true);
@@ -173,20 +181,20 @@ describe("deliveryAddressSchema", () => {
     expect(
       messageFor(
         deliveryAddressSchema,
-        { label: "Home", addressDetails: "", deliveryNote: "" },
-        "addressDetails",
+        { label: "Home", buildingNo: "", street: "", barangay: "", city: "", zip: "", deliveryNote: "" },
+        "buildingNo",
       ),
-    ).toBe("Enter an address.");
+    ).toBe("Enter building/house number.");
   });
 
   it("rejects a whitespace-only address", () => {
     expect(
       messageFor(
         deliveryAddressSchema,
-        { label: "Home", addressDetails: "   ", deliveryNote: "" },
-        "addressDetails",
+        { label: "Home", buildingNo: "   ", street: "", barangay: "", city: "", zip: "", deliveryNote: "" },
+        "buildingNo",
       ),
-    ).toBe("Enter an address.");
+    ).toBe("Enter building/house number.");
   });
 });
 

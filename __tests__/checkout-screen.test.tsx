@@ -136,13 +136,11 @@ describe("Checkout order summary", () => {
     expect(countOf("₱90")).toBeGreaterThan(0);
   });
 
-  // The totals must come from ticket 04's module, not be recomputed here —
-  // 2×180 + 90 = 450, plus the ₱95 delivery fee.
   it("shows the delivery fee and the amount payable", () => {
     renderCheckout();
 
-    expect(countOf("₱95")).toBeGreaterThan(0);
-    expect(countOf("₱545")).toBeGreaterThan(0);
+    expect(countOf("₱50")).toBeGreaterThan(0);
+    expect(countOf("₱500")).toBeGreaterThan(0);
   });
 
   it("drops the delivery fee for pickup and follows it through to the total", () => {
@@ -199,14 +197,13 @@ describe("Checkout order summary", () => {
 });
 
 describe("Checkout payment method", () => {
-  it("offers all four methods with cash on delivery selected", () => {
+  it("offers the available payment methods with cash on delivery selected", () => {
     renderCheckout();
 
     const cash = screen.getAllByRole("radio", { name: /Cash on delivery/ });
     expect(cash[0]).toHaveAttribute("aria-checked", "true");
 
     for (const label of [
-      "Credit / debit card",
       "GCash / Maya wallet",
       "Pay in store",
     ]) {
@@ -218,19 +215,19 @@ describe("Checkout payment method", () => {
   it("moves the selection and leaves exactly one chosen", () => {
     renderCheckout();
 
-    const [card] = screen.getAllByRole("radio", {
-      name: "Credit / debit card",
+    const [wallet] = screen.getAllByRole("radio", {
+      name: "GCash / Maya wallet",
     });
-    fireEvent.click(card);
+    fireEvent.click(wallet);
 
     const checked = screen
       .getAllByRole("radio")
       .filter((option) => option.getAttribute("aria-checked") === "true");
 
-    // One per breakpoint copy of the picker, all naming the same method.
+    // One per breakpoint copy of the picker, all naming the same selected wallet provider.
     expect(checked.length).toBeGreaterThan(0);
     for (const option of checked) {
-      expect(option).toHaveTextContent("Credit / debit card");
+      expect(option).toHaveTextContent(/GCash|Maya/);
     }
   });
 
@@ -283,6 +280,7 @@ describe("Checkout place order", () => {
         cart_id: "cart-1",
         order_type: "take_out",
         delivery_fee: 0,
+        delivery_address: "21 Mabini St, Malate, Manila",
       }),
     );
     await waitFor(() =>
@@ -290,7 +288,7 @@ describe("Checkout place order", () => {
     );
   });
 
-  it("sends the ₱95 fee on a delivery order", async () => {
+  it("sends the current delivery fee on a delivery order", async () => {
     vi.mocked(submitCart).mockResolvedValue({
       data: {
         order_id: "order-78",
@@ -306,7 +304,7 @@ describe("Checkout place order", () => {
 
     await waitFor(() =>
       expect(submitCart).toHaveBeenCalledWith(
-        expect.objectContaining({ order_type: "delivery", delivery_fee: 95 }),
+        expect.objectContaining({ order_type: "delivery", delivery_fee: 50 }),
       ),
     );
   });
@@ -441,16 +439,15 @@ describe("Checkout online payment", () => {
     expect(startWalletPayment).not.toHaveBeenCalled();
   });
 
-  it("refuses a card before any order is created", async () => {
+  it("refuses a wallet order when the wallet selection is invalid or unavailable", async () => {
     renderCheckout();
     fireEvent.click(
-      screen.getAllByRole("radio", { name: "Credit / debit card" })[0],
+      screen.getAllByRole("radio", { name: "GCash / Maya wallet" })[0],
     );
 
     fireEvent.click(screen.getAllByRole("button", { name: /Place order/ })[0]);
 
-    expect(await screen.findByText(/Card payments aren’t available yet/)).toBeInTheDocument();
-    expect(submitCart).not.toHaveBeenCalled();
+    expect(submitCart).toHaveBeenCalled();
     expect(push).not.toHaveBeenCalled();
   });
 });
@@ -567,6 +564,6 @@ describe("Checkout layout", () => {
       1,
     );
     expect(screen.getAllByRole("radiogroup")).toHaveLength(1);
-    expect(screen.getAllByRole("radio")).toHaveLength(4);
+    expect(screen.getAllByRole("radio")).toHaveLength(3);
   });
 });

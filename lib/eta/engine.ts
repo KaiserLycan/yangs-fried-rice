@@ -15,8 +15,19 @@ export const STORE_LOCATION: Coordinates = {
   longitude: parseFloat(process.env.RESTAURANT_LNG ?? "120.9856"),
 };
 
+export const deliveryConfig = {
+  MAX_DELIVERY_RADIUS_KM: 15,
+  // TODO: confirm with the owner before launch; placeholders are intentionally easy to adjust.
+  BASE_DELIVERY_FEE_PHP: 50,
+  PER_KM_RATE_PHP: 10,
+  MIN_DELIVERY_FEE_PHP: 50,
+} as const;
+
 /** Delivery service boundary radius in kilometers (strictly Metro Manila / NCR) */
-export const MAX_DELIVERY_RADIUS_KM = 25;
+export const MAX_DELIVERY_RADIUS_KM = deliveryConfig.MAX_DELIVERY_RADIUS_KM;
+export const BASE_DELIVERY_FEE_PHP = deliveryConfig.BASE_DELIVERY_FEE_PHP;
+export const PER_KM_RATE_PHP = deliveryConfig.PER_KM_RATE_PHP;
+export const MIN_DELIVERY_FEE_PHP = deliveryConfig.MIN_DELIVERY_FEE_PHP;
 
 /** Average urban motorcycle transit speed: 3 minutes per kilometer (~20 km/h) */
 export const MINUTES_PER_KM = 3;
@@ -42,9 +53,24 @@ export const DEFAULT_TRANSIT_MINUTES = 15;
  */
 export function calculateHaversineDistanceKm(
   origin: Coordinates,
-  destination: Coordinates
+  destination: Coordinates,
 ): number {
-  const R = 6371; // Earth's radius in kilometers
+  const hasValidOrigin =
+    Number.isFinite(origin.latitude) &&
+    Number.isFinite(origin.longitude) &&
+    Math.abs(origin.latitude) <= 90 &&
+    Math.abs(origin.longitude) <= 180;
+  const hasValidDestination =
+    Number.isFinite(destination.latitude) &&
+    Number.isFinite(destination.longitude) &&
+    Math.abs(destination.latitude) <= 90 &&
+    Math.abs(destination.longitude) <= 180;
+
+  if (!hasValidOrigin || !hasValidDestination) {
+    return Number.NaN;
+  }
+
+  const R = 6371;
   const dLat = ((destination.latitude - origin.latitude) * Math.PI) / 180;
   const dLng = ((destination.longitude - origin.longitude) * Math.PI) / 180;
 
@@ -94,12 +120,14 @@ export function calculateTransitMinutes(
  */
 export function isWithinNcrBoundary(
   destination: Coordinates,
-  storeOrigin: Coordinates = STORE_LOCATION
+  storeOrigin: Coordinates = STORE_LOCATION,
 ): { isDeliverable: boolean; distanceKm: number } {
   const distanceKm = calculateHaversineDistanceKm(storeOrigin, destination);
+  const safeDistance = Number.isFinite(distanceKm) ? distanceKm : Number.POSITIVE_INFINITY;
+
   return {
-    isDeliverable: distanceKm <= MAX_DELIVERY_RADIUS_KM,
-    distanceKm,
+    isDeliverable: safeDistance <= MAX_DELIVERY_RADIUS_KM,
+    distanceKm: Number.isFinite(distanceKm) ? distanceKm : Number.POSITIVE_INFINITY,
   };
 }
 
