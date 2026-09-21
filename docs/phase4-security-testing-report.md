@@ -20,7 +20,7 @@ Three things in the brief could **not** be produced this way, and are marked
 |---|---|---|
 | Screenshots / visual evidence | **TO DO (manual)** | Produced by running the app in a browser. Section H lists exactly which screens to capture. |
 | Usability testing with real testers | **TO DO (manual)** | Requires people using the system. Section G is a ready-to-use feedback form. |
-| Live-database penetration testing | **PARTIAL** | The Supabase project was not reachable from the test environment. Database-layer findings were confirmed by reading the migrations and grants, and the fix is supplied as SQL in section I. |
+| Live-database penetration testing | **PARTIAL** | The Supabase project is not reachable from the test environment. Database-layer findings were confirmed by reading the migrations and grants; section L gives the queries to confirm them against the live database. |
 
 Treat this document as complete for A–F and for the bug log, and as a
 worked template for G and H.
@@ -31,12 +31,12 @@ worked template for G and H.
 
 | | Count |
 |---|---|
-| Automated test cases | **863** |
-| Passed | **863** |
+| Automated test cases | **877** |
+| Passed | **877** |
 | Failed | **0** |
-| Test files | 57 |
-| — of which security-specific | 207 cases across 5 files |
-| — functional / unit | 656 cases across 52 files |
+| Test files | 58 |
+| — of which security-specific | 210 cases across 5 files |
+| — functional / unit | 667 cases across 53 files |
 
 Security cases by area:
 
@@ -45,7 +45,7 @@ Security cases by area:
 | Input validation | 58 | `__tests__/security/input-validation.test.ts` |
 | SQL / query injection | 63 | `__tests__/security/injection.test.ts` |
 | Authentication | 15 | `__tests__/security/authentication.test.ts` |
-| Authorization | 34 | `__tests__/security/authorization.test.ts` |
+| Authorization | 37 | `__tests__/security/authorization.test.ts` |
 | XSS | 37 | `__tests__/security/xss.test.tsx` |
 
 ---
@@ -290,7 +290,7 @@ Found by test D1 ("sends each role somewhere it is allowed to be"). Middleware
 now treats an unresolvable role as "not an employee session" and sends the user
 to the login page.
 
-**Evidence:** `npx vitest run __tests__/security/authorization.test.ts` — 34 passed.
+**Evidence:** `npx vitest run __tests__/security/authorization.test.ts` — 37 passed.
 
 ---
 
@@ -383,7 +383,7 @@ it is tested, and the file holding the evidence.
 | Reports | Sales and performance figures | Correct aggregation | Correct | PASS | `lib/actions/reports.test.ts` |
 | Navigation | Nav bar and sidebar | Correct links per role | Correct | PASS | `__tests__/site-nav-bar.test.tsx`, `__tests__/manage-sidebar.test.tsx` |
 
-**Evidence:** `npm test` — 863 passed, 0 failed.
+**Evidence:** `npm test` — 877 passed, 0 failed.
 
 ---
 
@@ -465,7 +465,7 @@ Run `npm run dev`, then capture each screen below. Suggested filename in
 | 16 | Terminal: `npx vitest run __tests__/security/xss.test.tsx` | `16-xss.png` |
 | 17 | Review comment containing `<script>alert(1)</script>` displayed as text | `17-xss-stored.png` |
 | 18 | `curl -X DELETE http://localhost:3000/api/menu/products/<id>` → `401` | `18-api-guard.png` |
-| 19 | Terminal: full `npm test` showing 863 passed | `19-all-tests.png` |
+| 19 | Terminal: full `npm test` showing 877 passed | `19-all-tests.png` |
 
 Command for #18:
 
@@ -491,6 +491,7 @@ Issues found during Phase 4 testing and during the QA pass that preceded it.
 | S5 | Infinite redirect loop | An employee with a NULL/unrecognised role was redirected to a page that redirected again, forever. | **Medium** | Unresolvable role now treated as "not an employee"; sent to login | Resolved |
 | S6 | Unvalidated phone input | The employee-profile and customer-update endpoints accepted any text as a phone number. | **Medium** | One shared rule (`+63` + 10 digits) on client and server | Resolved |
 | S7 | Unescaped LIKE wildcards | `%`/`_` in an address widened the duplicate check. | **Low** | Wildcards escaped | Resolved |
+| S8 | Public menu endpoint exposed reviewer identities | `GET /api/menu/products` embedded `review(*, customer(name, profileImage_URL))`, publishing reviewers' names and profile photos on an unauthenticated endpoint. After S2's fix it would also have failed outright for signed-out visitors, because `anon` can no longer read `customer` — breaking menu search and category filtering for guests. Nothing on the menu screen used the data. | **Medium** | Embed removed; a test now fails the build if any public route reads a table `anon` cannot | Resolved |
 
 ### Functional issues found earlier in the QA pass
 
@@ -514,17 +515,19 @@ Issues found during Phase 4 testing and during the QA pass that preceded it.
 | F16 | Sidebar covered the page | Opening it hid the content. | Medium | Pushes content; full-screen on phones | Resolved |
 | F17 | Report dropdown resized | Box changed width with the selected option. | Low | Fixed width | Resolved |
 | F18 | Loading skeleton mismatch | 3 placeholder cards became 4 real ones. | Low | Skeleton matches the loaded layout | Resolved |
+| F19 | Test suite failed after 18:00 | Two cart tests asserted the checkout link, which `isRestaurantOpen()` disables outside 08:00–18:00 Manila. They passed during the day and failed every evening — including during this testing session. | Medium | Clock pinned in the cart tests; added `lib/store-hours.test.ts` covering the hours rule against a controlled clock | Resolved |
 
 ---
 
 ## J. Actions required before this is production-ready
 
-Two fixes are written but need to be applied to the running system:
-
 1. **Run the migrations** in the Supabase SQL editor, in order:
    - `supabase/migrations/20260921000002_schema_drift_and_review_rpc_cleanup.sql`
    - `supabase/migrations/20260921000003_qa_fixes_rls_delivery_roles.sql`
    - `supabase/migrations/20260921000004_lock_down_public_tables.sql` ← closes S2
+
+   **Reported as applied by the project owner.** Confirm with the queries in
+   section L, which read the live grants and policies back.
 
 2. **Set a session secret** in `.env.local` and in the hosting environment:
    ```bash
@@ -545,16 +548,112 @@ curl -i -X POST "https://<project>.supabase.co/rest/v1/product" \
 
 ---
 
+## L. Verifying the migration on the live database
+
+Run these in the Supabase SQL editor. Each states what a correct result looks
+like, so the output can be pasted into the report as evidence.
+
+```sql
+-- L1. Row-level security is on for every table that holds data.
+SELECT tablename, rowsecurity
+FROM pg_tables
+WHERE schemaname = 'public'
+  AND tablename IN ('product','categories','add_on','delivery','notification',
+                    'reports','customer_address','customer','employee','rider',
+                    'order','order_item','transaction','review','cart','cart_item')
+ORDER BY tablename;
+-- expected: rowsecurity = true for every row
+```
+
+```sql
+-- L2. The public anon role can no longer write anywhere.
+SELECT table_name, privilege_type
+FROM information_schema.role_table_grants
+WHERE grantee = 'anon' AND table_schema = 'public'
+  AND privilege_type IN ('INSERT','UPDATE','DELETE','TRUNCATE')
+ORDER BY table_name;
+-- expected: 0 rows
+```
+
+```sql
+-- L3. The anon role cannot read the sensitive tables.
+SELECT table_name, privilege_type
+FROM information_schema.role_table_grants
+WHERE grantee = 'anon' AND table_schema = 'public'
+  AND table_name IN ('customer','customer_address','employee','rider','reports','notification')
+  AND privilege_type = 'SELECT';
+-- expected: 0 rows
+```
+
+```sql
+-- L4. The menu is still publicly readable (the app depends on this).
+SELECT table_name, privilege_type
+FROM information_schema.role_table_grants
+WHERE grantee = 'anon' AND table_schema = 'public'
+  AND table_name IN ('product','categories','add_on')
+  AND privilege_type = 'SELECT';
+-- expected: 3 rows, one per table
+```
+
+```sql
+-- L5. Policies and helper functions exist.
+SELECT tablename, policyname, cmd FROM pg_policies
+WHERE schemaname = 'public' ORDER BY tablename, policyname;
+
+SELECT proname FROM pg_proc
+WHERE proname IN ('current_employee_role','is_menu_manager');
+-- expected: both functions listed
+```
+
+### End-to-end checks against the live API
+
+```bash
+# L6. An anonymous write must be refused (this is the S2 fix).
+curl -i -X POST "https://<project>.supabase.co/rest/v1/product" \
+  -H "apikey: <anon key>" -H "Content-Type: application/json" \
+  -d '{"product_name":"hacked","product_price":1}'
+# expected: 401 or 403 — permission denied for table product
+
+# L7. An anonymous read of customer data must be refused.
+curl -i "https://<project>.supabase.co/rest/v1/customer?select=*" -H "apikey: <anon key>"
+# expected: 401 or 403 — permission denied for table customer
+
+# L8. The public menu must still work.
+curl -i "https://<project>.supabase.co/rest/v1/product?select=product_name" -H "apikey: <anon key>"
+# expected: 200 with the product list
+```
+
+### Application-level checks after the migration
+
+| # | Check | Expected |
+|---|---|---|
+| L9 | Browse the menu **signed out**, then use search and a category filter | Dishes load and filter normally (this is what S8 fixed) |
+| L10 | Sign up a new customer | Account and address are created |
+| L11 | Sign in as a manager, edit the menu | Changes save |
+| L12 | Sign in as a rider, accept and hand back a delivery | Both work |
+| L13 | Customer tracking screen | Stage and ETA shown; rider's *name* may be blank — see the note below |
+
+> **Known limitation (pre-existing, not introduced here).** Migration
+> `004_employee_profile_rls.sql` limits reads of `employee` and `rider` to the
+> employee themselves or a manager. A customer tracking an order therefore
+> cannot read the rider's name, and the screen shows none. It degrades quietly
+> rather than erroring. If the rider's first name should appear to customers,
+> it needs a policy or a view that exposes just that field.
+
+---
+
 ## K. Testing Summary
 
-- **Total test cases:** 863 automated (+ 17 manual cases listed in sections G and H)
-- **Passed:** 863
+- **Total test cases:** 877 automated (+ 17 manual cases listed in sections G and H)
+- **Passed:** 877
 - **Failed:** 0
-- **Bugs found during Phase 4 security testing:** 7 (2 critical, 1 high, 3 medium, 1 low)
-- **Bugs found during the preceding QA pass:** 18
-- **Fixed:** 25 of 25 in code
+- **Bugs found during Phase 4 security testing:** 8 (2 critical, 1 high, 4 medium, 1 low)
+- **Bugs found during the preceding QA pass:** 19
+- **Fixed:** 27 of 27 in code
 - **Remaining issues:**
-  - Two deployment steps outstanding (section J): run migration `…000004`, set `EMPLOYEE_SESSION_SECRET`. Until the migration runs, finding **S2 is still live on the database**.
+  - Migration `…000004` reported as applied by the project owner; confirm with the queries in section L.
+  - `EMPLOYEE_SESSION_SECRET` must be set in `.env.local` and in the hosting environment, or employee login will refuse to issue a session.
+  - One pre-existing limitation, not a defect introduced here: a customer cannot see the rider's name on the tracking screen (section L, L13).
   - Usability testing (section G) and screenshot evidence (section H) require a human and a browser.
   - No known unresolved defect in the application code.
 
@@ -565,13 +664,13 @@ curl -i -X POST "https://<project>.supabase.co/rest/v1/product" \
 | Input validation tested | ✅ 58 automated cases |
 | SQL injection testing performed | ✅ 63 automated cases |
 | Authentication tested | ✅ 15 automated cases (+2 manual) |
-| Authorization tested | ✅ 34 automated cases |
+| Authorization tested | ✅ 37 automated cases |
 | XSS testing performed | ✅ 37 automated cases |
-| Functional testing completed | ✅ 656 automated cases |
+| Functional testing completed | ✅ 667 automated cases |
 | Usability testing completed | ⬜ Section G — needs testers |
 | Test cases documented | ✅ This report |
 | Screenshots / evidence included | ⬜ Section H — needs a browser |
-| Bugs / issues documented | ✅ 25 logged |
-| Fixes implemented | ✅ 25 fixed in code; 2 deployment steps outstanding |
+| Bugs / issues documented | ✅ 27 logged |
+| Fixes implemented | ✅ 27 fixed in code; migration applied, session secret still to set |
 | Updated project / source code submitted | ✅ Branch `QAbugFix` |
 | Final testing summary included | ✅ This section |

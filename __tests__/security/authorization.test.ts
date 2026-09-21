@@ -194,3 +194,51 @@ describe("D4. no API route is left unguarded", () => {
     }
   });
 });
+
+/**
+ * D5. A public endpoint must not read a table the `anon` role cannot see.
+ *
+ * Migration 20260921000004 revoked anon's SELECT on customer, customer_address,
+ * employee, rider, reports and notification. A public route that embeds one of
+ * them fails outright for a signed-out visitor — and would have been exposing
+ * that data to them before the revoke.
+ */
+describe("D5. public routes read only publicly readable tables", () => {
+  const ANON_CANNOT_READ = [
+    "customer",
+    "customer_address",
+    "employee",
+    "rider",
+    "reports",
+    "notification",
+  ];
+
+  const PUBLIC_HANDLERS = [
+    { file: "products.ts", handlers: ["getProducts", "getProductById"] },
+    { file: "categories.ts", handlers: ["getCategories", "getCategoryById"] },
+    { file: "addons.ts", handlers: ["getProductAddons", "getAddonById"] },
+  ];
+
+  it.each(PUBLIC_HANDLERS)("$file public reads touch no restricted table", ({ file, handlers }) => {
+    const source = readFileSync(`app/api/routers/${file}`, "utf8");
+
+    for (const handler of handlers) {
+      const start = source.indexOf(`export async function ${handler}`);
+      expect(start).toBeGreaterThan(-1);
+
+      const next = source.indexOf("export async function ", start + 1);
+      // Comments are stripped first: a note *explaining* why an embed was
+      // removed mentions the table by name, and should not count as using it.
+      const body = source
+        .slice(start, next === -1 ? undefined : next)
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/\/\/.*$/gm, "");
+
+      // Both the table being queried and any embedded relation.
+      for (const table of ANON_CANNOT_READ) {
+        expect(body).not.toMatch(new RegExp(`\\.from\\(["'\`]${table}["'\`]`));
+        expect(body).not.toMatch(new RegExp(`\\b${table}\\s*\\(`));
+      }
+    }
+  });
+});

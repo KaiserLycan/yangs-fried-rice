@@ -67,9 +67,13 @@ export async function getProducts(request: Request) {
 
   let query = supabase
     .from("product")
-    .select(
-      "*, categories(category_name), add_on(*), review(*, customer(name, profileImage_URL))",
-    )
+    // No `review(*, customer(...))` embed here. This route is public, so a
+    // signed-out request runs as the `anon` role — which, since
+    // 20260921000004 revoked its SELECT on `customer`, cannot read that table
+    // at all, and PostgREST fails the whole query rather than just the embed.
+    // It was also publishing reviewers' names and profile photos on an
+    // unauthenticated endpoint, and nothing on the menu screen reads them.
+    .select("*, categories(category_name), add_on(*)")
     .order("product_name");
 
   if (categoryIds) {
