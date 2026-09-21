@@ -20,9 +20,14 @@ describe("computeCartTotals", () => {
   });
 
   // The rule the frames imply and the ticket asks to state outright.
-  it("applies the delivery fee for delivery", () => {
-    const totals = computeCartTotals({ lines: [line()], fulfilment: "delivery" });
-    expect(totals.deliveryFee).toBe(95);
+  it("applies the delivery fee for delivery using the shared delivery config", () => {
+    const totals = computeCartTotals({ lines: [line()], fulfilment: "delivery", distanceKm: 2 });
+    expect(totals.deliveryFee).toBe(70);
+  });
+
+  it("never drops below the minimum delivery fee", () => {
+    const totals = computeCartTotals({ lines: [line()], fulfilment: "delivery", distanceKm: 0.1 });
+    expect(totals.deliveryFee).toBe(51);
   });
 
   // The frame only ever draws the delivery case, which is exactly why this

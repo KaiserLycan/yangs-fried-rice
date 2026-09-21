@@ -1,4 +1,4 @@
-import { Suspense, use } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { Avatar } from "@/components/ui/avatar";
 import { SearchField } from "@/components/menu/search-field";
@@ -13,7 +13,20 @@ function ResolvedMobileProfile({
   profile?: CustomerProfile | null;
   profilePromise?: Promise<CustomerProfile | null>;
 }) {
-  const profile = profilePromise ? use(profilePromise) : (initialProfile ?? null);
+  const [profile, setProfile] = useState<CustomerProfile | null>(initialProfile ?? null);
+  useEffect(() => {
+    if (!profilePromise) {
+      setProfile(initialProfile ?? null);
+      return;
+    }
+    let active = true;
+    profilePromise.then((next) => {
+      if (active) setProfile(next ?? null);
+    });
+    return () => {
+      active = false;
+    };
+  }, [initialProfile, profilePromise]);
   const deliverTo = profile ? shortAddressLabel(profile.deliverToAddress) : "";
 
   return (

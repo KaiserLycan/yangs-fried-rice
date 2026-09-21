@@ -17,7 +17,7 @@ describe("orderStatusSchema", () => {
   });
 
   it("rejects unknown status", () => {
-    expect(orderStatusSchema.safeParse("pending").success).toBe(false);
+    expect(orderStatusSchema.safeParse("bogus").success).toBe(false);
     expect(orderStatusSchema.safeParse("").success).toBe(false);
   });
 });

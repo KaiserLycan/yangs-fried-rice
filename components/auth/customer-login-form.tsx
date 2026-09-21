@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition, useRef, useEffect } from "react";
@@ -37,6 +36,7 @@ function LoginFormInner() {
   const searchParams = useSearchParams();
   const [errors, setErrors] = useState<FieldErrors>({});
   const [serverError, setServerError] = useState<string | null>(null);
+  const successMessage = searchParams.get("message");
   const [submitted, setSubmitted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -132,6 +132,8 @@ function LoginFormInner() {
 
         {serverError ? (
           <Alert>{serverError}</Alert>
+        ) : successMessage ? (
+          <Alert tone="success" role="status">{successMessage}</Alert>
         ) : null}
 
         <Field label="Email" htmlFor="email" error={errors.email}>
@@ -173,10 +175,6 @@ function LoginFormInner() {
             <Checkbox name="remember" defaultChecked />
             Keep me logged in
           </label>
-          <Link href="/login" className="text-[13px] font-bold text-primary">
-            <span className="md:hidden">Forgot?</span>
-            <span className="hidden md:inline">Forgot password?</span>
-          </Link>
         </div>
 
         <Button type="submit" disabled={isPending || hasEmptyRequired}>

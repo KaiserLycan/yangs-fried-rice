@@ -37,8 +37,7 @@ import { customerEmailSchema, customerPasswordSchema } from "./login";
  * one pattern, rather than in a second regex that has to be kept in sync.
  */
 export const PHONE_SEPARATORS = /[\s().-]/g;
-export const PH_MOBILE_GROUPS_PATTERN =
-  /^\+639(\d{2})(\d{3})(\d{4})$/;
+export const PH_MOBILE_GROUPS_PATTERN = /^(?:\+?63|0)?9\d{9}$/;
 
 /**
  * Exported so the profile screen's contact-details card validates the number
