@@ -6,6 +6,8 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { KdsOrderCard } from "@/components/manage/kds/kds-order-card";
 import { OrderData } from "@/lib/mock-orders";
 import { getDetailedOrders, updateOrderStatus } from "@/lib/actions/orders";
+import { mapStaffOrder, type StaffOrderRow } from "@/lib/orders/map-staff-order";
+import { actionCopy, dbStatusFor, type StaffAction } from "@/lib/orders/staff-actions";
 import { useToast, ToastProvider } from "@/components/ui/toast";
 
 export default function KdsPage() {
@@ -40,55 +42,7 @@ function KdsInner() {
 
       const mappedOrders: OrderData[] = detailedOrders
         .filter((res) => res !== null)
-        .map((order) => {
-          let uiStatus: any = "QUEUE";
-          if (order.order_status === "pending" || order.order_status === "received")
-            uiStatus = "QUEUE";
-          else if (order.order_status === "preparing") uiStatus = "PREP";
-
-          const itemCount = order.order_item.reduce((acc, curr) => acc + curr.quantity, 0);
-          const prepMinutes = Math.min(45, Math.max(5, itemCount * 5));
-
-          const items = order.order_item.map((item) => {
-            const prod = Array.isArray(item.product) ? item.product[0] : item.product;
-            return {
-              quantity: item.quantity,
-              name: prod?.product_name || "Unknown Item",
-              price: prod?.product_price || 0,
-              addons: item.special_instructions || undefined,
-            };
-          });
-
-          const calculatedTotal = items.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0);
-          const dbTotal = order.transaction?.[0]?.total_paid;
-
-          return {
-            id: order.order_id,
-            rawCreatedAt: order.created_at,
-            orderNumber: order.order_id.substring(0, 4).toUpperCase(),
-            time: order.created_at
-              ? new Date(order.created_at).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
-              : "Unknown time",
-            status: uiStatus,
-            timer: `${prepMinutes}:00`,
-            contactInfo: {
-              name: order.customer?.name || "Walk-in Customer",
-              address: "Address details protected",
-              phone: order.customer?.email || "No contact",
-            },
-            orderInfo: {
-              type: order.order_type || "Take-Out",
-              specialInstructions:
-                order.order_item?.[0]?.special_instructions || "",
-            },
-            deliveryFee: 0,
-            total: dbTotal || calculatedTotal,
-            items,
-          };
-        });
+        .map((order) => mapStaffOrder(order as unknown as StaffOrderRow));
 
       // Priority: 1. PREP, 2. QUEUE. Then First-Come First-Serve
       mappedOrders.sort((a: any, b: any) => {
@@ -121,23 +75,15 @@ function KdsInner() {
     return () => clearInterval(interval);
   }, [fetchOrders]);
 
-  const handleAction = async (
-    type: "Cancel" | "Confirm" | "Deliver",
-    order: OrderData
-  ) => {
-    let newDbStatus = "";
-    if (type === "Confirm") newDbStatus = "preparing";
-    else if (type === "Deliver") newDbStatus = "out_for_delivery";
-    else if (type === "Cancel") newDbStatus = "cancelled";
+  const handleAction = async (type: StaffAction, order: OrderData) => {
+    const newDbStatus = dbStatusFor(type);
 
     const result = await updateOrderStatus(order.id, newDbStatus);
 
     if (result.error) {
       showToast(`Failed: ${result.error}`);
     } else {
-      showToast(
-        `Order #${order.orderNumber} ${type === "Cancel" ? "cancelled" : type === "Confirm" ? "confirmed" : "sent for delivery"}.`
-      );
+      showToast(actionCopy(type, order.orderNumber).done);
       await fetchOrders();
     }
   };

@@ -28,7 +28,7 @@ export function ManagePagination({
   const visiblePages = getVisiblePages(currentPage, totalPages);
 
   return (
-    <div className={cn("flex flex-col-reverse sm:flex-row items-center justify-between sm:justify-end gap-4 sm:gap-2", className)}>
+    <div className={cn("flex w-full max-w-full flex-col-reverse items-center gap-3 md:w-auto md:flex-row md:justify-end md:gap-2", className)}>
       <div className="flex items-center gap-2">
         <span className="text-[13px] text-[#7a6a60]">Show</span>
         <div className="relative">
@@ -50,7 +50,7 @@ export function ManagePagination({
         </div>
       </div>
 
-      <div className="flex items-center gap-1 sm:ml-4 w-full sm:w-auto justify-between sm:justify-start">
+      <div className="flex w-full items-center justify-center gap-1 md:ml-4 md:w-auto md:justify-start">
         <div className="flex items-center gap-1">
           <button
             onClick={() => onPageChange(1)}
@@ -68,8 +68,15 @@ export function ManagePagination({
           </button>
         </div>
 
-        {/* Page Numbers */}
-        <div className="flex items-center gap-1">
+        {/* Phones and narrow panes: a compact "Page 2 of 7" between the arrows.
+            Seven 36px number buttons plus four arrows is ~400px, wider than the
+            content area next to the sidebar, and pushed "next" off the screen. */}
+        <span className="min-w-[88px] px-1 text-center text-[13px] font-bold text-[#1A1210] md:hidden">
+          Page {Math.min(Math.max(1, currentPage), Math.max(1, totalPages))} of {Math.max(1, totalPages)}
+        </span>
+
+        {/* Page Numbers — wider screens */}
+        <div className="hidden items-center gap-1 md:flex">
           {visiblePages.map((page, index) => {
             if (page === '...') {
               return (

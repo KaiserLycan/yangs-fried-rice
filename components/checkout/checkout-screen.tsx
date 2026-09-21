@@ -39,6 +39,7 @@ export function CheckoutScreen({
   cartId,
   lines,
   fulfilment,
+  distanceKm = null,
   placedAtLabel,
 }: {
   profile: CustomerProfile;
@@ -47,6 +48,8 @@ export function CheckoutScreen({
   cartId: string | null;
   lines: CartLine[];
   fulfilment: Fulfilment;
+  /** Distance to the delivery address, when known — sets the delivery fee. */
+  distanceKm?: number | null;
   placedAtLabel: string;
 }) {
   const [paymentMethod, setPaymentMethod] = React.useState<PaymentMethodId>(
@@ -56,7 +59,7 @@ export function CheckoutScreen({
     DEFAULT_WALLET_PROVIDER,
   );
 
-  const totals = computeCartTotals({ lines, fulfilment });
+  const totals = computeCartTotals({ lines, fulfilment, distanceKm });
 
   return (
     <div className="flex min-h-screen flex-col bg-background">

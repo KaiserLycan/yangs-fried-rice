@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown, Download, Loader2 } from "lucide-react";
 import { generateSalesPDF, generatePerformancePDF } from "@/lib/actions/reports";
+import { REPORT_TYPES, SALES_REPORT, normalizeReportType } from "@/lib/reports/report-types";
 
 interface DateInputProps {
   label: string;
@@ -36,26 +37,23 @@ export function ReportTypeSelect() {
   const searchParams = useSearchParams();
   const [isOpen, setIsOpen] = useState(false);
 
-  const selected = searchParams.get("type") || "Sales and Order";
-
-  const options = [
-    "Sales and Order",
-    "Customer Satisfaction",
-    "Menu Items reports",
-  ];
+  const selected = normalizeReportType(searchParams.get("type"));
+  const options = REPORT_TYPES;
 
   return (
-    <div className="relative w-full md:w-fit">
+    // Fixed width, sized for the longest option ("Menu & Customer Satisfaction"),
+    // so the box is the same size whichever report is selected.
+    <div className="relative w-full md:w-[320px]">
       <div className="flex flex-col gap-[6px]">
         <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
           Report Type
         </label>
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="flex h-[50px] w-full justify-between md:justify-start items-center gap-[10px] rounded-[12px] border border-[#ddcdb8] bg-white px-[14px] outline-none"
+          className="flex h-[50px] w-full items-center justify-between gap-[10px] rounded-[12px] border border-[#ddcdb8] bg-white px-[14px] outline-none"
         >
-          <span className="text-[15px] text-[#1a1210]">{selected}</span>
-          <ChevronDown className="h-5 w-5 text-[#1a1210]" />
+          <span className="truncate text-[15px] text-[#1a1210]">{selected}</span>
+          <ChevronDown className="h-5 w-5 shrink-0 text-[#1a1210]" />
         </button>
       </div>
 
@@ -107,8 +105,8 @@ export function ReportDateFilters({
     try {
       let result;
 
-      if (reportType === "Menu Items reports" || reportType === "Customer Satisfaction") {
-        // Use performance report for menu items and customer satisfaction
+      if (normalizeReportType(reportType) !== SALES_REPORT) {
+        // The merged menu + customer-satisfaction view exports the performance report
         result = await generatePerformancePDF({
           start_date: startDate,
           end_date: endDate,

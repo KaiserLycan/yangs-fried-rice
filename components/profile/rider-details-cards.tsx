@@ -12,11 +12,11 @@ import { useCardEditor } from "@/components/profile/use-card-editor";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 
-const employeeDetailsSchema = z.object({
-  role: z.string().min(1, "Enter a role."),
-  shift: z.string().min(1, "Enter a shift."),
-});
-
+/**
+ * Role and shift are assigned by a manager (see the manager-only gate in
+ * `updateMyEmployeeProfile`), so this card is read-only: no Edit control, no
+ * inputs. A rider can see what they have been assigned, not rewrite it.
+ */
 export function EmployeeDetailsCard({
   role,
   shift,
@@ -24,95 +24,23 @@ export function EmployeeDetailsCard({
   role: string;
   shift: string;
 }) {
-  const router = useRouter();
-  const showToast = useToast();
-  const { isEditing, edit, cancel, errors, handleSubmit } = useCardEditor({
-    schema: employeeDetailsSchema,
-    read: (form) => ({
-      role: String(form.get("role") ?? ""),
-      shift: String(form.get("shift") ?? ""),
-    }),
-    onValid: async (values) => {
-      const body: { scheduleShift?: string } = {};
-
-      if (values.shift !== shift) {
-        body.scheduleShift = values.shift;
-      }
-
-      if (Object.keys(body).length === 0) {
-        showToast("No changes to save.");
-        return;
-      }
-
-      try {
-        const res = await fetch("/api/employee/profile", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        const json = await res.json();
-
-        if (!res.ok) {
-          showToast(json.error ?? "Could not save your employee details.");
-          return;
-        }
-
-        showToast("Employee details saved.");
-        router.refresh();
-      } catch {
-        showToast("Could not save your employee details. Check your connection.");
-      }
-    },
-  });
-
   return (
     <ProfileCard
       title="EMPLOYEE DETAILS"
-      isEditing={isEditing}
-      onEdit={edit}
-      onCancel={cancel}
+      subtitle="Set by your manager"
+      isEditing={false}
+      showEditButton={false}
+      onEdit={() => {}}
+      onCancel={() => {}}
     >
-      {isEditing ? (
-        <form
-          noValidate
-          onSubmit={handleSubmit}
-          className="flex flex-col gap-[12px] md:gap-[16px]"
-        >
-          <div className="grid gap-[12px] md:grid-cols-2 md:gap-[36px]">
-            <CardField label="Role" htmlFor="role" error={errors.role}>
-              <CardInput
-                id="role"
-                name="role"
-                type="text"
-                defaultValue={role}
-                invalid={Boolean(errors.role)}
-              />
-            </CardField>
-
-            <CardField label="Shift" htmlFor="shift" error={errors.shift}>
-              <CardInput
-                id="shift"
-                name="shift"
-                type="text"
-                defaultValue={shift}
-                invalid={Boolean(errors.shift)}
-              />
-            </CardField>
-          </div>
-          <Button type="submit" variant="save">
-            Save changes
-          </Button>
-        </form>
-      ) : (
-        <div className="grid gap-[12px] md:grid-cols-2 md:gap-[36px]">
-          <CardField label="Role">
-            <CardValue value={role} emptyState="Not added yet" />
-          </CardField>
-          <CardField label="Shift">
-            <CardValue value={shift} emptyState="Not added yet" />
-          </CardField>
-        </div>
-      )}
+      <div className="grid gap-[12px] md:grid-cols-2 md:gap-[36px]">
+        <CardField label="Role">
+          <CardValue value={role} emptyState="Not added yet" />
+        </CardField>
+        <CardField label="Shift">
+          <CardValue value={shift} emptyState="Not added yet" />
+        </CardField>
+      </div>
     </ProfileCard>
   );
 }

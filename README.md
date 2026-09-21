@@ -45,7 +45,7 @@ For a detailed look at what is currently built, what is using dummy data, and wh
    Fill in `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` from your Supabase dashboard.
 
 3. **Database Schema & Seed** 
-   In the Supabase SQL Editor, run `supabase/schema.sql` to generate the ERD tables, followed by `supabase/seed.sql` to populate mock data for local testing.
+   Apply the files in `supabase/migrations/` in filename order (`npx supabase db push`, or `npx supabase db reset` locally, which also runs `supabase/seed.sql`). Do **not** run `supabase/schema.sql` — it is the original Phase 1 draft (`menu_items`, `orders`, …) and no longer matches the tables the app queries (`product`, `order`, …); running it first makes `seed.sql` fail with `relation "product" does not exist`.
 
 4. **Generate Real DB Types** (replaces the placeholder in `types/database.types.ts`):
    ```bash

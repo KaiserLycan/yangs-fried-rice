@@ -12,9 +12,11 @@ interface ProductRankingProps {
   title: string;
   /** Ranked list of products */
   items: RankedProduct[];
+  /** What each count measures — "sold" for sales, "reviews" for ratings. */
+  unit?: string;
 }
 
-export function ProductRanking({ title, items }: ProductRankingProps) {
+export function ProductRanking({ title, items, unit = "sold" }: ProductRankingProps) {
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-[#e3d6c3] bg-white px-[18px] pb-[62px] pt-[18px]">
       {/* Section header */}
@@ -36,7 +38,7 @@ export function ProductRanking({ title, items }: ProductRankingProps) {
                 {item.name}
               </span>
               <span className="text-[13px] text-[#7a6a60]">
-                {item.count} sold
+                {item.count} {unit}
               </span>
             </div>
 

@@ -41,12 +41,10 @@ async function run() {
   for (const order of missing) {
     let subtotal = 0;
     
-    // Calculate from order_items
+    // order_item.subtotal already includes that line's own add-ons (submitCart
+    // bills them into the line), so they must not be added again here.
     for (const item of (order.order_item || [])) {
       subtotal += item.subtotal || 0;
-      for (const ioa of (item.order_item_add_on || [])) {
-        subtotal += (ioa.add_on?.price || 0);
-      }
     }
 
     // Calculate from order_add_ons
@@ -89,9 +87,6 @@ async function run() {
     let subtotal = 0;
     for (const item of (order.order_item || [])) {
       subtotal += item.subtotal || 0;
-      for (const ioa of (item.order_item_add_on || [])) {
-        subtotal += (ioa.add_on?.price || 0);
-      }
     }
     const orderAddOns = (allOrderAddOns || []).filter(oa => oa.order_id === order.order_id);
     for (const oa of orderAddOns) {

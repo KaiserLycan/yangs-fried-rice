@@ -2,6 +2,9 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { addressForGeocoding, outsideDeliveryRadiusMessage } from "@/lib/address/validate-ncr";
+import { escapeLikePattern } from "@/lib/validation/like-pattern";
+import { toInternationalMobile } from "@/lib/validation/phone";
 import {
   personalDetailsSchema,
   contactDetailsSchema,
@@ -96,7 +99,9 @@ export async function updateMyProfile(
       .from("customer")
       .update({
         ...(input.name !== undefined ? { name: parsed.data.name } : {}),
-        ...(input.dateOfBirth !== undefined ? { date_of_birth: parsed.data.dateOfBirth } : {}),
+        // date_of_birth is a `date` column: a blank field must be stored as
+        // NULL, not "" (which Postgres rejects as an invalid date).
+        ...(input.dateOfBirth !== undefined ? { date_of_birth: parsed.data.dateOfBirth || null } : {}),
       })
       .eq("customer_id", user.id);
 
@@ -113,7 +118,8 @@ export async function updateMyProfile(
 
     const { error } = await supabase
       .from("customer")
-      .update({ phone_number: parsed.data })
+      // Stored in one canonical shape (+63XXXXXXXXXX), whatever was typed.
+      .update({ phone_number: toInternationalMobile(parsed.data) || null })
       .eq("customer_id", user.id);
 
     if (error) {
@@ -172,12 +178,27 @@ export async function addMyAddress(
 
   const fullAddress = `${parsed.data.buildingNo} ${parsed.data.street}, ${parsed.data.barangay}, ${parsed.data.city} ${parsed.data.zip}`;
 
+  // A "super far" address must not be saved (the form disables Save for it,
+  // but the form is not the only caller). Checked on the trimmed street + city,
+  // the same essential form sign-up geocodes.
+  const tooFar = await outsideDeliveryRadiusMessage(
+    addressForGeocoding({
+      street: parsed.data.street,
+      barangay: parsed.data.barangay,
+      city: parsed.data.city,
+      zip: parsed.data.zip,
+    }),
+  );
+  if (tooFar) {
+    return { data: null, error: tooFar };
+  }
+
   // Check for duplicates before inserting
   const { data: existing } = await supabase
     .from("customer_address")
     .select("address_id")
     .eq("customer_id", user.id)
-    .ilike("address_details", fullAddress)
+    .ilike("address_details", escapeLikePattern(fullAddress))
     .maybeSingle();
 
   if (existing) {
@@ -236,6 +257,18 @@ export async function updateMyAddress(
   ) {
     // If any part of the address was updated, we expect all parts to be sent by the form
     fullAddress = `${parsed.data.buildingNo || ""} ${parsed.data.street || ""}, ${parsed.data.barangay || ""}, ${parsed.data.city || ""} ${parsed.data.zip || ""}`;
+
+    const tooFar = await outsideDeliveryRadiusMessage(
+      addressForGeocoding({
+        street: parsed.data.street,
+        barangay: parsed.data.barangay,
+        city: parsed.data.city,
+        zip: parsed.data.zip,
+      }),
+    );
+    if (tooFar) {
+      return { data: null, error: tooFar };
+    }
   }
 
   const { error, count } = await supabase

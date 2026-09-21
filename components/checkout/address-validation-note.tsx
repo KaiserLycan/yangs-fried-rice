@@ -22,22 +22,44 @@ import * as React from "react";
 
 type ValidationState =
   | { status: "checking" }
-  | { status: "valid" }
+  | { status: "valid"; estimated: boolean }
   | { status: "invalid"; message: string }
   | { status: "unavailable" };
+
+/** The states a parent form can react to — e.g. to disable its Save button. */
+export type AddressValidationStatus = ValidationState["status"];
 
 type ValidateResponse = {
   valid?: boolean;
   message?: string;
+  /** "estimate" = the map couldn't be used, so the address was accepted by city. */
+  source?: "geocoder" | "estimate" | null;
   /** What the route returns on a 400 — a schema complaint about the address
    *  itself, not a failure of the service. */
   error?: string;
 };
 
-export function AddressValidationNote({ address }: { address: string }) {
+export function AddressValidationNote({
+  address,
+  onStatusChange,
+}: {
+  address: string;
+  /**
+   * Reports each state change. A form uses `"invalid"` to disable its submit
+   * button, so an address that is too far away (or that the map can't find)
+   * can't be saved in the first place rather than being refused afterwards.
+   */
+  onStatusChange?: (status: AddressValidationStatus) => void;
+}) {
   const [state, setState] = React.useState<ValidationState>({
     status: "checking",
   });
+
+  const notify = React.useRef(onStatusChange);
+  notify.current = onStatusChange;
+  React.useEffect(() => {
+    notify.current?.(state.status);
+  }, [state.status]);
 
   React.useEffect(() => {
     let stale = false;
@@ -72,7 +94,7 @@ export function AddressValidationNote({ address }: { address: string }) {
 
         setState(
           result.valid
-            ? { status: "valid" }
+            ? { status: "valid", estimated: result.source === "estimate" }
             : {
                 status: "invalid",
                 message:
@@ -115,7 +137,9 @@ function noteFor(state: ValidationState): string {
     case "checking":
       return "Checking this address against the mapping service…";
     case "valid":
-      return "Address validated against mapping service.";
+      return state.estimated
+        ? "Address accepted. We couldn't confirm the exact spot on the map, so delivery is estimated by city."
+        : "Address validated against mapping service.";
     case "invalid":
       return state.message;
     case "unavailable":

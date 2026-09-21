@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { EMPLOYEE_ROLES } from "@/lib/auth/roles";
+import { optionalPhoneSchema } from "./phone";
 
 /**
  * Employee profile update (AC2). All fields optional so one action
@@ -18,7 +19,8 @@ import { EMPLOYEE_ROLES } from "@/lib/auth/roles";
 export const employeeProfileUpdateSchema = z.object({
   name: z.string().trim().min(1, "Enter a name.").max(150).optional(),
   email: z.string().trim().email("Enter a valid email.").max(255).optional(),
-  mobile: z.union([z.string().trim().min(1).max(30), z.literal("")]).optional(),
+  /** +63 followed by 10 digits, or blank. Same rule as every other screen. */
+  mobile: optionalPhoneSchema.optional(),
   dateOfBirth: z.union([z.string().trim().max(20), z.literal("")]).optional(),
   department: z.string().trim().max(100).optional(),
   scheduleShift: z.string().trim().max(100).optional(),

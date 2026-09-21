@@ -12,7 +12,11 @@
 -- Example rider row for a seeded RIDER-role employee — only meaningful
 -- once the employee_id below matches a real employee whose role is
 -- 'RIDER'.
+-- rider.employee_id has no unique constraint, so ON CONFLICT (employee_id)
+-- errors out ("no unique or exclusion constraint matching the ON CONFLICT
+-- specification"). WHERE NOT EXISTS gives the same idempotency.
 insert into rider (employee_id, vehicle_make_model, vehicle_plate_number, driver_license_number, license_expiry_date)
-values
-  ('00000000-0000-0000-0000-000000000001', 'Honda XRM125', 'ABC-1234', 'N01-23-456789', '2027-06-30')
-on conflict (employee_id) do nothing;
+select '00000000-0000-0000-0000-000000000001', 'Honda XRM125', 'ABC-1234', 'N01-23-456789', '2027-06-30'::date
+where not exists (
+  select 1 from rider where employee_id = '00000000-0000-0000-0000-000000000001'
+);

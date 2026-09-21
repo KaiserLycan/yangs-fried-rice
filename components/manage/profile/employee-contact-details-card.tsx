@@ -14,6 +14,7 @@
  */
 
 import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 import {
   CardField,
   CardInput,
@@ -24,6 +25,12 @@ import { useCardEditor } from "@/components/profile/use-card-editor";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { contactDetailsSchema } from "@/lib/validation/profile";
+import { PhoneInput } from "@/components/ui/phone-input";
+import {
+  PH_MOBILE_EXAMPLE,
+  formatMobileNumber,
+  toInternationalMobile,
+} from "@/lib/validation/phone";
 
 const SAVE_TOAST =
   "Saving your contact details isn’t available yet. We’re still building it.";
@@ -38,7 +45,7 @@ export function EmployeeContactDetailsCard({
   const { isEditing, edit, cancel, errors, handleSubmit } = useCardEditor({
     schema: contactDetailsSchema,
     read: (form) => ({
-      mobile: String(form.get("mobile") ?? ""),
+      mobile: toInternationalMobile(String(form.get("mobile") ?? "")),
       email: String(form.get("email") ?? ""),
     }),
     onValid: async (values) => {
@@ -88,14 +95,23 @@ export function EmployeeContactDetailsCard({
           className="flex flex-col gap-[12px] md:gap-[16px]"
         >
           <div className="grid gap-[12px] md:grid-cols-2 md:gap-[36px]">
-            <CardField label="Mobile number" htmlFor="mobile" error={errors.mobile}>
-              <CardInput
+            <CardField
+              label="Mobile number"
+              htmlFor="mobile"
+              hint={`Format: ${PH_MOBILE_EXAMPLE}`}
+              error={errors.mobile}
+            >
+              <PhoneInput
                 id="mobile"
                 name="mobile"
-                type="tel"
-                autoComplete="tel"
                 defaultValue={profile.mobile}
                 invalid={Boolean(errors.mobile)}
+                className={cn(
+                  "rounded-sm border bg-card",
+                  errors.mobile ? "border-error-border" : "border-field-border",
+                )}
+                prefixClassName="pl-[12px] text-[15px] text-muted-foreground md:text-[14px]"
+                inputClassName="px-[6px] py-[13px] text-[15px] md:py-[11px] md:text-[14px]"
               />
             </CardField>
 
@@ -120,7 +136,10 @@ export function EmployeeContactDetailsCard({
       ) : (
         <div className="grid gap-[12px] md:grid-cols-2 md:gap-[36px]">
           <CardField label="Mobile number">
-            <CardValue value={profile.mobile} emptyState="Not added yet" />
+            <CardValue
+              value={formatMobileNumber(profile.mobile)}
+              emptyState="Not added yet"
+            />
           </CardField>
           <CardField label="Email address">
             <CardValue value={profile.email} emptyState="Not added yet" />

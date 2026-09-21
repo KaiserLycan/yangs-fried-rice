@@ -6,11 +6,18 @@ import { Button } from "@/components/ui/button";
 import { ProofOfDeliveryModal } from "./proof-of-delivery-modal";
 import { AcceptDeliveryModal } from "./accept-delivery-modal";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useTransition } from "react";
+import { Dialog } from "@/components/ui/dialog";
+import { useToast } from "@/components/ui/toast";
+import { releaseDelivery } from "@/lib/actions/delivery";
 
 export function DeliveryDetailsPanel({ delivery }: { delivery: any }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
+  const showToast = useToast();
+  const [isReleasing, startReleasing] = useTransition();
+  const [confirmRelease, setConfirmRelease] = useState(false);
   const [isProofModalOpen, setIsProofModalOpen] = useState(false);
   const [isAcceptModalOpen, setIsAcceptModalOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -25,6 +32,23 @@ export function DeliveryDetailsPanel({ delivery }: { delivery: any }) {
   if (!delivery) return null;
 
   const isDelivered = delivery.status === "completed" || delivery.deliveryStatus === "delivered";
+
+  // Undoes an accidental Accept. The delivery returns to the queue for any
+  // rider; this rider's other deliveries are untouched.
+  const handleRelease = () => {
+    startReleasing(async () => {
+      const result = await releaseDelivery(delivery.id);
+      setConfirmRelease(false);
+      if (result.success) {
+        window.dispatchEvent(new CustomEvent("delivery-updated"));
+        showToast("Delivery handed back. Another rider can take it now.");
+        router.push("/deliver");
+        router.refresh();
+      } else {
+        showToast(result.error || "Couldn't hand this delivery back.");
+      }
+    });
+  };
 
   const handleDecline = () => {
     // Client-side dismiss per the specification: redirects back to the main queue
@@ -115,12 +139,22 @@ export function DeliveryDetailsPanel({ delivery }: { delivery: any }) {
                   View delivered proof
                 </Button>
               ) : (
-                <Button 
-                  className="w-full py-6 text-[16px] bg-[#1A1210] hover:bg-[#2c1f1c] text-white" 
-                  onClick={() => setIsProofModalOpen(true)}
-                >
-                  Arrived & Upload Proof
-                </Button>
+                <div className="flex flex-col gap-2">
+                  <Button 
+                    className="w-full py-6 text-[16px] bg-[#1A1210] hover:bg-[#2c1f1c] text-white" 
+                    onClick={() => setIsProofModalOpen(true)}
+                  >
+                    Arrived & Upload Proof
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmRelease(true)}
+                    disabled={isReleasing}
+                    className="w-full rounded-[12px] py-3 text-[14px] font-bold text-[#7A6A60] underline transition-colors hover:text-[#C0392B] disabled:opacity-60"
+                  >
+                    Hand back to queue
+                  </button>
+                </div>
               )}
             </div>
           </>
@@ -135,6 +169,34 @@ export function DeliveryDetailsPanel({ delivery }: { delivery: any }) {
         proofImageUrl={delivery.proofOfDelivery || null}
         isReadOnly={isDelivered}
         deliverySummary={delivery}
+      />
+
+      <Dialog
+        open={confirmRelease}
+        onClose={() => setConfirmRelease(false)}
+        tone="danger"
+        title="HAND THIS DELIVERY BACK?"
+        description="It goes back to the queue and any rider can accept it. Your other deliveries aren't affected."
+        footer={
+          <>
+            <Button
+              variant="outline"
+              className="flex-1 p-[14px]"
+              onClick={() => setConfirmRelease(false)}
+              disabled={isReleasing}
+            >
+              Keep it
+            </Button>
+            <Button
+              variant="confirm"
+              className="flex-1"
+              onClick={handleRelease}
+              disabled={isReleasing}
+            >
+              {isReleasing ? "Handing back…" : "Hand back"}
+            </Button>
+          </>
+        }
       />
 
       <AcceptDeliveryModal

@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { customerEmailSchema, customerPasswordSchema } from "./login";
+import { dateOfBirthSchema } from "./date-of-birth";
+import { phoneSchema } from "./phone";
 
 /**
  * Customer sign-up (Cust1). Name, email, phone, password, delivery address —
@@ -36,22 +38,17 @@ import { customerEmailSchema, customerPasswordSchema } from "./login";
  * disagreeing about what's valid — the capturing groups live here, on the
  * one pattern, rather than in a second regex that has to be kept in sync.
  */
-export const PHONE_SEPARATORS = /[\s().-]/g;
-export const PH_MOBILE_GROUPS_PATTERN = /^(?:\+?63|0)?9\d{9}$/;
+export {
+  PHONE_SEPARATORS,
+  PH_MOBILE_GROUPS_PATTERN,
+} from "./phone";
 
 /**
- * Exported so the profile screen's contact-details card validates the number
- * with this rule rather than restating it, the same way this file takes its
- * email and password rules from `login.ts`. Two copies of a phone pattern is
- * how sign-up and profile end up disagreeing about what a valid number is.
+ * The shared mobile rule, re-exported under the name the profile and sign-up
+ * screens already import. The rule itself lives in `lib/validation/phone.ts`
+ * so customers, managers, staff and riders are all held to one definition.
  */
-export const customerMobileSchema = z
-  .string()
-  .refine(
-    (value) =>
-      PH_MOBILE_GROUPS_PATTERN.test(value.replace(PHONE_SEPARATORS, "")),
-    "Enter a valid mobile number.",
-  );
+export const customerMobileSchema = phoneSchema;
 
 /**
  * Also shared with the profile screen, for the same reason: the name a
@@ -81,6 +78,8 @@ export const signupSchema = z.object({
   lastName: customerNameSchema,
   email: customerEmailSchema,
   phone: customerMobileSchema,
+  /** Optional. "" or an ISO date that is not in the future. */
+  dateOfBirth: dateOfBirthSchema.optional(),
   password: customerPasswordSchema,
   buildingNo: requiredString("Enter building/house number."),
   street: requiredString("Enter street."),

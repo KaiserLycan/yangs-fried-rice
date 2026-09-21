@@ -1,3 +1,4 @@
+import { requireApiEmployee } from "@/lib/auth/api-guard";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { riderSchema, riderUpdateSchema } from "@/lib/validation/rider";
@@ -18,6 +19,9 @@ interface RouteParams {
  * Requires: manager.
  */
 export async function getRiders() {
+  const guard = await requireApiEmployee("MANAGER", "STAFF");
+  if (guard.response) return guard.response;
+
   const supabase = createClient();
 
   const { data, error } = await supabase
@@ -48,6 +52,9 @@ export async function getRiders() {
  * Requires: manager.
  */
 export async function createRider(request: Request) {
+  const guard = await requireApiEmployee("MANAGER");
+  if (guard.response) return guard.response;
+
   let body: unknown;
   try {
     body = await request.json();
@@ -129,6 +136,9 @@ export async function getRiderById(
   _request: Request,
   { params }: RouteParams
 ) {
+  const guard = await requireApiEmployee("MANAGER", "STAFF");
+  if (guard.response) return guard.response;
+
   const supabase = createClient();
 
   const { data, error } = await supabase
@@ -162,6 +172,9 @@ export async function updateRider(
   request: Request,
   { params }: RouteParams
 ) {
+  const guard = await requireApiEmployee("MANAGER");
+  if (guard.response) return guard.response;
+
   let body: unknown;
   try {
     body = await request.json();
@@ -223,6 +236,9 @@ export async function deleteRider(
   _request: Request,
   { params }: RouteParams
 ) {
+  const guard = await requireApiEmployee("MANAGER");
+  if (guard.response) return guard.response;
+
   const supabase = createClient();
 
   const { error } = await supabase

@@ -9,6 +9,10 @@ import {
   canResetEmployeePassword,
   EMPLOYEE_ROLES,
   ROLE_HIERARCHY,
+  roleDisplayLabel,
+  resolveEmployeeRole,
+  canAccessManagePath,
+  homePathForRole,
 } from "./roles";
 
 describe("isEmployeeRole", () => {
@@ -160,4 +164,46 @@ describe("canResetEmployeePassword", () => {
   });
 });
 
+describe("role display + routing", () => {
+  it("folds legacy staff labels into Staff and shows RIDER as Delivery", () => {
+    expect(roleDisplayLabel("Server")).toBe("Staff");
+    expect(roleDisplayLabel("cook")).toBe("Staff");
+    expect(roleDisplayLabel("CASHIER")).toBe("Staff");
+    expect(roleDisplayLabel("manager")).toBe("Manager");
+    expect(roleDisplayLabel("RIDER")).toBe("Delivery");
+    expect(roleDisplayLabel(null)).toBe("Staff");
+  });
 
+  it("reads stored roles regardless of casing", () => {
+    expect(resolveEmployeeRole("Manager")).toBe("MANAGER");
+    expect(resolveEmployeeRole("manager")).toBe("MANAGER");
+    expect(resolveEmployeeRole("nonsense")).toBeNull();
+  });
+
+  it("keeps the dashboard and admin pages away from STAFF", () => {
+    expect(canAccessManagePath("STAFF", "/manage/dashboard")).toBe(false);
+    expect(canAccessManagePath("STAFF", "/manage/reports")).toBe(false);
+    expect(canAccessManagePath("STAFF", "/manage/customers")).toBe(false);
+    expect(canAccessManagePath("STAFF", "/manage/employee")).toBe(false);
+    expect(canAccessManagePath("STAFF", "/manage/orders")).toBe(true);
+    expect(canAccessManagePath("STAFF", "/manage/menu")).toBe(true);
+    expect(canAccessManagePath("STAFF", "/manage/kds")).toBe(true);
+    expect(canAccessManagePath("STAFF", "/manage/profile")).toBe(true);
+  });
+
+  it("does not let a prefix match a look-alike path", () => {
+    expect(canAccessManagePath("STAFF", "/manage/orders-admin")).toBe(false);
+  });
+
+  it("lets a MANAGER anywhere and a RIDER nowhere under /manage", () => {
+    expect(canAccessManagePath("MANAGER", "/manage/dashboard")).toBe(true);
+    expect(canAccessManagePath("RIDER", "/manage/orders")).toBe(false);
+    expect(canAccessManagePath(null, "/manage/orders")).toBe(false);
+  });
+
+  it("sends each role to its own home page", () => {
+    expect(homePathForRole("MANAGER")).toBe("/manage/dashboard");
+    expect(homePathForRole("STAFF")).toBe("/manage/orders");
+    expect(homePathForRole("RIDER")).toBe("/deliver");
+  });
+});

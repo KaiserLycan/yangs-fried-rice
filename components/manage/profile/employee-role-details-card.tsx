@@ -30,19 +30,19 @@ import { useCardEditor } from "@/components/profile/use-card-editor";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 
-const ROLES = ["Manager", "Staff", "Rider"];
+const ROLES = ["Manager", "Staff", "Delivery"];
 const SHIFTS = ["MWF – 12-3PM", "TThS – 9-5PM", "Weekends – 10-10PM", "Mon-Fri – 8-4PM"];
 
 const roleMap: Record<string, string> = {
   MANAGER: "Manager",
   STAFF: "Staff",
-  RIDER: "Rider",
+  RIDER: "Delivery",
 };
 
 const reverseRoleMap: Record<string, string> = {
   Manager: "MANAGER",
   Staff: "STAFF",
-  Rider: "RIDER",
+  Delivery: "RIDER",
 };
 
 const roleDetailsSchema = z.object({
@@ -202,7 +202,7 @@ export function EmployeeRoleDetailsCard({
       ) : (
         <div className="grid gap-[12px] md:grid-cols-2 md:gap-[36px]">
           <CardField label="Role">
-            <CardValue value={profile.role} emptyState="Not added yet" />
+            <CardValue value={roleMap[profile.role] ?? profile.role} emptyState="Not added yet" />
           </CardField>
           <CardField label="Shift">
             <CardValue value={profile.shift} emptyState="Not added yet" />

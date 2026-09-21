@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { EMPLOYEE_ROLES, type EmployeeRole } from "@/lib/auth/roles";
+import { optionalPhoneSchema } from "./phone";
+import { dateOfBirthSchema } from "./date-of-birth";
 
 /**
  * Admin validation schemas — employee creation and role management.
@@ -36,6 +38,12 @@ export const createEmployeeSchema = z.object({
   }),
 
   scheduleShift: z.string().nullable().optional(),
+
+  /** Optional Philippine mobile; blank is fine. Stored as +63XXXXXXXXXX. */
+  phone: optionalPhoneSchema.optional(),
+
+  /** Optional ISO date, not in the future. */
+  dateOfBirth: dateOfBirthSchema.optional(),
 
   riderDetails: z
     .object({
@@ -105,10 +113,8 @@ export const updateCustomerSchema = z.object({
     .email("Enter a valid email address.")
     .optional(),
 
-  phone_number: z
-    .string()
-    .trim()
-    .optional(),
+  /** +63 followed by 10 digits, or blank. */
+  phone_number: optionalPhoneSchema.optional(),
 });
 
 export type UpdateCustomerInput = z.infer<typeof updateCustomerSchema>;
