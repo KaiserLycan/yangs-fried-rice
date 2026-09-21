@@ -1,6 +1,12 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { computeOrderTotal } from "@/lib/orders/order-total";
+import {
+  RELEASED_DELIVERY_STATUS,
+  releaseRefusalReason,
+} from "@/lib/orders/delivery-assignment";
 import { revalidatePath } from "next/cache";
 
 /**
@@ -29,7 +35,12 @@ type DeliveryDetail = {
   proofOfDelivery: string | null;
   createdAt: string | null;
   customer: { name: string; address: string | null; phone: string | null } | null;
-  payment: { method: string; total: number } | null;
+  payment: {
+    method: string;
+    status?: string | null;
+    total: number;
+    deliveryFee: number;
+  } | null;
   items: { productName: string; quantity: number }[];
 };
 
@@ -94,16 +105,38 @@ export async function getAssignedDeliveries(): Promise<{
     };
   }
 
-  // Fetch deliveries that are EITHER assigned to this rider OR have no rider yet (the pending queue)
-  const { data, error } = await supabase
-    .from("delivery")
-    .select("delivery_id, order_id, delivery_status, estimated_time, order:order_id(created_at)")
-    .or(`rider_id.eq.${rider.rider_id},rider_id.is.null`)
-    .order("estimated_time", { ascending: true, nullsFirst: false });
+  // Deliveries assigned to this rider, plus the ones nobody has taken.
+  //
+  // Two filtered reads rather than one `.or("rider_id.eq." + id + ",…")`.
+  // That string is a PostgREST filter expression, so building it by
+  // concatenation is the same class of mistake as building SQL by
+  // concatenation; `.eq`/`.is` send values the client encodes, which nothing
+  // can break out of. `__tests__/security/injection.test.ts` fails the build
+  // if a filter string with interpolation reappears anywhere.
+  const SELECT =
+    "delivery_id, order_id, delivery_status, estimated_time, order:order_id(created_at)";
 
-  if (error) {
+  const [assigned, unassigned] = await Promise.all([
+    supabase.from("delivery").select(SELECT).eq("rider_id", rider.rider_id),
+    supabase.from("delivery").select(SELECT).is("rider_id", null),
+  ]);
+
+  if (assigned.error || unassigned.error) {
     return { deliveries: [], error: "Could not load your deliveries." };
   }
+
+  // Soonest estimate first, with un-estimated deliveries last — what the
+  // single query's `order(..., { nullsFirst: false })` used to do.
+  const data = [...(assigned.data ?? []), ...(unassigned.data ?? [])].sort(
+    (a: any, b: any) => {
+      if (!a.estimated_time && !b.estimated_time) return 0;
+      if (!a.estimated_time) return 1;
+      if (!b.estimated_time) return -1;
+      return (
+        new Date(a.estimated_time).getTime() - new Date(b.estimated_time).getTime()
+      );
+    },
+  );
 
   return {
     deliveries: data.map((d: any) => ({
@@ -146,6 +179,7 @@ export async function getDeliveryDetailsBatch(deliveryIds: string[]) {
       order:order_id (
         created_at,
         delivery_address,
+        delivery_fee,
         customer:customer_id (
           name,
           phone_number
@@ -166,19 +200,26 @@ export async function getDeliveryDetailsBatch(deliveryIds: string[]) {
   
   let transactions: any[] = [];
   let orderItems: any[] = [];
+  let orderAddOns: any[] = [];
 
   if (orderIds.length > 0) {
     const { data: tData } = await supabase
       .from("transaction")
-      .select("order_id, payment_method, total_paid")
+      .select("order_id, payment_method, payment_status")
       .in("order_id", orderIds);
     if (tData) transactions = tData;
 
     const { data: iData } = await supabase
       .from("order_item")
-      .select("order_id, quantity, product:product_id (product_name)")
+      .select("order_id, quantity, subtotal, product:product_id (product_name)")
       .in("order_id", orderIds);
     if (iData) orderItems = iData;
+
+    const { data: aData } = await supabase
+      .from("order_add_on")
+      .select("order_id, price")
+      .in("order_id", orderIds);
+    if (aData) orderAddOns = aData;
   }
 
   const mappedDeliveries = deliveries.map(delivery => {
@@ -203,15 +244,23 @@ export async function getDeliveryDetailsBatch(deliveryIds: string[]) {
     }
 
     const transactionRow = transactions?.find(t => t.order_id === delivery.order_id);
-    let payment = null;
-    if (transactionRow) {
-      payment = {
-        method: transactionRow.payment_method ?? "Cash on delivery",
-        total: Number(transactionRow.total_paid) || 0,
-      };
-    }
+    // Full order value (items + add-ons + delivery fee), not total_paid —
+    // that stays 0 for cash orders until the money is collected.
+    const lines = orderItems?.filter(i => i.order_id === delivery.order_id) ?? [];
+    const payment = {
+      method: transactionRow?.payment_method ?? "cash_on_delivery",
+      status: transactionRow?.payment_status ?? null,
+      total: computeOrderTotal({
+        itemSubtotals: lines.map((line) => line.subtotal),
+        orderAddOnPrices: orderAddOns
+          .filter((row) => row.order_id === delivery.order_id)
+          .map((row) => row.price),
+        deliveryFee: orderRow?.delivery_fee,
+      }),
+      deliveryFee: Number(orderRow?.delivery_fee) || 0,
+    };
 
-    const items = (orderItems?.filter(i => i.order_id === delivery.order_id) ?? []).map((item) => ({
+    const items = lines.map((item) => ({
       productName: item.product?.product_name ?? "Unknown item",
       quantity: item.quantity,
     }));
@@ -258,14 +307,14 @@ export async function getDeliveryDetail(deliveryId: string): Promise<{
   }
 
   let customer: { name: string; address: string | null; phone: string | null } | null = null;
-  let payment: { method: string; total: number } | null = null;
+  let payment: DeliveryDetail["payment"] = null;
   let items: { productName: string; quantity: number }[] = [];
   let createdAt: string | null = null;
 
   if (delivery.order_id) {
     const { data: order } = await supabase
       .from("order")
-      .select("customer_id, delivery_address, created_at")
+      .select("customer_id, delivery_address, created_at, delivery_fee")
       .eq("order_id", delivery.order_id)
       .single();
 
@@ -291,26 +340,39 @@ export async function getDeliveryDetail(deliveryId: string): Promise<{
 
     const { data: transactionRow } = await supabase
       .from("transaction")
-      .select("payment_method, total_paid")
+      .select("payment_method, payment_status")
       .eq("order_id", delivery.order_id)
-      .single();
-
-    if (transactionRow) {
-      payment = {
-        method: transactionRow.payment_method ?? "Cash on delivery",
-        total: Number(transactionRow.total_paid) || 0,
-      };
-    }
+      .limit(1)
+      .maybeSingle();
 
     const { data: orderItems } = await supabase
       .from("order_item")
-      .select("quantity, product:product_id (product_name)")
+      .select("quantity, subtotal, product:product_id (product_name)")
+      .eq("order_id", delivery.order_id);
+
+    const { data: orderAddOns } = await supabase
+      .from("order_add_on")
+      .select("price")
       .eq("order_id", delivery.order_id);
 
     items = (orderItems ?? []).map((item) => ({
       productName: item.product?.product_name ?? "Unknown item",
       quantity: item.quantity,
     }));
+
+    // What the rider has to collect / hand over: items + add-ons + delivery
+    // fee. NOT transaction.total_paid, which is 0 for a cash order until the
+    // money is actually collected — that is what showed riders a ₱0 total.
+    payment = {
+      method: transactionRow?.payment_method ?? "cash_on_delivery",
+      status: transactionRow?.payment_status ?? null,
+      total: computeOrderTotal({
+        itemSubtotals: (orderItems ?? []).map((item) => item.subtotal),
+        orderAddOnPrices: (orderAddOns ?? []).map((row) => row.price),
+        deliveryFee: order?.delivery_fee,
+      }),
+      deliveryFee: order?.delivery_fee ?? 0,
+    };
   }
 
   return {
@@ -423,14 +485,22 @@ export async function markDelivered(
   }
 
   // Reflect the completed status back to the original order record
+  // Riders have no UPDATE access to `order` (003_kitchen_queue_rls.sql), so
+  // a session-scoped update here is silently filtered to zero rows. The
+  // rider's assignment to this delivery was verified above, so the status
+  // change is made with the service role, scoped to that one order.
   if (delivery.order_id) {
-    await supabase
+    const { error: orderUpdateError } = await createAdminClient()
       .from("order")
       .update({
         order_status: "completed",
         completed_at: new Date().toISOString(),
       })
       .eq("order_id", delivery.order_id);
+
+    if (orderUpdateError) {
+      console.error("markDelivered: could not complete order:", orderUpdateError);
+    }
   }
 
   revalidatePath("/deliver");
@@ -441,7 +511,11 @@ export async function markDelivered(
 
 /**
  * Order10: Atomically accept a pending delivery.
- * Ensures the delivery is still unassigned to prevent race conditions.
+ *
+ * A rider may hold as many deliveries as they accept — the only condition is
+ * that this one is still unassigned, which is checked inside the UPDATE so two
+ * riders tapping at once cannot both win it. Anything they take can be handed
+ * back again with `releaseDelivery`.
  */
 export async function acceptDelivery(deliveryId: string): Promise<{ success: boolean; error: string | null }> {
   const supabase = createClient();
@@ -469,6 +543,77 @@ export async function acceptDelivery(deliveryId: string): Promise<{ success: boo
       error: "This order was just accepted by another rider or is no longer available." 
     };
   }
+  revalidatePath("/deliver", "layout");
+
+  return { success: true, error: null };
+}
+
+/**
+ * Order10: hand an accepted delivery back to the queue.
+ *
+ * For the rider who tapped Accept by mistake, or who can no longer take it:
+ * the delivery becomes unassigned and waiting again, so any other rider —
+ * including this one — sees it in their queue immediately.
+ *
+ * Only the rider carrying it can do this, and only before it is delivered;
+ * `canReleaseDelivery` states both rules and `releaseRefusalReason` supplies
+ * the message. The rider's other accepted deliveries are untouched.
+ *
+ * The order row is deliberately left alone. Staff already sent it out for
+ * delivery, and that is still true — it simply needs a rider again.
+ */
+export async function releaseDelivery(
+  deliveryId: string
+): Promise<{ success: boolean; error: string | null }> {
+  const supabase = createClient();
+  const rider = await getCurrentRider(supabase);
+
+  if (!rider) {
+    return {
+      success: false,
+      error: "You must be signed in as a rider to do that.",
+    };
+  }
+
+  const { data: delivery, error: lookupError } = await supabase
+    .from("delivery")
+    .select("delivery_id, rider_id, delivery_status")
+    .eq("delivery_id", deliveryId)
+    .maybeSingle();
+
+  if (lookupError || !delivery) {
+    return { success: false, error: "Delivery not found." };
+  }
+
+  const assignment = {
+    assignedRiderId: delivery.rider_id,
+    status: delivery.delivery_status,
+  };
+  const refusal = releaseRefusalReason(assignment, rider.rider_id);
+  if (refusal) {
+    return { success: false, error: refusal };
+  }
+
+  // `rider_id` is matched in the UPDATE as well, so a release racing anything
+  // else touching the row cannot take it off a rider it no longer belongs to.
+  const { data: released, error: updateError } = await supabase
+    .from("delivery")
+    .update({
+      rider_id: null,
+      delivery_status: RELEASED_DELIVERY_STATUS,
+    })
+    .eq("delivery_id", deliveryId)
+    .eq("rider_id", rider.rider_id)
+    .select("delivery_id")
+    .maybeSingle();
+
+  if (updateError || !released) {
+    return {
+      success: false,
+      error: "Couldn't hand this delivery back. Please try again.",
+    };
+  }
+
   revalidatePath("/deliver", "layout");
 
   return { success: true, error: null };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatMobileNumber } from "./mobile-number";
+import { formatMobileNumber, toInternationalMobile } from "./mobile-number";
 
 describe("formatMobileNumber", () => {
   it("groups a stored local number the way the frame draws it", () => {
@@ -29,5 +29,22 @@ describe("formatMobileNumber", () => {
     expect(formatMobileNumber(null)).toBe("");
     expect(formatMobileNumber(undefined)).toBe("");
     expect(formatMobileNumber("")).toBe("");
+  });
+});
+
+describe("toInternationalMobile", () => {
+  it.each([
+    ["9171234567", "+639171234567"],
+    ["09171234567", "+639171234567"],
+    ["0917-123-4567", "+639171234567"],
+    ["639171234567", "+639171234567"],
+    ["+63 917 123 4567", "+639171234567"],
+  ])("turns %s into %s", (typed, stored) => {
+    expect(toInternationalMobile(typed)).toBe(stored);
+  });
+
+  it("returns an empty string for blank input", () => {
+    expect(toInternationalMobile("")).toBe("");
+    expect(toInternationalMobile(null)).toBe("");
   });
 });

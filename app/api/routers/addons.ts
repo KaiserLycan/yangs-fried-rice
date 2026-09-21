@@ -1,3 +1,4 @@
+import { requireApiEmployee } from "@/lib/auth/api-guard";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { addonSchema, addonUpdateSchema } from "@/lib/validation/addons";
@@ -49,6 +50,9 @@ export async function createProductAddon(
   request: Request,
   { params }: RouteParams
 ) {
+  const guard = await requireApiEmployee("MANAGER", "STAFF");
+  if (guard.response) return guard.response;
+
   let body: unknown;
   try {
     body = await request.json();
@@ -142,6 +146,9 @@ export async function updateAddon(
   request: Request,
   { params }: RouteParams
 ) {
+  const guard = await requireApiEmployee("MANAGER", "STAFF");
+  if (guard.response) return guard.response;
+
   let body: unknown;
   try {
     body = await request.json();
@@ -194,6 +201,9 @@ export async function deleteAddon(
   _request: Request,
   { params }: RouteParams
 ) {
+  const guard = await requireApiEmployee("MANAGER", "STAFF");
+  if (guard.response) return guard.response;
+
   const supabase = createClient();
 
   const { error } = await supabase

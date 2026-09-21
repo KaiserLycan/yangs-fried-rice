@@ -20,6 +20,7 @@ describe("mapProductRow", () => {
       categoryName: "Fried Rice",
       isAvailable: true,
       imageUrl: null,
+      add_ons: [],
     });
   });
 

@@ -8,6 +8,7 @@ import {
   type SalesReportData,
   type PlatformPerformanceData,
 } from "@/lib/actions/reports";
+import { SALES_REPORT, normalizeReportType } from "@/lib/reports/report-types";
 
 interface ReportsSummaryProps {
   type?: string;
@@ -22,10 +23,15 @@ function formatPeso(amount: number): string {
   })}`;
 }
 
-function SkeletonCards() {
+/**
+ * The loading placeholder has to be the same shape as what replaces it:
+ * Sales and Order loads 3 cards, Menu & Customer Satisfaction loads 4. A
+ * fixed 3 made the row jump when the fourth card arrived.
+ */
+function SkeletonCards({ count }: { count: number }) {
   return (
-    <div className="flex flex-col md:flex-row gap-3.5">
-      {Array.from({ length: 3 }).map((_, i) => (
+    <div className="flex flex-col md:flex-row md:flex-wrap gap-3.5">
+      {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
           className="flex flex-1 flex-col rounded-[14px] border border-[#e3d6c3] bg-white p-4"
@@ -39,7 +45,8 @@ function SkeletonCards() {
   );
 }
 
-export function ReportsSummary({ type = "Sales and Order", startDate, endDate }: ReportsSummaryProps) {
+export function ReportsSummary({ type: rawType = SALES_REPORT, startDate, endDate }: ReportsSummaryProps) {
+  const type = normalizeReportType(rawType);
   const [salesData, setSalesData] = useState<SalesReportData | null>(null);
   const [perfData, setPerfData] = useState<PlatformPerformanceData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -53,7 +60,7 @@ export function ReportsSummary({ type = "Sales and Order", startDate, endDate }:
       setError(null);
 
       try {
-        if (type === "Sales and Order") {
+        if (type === SALES_REPORT) {
           const result = await getSalesReportData({
             start_date: startDate,
             end_date: endDate,
@@ -65,24 +72,12 @@ export function ReportsSummary({ type = "Sales and Order", startDate, endDate }:
           } else {
             setSalesData(result.data);
           }
-        } else if (type === "Menu Items reports") {
+        } else {
+          // Menu & Customer Satisfaction: one performance read feeds both halves.
           const result = await getPlatformPerformance({
             start_date: startDate,
             end_date: endDate,
             top_products: 10,
-          });
-          if (cancelled) return;
-          if (result.error) {
-            setError(result.error);
-          } else {
-            setPerfData(result.data);
-          }
-        } else if (type === "Customer Satisfaction") {
-          // Customer satisfaction doesn't have a backend yet, show placeholder
-          const result = await getPlatformPerformance({
-            start_date: startDate,
-            end_date: endDate,
-            top_products: 5,
           });
           if (cancelled) return;
           if (result.error) {
@@ -102,7 +97,9 @@ export function ReportsSummary({ type = "Sales and Order", startDate, endDate }:
     return () => { cancelled = true; };
   }, [type, startDate, endDate]);
 
-  if (isLoading) return <SkeletonCards />;
+  const cardCount = type === SALES_REPORT ? 3 : 4;
+
+  if (isLoading) return <SkeletonCards count={cardCount} />;
 
   if (error) {
     return (
@@ -114,35 +111,11 @@ export function ReportsSummary({ type = "Sales and Order", startDate, endDate }:
     );
   }
 
-  if (type === "Customer Satisfaction" && perfData) {
-    return (
-      <div className="flex flex-col md:flex-row gap-3.5">
-        <StatCard
-          label="Total Orders"
-          value={perfData.totalOrdersInRange.toLocaleString()}
-          subtitle={`${perfData.completedOrders} completed`}
-          subtitleColor="green"
-        />
-        <StatCard
-          label="Completion Rate"
-          value={`${perfData.completionRate}%`}
-          subtitle={`${perfData.cancelledOrders} cancelled`}
-          subtitleColor={perfData.cancellationRate > 10 ? "red" : "muted"}
-        />
-        <StatCard
-          label="Registered Customers"
-          value={perfData.totalRegisteredCustomers.toLocaleString()}
-          subtitle="All time"
-          subtitleColor="muted"
-        />
-      </div>
-    );
-  }
-
-  if (type === "Menu Items reports" && perfData) {
+  if (type !== SALES_REPORT && perfData) {
     const topProduct = perfData.topSellingProducts[0];
+    const { averageRating, totalReviews } = perfData.customerSatisfaction;
     return (
-      <div className="flex flex-col md:flex-row gap-3.5">
+      <div className="flex flex-col md:flex-row md:flex-wrap gap-3.5">
         <StatCard
           label="Total Items Sold"
           value={perfData.topSellingProducts
@@ -158,10 +131,16 @@ export function ReportsSummary({ type = "Sales and Order", startDate, endDate }:
           subtitleColor="green"
         />
         <StatCard
-          label="Total Revenue"
-          value={formatPeso(perfData.totalRevenue)}
-          subtitle={`${perfData.totalOrdersInRange} orders`}
-          subtitleColor="muted"
+          label="Customer Rating"
+          value={averageRating === null ? "No ratings" : `${averageRating.toFixed(1)} ★`}
+          subtitle={`${totalReviews} ${totalReviews === 1 ? "review" : "reviews"}`}
+          subtitleColor={averageRating !== null && averageRating >= 4 ? "green" : "muted"}
+        />
+        <StatCard
+          label="Completion Rate"
+          value={`${perfData.completionRate}%`}
+          subtitle={`${perfData.cancelledOrders} cancelled`}
+          subtitleColor={perfData.cancellationRate > 10 ? "red" : "muted"}
         />
       </div>
     );
@@ -194,5 +173,5 @@ export function ReportsSummary({ type = "Sales and Order", startDate, endDate }:
     );
   }
 
-  return <SkeletonCards />;
+  return <SkeletonCards count={cardCount} />;
 }

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { DashboardContent } from "@/components/manage/dashboard/dashboard-content";
 import { createClient } from "@/lib/supabase/server";
+import { homePathForRole, resolveEmployeeRole } from "@/lib/auth/roles";
 import {
   getDashboardStats,
   getWeeklySales,
@@ -35,8 +36,11 @@ export default async function DashboardPage() {
     .eq("employee_id", user.id)
     .single();
 
-  if (employee?.role === "STAFF") {
-    redirect("/manage/orders");
+  // Manager-only. Middleware already turns STAFF away; this is the second
+  // check for a request that reaches the page some other way.
+  const role = resolveEmployeeRole(employee?.role);
+  if (role !== "MANAGER") {
+    redirect(homePathForRole(role));
   }
 
   const [stats, weeklySales, topSellers] = await Promise.all([

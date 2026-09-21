@@ -14,7 +14,7 @@ import {
   deleteEmployee, 
   updateEmployeeDetails 
 } from "@/lib/actions/admin";
-import { normalizeEmployeeRoleLabel } from "@/lib/auth/roles";
+import { normalizeEmployeeRoleLabel, resolveEmployeeRole, roleDisplayLabel, type EmployeeRole } from "@/lib/auth/roles";
 
 export type EmployeeData = {
   id: string;
@@ -22,12 +22,18 @@ export type EmployeeData = {
   email: string;
   contact: string;
   role: string;
+  /** Canonical role — what the filter compares, so it can never disagree with what is displayed. */
+  roleKey: EmployeeRole | null;
   shift?: string;
   lastAccessLog?: string;
   imageUrl?: string;
+  phone?: string;
+  dateOfBirth?: string;
+  isDisabled?: boolean;
 };
 
-const ROLES = ["All Roles", "Manager", "Server", "Cook", "Cashier", "Delivery"];
+// Server / Cook / Cashier are all Staff — the directory shows and filters three roles.
+const ROLES = ["All Roles", "Manager", "Staff", "Delivery"];
 
 // 1. Wrapper component to provide the Toast context
 export default function ManageEmployeePage() {
@@ -76,14 +82,18 @@ function ManageEmployeeInner() {
         id: e.employee_id,
         name: e.name || "Unknown User",
         email: e.email || "No email",
-        contact: e.phone_number || "N/A", 
-        role: e.role || "Staff",
+        contact: e["phone-num"] || "N/A",
+        role: roleDisplayLabel(e.role),
+        roleKey: resolveEmployeeRole(e.role) ?? "STAFF",
         // Map the new columns exactly as they are spelled in the database image
         shift: e.schedule_shift || "MWF – 12-3PM", 
         lastAccessLog: e.last_access_log 
           ? new Date(e.last_access_log).toLocaleString() 
           : "No login history",
         imageUrl: e.profileImage_URL || undefined,
+        phone: e["phone-num"] || "",
+        dateOfBirth: e.date_of_birth || "",
+        isDisabled: Boolean(e.is_account_disabled),
       }));
       setEmployees(mappedData);
     }
@@ -99,14 +109,16 @@ function ManageEmployeeInner() {
     if (!employeeToAdd) return;
     setIsProcessing(true);
 
-    const dbRole = normalizeEmployeeRoleLabel(employeeToAdd.role ?? "Server") ?? "STAFF";
+    const dbRole = normalizeEmployeeRoleLabel(employeeToAdd.role ?? "Staff") ?? "STAFF";
 
     const result = await createEmployee({
       name: employeeToAdd.name,
       email: employeeToAdd.email,
       password: employeeToAdd.password || "Yangstemp123!",
       role: dbRole as any,
-      scheduleShift: dbRole === "RIDER" ? null : employeeToAdd.shift ?? null,
+      scheduleShift: employeeToAdd.shift ?? null,
+      phone: employeeToAdd.phone ?? "",
+      dateOfBirth: employeeToAdd.dateOfBirth ?? "",
       riderDetails: dbRole === "RIDER"
         ? {
             vehicle_make_model: employeeToAdd.riderDetails?.vehicle_make_model ?? "",
@@ -132,12 +144,18 @@ function ManageEmployeeInner() {
     if (!employeeToEdit || !selectedEmployee) return;
     setIsProcessing(true);
 
-    const dbRole = normalizeEmployeeRoleLabel(employeeToEdit.role ?? "Server") ?? "STAFF";
+    const dbRole = normalizeEmployeeRoleLabel(employeeToEdit.role ?? "Staff") ?? "STAFF";
 
     const result = await updateEmployeeDetails(selectedEmployee.id, {
+      name: employeeToEdit.name,
+      email: employeeToEdit.email,
       role: dbRole,
       shift: employeeToEdit.shift,
       password: employeeToEdit.password,
+      phone: employeeToEdit.phone,
+      dateOfBirth: employeeToEdit.dateOfBirth,
+      isAccountDisabled: employeeToEdit.isAccountDisabled,
+      riderDetails: employeeToEdit.riderDetails,
     });
 
     if (result.error) {
@@ -182,10 +200,10 @@ function ManageEmployeeInner() {
   }
 
   if (roleFilter !== "All Roles") {
-    const filterMapped = normalizeEmployeeRoleLabel(roleFilter) ?? "STAFF";
-    filteredEmployees = filteredEmployees.filter(
-      (e) => normalizeEmployeeRoleLabel(e.role) === filterMapped || e.role === roleFilter
-    );
+    // Exact match on the canonical role, so "Manager" shows managers and
+    // nothing else (no fallback-to-STAFF, no raw-string comparison).
+    const filterMapped = resolveEmployeeRole(roleFilter);
+    filteredEmployees = filteredEmployees.filter((e) => e.roleKey === filterMapped);
   }
 
   if (nameSort === "asc") {
@@ -401,8 +419,8 @@ function ManageEmployeeInner() {
       <Dialog
         open={employeeToEdit !== null}
         onClose={() => setEmployeeToEdit(null)}
-        title="Edit Employee Role?"
-        description={`Are you sure you want to change ${employeeToEdit?.name}'s role?`}
+        title="Save changes?"
+        description={`Are you sure you want to update ${employeeToEdit?.name}'s details?`}
         footer={
           <>
             <Button variant="outline" onClick={() => setEmployeeToEdit(null)} disabled={isProcessing}>Cancel</Button>

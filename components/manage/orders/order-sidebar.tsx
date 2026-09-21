@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-export type OrderStatus = "All" | "Queue" | "Preparation" | "Delivery" | "Completed" | "Canceled";
+export type OrderStatus = "All" | "Queue" | "Preparation" | "Delivering" | "Completed" | "Canceled";
 
 interface OrderSidebarProps {
   activeStatus: OrderStatus;
@@ -11,10 +11,15 @@ const statuses: OrderStatus[] = [
   "All",
   "Queue",
   "Preparation",
-  "Delivery",
+  "Delivering",
   "Completed",
   "Canceled",
 ];
+
+/** The tab holds delivery orders out with a rider AND take-out orders waiting for pick up. */
+const TAB_LABELS: Partial<Record<OrderStatus, string>> = {
+  Delivering: "Delivering / Pick Up",
+};
 
 export function OrderSidebar({ activeStatus, onStatusChange }: OrderSidebarProps) {
   return (
@@ -31,7 +36,7 @@ export function OrderSidebar({ activeStatus, onStatusChange }: OrderSidebarProps
               : "text-gray-600 hover:bg-[#efdfc6]/50 hover:text-black bg-black/5 md:bg-transparent"
           )}
         >
-          {status}
+          {TAB_LABELS[status] ?? status}
         </button>
       ))}
     </div>

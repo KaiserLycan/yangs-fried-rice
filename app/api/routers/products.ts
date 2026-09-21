@@ -1,3 +1,5 @@
+import { requireApiEmployee } from "@/lib/auth/api-guard";
+import { escapeLikePattern } from "@/lib/validation/like-pattern";
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
@@ -31,31 +33,57 @@ export async function getProducts(request: Request) {
     ? category.split(",").map((c) => c.trim()).filter((c) => c.length > 0)
     : [];
 
-  // When filtering by category name we need an INNER join so PostgREST
-  // can filter on the related table.  Otherwise use a normal (left) join
-  // so products without a category still appear.
-  const joinExpr = categoryFilters.length > 0
-    ? "*, categories!inner(category_name), add_on(*), review(*, customer(name, profileImage_URL))"
-    : "*, categories(category_name), add_on(*), review(*, customer(name, profileImage_URL))";
+  // Category names are resolved to ids first, then matched with `in`.
+  //
+  // This used to build a PostgREST filter by pasting the query string into
+  // `.or("category_name.ilike.%" + c + "%")`. That string is a filter
+  // expression, not a value, so a crafted `?category=` could add conditions of
+  // its own — the PostgREST equivalent of SQL injection. Ids go through `.in`,
+  // where the client sends them as values, so nothing the caller types can
+  // change the shape of the query.
+  let categoryIds: string[] | null = null;
+  if (categoryFilters.length > 0) {
+    const { data: categories, error: categoryError } = await supabase
+      .from("categories")
+      .select("category_id, category_name");
+
+    if (categoryError) {
+      return NextResponse.json({ error: categoryError.message }, { status: 500 });
+    }
+
+    const wanted = categoryFilters.map((c) => c.toLowerCase());
+    categoryIds = (categories ?? [])
+      .filter((row) =>
+        wanted.some((name) => row.category_name.toLowerCase().includes(name)),
+      )
+      .map((row) => row.category_id);
+
+    // A category nobody has matches no products; say so instead of listing
+    // the whole menu.
+    if (categoryIds.length === 0) {
+      return NextResponse.json({ count: 0, data: [] });
+    }
+  }
 
   let query = supabase
     .from("product")
-    .select(joinExpr)
+    // No `review(*, customer(...))` embed here. This route is public, so a
+    // signed-out request runs as the `anon` role — which, since
+    // 20260921000004 revoked its SELECT on `customer`, cannot read that table
+    // at all, and PostgREST fails the whole query rather than just the embed.
+    // It was also publishing reviewers' names and profile photos on an
+    // unauthenticated endpoint, and nothing on the menu screen reads them.
+    .select("*, categories(category_name), add_on(*)")
     .order("product_name");
 
-  if (categoryFilters.length === 1) {
-    // Single category — simple ILIKE
-    query = query.ilike("categories.category_name", `%${categoryFilters[0]}%`);
-  } else if (categoryFilters.length > 1) {
-    // Multiple categories — combine with OR
-    const orClause = categoryFilters
-      .map((c) => `category_name.ilike.%${c}%`)
-      .join(",");
-    query = query.or(orClause, { referencedTable: "categories" });
+  if (categoryIds) {
+    query = query.in("category_id", categoryIds);
   }
 
   if (search && search.trim().length > 0) {
-    query = query.ilike("product_name", `%${search.trim()}%`);
+    // `%` and `_` are ILIKE wildcards; escaping them keeps a search for
+    // "100% beef" from matching everything.
+    query = query.ilike("product_name", `%${escapeLikePattern(search.trim())}%`);
   }
 
   const { data, error } = await query;
@@ -76,6 +104,9 @@ export async function getProducts(request: Request) {
  * Returns 409 Conflict if the product_id already exists.
  */
 export async function createProduct(request: Request) {
+  const guard = await requireApiEmployee("MANAGER", "STAFF");
+  if (guard.response) return guard.response;
+
   let body: unknown;
   try {
     body = await request.json();
@@ -181,6 +212,9 @@ export async function getProductById(_request: Request, { params }: RouteParams)
  * Updates product fields (partial).
  */
 export async function updateProduct(request: Request, { params }: RouteParams) {
+  const guard = await requireApiEmployee("MANAGER", "STAFF");
+  if (guard.response) return guard.response;
+
   const productId = params.id;
   if (!productId) {
     return NextResponse.json(
@@ -253,6 +287,9 @@ export async function updateProduct(request: Request, { params }: RouteParams) {
  * Deletes a product permanently.
  */
 export async function deleteProduct(_request: Request, { params }: RouteParams) {
+  const guard = await requireApiEmployee("MANAGER", "STAFF");
+  if (guard.response) return guard.response;
+
   const productId = params.id;
   if (!productId) {
     return NextResponse.json(

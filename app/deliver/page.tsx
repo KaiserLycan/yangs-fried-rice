@@ -29,48 +29,63 @@ export default async function DeliverHomePage() {
   const detailedPromises = deliveries.map(summary => getDeliveryDetail(summary.deliveryId));
   const detailedResults = await Promise.all(detailedPromises);
 
-  // 3. Translate the backend Database schema into the UI's expected DeliveryData shape
+  // 3. Translate the backend Database schema into the UI's expected DeliveryData shape.
+  //
+  // One pass over the results, keeping the FULL delivery id. This used to
+  // shorten the id for display and hand that shortened string to the card, so
+  // "Accept" called acceptDelivery("A1B2C") — an id that matches nothing — and
+  // filtering one list but indexing the other paired cards with the wrong link.
   const mappedDeliveries = detailedResults
-    .filter(res => res.delivery !== null)
-    .map(res => {
-      const d = res.delivery!;
-      
+    .flatMap((res) => (res.delivery ? [res.delivery] : []))
+    .map((d) => {
       // Map PostgreSQL delivery statuses to the UI's specific layout states
       let cardStatus: "ready" | "delivering" | "completed" = "ready";
       if (d.deliveryStatus === "delivering" || d.deliveryStatus === "out_for_delivery") cardStatus = "delivering";
       if (d.deliveryStatus === "delivered") cardStatus = "completed";
 
       return {
-        // Shorten the UUID for a cleaner display on the card
-        id: d.deliveryId.substring(0, 5).toUpperCase(), 
+        id: d.deliveryId,
         customer: d.customer?.name || "Walk-in Customer",
-        address: d.customer?.address || "Address details protected",
-        
-        // Fallbacks for data the backend doesn't explicitly return yet
-        phone: "Contact via details", 
+        address: d.customer?.address || "No address provided",
+        phone: d.customer?.phone || "No phone provided",
         notes: "",
-        paymentMethod: "Standard",
-        total: "Paid", 
-        
+        paymentMethod: d.payment?.method ?? "cash_on_delivery",
+        total: d.payment?.total ?? 0,
         status: cardStatus,
-        items: d.items.map(item => ({
+        createdAt: d.createdAt ?? new Date().toISOString(),
+        items: d.items.map((item) => ({
           qty: item.quantity,
-          name: item.productName
-        }))
+          name: item.productName,
+        })),
       };
     })
-    .filter(d => d.status !== "completed");
+    .filter((d) => d.status !== "completed");
+
+  if (mappedDeliveries.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full w-full bg-[#FAF5EB]/50 p-8 text-center">
+        <div className="bg-white p-6 rounded-full shadow-sm mb-6 border border-[#DDCDB8]">
+          <Bike className="w-12 h-12 text-[#E8541F]" />
+        </div>
+        <h2 className="font-display text-[24px] text-[#1A1210] mb-2">Ready to ride?</h2>
+        <p className="text-[15px] text-[#7A6A60] max-w-[300px]">
+          No orders are waiting for delivery right now. New ones appear here as soon as the kitchen sends them out.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full w-full bg-[#FAF5EB]/50 p-4 md:p-8 overflow-y-auto">
-      <h2 className="font-display text-[24px] text-[#1A1210] mb-6">
-        Active Deliveries
+      <h2 className="font-display text-[24px] text-[#1A1210] mb-1">
+        Delivery Queue
       </h2>
+      <p className="text-[13px] text-[#7A6A60] mb-6">
+        Orders waiting for a rider, and the ones you&apos;ve accepted.
+      </p>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {mappedDeliveries.map((delivery, index) => (
-          // Using index or the raw deliveryId from the result to ensure unique keys
-          <Link key={detailedResults[index].delivery?.deliveryId || index} href={`/deliver/${detailedResults[index].delivery?.deliveryId}`} className="block">
-            {/* @ts-ignore - The mapping perfectly satisfies the required UI props */}
+        {mappedDeliveries.map((delivery) => (
+          <Link key={delivery.id} href={`/deliver/${delivery.id}`} className="block">
             <DeliveryOverviewCard delivery={delivery} />
           </Link>
         ))}

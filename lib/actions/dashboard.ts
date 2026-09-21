@@ -57,7 +57,9 @@ export async function getDashboardStats(branchId?: string): Promise<DashboardSta
   const validOrders = todayOrders.filter(o => o.order_status !== "cancelled");
   
   const deliveryCount = validOrders.filter(o => o.order_type === "delivery").length;
-  const pickupCount = validOrders.filter(o => o.order_type === "pickup").length;
+  // submitCart stores pickup as "take_out" (see lib/checkout/fulfilment-param.ts);
+  // "pickup" is kept for older rows.
+  const pickupCount = validOrders.filter(o => o.order_type === "take_out" || o.order_type === "pickup").length;
 
   let totalSales = 0;
   

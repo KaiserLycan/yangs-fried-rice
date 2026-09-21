@@ -5,20 +5,19 @@ import * as React from "react";
 import { logout } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
-import {
-  DELETE_CONFIRMATION_WORD,
-  isDeleteConfirmed,
-} from "@/lib/profile/delete-confirmation";
 
 /**
  * The two account-level controls at the foot of the profile screen.
  *
- * Log out (Cust3) was already wired. Delete account (Cust5) is now wired
- * too, to DELETE /api/profile (lib/actions/profile.ts) — same pattern as
- * logout: end the session, replace + refresh to /login so a browser Back
- * can't flash the signed-in page after the account is gone.
+ * Log out (Cust3) is a solid red button. Delete account (Cust5) is wired to
+ * DELETE /api/profile (lib/actions/profile.ts) — same pattern as logout: end
+ * the session, replace + refresh to /login so a browser Back can't flash the
+ * signed-in page after the account is gone.
+ *
+ * Deleting takes one confirmation dialog, not a type-the-word step: the
+ * dialog already states plainly that it is permanent, and a second hurdle on
+ * top of it made a deliberate action feel like a puzzle.
  */
 export function AccountActions() {
   const router = useRouter();
@@ -27,13 +26,11 @@ export function AccountActions() {
   const [dialog, setDialog] = React.useState<"none" | "logout" | "delete">(
     "none",
   );
-  const [confirmationText, setConfirmationText] = React.useState("");
   const [isSigningOut, startSigningOut] = React.useTransition();
   const [isDeleting, startDeleting] = React.useTransition();
 
   const closeDialog = () => {
     setDialog("none");
-    setConfirmationText("");
   };
 
   function handleLogOut() {
@@ -80,7 +77,7 @@ export function AccountActions() {
         <button
           type="button"
           onClick={() => setDialog("logout")}
-          className="w-full rounded-sm border border-destructive/30 bg-destructive/10 p-[10px] text-center text-[13.5px] font-bold text-destructive underline transition-colors hover:bg-destructive hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40 disabled:cursor-not-allowed disabled:opacity-60 md:px-[18px] md:py-[15px]"
+          className="w-full rounded-sm bg-error-border p-[10px] text-center text-[13.5px] font-bold text-white transition-colors hover:bg-error-border/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error-border/40 disabled:cursor-not-allowed disabled:opacity-60 md:px-[18px] md:py-[15px]"
         >
           Log out
         </button>
@@ -88,7 +85,7 @@ export function AccountActions() {
         <button
           type="button"
           onClick={() => setDialog("delete")}
-          className="w-full p-[10px] text-center text-[9px] font-bold text-muted-foreground underline"
+          className="w-full p-[10px] text-center text-[12px] font-bold text-muted-foreground underline hover:text-foreground"
         >
           Delete Account
         </button>
@@ -140,32 +137,14 @@ export function AccountActions() {
             <Button
               variant="confirm"
               className="flex-1"
-              disabled={!isDeleteConfirmed(confirmationText) || isDeleting}
+              disabled={isDeleting}
               onClick={handleDeleteAccount}
             >
               {isDeleting ? "Deleting…" : "Delete Account"}
             </Button>
           </>
         }
-      >
-        <div className="flex flex-col gap-[5px] rounded-md border border-primary bg-error-surface p-[12px]">
-          <label
-            htmlFor="delete-confirmation"
-            className="text-[11px] font-bold uppercase text-primary"
-          >
-            Type {DELETE_CONFIRMATION_WORD} to confirm
-          </label>
-          <Input
-            id="delete-confirmation"
-            name="delete-confirmation"
-            value={confirmationText}
-            onChange={(event) => setConfirmationText(event.target.value)}
-            placeholder={DELETE_CONFIRMATION_WORD}
-            autoComplete="off"
-            className="rounded-[11px] border-primary p-[12px] text-[14px]"
-          />
-        </div>
-      </Dialog>
+      />
     </>
   );
 }

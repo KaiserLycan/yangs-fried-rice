@@ -2,7 +2,8 @@
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { acceptDelivery } from "@/lib/actions/delivery";
+import { acceptDelivery, releaseDelivery } from "@/lib/actions/delivery";
+import { Dialog } from "@/components/ui/dialog";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Loader2 } from "lucide-react";
@@ -30,12 +31,35 @@ export function DeliveryOverviewCard({ delivery, isActive }: DeliveryOverviewCar
   const router = useRouter();
   const showToast = useToast();
   const [isPending, startTransition] = useTransition();
+  const [confirmRelease, setConfirmRelease] = useState(false);
 
   const isReady = delivery.status === "ready";
   const isDelivering = delivery.status === "delivering";
   const isCompleted = delivery.status === "completed";
 
   const itemCount = delivery.items.reduce((sum, item) => sum + item.qty, 0);
+
+  // The card sits inside a <Link>, so every control on it has to stop the
+  // click from navigating as well as doing its own job.
+  const handleReleaseClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setConfirmRelease(true);
+  };
+
+  const handleReleaseConfirm = () => {
+    startTransition(async () => {
+      const result = await releaseDelivery(delivery.id);
+      setConfirmRelease(false);
+      if (result.success) {
+        window.dispatchEvent(new CustomEvent("delivery-updated"));
+        showToast("Delivery handed back. Another rider can take it now.");
+        router.refresh();
+      } else {
+        showToast(result.error || "Couldn't hand this delivery back.");
+      }
+    });
+  };
 
   const handleAcceptClick = (e: React.MouseEvent) => {
     e.preventDefault(); // Stop the Link from navigating instantly
@@ -102,22 +126,64 @@ export function DeliveryOverviewCard({ delivery, isActive }: DeliveryOverviewCar
             {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : "Accept"}
           </Button>
         ) : isDelivering ? (
-          <Button 
-            className="w-full py-5 rounded-[12px] bg-[#1A1210] hover:bg-[#2c1f1c] text-white"
-            onClick={(e) => {
-              // Just let it bubble to the link so it navigates to the details page, or prevent and push
-              // Actually, preventing and pushing ensures clean navigation without Link quirks on buttons
-              e.preventDefault();
-              router.push(`/deliver/${delivery.id}?action=upload`);
-            }}
-          >
-            Arrived & Upload Proof
-          </Button>
+          <div className="flex flex-col gap-2">
+            <Button 
+              className="w-full py-5 rounded-[12px] bg-[#1A1210] hover:bg-[#2c1f1c] text-white"
+              onClick={(e) => {
+                // Just let it bubble to the link so it navigates to the details page, or prevent and push
+                // Actually, preventing and pushing ensures clean navigation without Link quirks on buttons
+                e.preventDefault();
+                router.push(`/deliver/${delivery.id}?action=upload`);
+              }}
+            >
+              Arrived & Upload Proof
+            </Button>
+            {/* Undoes an accidental Accept: the order goes back to the queue
+                for any rider, and this rider's other deliveries are untouched. */}
+            <button
+              type="button"
+              onClick={handleReleaseClick}
+              disabled={isPending}
+              className="w-full rounded-[12px] py-2 text-[13px] font-bold text-[#7A6A60] underline transition-colors hover:text-[#C0392B] disabled:opacity-60"
+            >
+              Hand back to queue
+            </button>
+          </div>
         ) : (
           <Button className="w-full py-5 rounded-[12px] bg-[#E3E8E1] text-[#7A6A60]" disabled>
             Delivered
           </Button>
         )}
+      </div>
+
+      <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+        <Dialog
+          open={confirmRelease}
+          onClose={() => setConfirmRelease(false)}
+          tone="danger"
+          title="HAND THIS DELIVERY BACK?"
+          description="It goes back to the queue and any rider can accept it. Your other deliveries aren't affected."
+          footer={
+            <>
+              <Button
+                variant="outline"
+                className="flex-1 p-[14px]"
+                onClick={() => setConfirmRelease(false)}
+                disabled={isPending}
+              >
+                Keep it
+              </Button>
+              <Button
+                variant="confirm"
+                className="flex-1"
+                onClick={handleReleaseConfirm}
+                disabled={isPending}
+              >
+                {isPending ? "Handing back…" : "Hand back"}
+              </Button>
+            </>
+          }
+        />
       </div>
     </div>
   );

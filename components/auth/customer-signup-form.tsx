@@ -11,13 +11,20 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ShowHideToggle } from "@/components/ui/show-hide-toggle";
-import { Textarea } from "@/components/ui/textarea";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { AuthTabs } from "@/components/auth/auth-tabs";
-import { AddressValidationNote } from "@/components/checkout/address-validation-note";
+import {
+  AddressValidationNote,
+  type AddressValidationStatus,
+} from "@/components/checkout/address-validation-note";
+import { addressForGeocoding } from "@/lib/address/geocoding-query";
+import { toInternationalMobile } from "@/lib/profile/mobile-number";
+import { earliestBirthdate, latestBirthdateForMinAge } from "@/lib/validation/date-of-birth";
 import { signupSchema, type SignupField } from "@/lib/validation/signup";
 import { registerCustomer } from "@/app/(auth)/actions";
 
 type FieldErrors = Partial<Record<SignupField, string>>;
+
 
 /**
  * Exported wrapper — keeps the same name/interface the page imports, so
@@ -57,6 +64,8 @@ function SignupFormInner() {
   const [isPending, startTransition] = useTransition();
   const [hasEmptyRequired, setHasEmptyRequired] = useState(true);
   const [draftAddressStr, setDraftAddressStr] = useState("");
+  const [addressStatus, setAddressStatus] =
+    useState<AddressValidationStatus>("checking");
   const formRef = useRef<HTMLFormElement>(null);
 
   function checkFormEmpty(form: HTMLFormElement) {
@@ -97,12 +106,10 @@ function SignupFormInner() {
     const c = (form.elements.namedItem("city") as HTMLInputElement)?.value;
     const z = (form.elements.namedItem("zip") as HTMLInputElement)?.value;
 
-    const combined = [
-      b && s ? `${b} ${s}` : (b || s),
-      c
-    ].filter(Boolean).join(", ");
-    
-    setDraftAddressStr(combined);
+    // Street, barangay, city and ZIP only. The house/building number is left
+    // out on purpose: "B10 L10 Camella Homes" is a lot inside a subdivision
+    // that no map lists, and including it stops the street from matching.
+    setDraftAddressStr(addressForGeocoding({ street: s, barangay: br, city: c, zip: z }));
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -112,9 +119,9 @@ function SignupFormInner() {
       firstName: String(data.get("firstName") ?? ""),
       lastName: String(data.get("lastName") ?? ""),
       email: String(data.get("email") ?? ""),
-      phone: String(data.get("phone") ?? "").replace(/[^0-9]/g, "") 
-        ? `+63${String(data.get("phone") ?? "").replace(/[^0-9]/g, "")}`
-        : "",
+      // The field only ever holds the ten digits; this is the stored form.
+      phone: toInternationalMobile(String(data.get("phone") ?? "")),
+      dateOfBirth: String(data.get("dateOfBirth") ?? ""),
       password: String(data.get("password") ?? ""),
       buildingNo: String(data.get("buildingNo") ?? ""),
       street: String(data.get("street") ?? ""),
@@ -141,6 +148,17 @@ function SignupFormInner() {
       const outcome = await registerCustomer(result.data);
       if (!outcome.success) {
         setServerError(outcome.error);
+        return;
+      }
+      // Account created but not signed in (email confirmation pending): go
+      // straight to the login page, which shows the green "check your email"
+      // notice. No detour through an error banner.
+      if (outcome.signedIn === false) {
+        const nextParam = searchParams.get("next");
+        router.push(
+          `/login?registered=1${nextParam ? `&next=${encodeURIComponent(nextParam)}` : ""}`,
+        );
+        router.refresh();
         return;
       }
       const next = searchParams.get("next") ?? "/";
@@ -219,30 +237,35 @@ function SignupFormInner() {
           </Field>
 
           <Field className="flex-1" label="Mobile number *" htmlFor="phone" error={errors.phone}>
-            <div
+            <PhoneInput
+              id="phone"
+              name="phone"
+              required
+              invalid={Boolean(errors.phone)}
               className={cn(
-                "flex w-full items-center rounded-md border bg-white focus-within:ring-2 focus-within:ring-ring/40",
+                "rounded-md border bg-white focus-within:ring-2 focus-within:ring-ring/40",
                 errors.phone ? "border-error-border" : "border-field-border"
               )}
-            >
-              <span className="pl-[14px] text-[15px] text-muted-foreground select-none pointer-events-none">+63</span>
-              <input
-                id="phone"
-                name="phone"
-                type="tel"
-                autoComplete="tel"
-                placeholder="9171234567"
-                required
-                maxLength={10}
-                minLength={8}
-                className="w-full bg-transparent px-[6px] py-[13px] text-[15px] text-foreground placeholder:text-placeholder focus:outline-none md:py-[14px]"
-                onInput={(e) => {
-                  e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, "");
-                }}
-              />
-            </div>
+              prefixClassName="pl-[14px] text-[15px] text-muted-foreground"
+              inputClassName="px-[6px] py-[13px] text-[15px] text-foreground placeholder:text-placeholder md:py-[14px]"
+            />
           </Field>
         </div>
+
+        <Field label="Date of birth" htmlFor="dateOfBirth" error={errors.dateOfBirth}>
+          <Input
+            id="dateOfBirth"
+            name="dateOfBirth"
+            type="date"
+            autoComplete="bday"
+            min={earliestBirthdate()}
+            max={latestBirthdateForMinAge()}
+            invalid={Boolean(errors.dateOfBirth)}
+          />
+          <p className="text-[12px] text-muted-foreground">
+            Optional. Must be a past date — you need to be 13 or older.
+          </p>
+        </Field>
 
         <Field
           label="Password *"
@@ -333,8 +356,24 @@ function SignupFormInner() {
         </div>
 
         <div className="-mt-1 px-1">
-          <AddressValidationNote address={draftAddressStr} />
+          <AddressValidationNote
+            address={draftAddressStr}
+            onStatusChange={setAddressStatus}
+          />
         </div>
+
+        {/* Only while the form is being sent — it is the moment the
+            confirmation email goes out, and the login page repeats it. */}
+        {isPending ? (
+          <p
+            role="status"
+            className="rounded-md bg-track px-[12px] py-[10px] text-[12.5px] leading-snug text-muted-foreground"
+          >
+            <span className="font-bold text-foreground">Check your email.</span>{" "}
+            We&apos;re sending a confirmation link — please confirm your email
+            address before logging in.
+          </p>
+        ) : null}
 
         <label className="flex items-start gap-[9px] text-[13px] mt-1 mb-1">
           <Checkbox name="terms" required />
@@ -343,7 +382,12 @@ function SignupFormInner() {
           </span>
         </label>
 
-        <Button type="submit" disabled={isPending || hasEmptyRequired}>
+        {/* An address outside the delivery radius (or one the map can't find)
+            can't be used to sign up — the note above says why. */}
+        <Button
+          type="submit"
+          disabled={isPending || hasEmptyRequired || addressStatus === "invalid"}
+        >
           {isPending ? "Creating account…" : "Create account"}
         </Button>
 

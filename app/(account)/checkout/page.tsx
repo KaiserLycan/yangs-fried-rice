@@ -5,6 +5,7 @@ import { fulfilmentFromParam } from "@/lib/checkout/fulfilment-param";
 import { formatOrderTime } from "@/lib/checkout/order-time";
 import { readCart } from "@/lib/cart/read-cart";
 import { readCustomerProfile } from "@/lib/profile/customer-profile";
+import { validateNcrAddress } from "@/lib/address/validate-ncr";
 
 /**
  * Checkout (Browsing8-10, TPI1; GitHub issue #22) — order review and payment
@@ -39,6 +40,20 @@ export default async function CheckoutPage({
 
   const fulfilment = fulfilmentFromParam(searchParams.fulfilment);
 
+  // Distance to the delivery address drives the fee, so the total shown here
+  // is the total `submitCart` will charge (it recomputes the same figure
+  // server-side). Best effort: if the geocoder is unreachable the fee falls
+  // back to the base rate rather than blocking checkout.
+  let distanceKm: number | null = null;
+  if (fulfilment === "delivery" && profile.deliverToAddress) {
+    try {
+      const check = await validateNcrAddress(profile.deliverToAddress);
+      if (Number.isFinite(check.distanceKm)) distanceKm = check.distanceKm ?? null;
+    } catch {
+      distanceKm = null;
+    }
+  }
+
   return (
     <ToastProvider>
       <CheckoutScreen
@@ -46,6 +61,7 @@ export default async function CheckoutPage({
         cartId={cartId}
         lines={lines}
         fulfilment={fulfilment}
+        distanceKm={distanceKm}
         placedAtLabel={formatOrderTime(new Date())}
       />
     </ToastProvider>

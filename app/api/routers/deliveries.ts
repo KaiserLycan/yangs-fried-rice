@@ -1,3 +1,4 @@
+import { requireApiEmployee } from "@/lib/auth/api-guard";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { deliveryUpdateSchema } from "@/lib/validation/delivery";
@@ -19,6 +20,9 @@ interface RouteParams {
  * Requires: manager or staff.
  */
 export async function getDeliveries(request: Request) {
+  const guard = await requireApiEmployee("MANAGER", "STAFF", "RIDER");
+  if (guard.response) return guard.response;
+
   const supabase = createClient();
   const { searchParams } = new URL(request.url);
 
@@ -66,6 +70,9 @@ export async function getDeliveryById(
   _request: Request,
   { params }: RouteParams
 ) {
+  const guard = await requireApiEmployee("MANAGER", "STAFF", "RIDER");
+  if (guard.response) return guard.response;
+
   const supabase = createClient();
 
   const { data, error } = await supabase
@@ -98,6 +105,9 @@ export async function updateDelivery(
   request: Request,
   { params }: RouteParams
 ) {
+  const guard = await requireApiEmployee("MANAGER", "STAFF");
+  if (guard.response) return guard.response;
+
   let body: unknown;
   try {
     body = await request.json();

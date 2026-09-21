@@ -1,7 +1,7 @@
-"use client";
-
-import { usePathname } from "next/navigation";
-import { Sidebar } from "@/components/manage/sidebar";
+import { cookies } from "next/headers";
+import { ManageShell } from "@/components/manage/manage-shell";
+import { decrypt, SESSION_COOKIE_NAME } from "@/lib/auth/session";
+import { resolveEmployeeRole } from "@/lib/auth/roles";
 
 /**
  * Back office layout. Staff and Business Owner.
@@ -10,38 +10,23 @@ import { Sidebar } from "@/components/manage/sidebar";
  * the whole area with one /manage/:path* match, and any page added here later
  * is protected automatically.
  *
- * ============================================================
- * WHY THIS LAYOUT IS NOT ASYNC
- * ============================================================
- * Previously, this layout was an `async` Server Component that
- * called `supabase.auth.getUser()` and queried the employee
- * table on every render. Because Next.js re-renders layouts on
- * every client-side navigation, those two Supabase round-trips
- * ran on EVERY sidebar tab click, making navigation noticeably
- * slow (~1-2s per click).
+ * This layout reads the employee's role from the signed session cookie — a
+ * local JWT verify, NOT a Supabase round-trip — so the sidebar can hide the
+ * manager-only pages from STAFF on the very first paint. (The layout used to
+ * be async and query Supabase on every navigation, which made tab switching
+ * slow; a cookie decrypt costs nothing by comparison.)
  *
- * The auth check was redundant — middleware.ts already guards
- * all /manage/* routes and verifies the employee record.
- * Removing it makes tab switching instant.
- *
- * Role-based routing (MANAGER → dashboard, STAFF → orders,
- * RIDER → deliver) is handled at login time in actions.ts.
- * ============================================================
+ * Authorisation itself lives in middleware.ts (canAccessManagePath) and in
+ * each server action; hiding a link is presentation, not protection.
  */
-export default function ManageLayout({
+export default async function ManageLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const pathname = usePathname();
-  const isKds = pathname === "/manage/kds";
+  const token = cookies().get(SESSION_COOKIE_NAME)?.value;
+  const payload = token ? await decrypt(token) : null;
+  const role = resolveEmployeeRole(payload?.role);
 
-  return (
-    <div className="flex h-screen bg-[#fbf6ec]">
-      {!isKds && <Sidebar />}
-      <main className={`flex-1 overflow-y-auto ${isKds ? "" : "px-[30px] py-[26px]"}`}>
-        {children}
-      </main>
-    </div>
-  );
+  return <ManageShell role={role}>{children}</ManageShell>;
 }

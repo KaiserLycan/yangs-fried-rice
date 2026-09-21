@@ -41,6 +41,7 @@ function LoginFormInner() {
   const [showPassword, setShowPassword] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [hasEmptyRequired, setHasEmptyRequired] = useState(true);
+  const justRegistered = searchParams.get("registered") === "1";
   const formRef = useRef<HTMLFormElement>(null);
 
   function checkFormEmpty(form: HTMLFormElement) {
@@ -129,6 +130,15 @@ function LoginFormInner() {
             Log in to reorder in two taps.
           </p>
         </div>
+
+        {/* Arrived here straight from sign-up. Green, because nothing went
+            wrong: the account exists and the only step left is the email. */}
+        {justRegistered && !serverError ? (
+          <Alert tone="success" role="status">
+            Account created! Check your inbox and confirm your email address,
+            then log in.
+          </Alert>
+        ) : null}
 
         {serverError ? (
           <Alert>{serverError}</Alert>

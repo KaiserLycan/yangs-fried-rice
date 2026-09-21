@@ -9,6 +9,7 @@ import {
   type SalesReportData,
   type PlatformPerformanceData,
 } from "@/lib/actions/reports";
+import { SALES_REPORT, normalizeReportType } from "@/lib/reports/report-types";
 import type { DailySales, RankedProduct } from "@/lib/actions/dashboard";
 
 interface ReportsChartsProps {
@@ -17,34 +18,61 @@ interface ReportsChartsProps {
   endDate: string;
 }
 
-function ChartSkeleton() {
+/** One ranking-card placeholder: a title and a few label + bar rows. */
+function RankingSkeleton({ rows = 4 }: { rows?: number }) {
+  return (
+    <div className="flex flex-col gap-3 rounded-2xl border border-[#e3d6c3] bg-white px-[18px] pb-[62px] pt-[18px]">
+      <div className="h-3 w-24 bg-[#efe6d8] rounded-full animate-pulse" />
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="flex flex-col gap-[5px]">
+          <div className="flex items-center justify-between">
+            <div className="h-3 w-28 bg-[#efe6d8] rounded-full animate-pulse" />
+            <div className="h-3 w-14 bg-[#efe6d8] rounded-full animate-pulse" />
+          </div>
+          <div className="h-[7px] w-full rounded-full bg-[#efe6d8] animate-pulse" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Placeholder with the same layout as the report it stands in for:
+ *  - Sales and Order: a chart beside a ranking (2 columns).
+ *  - Menu & Customer Satisfaction: two rankings side by side, then a
+ *    full-width ratings card underneath.
+ * A single fixed skeleton made the page reflow when the real content arrived.
+ */
+function ChartSkeleton({ variant }: { variant: "sales" | "menu" }) {
+  if (variant === "menu") {
+    return (
+      <div className="flex flex-col gap-3 md:gap-4">
+        <div className="flex flex-col gap-3 md:grid md:grid-cols-[1.4fr_1fr] md:gap-4">
+          <RankingSkeleton />
+          <RankingSkeleton />
+        </div>
+        <RankingSkeleton rows={5} />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-3 md:grid md:grid-cols-[1.4fr_1fr] md:gap-4">
       <div className="flex flex-col gap-[18px] rounded-2xl border border-[#e3d6c3] bg-white p-[18px]">
         <div className="h-3 w-32 bg-[#efe6d8] rounded-full animate-pulse" />
         <div className="h-[190px] w-full bg-[#efe6d8]/50 rounded-xl animate-pulse" />
       </div>
-      <div className="flex flex-col gap-3 rounded-2xl border border-[#e3d6c3] bg-white px-[18px] pb-[62px] pt-[18px]">
-        <div className="h-3 w-24 bg-[#efe6d8] rounded-full animate-pulse" />
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="flex flex-col gap-[5px]">
-            <div className="flex items-center justify-between">
-              <div className="h-3 w-28 bg-[#efe6d8] rounded-full animate-pulse" />
-              <div className="h-3 w-14 bg-[#efe6d8] rounded-full animate-pulse" />
-            </div>
-            <div className="h-[7px] w-full rounded-full bg-[#efe6d8] animate-pulse" />
-          </div>
-        ))}
-      </div>
+      <RankingSkeleton />
     </div>
   );
 }
 
 export function ReportsCharts({
-  type = "Sales and Order",
+  type: rawType = SALES_REPORT,
   startDate,
   endDate,
 }: ReportsChartsProps) {
+  const type = normalizeReportType(rawType);
   const [salesData, setSalesData] = useState<SalesReportData | null>(null);
   const [perfData, setPerfData] = useState<PlatformPerformanceData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -58,7 +86,7 @@ export function ReportsCharts({
       setError(null);
 
       try {
-        if (type === "Sales and Order") {
+        if (type === SALES_REPORT) {
           const [salesResult, perfResult] = await Promise.all([
             getSalesReportData({
               start_date: startDate,
@@ -81,7 +109,7 @@ export function ReportsCharts({
             setPerfData(perfResult.data);
           }
         } else {
-          // Menu Items reports and Customer Satisfaction both use performance data
+          // Menu & Customer Satisfaction: one performance read feeds every card
           const result = await getPlatformPerformance({
             start_date: startDate,
             end_date: endDate,
@@ -105,7 +133,9 @@ export function ReportsCharts({
     return () => { cancelled = true; };
   }, [type, startDate, endDate]);
 
-  if (isLoading) return <ChartSkeleton />;
+  const skeletonVariant = type === SALES_REPORT ? "sales" : "menu";
+
+  if (isLoading) return <ChartSkeleton variant={skeletonVariant} />;
 
   if (error) {
     return (
@@ -115,65 +145,39 @@ export function ReportsCharts({
     );
   }
 
-  if (type === "Customer Satisfaction" && perfData) {
-    // Map top products as a proxy for satisfaction data
-    const topItems: RankedProduct[] = perfData.topSellingProducts.map((p, i) => ({
-      name: p.productName,
-      count: p.quantitySold,
-      percentage:
-        perfData.topSellingProducts[0]?.quantitySold > 0
-          ? Math.round(
-              (p.quantitySold / perfData.topSellingProducts[0].quantitySold) * 100
-            )
-          : 0,
-    }));
-
-    return (
-      <div className="flex flex-col gap-3 md:grid md:grid-cols-2 md:gap-4">
-        <div>
-          <ProductRanking
-            title="Most Ordered Items"
-            items={topItems.slice(0, 5)}
-          />
-        </div>
-        <div>
-          <ProductRanking
-            title="Least Ordered Items"
-            items={topItems.length > 5 ? topItems.slice(-3).reverse() : []}
-          />
-        </div>
-      </div>
-    );
-  }
-
-  if (type === "Menu Items reports" && perfData) {
+  if (type !== SALES_REPORT && perfData) {
+    const topQuantity = perfData.topSellingProducts[0]?.quantitySold ?? 0;
     const topItems: RankedProduct[] = perfData.topSellingProducts.map((p) => ({
       name: p.productName,
       count: p.quantitySold,
-      percentage:
-        perfData.topSellingProducts[0]?.quantitySold > 0
-          ? Math.round(
-              (p.quantitySold / perfData.topSellingProducts[0].quantitySold) * 100
-            )
-          : 0,
+      percentage: topQuantity > 0 ? Math.round((p.quantitySold / topQuantity) * 100) : 0,
     }));
 
+    // Split the ranking so the same product never appears in both halves.
     const halfLen = Math.ceil(topItems.length / 2);
 
+    const { distribution, totalReviews } = perfData.customerSatisfaction;
+    const mostRated = Math.max(0, ...distribution.map((d) => d.count));
+    const ratingItems: RankedProduct[] = distribution.map((d) => ({
+      name: `${d.rating} ★`,
+      count: d.count,
+      percentage: mostRated > 0 ? Math.round((d.count / mostRated) * 100) : 0,
+    }));
+
     return (
-      <div className="flex flex-col gap-3 md:grid md:grid-cols-[1.4fr_1fr] md:gap-4">
-        <div>
-          <ProductRanking
-            title="Most Sold Items"
-            items={topItems.slice(0, halfLen)}
-          />
-        </div>
-        <div>
+      <div className="flex flex-col gap-3 md:gap-4">
+        <div className="flex flex-col gap-3 md:grid md:grid-cols-[1.4fr_1fr] md:gap-4">
+          <ProductRanking title="Most Sold Items" items={topItems.slice(0, halfLen)} />
           <ProductRanking
             title="Least Sold Items"
             items={topItems.slice(halfLen).reverse()}
           />
         </div>
+        <ProductRanking
+          title={`Customer Ratings · ${totalReviews} ${totalReviews === 1 ? "review" : "reviews"}`}
+          items={totalReviews > 0 ? ratingItems : []}
+          unit="reviews"
+        />
       </div>
     );
   }
@@ -233,5 +237,5 @@ export function ReportsCharts({
     );
   }
 
-  return <ChartSkeleton />;
+  return <ChartSkeleton variant={skeletonVariant} />;
 }

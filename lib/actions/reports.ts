@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { isEmployeeRole, isManager, type EmployeeRole } from "@/lib/auth/roles";
+import { resolveEmployeeRole, isManager, type EmployeeRole } from "@/lib/auth/roles";
 import {
   reportDateRangeSchema,
   salesReportQuerySchema,
@@ -91,6 +91,16 @@ export type PlatformPerformanceData = {
   revenueTrend: RevenueTrend;
   topSellingProducts: TopSellingProduct[];
   totalAvailableProducts: number;
+  customerSatisfaction: CustomerSatisfaction;
+};
+
+/** Ratings customers left on their orders/dishes within the report range. */
+export type CustomerSatisfaction = {
+  /** Mean rating to one decimal, or null when nobody has rated anything yet. */
+  averageRating: number | null;
+  totalReviews: number;
+  /** One entry per star, 5 → 1, so a chart can draw them in order. */
+  distribution: { rating: number; count: number }[];
 };
 
 // ---------------------------------------------------------------------------
@@ -119,8 +129,8 @@ async function requireReportAccess(): Promise<
     return { data: null, error: "You are not registered as an employee." };
   }
 
-  const role = employee.role;
-  if (!role || !isEmployeeRole(role) || !isManager(role)) {
+  const role = resolveEmployeeRole(employee.role);
+  if (!role || !isManager(role)) {
     return {
       data: null,
       error: "Only admin and manager can access reports.",
@@ -128,7 +138,7 @@ async function requireReportAccess(): Promise<
   }
 
   return {
-    data: { employee_id: employee.employee_id, role: role as EmployeeRole },
+    data: { employee_id: employee.employee_id, role },
     error: null,
   };
 }
@@ -453,6 +463,30 @@ export async function getPlatformPerformance(
         ? 100
         : 0;
 
+  // --- 6. Customer satisfaction: ratings left in the range ---
+  // A failure here must not sink the whole report, so it degrades to "no
+  // ratings yet" instead of returning an error.
+  const { data: reviewRows } = await supabase
+    .from("review")
+    .select("rating")
+    .gte("created_at", start_date)
+    .lte("created_at", end_date + "T23:59:59.999Z");
+
+  const ratings = (reviewRows ?? [])
+    .map((row) => row.rating)
+    .filter((rating): rating is number => typeof rating === "number");
+  const customerSatisfaction: CustomerSatisfaction = {
+    averageRating:
+      ratings.length > 0
+        ? Math.round((ratings.reduce((sum, r) => sum + r, 0) / ratings.length) * 10) / 10
+        : null,
+    totalReviews: ratings.length,
+    distribution: [5, 4, 3, 2, 1].map((rating) => ({
+      rating,
+      count: ratings.filter((r) => r === rating).length,
+    })),
+  };
+
   return {
     data: {
       dateRange: { start_date, end_date },
@@ -470,6 +504,7 @@ export async function getPlatformPerformance(
       },
       topSellingProducts,
       totalAvailableProducts,
+      customerSatisfaction,
     },
     error: null,
   };
@@ -804,6 +839,19 @@ export async function generatePerformancePDF(
       {
         label: "Revenue Trend (vs Prior)",
         value: `${trendSign}${data.revenueTrend.percentChange}% (Prior: ${formatPeso(data.revenueTrend.previousPeriodRevenue)})`,
+      },
+    ],
+    [
+      {
+        label: "Customer Rating",
+        value:
+          data.customerSatisfaction.averageRating === null
+            ? "No ratings yet"
+            : `${data.customerSatisfaction.averageRating} / 5 (${data.customerSatisfaction.totalReviews} reviews)`,
+      },
+      {
+        label: "5-Star Reviews",
+        value: `${data.customerSatisfaction.distribution.find((d) => d.rating === 5)?.count ?? 0}`,
       },
     ],
   ]);
