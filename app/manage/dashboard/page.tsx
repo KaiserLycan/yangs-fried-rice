@@ -6,7 +6,6 @@ import {
   getDashboardStats,
   getWeeklySales,
   getTopSellers,
-  getTopRatedProducts,
 } from "@/lib/actions/dashboard";
 
 /**
@@ -19,7 +18,7 @@ import {
 export const metadata: Metadata = {
   title: "Dashboard — Yang's Admin",
   description:
-    "Today at a glance: sales, orders, top sellers, and top rated items.",
+    "Today at a glance: sales, orders, and top sellers.",
 };
 
 export default async function DashboardPage() {
@@ -40,11 +39,10 @@ export default async function DashboardPage() {
     redirect("/manage/orders");
   }
 
-  const [stats, weeklySales, topSellers, topRated] = await Promise.all([
+  const [stats, weeklySales, topSellers] = await Promise.all([
     getDashboardStats(),
     getWeeklySales(),
     getTopSellers(),
-    getTopRatedProducts(),
   ]);
 
   // Branch mock for now until multi-branch support
@@ -60,7 +58,6 @@ export default async function DashboardPage() {
       stats={stats}
       weeklySales={weeklySales}
       topSellers={topSellers}
-      topRated={topRated}
       dateStr={dateStr}
       branchName={branchName}
     />

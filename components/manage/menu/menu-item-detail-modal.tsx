@@ -381,7 +381,7 @@ export function MenuItemDetailModal({
                   placeholder="New add-on name..."
                   value={newAddonName}
                   onChange={(e) => setNewAddonName(e.target.value)}
-                  className="flex-1 rounded-[10px] border border-[#ddcdb8] bg-white px-3 py-2 text-[14px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
+                  className="flex-1 min-w-0 rounded-[10px] border border-[#ddcdb8] bg-white px-3 py-2 text-[14px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
                 />
                 <input
                   placeholder="₱ 0.00"
@@ -394,7 +394,7 @@ export function MenuItemDetailModal({
                       setNewAddonPrice(val);
                     }
                   }}
-                  className="w-[80px] rounded-[10px] border border-[#ddcdb8] bg-white px-3 py-2 text-[14px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
+                  className="w-[70px] shrink-0 rounded-[10px] border border-[#ddcdb8] bg-white px-3 py-2 text-[14px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
                 />
                 <button
                   type="button"
@@ -404,37 +404,6 @@ export function MenuItemDetailModal({
                 >
                   <Plus className="h-5 w-5 text-white" />
                 </button>
-              </div>
-            </div>
-
-            {/* Reviews */}
-            <div className="flex flex-col gap-2 rounded-[12px] border border-[#ddcdb8] bg-[#fbf6ec] p-[16px]">
-              <div className="flex items-center justify-between">
-                <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
-                  Reviews
-                </label>
-                {item.rating > 0 && (
-                  <div className="flex items-center gap-1">
-                    <span className="text-[14px] font-bold text-[#e8541f]">★ {item.rating.toFixed(1)}</span>
-                    <span className="text-[12px] text-[#a2938a]">({item.reviews?.length || 0})</span>
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex flex-col gap-3 mt-2">
-                {(!item.reviews || item.reviews.length === 0) ? (
-                  <p className="text-[13px] text-[#a2938a] italic">No reviews yet.</p>
-                ) : (
-                  item.reviews.slice(0, 5).map((rev) => (
-                    <div key={rev.id} className="flex flex-col gap-1 border-b border-[#ddcdb8] pb-2 last:border-0 last:pb-0">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[13px] font-bold text-[#1a1210]">{rev.customerName}</span>
-                        <span className="text-[12px] text-[#e8541f]">★ {rev.rating}</span>
-                      </div>
-                      {rev.comment && <p className="text-[12px] text-[#7a6a60] leading-snug">"{rev.comment}"</p>}
-                    </div>
-                  ))
-                )}
               </div>
             </div>
 

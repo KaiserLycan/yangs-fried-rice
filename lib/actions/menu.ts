@@ -47,7 +47,7 @@ export async function getMenuData(): Promise<
   // Parallel fetches on the server, but only one HTTP request from the client
   const [catsRes, prodsRes] = await Promise.all([
     supabase.from("categories").select("*").order("category_name"),
-    supabase.from("product").select("*, categories ( category_name ), add_on ( * ), review ( *, customer ( name, profileImage_URL ) )").order("product_name")
+    supabase.from("product").select("*, categories ( category_name ), add_on ( * )").order("product_name")
   ]);
 
   if (catsRes.error) return { data: null, error: catsRes.error.message };
@@ -181,7 +181,7 @@ export async function getProducts(): Promise<
 
   const { data, error } = await supabase
     .from("product")
-    .select("*, categories ( category_name ), add_on ( * ), review ( *, customer ( name, profileImage_URL ) )")
+    .select("*, categories ( category_name ), add_on ( * )")
     .order("product_name");
 
   if (error) return { data: null, error: error.message };
@@ -196,7 +196,7 @@ export async function getProductsByCategory(
 
   const { data, error } = await supabase
     .from("product")
-    .select("*, categories ( category_name ), add_on ( * ), review ( *, customer ( name, profileImage_URL ) )")
+    .select("*, categories ( category_name ), add_on ( * )")
     .eq("category_id", categoryId)
     .order("product_name");
 

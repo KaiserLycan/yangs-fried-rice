@@ -25,9 +25,7 @@ export function ProductCard({
   product: ProductListing;
   onSelect: (product: ProductListing) => void;
 }) {
-  const rating = product.reviews && product.reviews.length > 0 
-    ? product.reviews.reduce((acc, curr) => acc + curr.rating, 0) / product.reviews.length 
-    : 0;
+
 
   return (
     <button 
@@ -50,10 +48,7 @@ export function ProductCard({
           <h3 className="text-[15px] font-bold text-foreground">
             {product.name}
           </h3>
-          <div className="flex shrink-0 items-center gap-1 mt-0.5">
-            <span className="text-[12px] font-bold text-accent">★ {rating > 0 ? rating.toFixed(1) : "0.0"}</span>
-            <span className="text-[11px] text-muted-foreground">({product.reviews?.length || 0})</span>
-          </div>
+
         </div>
 
         <p className="line-clamp-2 flex-1 text-[13px] text-muted-foreground">

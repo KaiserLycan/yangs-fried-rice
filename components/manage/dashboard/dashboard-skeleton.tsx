@@ -4,8 +4,6 @@
  * Mirrors the exact layout of the real dashboard:
  *   - 3 stat cards across the top
  *   - Sales chart (left, spanning 1.4fr) + Top Sellers (right, 1fr)
- *   - Top Rated below Top Sellers
- *
  * Uses Tailwind's `animate-pulse` for the shimmer effect.
  */
 
@@ -69,6 +67,7 @@ function RankingSkeleton() {
 
 export function DashboardSkeleton() {
   return (
+
     <div className="flex flex-col gap-5">
       {/* Header skeleton */}
       <div className="flex flex-col md:flex-row md:items-baseline gap-2 md:gap-3.5">
@@ -88,10 +87,6 @@ export function DashboardSkeleton() {
         <div className="md:row-span-1">
           <ChartSkeleton />
         </div>
-        <div className="md:row-span-1">
-          <RankingSkeleton />
-        </div>
-        <div className="hidden md:block" />
         <div className="md:row-span-1">
           <RankingSkeleton />
         </div>

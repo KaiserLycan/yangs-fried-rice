@@ -318,7 +318,7 @@ export function MenuItemModal({
                   placeholder="New add-on name..."
                   value={tempAddonName}
                   onChange={(e) => setTempAddonName(e.target.value)}
-                  className="flex-1 rounded-[10px] border border-[#ddcdb8] bg-white px-3 py-2 text-[14px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
+                  className="flex-1 min-w-0 rounded-[10px] border border-[#ddcdb8] bg-white px-3 py-2 text-[14px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
                 />
                 <input
                   placeholder="₱ 0.00"
@@ -331,7 +331,7 @@ export function MenuItemModal({
                       setTempAddonPrice(val);
                     }
                   }}
-                  className="w-[80px] rounded-[10px] border border-[#ddcdb8] bg-white px-3 py-2 text-[14px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
+                  className="w-[70px] shrink-0 rounded-[10px] border border-[#ddcdb8] bg-white px-3 py-2 text-[14px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
                 />
                 <button
                   type="button"
