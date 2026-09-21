@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getOrderEtaAction } from "@/lib/actions/eta";
@@ -17,8 +18,10 @@ import {
   resolveOrderProgress,
   timelineStages,
 } from "@/lib/orders/order-stage";
+import { isPickup } from "@/lib/orders/past-order";
 import type { TrackedOrder } from "@/lib/orders/read-tracked-order";
 import { Alert } from "@/components/ui/alert";
+import { AssignedRiderCard } from "@/components/orders/assigned-rider-card";
 import { CancelOrderControl } from "@/components/orders/cancel-order-control";
 import { LiveMapPanel } from "@/components/orders/live-map-panel";
 import { OrderTimeline } from "@/components/orders/order-timeline";
@@ -95,6 +98,21 @@ export function TrackOrderScreen({
   serverStatusRef.current = serverStatus;
 
   const { orderId } = order;
+
+  /**
+   * The rider is the one thing on this screen the subscription cannot patch
+   * in: a delivery event carries `rider_id`, but the name, photo and vehicle
+   * live on `rider` and `employee`. So when the id changes the page is asked
+   * to re-read, and the card fills from the next server render. Both the id
+   * and the router go through refs for the same reason as `serverStatusRef`
+   * — the handler closes over the first render, and the router must not be
+   * an effect dependency or the channel would reopen on every render.
+   */
+  const router = useRouter();
+  const routerRef = React.useRef(router);
+  routerRef.current = router;
+  const riderIdRef = React.useRef(order.rider?.riderId ?? null);
+  riderIdRef.current = order.rider?.riderId ?? null;
 
   /**
    * The arrival window moves too, but not over the subscription: the ETA is
@@ -184,6 +202,9 @@ export function TrackOrderScreen({
               (payload.new?.delivery_status as string | null) ?? null,
           }));
           refreshEta();
+
+          const riderId = (payload.new?.rider_id as string | null) ?? null;
+          if (riderId !== riderIdRef.current) routerRef.current.refresh();
         },
       )
       .subscribe();
@@ -211,6 +232,14 @@ export function TrackOrderScreen({
     ? `${order.orderType ?? "Delivery"} to ${order.destination}`
     : null;
   const subline = [arrival, destination].filter(Boolean).join(" · ");
+
+  // A rider only ever exists for a delivery, and an empty card on a cancelled
+  // order would promise one that is never coming. A rider already on the
+  // order stays visible regardless — the customer may still want to know
+  // who has their food.
+  const showRider =
+    order.rider !== null ||
+    (!isPickup(order.orderType) && progress.kind !== "cancelled");
 
   return (
     <div className="min-h-screen bg-background">
@@ -259,9 +288,9 @@ export function TrackOrderScreen({
 
         {/* Second on mobile, right-hand column on desktop. */}
         <LiveMapPanel
-          riderName={order.riderName}
+          riderName={order.rider?.name ?? null}
           destinationCoordinates={order.destinationCoordinates}
-          className="md:col-start-2 md:row-start-1 md:row-span-2"
+          className="md:col-start-2 md:row-start-1 md:row-span-3"
           locationIqApiKey={locationIqApiKey}
         />
 
@@ -309,6 +338,14 @@ export function TrackOrderScreen({
             </div>
           )}
         </div>
+
+        {/* Fourth on mobile, third row of the left column on desktop. */}
+        {showRider && (
+          <AssignedRiderCard
+            rider={order.rider}
+            className="border-t border-rule md:col-start-1 md:row-start-3 md:border-t"
+          />
+        )}
       </div>
     </div>
   );
@@ -316,9 +353,9 @@ export function TrackOrderScreen({
 
 /**
  * Mobile is a plain stack in DOM order. Desktop becomes a two-column grid
- * whose second column holds the map across both rows, which is what lets the
- * map move from between the header and the timeline to beside them without
- * the markup changing.
+ * whose second column holds the map across all three rows — header, timeline,
+ * rider — which is what lets the map move from between the header and the
+ * timeline to beside them without the markup changing.
  */
 const cnGrid =
-  "mx-auto flex w-full max-w-[1200px] flex-col md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] md:grid-rows-[auto_auto] md:items-start md:gap-[26px] md:px-[26px] md:pb-[60px] md:pt-[30px]";
+  "mx-auto flex w-full max-w-[1200px] flex-col md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] md:grid-rows-[auto_auto_auto] md:items-start md:gap-[26px] md:px-[26px] md:pb-[60px] md:pt-[30px]";

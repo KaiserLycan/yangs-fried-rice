@@ -2,6 +2,12 @@
 
 This document tracks all the pending/unimplemented acceptance criteria from open issues regarding the backend, frontend, and API. It has been updated to reflect the current state of the codebase.
 
+## Pending: assigned rider on the customer tracking screen
+The tracking screen (`/orders/[orderId]`) now shows the assigned rider's name, photo, vehicle and plate once `delivery.rider_id` is set (`lib/orders/read-tracked-order.ts`, `components/orders/assigned-rider-card.tsx`).
+- [ ] **Backend:** nothing creates the `delivery` row. `acceptDelivery` in `lib/actions/delivery.ts` only updates an existing row, and no insert or trigger writes one when an order is dispatched — so the rider queue is empty and the card can only be tested with a hand-inserted row.
+- [ ] **Backend:** no `employee.phone_number` column. A "Call rider" button on the card is waiting on it; the customer table already has the equivalent column.
+- [ ] **Backend:** confirm customers can read `rider` (`vehicle_make_model`, `vehicle_plate_number`) and `employee` (`name`, `profileImage_URL`) under RLS. If either is blocked the card reads as "Rider not assigned yet" even with a rider on the row.
+
 ## Issue #42: SAS1- Administrators should be able to view and manage all registered user accounts, remote orders, and payments (CLOSED)
 - [x] **Implemented:** Frontend UI for managing customers (`app/manage/customers`) and orders (`app/manage/orders`) is fully wired to live Supabase queries and mutations.
 
