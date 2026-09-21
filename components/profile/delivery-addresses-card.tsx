@@ -329,35 +329,93 @@ function AddressFormDialog({
     Partial<Record<DeliveryAddressField, string>>
   >({});
   const [draftAddressStr, setDraftAddressStr] = React.useState("");
+  const [draftValues, setDraftValues] = React.useState({
+    buildingNo: "",
+    street: "",
+    barangay: "",
+    city: "",
+    zip: "",
+  });
 
   React.useEffect(() => {
     if (!open) {
       setErrors({});
+      setDraftValues({
+        buildingNo: "",
+        street: "",
+        barangay: "",
+        city: "",
+        zip: "",
+      });
+      setDraftAddressStr("");
     } else if (address?.addressDetails) {
+      const parsed = parseAddress(address.addressDetails);
+      setDraftValues({
+        buildingNo: parsed.buildingNo,
+        street: parsed.street,
+        barangay: parsed.barangay,
+        city: parsed.city,
+        zip: parsed.zip,
+      });
       setDraftAddressStr(address.addressDetails);
     } else {
+      setDraftValues({
+        buildingNo: "",
+        street: "",
+        barangay: "",
+        city: "",
+        zip: "",
+      });
       setDraftAddressStr("");
     }
   }, [open, address]);
 
   function handleFormChange(event: React.FormEvent<HTMLFormElement>) {
     const form = event.currentTarget;
-    const b = (form.elements.namedItem("buildingNo") as HTMLInputElement)?.value;
-    const s = (form.elements.namedItem("street") as HTMLInputElement)?.value;
-    const br = (form.elements.namedItem("barangay") as HTMLInputElement)?.value;
-    const c = (form.elements.namedItem("city") as HTMLInputElement)?.value;
-    const z = (form.elements.namedItem("zip") as HTMLInputElement)?.value;
+    const nextValues = {
+      buildingNo: (form.elements.namedItem("buildingNo") as HTMLInputElement)?.value ?? "",
+      street: (form.elements.namedItem("street") as HTMLInputElement)?.value ?? "",
+      barangay: (form.elements.namedItem("barangay") as HTMLInputElement)?.value ?? "",
+      city: (form.elements.namedItem("city") as HTMLInputElement)?.value ?? "",
+      zip: (form.elements.namedItem("zip") as HTMLInputElement)?.value ?? "",
+    };
+
+    setDraftValues(nextValues);
 
     const combined = [
-      b && s ? `${b} ${s}` : (b || s),
-      c
+      nextValues.buildingNo && nextValues.street
+        ? `${nextValues.buildingNo} ${nextValues.street}`
+        : (nextValues.buildingNo || nextValues.street),
+      nextValues.city,
     ].filter(Boolean).join(", ");
-    
+
     setDraftAddressStr(combined);
   }
 
+  const [validationState, setValidationState] = React.useState<
+    { status: "checking" | "valid" | "invalid" | "unavailable"; message?: string }
+  >({ status: "checking" });
+
+  const addressDraft = [
+    draftValues.buildingNo,
+    draftValues.street,
+    draftValues.barangay,
+    draftValues.city,
+    draftValues.zip,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  const saveDisabled =
+    isSubmitting ||
+    !addressDraft.trim() ||
+    validationState.status !== "valid";
+
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (saveDisabled) {
+      return;
+    }
     const form = new FormData(event.currentTarget);
     const result = deliveryAddressSchema.safeParse({
       label: String(form.get("label") ?? ""),
@@ -395,7 +453,8 @@ function AddressFormDialog({
             className="flex-1"
             type="submit"
             form={formId}
-            disabled={isSubmitting}
+            disabled={saveDisabled}
+            aria-disabled={saveDisabled}
           >
             {isSubmitting ? "Saving…" : "Save"}
           </Button>
@@ -497,7 +556,10 @@ function AddressFormDialog({
           </CardField>
           
           <div className="pt-2">
-            <AddressValidationNote address={draftAddressStr} />
+            <AddressValidationNote
+              address={draftAddressStr}
+              onStateChange={setValidationState}
+            />
           </div>
 
           {formError && (

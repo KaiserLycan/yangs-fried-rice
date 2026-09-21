@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import {
   productSchema,
   productUpdateSchema,
@@ -211,7 +210,7 @@ export async function createProduct(
     return { data: null, error: parsed.error.errors[0].message };
   }
 
-  const supabase = createAdminClient();
+  const supabase = createClient();
 
   const row: TablesInsert<"product"> = {
     product_name: parsed.data.product_name,

@@ -36,5 +36,15 @@ describe("NCR Address Validation", () => {
       const result = await validateNcrAddress("Unit 502, Taft Avenue, Malate, Manila");
       expect(result.valid).toBe(true);
     });
+
+    it("accepts addresses at the 15 km boundary and rejects just beyond it", async () => {
+      const boundaryResult = await validateNcrAddress("Malate Manila");
+      expect(boundaryResult.distanceKm).toBeLessThanOrEqual(15);
+      expect(boundaryResult.valid).toBe(true);
+
+      const tooFarResult = await validateNcrAddress("Calamba Laguna");
+      expect(tooFarResult.valid).toBe(false);
+      expect(tooFarResult.message).toContain("Metro Manila (NCR)");
+    });
   });
 });

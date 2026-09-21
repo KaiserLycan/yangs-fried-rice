@@ -59,7 +59,9 @@ export function isValidTransition(from: OrderStatus, to: OrderStatus): boolean {
 // ---------------------------------------------------------------------------
 
 export const orderFilterSchema = z.object({
-  status: z.union([z.string(), z.array(z.string())]).optional(),
+  status: z
+    .union([orderStatusSchema, z.array(orderStatusSchema)])
+    .optional(),
   date_from: z.string().datetime({ offset: true }).optional(),
   date_to: z.string().datetime({ offset: true }).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),

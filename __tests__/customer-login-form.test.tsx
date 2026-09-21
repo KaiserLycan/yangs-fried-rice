@@ -22,15 +22,13 @@ describe("US-01: CustomerLoginForm Validations", () => {
     (useSearchParams as any).mockReturnValue({ get: vi.fn(() => "/checkout") });
   });
 
-  it("TC-1.2.U: Blocks submission when email or password is empty", async () => {
+  it("TC-1.2.U: Keeps the action disabled until both required fields are filled", async () => {
     render(<CustomerLoginForm />);
-    
-    const submitButton = screen.getByRole("button", { name: /log in/i });
-    fireEvent.click(submitButton);
 
-    await waitFor(() => {
-      expect(screen.getByText(/We couldn't sign you in/i)).toBeInTheDocument();
-    });
+    const submitButton = screen.getByRole("button", { name: /log in/i });
+    expect(submitButton).toBeDisabled();
+
+    fireEvent.click(submitButton);
     expect(loginCustomer).not.toHaveBeenCalled();
   });
 

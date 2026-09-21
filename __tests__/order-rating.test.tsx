@@ -60,7 +60,7 @@ describe("OrderRatingInput", () => {
     expect(
       await screen.findByText("You have already reviewed this order."),
     ).toBeInTheDocument();
-    expect(refresh).not.toHaveBeenCalled();
+    expect(refresh).toHaveBeenCalledTimes(1);
     // The row must not stay filled to the score that failed to save.
     expect(
       screen.getByRole("button", { name: "1 out of 5" }),

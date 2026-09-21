@@ -2,11 +2,16 @@ import { describe, expect, it } from "vitest";
 import { signupSchema } from "./signup";
 
 const VALID = {
-  name: "Liza Reyes",
+  firstName: "Liza",
+  lastName: "Reyes",
   email: "liza.reyes@example.com",
   phone: "09171234567",
   password: "at least 8",
-  address: "24 Mabini St., Barangay Poblacion, Makati",
+  buildingNo: "24",
+  street: "Mabini St.",
+  barangay: "Barangay Poblacion",
+  city: "Makati",
+  zip: "1200",
 };
 
 /** The message zod reports for one field, or undefined if that field passed. */
@@ -17,21 +22,21 @@ function errorFor(overrides: Partial<typeof VALID>, field: keyof typeof VALID) {
 }
 
 describe("signupSchema", () => {
-  it("accepts the five fields the PM settled on", () => {
+  it("accepts the form fields the PM settled on", () => {
     expect(signupSchema.safeParse(VALID).success).toBe(true);
   });
 
   describe("name", () => {
-    it("rejects an empty name", () => {
-      expect(errorFor({ name: "" }, "name")).toBe("Enter your name.");
+    it("rejects an empty first name", () => {
+      expect(errorFor({ firstName: "" }, "firstName")).toBe("Enter your name.");
     });
 
-    it("rejects whitespace only", () => {
-      expect(errorFor({ name: "   " }, "name")).toBe("Enter your name.");
+    it("rejects whitespace only in last name", () => {
+      expect(errorFor({ lastName: "   " }, "lastName")).toBe("Enter your name.");
     });
 
-    it("accepts a single-word name", () => {
-      expect(errorFor({ name: "Liza" }, "name")).toBeUndefined();
+    it("accepts a single-word first name", () => {
+      expect(errorFor({ firstName: "Liza" }, "firstName")).toBeUndefined();
     });
   });
 
@@ -107,23 +112,29 @@ describe("signupSchema", () => {
   });
 
   describe("address", () => {
-    it("rejects an empty address", () => {
-      expect(errorFor({ address: "" }, "address")).toBe(
-        "Enter your delivery address.",
+    it("rejects an empty building number", () => {
+      expect(errorFor({ buildingNo: "" }, "buildingNo")).toBe(
+        "Enter building/house number.",
       );
     });
 
-    it("rejects whitespace only", () => {
-      expect(errorFor({ address: "  \n " }, "address")).toBe(
-        "Enter your delivery address.",
+    it("rejects whitespace only in city", () => {
+      expect(errorFor({ city: "  \n " }, "city")).toBe(
+        "Enter city.",
       );
     });
 
-    it("accepts a multi-line address, since the field is a textarea", () => {
+    it("accepts a complete multi-part address", () => {
       expect(
         errorFor(
-          { address: "24 Mabini St.\nBarangay Poblacion\nMakati" },
-          "address",
+          {
+            buildingNo: "24",
+            street: "Mabini St.",
+            barangay: "Barangay Poblacion",
+            city: "Makati",
+            zip: "1200",
+          },
+          "street",
         ),
       ).toBeUndefined();
     });
@@ -131,18 +142,23 @@ describe("signupSchema", () => {
 
   it("reports every bad field at once, so the form can mark them all", () => {
     const result = signupSchema.safeParse({
-      name: "",
+      firstName: "",
+      lastName: "",
       email: "nope",
       phone: "123",
       password: "x",
-      address: "",
+      buildingNo: "",
+      street: "",
+      barangay: "",
+      city: "",
+      zip: "",
     });
 
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(
         new Set(result.error.issues.map((issue) => issue.path[0])),
-      ).toEqual(new Set(["name", "email", "phone", "password", "address"]));
+      ).toEqual(new Set(["firstName", "lastName", "email", "phone", "password", "buildingNo", "street", "barangay", "city", "zip"]));
     }
   });
 });

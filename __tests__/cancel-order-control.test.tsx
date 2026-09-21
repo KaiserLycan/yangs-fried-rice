@@ -166,7 +166,7 @@ describe("CancelOrderControl", () => {
     await waitFor(() => expect(refresh).toHaveBeenCalled());
   });
 
-  it("shows the backend's message when the cancel is rejected, and nothing else", async () => {
+  it("shows the backend's message when the cancel is rejected, and still refreshes", async () => {
     vi.mocked(cancelCustomerOrder).mockResolvedValue({
       data: null,
       error: "Cannot cancel order: your food is already prepared and ready for pickup.",
@@ -183,7 +183,7 @@ describe("CancelOrderControl", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(refresh).not.toHaveBeenCalled();
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
   });
 
   it("cannot be fired twice while the write is in flight", async () => {

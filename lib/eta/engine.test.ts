@@ -77,14 +77,14 @@ describe("ETA Engine", () => {
   });
 
   describe("isWithinNcrBoundary", () => {
-    it("returns isDeliverable: true for addresses within 25 km (NCR)", () => {
+    it("returns isDeliverable: true for addresses within 15 km (NCR)", () => {
       const makati = { latitude: 14.5547, longitude: 121.0244 };
       const result = isWithinNcrBoundary(makati);
       expect(result.isDeliverable).toBe(true);
       expect(result.distanceKm).toBeLessThanOrEqual(MAX_DELIVERY_RADIUS_KM);
     });
 
-    it("returns isDeliverable: false for addresses outside NCR (>25 km)", () => {
+    it("returns isDeliverable: false for addresses outside NCR (>15 km)", () => {
       const laguna = { latitude: 14.2117, longitude: 121.1656 };
       const result = isWithinNcrBoundary(laguna);
       expect(result.isDeliverable).toBe(false);

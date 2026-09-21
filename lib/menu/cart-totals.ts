@@ -11,6 +11,12 @@
  * exactly the shape of sum that drifts if summed as `number` pesos directly).
  */
 
+import {
+  BASE_DELIVERY_FEE_PHP,
+  MIN_DELIVERY_FEE_PHP,
+  PER_KM_RATE_PHP,
+} from "@/lib/eta/engine";
+
 export type Fulfilment = "delivery" | "pickup";
 
 export type CartLine = {
@@ -27,12 +33,23 @@ export type CartTotals = {
   total: number;
 };
 
-/**
- * ₱95 flat, same as ticket 08 records: nothing says whether this is fixed,
- * per-branch, or distance-derived, so the frontend computes it from a
- * constant until that's answered.
- */
-const DELIVERY_FEE_PESOS = 95;
+export function calculateDeliveryFee(distanceKm?: number | null): number {
+  if (!Number.isFinite(distanceKm as number)) {
+    return BASE_DELIVERY_FEE_PHP;
+  }
+
+  const safeDistance = distanceKm ?? 0;
+  if (safeDistance <= 0) {
+    return BASE_DELIVERY_FEE_PHP;
+  }
+
+  const fee = Math.max(
+    MIN_DELIVERY_FEE_PHP,
+    BASE_DELIVERY_FEE_PHP + safeDistance * PER_KM_RATE_PHP,
+  );
+
+  return Number(fee.toFixed(2));
+}
 
 /** Pesos to whole centavos, rounded — the unit every sum below runs in. */
 function toCentavos(pesos: number): number {
@@ -46,20 +63,23 @@ function toPesos(centavos: number): number {
 export function computeCartTotals({
   lines,
   fulfilment,
+  distanceKm,
 }: {
   lines: CartLine[];
   fulfilment: Fulfilment;
+  distanceKm?: number | null;
 }): CartTotals {
   const subtotalCentavos = lines.reduce(
     (sum, line) => sum + toCentavos(line.unitPrice) * line.quantity,
     0,
   );
-  // An empty cart charges nothing — there is nothing to deliver, so
-  // "delivery" being selected isn't enough on its own to add the fee.
-  const deliveryFeeCentavos =
+
+  const deliveryFee =
     fulfilment === "delivery" && lines.length > 0
-      ? toCentavos(DELIVERY_FEE_PESOS)
+      ? calculateDeliveryFee(distanceKm)
       : 0;
+
+  const deliveryFeeCentavos = toCentavos(deliveryFee);
 
   return {
     subtotal: toPesos(subtotalCentavos),

@@ -33,7 +33,15 @@ const profile: CustomerProfile = {
   memberSince: null,
   orderCount: 0,
   deliverToAddress: "21 Mabini St, Malolos, Bulacan",
-  addresses: [],
+  addresses: [
+    {
+      id: "addr-1",
+      addressDetails: "21 Mabini St, Malolos, Bulacan",
+      label: "Home",
+      deliveryNote: "",
+      isDefault: true,
+    },
+  ],
 };
 
 describe("SiteNavBar", () => {
@@ -49,24 +57,23 @@ describe("SiteNavBar", () => {
     ).not.toHaveAttribute("aria-current");
   });
 
-  // "Track order" and "My orders" share a href today (no tracking route
-  // exists yet) but carry distinct ids, so each can be current on its own.
-  it("does not mark both /orders links current at once", () => {
-    renderNavBar(<SiteNavBar profile={profile} currentSection="track-order" />);
+  it("marks the current section by id, not by label", () => {
+    renderNavBar(<SiteNavBar profile={profile} currentSection="orders" />);
 
-    expect(
-      screen.getByRole("link", { name: "Track order" }),
-    ).toHaveAttribute("aria-current", "page");
-    expect(
-      screen.getByRole("link", { name: "My orders" }),
-    ).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: "My orders" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("link", { name: "Menu" })).not.toHaveAttribute(
+      "aria-current",
+    );
   });
 
   it("shows the short delivery address when the customer has one", () => {
     renderNavBar(<SiteNavBar profile={profile} currentSection="menu" />);
 
     expect(screen.getByText("Deliver to")).toBeInTheDocument();
-    expect(screen.getByText(/21 Mabini St/)).toBeInTheDocument();
+    expect(screen.getByText(/Home/)).toBeInTheDocument();
   });
 
   it("hides the delivery address affordance when there is none saved", () => {

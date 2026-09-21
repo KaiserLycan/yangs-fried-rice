@@ -80,7 +80,7 @@ export function AccountActions() {
         <button
           type="button"
           onClick={() => setDialog("logout")}
-          className="w-full p-[10px] text-center text-[13.5px] font-bold text-primary underline md:rounded-sm md:border md:border-rule md:bg-card md:px-[18px] md:py-[15px] md:text-foreground"
+          className="w-full rounded-sm border border-destructive/30 bg-destructive/10 p-[10px] text-center text-[13.5px] font-bold text-destructive underline transition-colors hover:bg-destructive hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40 disabled:cursor-not-allowed disabled:opacity-60 md:px-[18px] md:py-[15px]"
         >
           Log out
         </button>

@@ -155,13 +155,7 @@ export function EmployeeLoginForm() {
           {isPending ? "Signing in…" : "Sign in"}
         </Button>
 
-        <div className="flex items-center justify-between">
-          <Link
-            href="/employee/login"
-            className="text-[13px] font-bold text-primary"
-          >
-            Forgot password?
-          </Link>
+        <div className="flex justify-end">
           <Link
             href="/login"
             className="pb-[2px] text-[13px] font-bold text-primary"

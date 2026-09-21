@@ -16,10 +16,66 @@ export interface NcrValidationResult {
   formattedAddress?: string;
 }
 
+export function formatDeliveryRadiusMessage(distanceKm: number): string {
+  return `Sorry, we only deliver within ${MAX_DELIVERY_RADIUS_KM} km of our store. This address is ${distanceKm.toFixed(1)} km away.`;
+}
+
+export async function validateDeliveryAddress(address: string): Promise<{
+  valid: boolean;
+  distanceKm: number | null;
+  error: string | null;
+}> {
+  const result = await validateNcrAddress(address);
+
+  if (!result.valid) {
+    return {
+      valid: false,
+      distanceKm: result.distanceKm ?? null,
+      error: result.message ?? "Sorry, we only deliver within 15 km of our store.",
+    };
+  }
+
+  return {
+    valid: true,
+    distanceKm: result.distanceKm ?? null,
+    error: null,
+  };
+}
+
 /**
  * Validates whether a given address is within the NCR delivery zone.
  * Uses LocationIQ geocoding and strictly requires an exact coordinate match.
  */
+const NCR_CITY_COORDS: Record<string, { latitude: number; longitude: number }> = {
+  "manila": { latitude: 14.5995, longitude: 120.9842 },
+  "makati": { latitude: 14.5547, longitude: 121.0244 },
+  "taguig": { latitude: 14.5176, longitude: 121.0563 },
+  "pasig": { latitude: 14.5764, longitude: 121.0851 },
+  "quezon city": { latitude: 14.676, longitude: 121.0437 },
+  "mandaluyong": { latitude: 14.5794, longitude: 121.0359 },
+  "marikina": { latitude: 14.6507, longitude: 121.1029 },
+  "san juan": { latitude: 14.6017, longitude: 121.0359 },
+  "pasay": { latitude: 14.5378, longitude: 120.9997 },
+  "paranaque": { latitude: 14.4793, longitude: 121.0198 },
+  "muntinlupa": { latitude: 14.3765, longitude: 121.0419 },
+  "las piñas": { latitude: 14.4367, longitude: 120.9969 },
+  "caloocan": { latitude: 14.6569, longitude: 120.9833 },
+  "malabon": { latitude: 14.6602, longitude: 120.9423 },
+  "navotas": { latitude: 14.6628, longitude: 120.9367 },
+  "valenzuela": { latitude: 14.6999, longitude: 120.9833 },
+  "pateros": { latitude: 14.5358, longitude: 121.061 },
+};
+
+function heuristicNcrMatch(address: string): { latitude: number; longitude: number } | null {
+  const lower = address.toLowerCase();
+
+  for (const [city, coords] of Object.entries(NCR_CITY_COORDS)) {
+    if (lower.includes(city)) return coords;
+  }
+
+  return null;
+}
+
 export async function validateNcrAddress(address: string): Promise<NcrValidationResult> {
   const trimmed = address.trim();
 
@@ -30,7 +86,6 @@ export async function validateNcrAddress(address: string): Promise<NcrValidation
     };
   }
 
-  // Fast-path text rejection for explicit out-of-NCR regions
   if (OUT_OF_NCR_PATTERN.test(trimmed)) {
     return {
       valid: false,
@@ -39,7 +94,6 @@ export async function validateNcrAddress(address: string): Promise<NcrValidation
     };
   }
 
-  // Geocoding check via LocationIQ
   try {
     const url = new URL(LOCATIONIQ_URL);
     url.searchParams.set("key", process.env.LOCATIONIQ_API_KEY || "");
@@ -64,8 +118,6 @@ export async function validateNcrAddress(address: string): Promise<NcrValidation
         const latitude = parseFloat(top.lat);
         const longitude = parseFloat(top.lon);
 
-        // Strict validation: Reject if LocationIQ only matched the city/state
-        // It must have matched a road, neighbourhood, suburb, or building.
         const addr = top.address || {};
         if (!addr.road && !addr.neighbourhood && !addr.suburb && !addr.residential && !addr.building && !addr.pedestrian && !addr.quarter) {
           return {
@@ -78,7 +130,7 @@ export async function validateNcrAddress(address: string): Promise<NcrValidation
         if (!boundary.isDeliverable) {
           return {
             valid: false,
-            message: `Delivery is currently restricted to Metro Manila (NCR). Address is ${boundary.distanceKm} km away (maximum delivery radius: ${MAX_DELIVERY_RADIUS_KM} km).`,
+            message: formatDeliveryRadiusMessage(boundary.distanceKm),
             latitude,
             longitude,
             distanceKm: boundary.distanceKm,
@@ -95,12 +147,25 @@ export async function validateNcrAddress(address: string): Promise<NcrValidation
       }
     }
   } catch {
-    // Network or timeout failure, or invalid response
+    // Fall through to the heuristic fallback below when geocoding fails.
   }
 
-  // Strict validation: if we reach here, we didn't get coordinates
+  const fallbackCoords = heuristicNcrMatch(trimmed);
+  if (fallbackCoords) {
+    const boundary = isWithinNcrBoundary(fallbackCoords);
+    return {
+      valid: boundary.isDeliverable,
+      message: boundary.isDeliverable
+        ? undefined
+        : formatDeliveryRadiusMessage(boundary.distanceKm),
+      latitude: fallbackCoords.latitude,
+      longitude: fallbackCoords.longitude,
+      distanceKm: boundary.distanceKm,
+    };
+  }
+
   return {
     valid: false,
-    message: "We couldn't find this exact address on the map. Please check your address or be more specific."
+    message: "We couldn't find this exact address on the map. Please check your address or be more specific.",
   };
 }
