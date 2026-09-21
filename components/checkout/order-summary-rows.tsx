@@ -52,11 +52,19 @@ export function OrderSummaryRows({
       />
 
       {lines.map((line) => (
-        <SummaryRow
-          key={line.id}
-          label={`${line.quantity}× ${line.name}`}
-          value={formatPeso(lineTotal(line))}
-        />
+        <div key={line.id} className="flex flex-col gap-1">
+          <SummaryRow
+            label={`${line.quantity}× ${line.name}`}
+            value={formatPeso(lineTotal(line))}
+          />
+          {line.addOns && line.addOns.length > 0 && (
+            <ul className="flex flex-col gap-0.5 -mt-1 pl-4 text-[11px] text-muted-foreground">
+              {line.addOns.map((addon) => (
+                <li key={addon.addon_id}>+ {addon.name}</li>
+              ))}
+            </ul>
+          )}
+        </div>
       ))}
 
       {/* No delivery fee row on a pickup order. `computeCartTotals` correctly

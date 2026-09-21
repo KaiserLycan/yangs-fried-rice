@@ -77,9 +77,11 @@ export function OrderRatingInput({
   orderNumber,
   className,
   firstStarRef,
+  productId,
 }: {
   /** The `order.order_id` the review is written against. */
   orderId: string;
+  productId?: string;
   /** Names the control for assistive tech: "Rate order #1039". */
   orderNumber: string;
   className?: string;
@@ -119,7 +121,7 @@ export function OrderRatingInput({
             onBlur={() => setPreview(0)}
             onClick={() => {
               setChosen(score);
-              run(() => submitReview(orderId, { rating: score }));
+              run(() => submitReview(orderId, { rating: score, productId }));
             }}
             className="cursor-pointer px-[1px] leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-default"
           >

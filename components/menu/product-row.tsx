@@ -18,6 +18,10 @@ export function ProductRow({
   product: ProductListing;
   onSelect: (product: ProductListing) => void;
 }) {
+  const rating = product.reviews && product.reviews.length > 0 
+    ? product.reviews.reduce((acc, curr) => acc + curr.rating, 0) / product.reviews.length 
+    : 0;
+
   const content = (
     <>
       {product.imageUrl ? (
@@ -31,9 +35,15 @@ export function ProductRow({
       )}
 
       <div className="flex min-w-0 flex-1 flex-col gap-[6px]">
-        <h3 className="text-[15px] font-bold text-foreground">
-          {product.name}
-        </h3>
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="text-[15px] font-bold text-foreground">
+            {product.name}
+          </h3>
+          <div className="flex shrink-0 items-center gap-1 mt-0.5">
+            <span className="text-[12px] font-bold text-accent">★ {rating > 0 ? rating.toFixed(1) : "0.0"}</span>
+            <span className="text-[11px] text-muted-foreground">({product.reviews?.length || 0})</span>
+          </div>
+        </div>
         <p className="line-clamp-2 text-[13px] text-muted-foreground">
           {product.description}
         </p>
@@ -51,19 +61,13 @@ export function ProductRow({
     </>
   );
 
-  if (!product.isAvailable) {
-    return (
-      <div className="flex gap-[13px] border-b border-field-border px-[20px] py-[12px] text-left last:border-b-0 opacity-50">
-        {content}
-      </div>
-    );
-  }
-
   return (
     <button
       type="button"
       onClick={() => onSelect(product)}
-      className="flex gap-[13px] border-b border-field-border px-[20px] py-[12px] text-left last:border-b-0 transition-opacity hover:opacity-90"
+      className={`flex gap-[13px] border-b border-field-border px-[20px] py-[12px] text-left last:border-b-0 transition-opacity hover:opacity-90 ${
+        !product.isAvailable ? "opacity-50" : ""
+      }`}
     >
       {content}
     </button>

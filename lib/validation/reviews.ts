@@ -22,6 +22,7 @@ export const reviewSubmissionSchema = z.object({
     .max(1000, "Comment must be 1 000 characters or fewer.")
     .optional()
     .nullable(),
+  productId: z.string().uuid("Invalid product ID format").optional(),
 });
 
 export type ReviewSubmission = z.infer<typeof reviewSubmissionSchema>;

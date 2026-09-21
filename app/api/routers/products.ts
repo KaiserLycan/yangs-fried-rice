@@ -35,8 +35,8 @@ export async function getProducts(request: Request) {
   // can filter on the related table.  Otherwise use a normal (left) join
   // so products without a category still appear.
   const joinExpr = categoryFilters.length > 0
-    ? "*, categories!inner(category_name)"
-    : "*, categories(category_name)";
+    ? "*, categories!inner(category_name), add_on(*), review(*, customer(name, profileImage_URL))"
+    : "*, categories(category_name), add_on(*), review(*, customer(name, profileImage_URL))";
 
   let query = supabase
     .from("product")

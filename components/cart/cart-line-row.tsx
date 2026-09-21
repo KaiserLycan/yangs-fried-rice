@@ -102,6 +102,14 @@ export function CartLineRow({
         </span>
       </div>
 
+      {line.addOns && line.addOns.length > 0 ? (
+        <ul className="flex flex-col gap-0.5 -mt-1 text-[11px] text-muted-foreground pl-0">
+          {line.addOns.map((addon) => (
+            <li key={addon.addon_id}>+ {addon.name}</li>
+          ))}
+        </ul>
+      ) : null}
+
       {line.specialInstructions ? (
         <p className="text-[11px] italic text-muted-foreground">
           Note: {line.specialInstructions}

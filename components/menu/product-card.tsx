@@ -25,8 +25,16 @@ export function ProductCard({
   product: ProductListing;
   onSelect: (product: ProductListing) => void;
 }) {
+  const rating = product.reviews && product.reviews.length > 0 
+    ? product.reviews.reduce((acc, curr) => acc + curr.rating, 0) / product.reviews.length 
+    : 0;
+
   return (
-    <div className="flex flex-col overflow-hidden rounded-md border border-field-border bg-card">
+    <button 
+      type="button"
+      onClick={() => onSelect(product)}
+      className="flex flex-col overflow-hidden rounded-md border border-field-border bg-card text-left transition-colors hover:border-accent group"
+    >
       {product.imageUrl ? (
         <img
           src={product.imageUrl}
@@ -38,9 +46,15 @@ export function ProductCard({
       )}
 
       <div className="flex flex-1 flex-col gap-[10px] p-[14px]">
-        <h3 className="text-[15px] font-bold text-foreground">
-          {product.name}
-        </h3>
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="text-[15px] font-bold text-foreground">
+            {product.name}
+          </h3>
+          <div className="flex shrink-0 items-center gap-1 mt-0.5">
+            <span className="text-[12px] font-bold text-accent">★ {rating > 0 ? rating.toFixed(1) : "0.0"}</span>
+            <span className="text-[11px] text-muted-foreground">({product.reviews?.length || 0})</span>
+          </div>
+        </div>
 
         <p className="line-clamp-2 flex-1 text-[13px] text-muted-foreground">
           {product.description}
@@ -56,17 +70,15 @@ export function ProductCard({
                 Unavailable
               </span>
             ) : (
-              <button
-                type="button"
-                onClick={() => onSelect(product)}
-                className="rounded-md bg-accent px-[16px] py-[9px] text-[13px] font-bold text-white transition-opacity hover:opacity-90"
+              <span
+                className="rounded-md bg-accent px-[16px] py-[9px] text-[13px] font-bold text-white transition-opacity group-hover:opacity-90"
               >
                 Add
-              </button>
+              </span>
             )}
           </div>
         </div>
       </div>
-    </div>
+    </button>
   );
 }

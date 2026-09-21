@@ -51,6 +51,7 @@ export function ItemDetailModal({
   const ref = React.useRef<HTMLDialogElement>(null);
   const [quantity, setQuantity] = React.useState(MIN_QUANTITY);
   const [instructions, setInstructions] = React.useState("");
+  const [selectedAddOns, setSelectedAddOns] = React.useState<Set<string>>(new Set());
 
   const open = product !== null;
 
@@ -62,6 +63,7 @@ export function ItemDetailModal({
     if (open) {
       setQuantity(MIN_QUANTITY);
       setInstructions("");
+      setSelectedAddOns(new Set());
     }
   }, [open]);
 
@@ -82,7 +84,12 @@ export function ItemDetailModal({
     );
   }
 
-  const lineTotal = formatPeso(product.price * quantity);
+  const addOnsTotal = Array.from(selectedAddOns).reduce((sum, id) => {
+    const addon = product?.add_ons?.find(a => a.addon_id === id);
+    return sum + (addon?.price ?? 0);
+  }, 0);
+
+  const lineTotal = formatPeso((product.price + addOnsTotal) * quantity);
 
   // Optimistic UI requested by user: The modal closes immediately and updates the cart 
   // without waiting for the server roundtrip, making the interaction feel instantaneous.
@@ -101,8 +108,19 @@ export function ItemDetailModal({
           product_id,
           quantity: qty,
           special_instructions: inst || null,
+          add_on_ids: Array.from(selectedAddOns),
         })
     );
+  }
+
+  function toggleAddOn(addonId: string) {
+    const next = new Set(selectedAddOns);
+    if (next.has(addonId)) {
+      next.delete(addonId);
+    } else {
+      next.add(addonId);
+    }
+    setSelectedAddOns(next);
   }
 
   return (
@@ -125,7 +143,7 @@ export function ItemDetailModal({
       // it to the top instead. Any height limit and scrolling belongs to the
       // panel *inside* it, not to this element — see the two wrapper divs
       // below.
-      className="m-0 w-full max-w-none overflow-visible bg-transparent p-0 backdrop:bg-foreground/40 md:m-auto md:w-[calc(100%-4rem)] md:max-w-[720px]"
+      className="m-0 w-full max-w-none overflow-visible bg-transparent p-0 backdrop:bg-foreground/40 md:m-auto md:w-[calc(100%-4rem)] md:max-w-4xl"
     >
       {/* Mobile: full-screen sheet, no rounding, no shadow — see the
           component comment for why. `min-h-screen` here, not a height on the
@@ -168,6 +186,12 @@ export function ItemDetailModal({
             <QuantityStepper value={quantity} onChange={setQuantity} size="mobile" />
           </LabelledSection>
 
+          <AddOnsSection
+            addOns={product.add_ons}
+            selectedAddOns={selectedAddOns}
+            onToggle={toggleAddOn}
+          />
+
           <LabelledSection label="Special instructions">
             <InstructionsField
               value={instructions}
@@ -176,36 +200,42 @@ export function ItemDetailModal({
             />
           </LabelledSection>
 
+          <ReviewsSection reviews={product.reviews} />
+
           <button
             type="button"
             onClick={handleAddToCart}
-            disabled={pending}
-            className="flex items-center justify-between rounded-[14px] bg-accent p-[17px] text-[15px] font-bold text-white disabled:opacity-60"
+            disabled={pending || !product.isAvailable}
+            className="flex items-center justify-between rounded-[14px] bg-accent p-[17px] text-[15px] font-bold text-white disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            <span>Add to cart</span>
+            <span>{product.isAvailable ? 'Add to cart' : 'Unavailable'}</span>
             <span>{lineTotal}</span>
           </button>
         </div>
       </div>
 
-      {/* Desktop: floating modal, photo panel on the left. The height cap and
-          scroll live here, not on the `<dialog>` element — same reason as
-          the mobile wrapper's comment above. */}
-      <div className="hidden max-h-[calc(100vh-4rem)] overflow-x-hidden overflow-y-auto rounded-[20px] bg-background shadow-[0_30px_70px_rgba(26,18,16,0.26)] md:flex">
+      {/* Desktop: floating modal, photo panel on the left. */}
+      <div className="hidden md:h-[650px] max-h-[calc(100vh-4rem)] overflow-hidden rounded-[20px] bg-background shadow-[0_30px_70px_rgba(26,18,16,0.26)] md:flex">
         {product.imageUrl ? (
           <img
             src={product.imageUrl}
             alt={product.name}
-            className="w-[300px] shrink-0 object-cover"
+            className="w-[350px] lg:w-[450px] h-full shrink-0 object-cover"
           />
         ) : (
-          <ProductPhotoPlaceholder className="w-[300px] shrink-0" />
+          <ProductPhotoPlaceholder className="w-[350px] lg:w-[450px] h-full shrink-0" />
         )}
 
-        <div className="flex w-[420px] flex-col gap-[14px] px-[26px] pb-[26px] pt-[25px]">
+        <div className="flex flex-1 flex-col gap-[14px] px-[26px] pb-[26px] pt-[25px] overflow-y-auto">
           <ItemSummary product={product} titleClassName="text-[28px]" />
 
           <QuantityStepper value={quantity} onChange={setQuantity} size="desktop" />
+
+          <AddOnsSection
+            addOns={product.add_ons}
+            selectedAddOns={selectedAddOns}
+            onToggle={toggleAddOn}
+          />
 
           {/* No separate label on desktop — the frame folds it into the
               field's own placeholder text instead of drawing one above it,
@@ -215,6 +245,8 @@ export function ItemDetailModal({
             onChange={setInstructions}
             placeholder={`Special instructions — ${SPECIAL_INSTRUCTIONS_PLACEHOLDER}`}
           />
+
+          <ReviewsSection reviews={product.reviews} />
 
           <div className="grid grid-cols-[1fr_2fr] gap-[14px]">
             <button
@@ -228,10 +260,10 @@ export function ItemDetailModal({
             <button
               type="button"
               onClick={handleAddToCart}
-              disabled={pending}
-              className="flex items-center justify-between rounded-[13px] bg-accent p-[15px] text-[14px] font-bold text-white disabled:opacity-60"
+              disabled={pending || !product.isAvailable}
+              className="flex items-center justify-between rounded-[13px] bg-accent p-[15px] text-[14px] font-bold text-white disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <span>Add to cart</span>
+              <span>{product.isAvailable ? 'Add to cart' : 'Unavailable'}</span>
               <span>{lineTotal}</span>
             </button>
           </div>
@@ -250,11 +282,21 @@ function ItemSummary({
   titleClassName: string;
   titleId?: string;
 }) {
+  const rating = product.reviews && product.reviews.length > 0 
+    ? product.reviews.reduce((acc, curr) => acc + curr.rating, 0) / product.reviews.length 
+    : 0;
+    
   return (
     <div className="flex flex-col gap-[5px]">
-      <h2 id={titleId} className={`font-display text-foreground ${titleClassName}`}>
-        {product.name}
-      </h2>
+      <div className="flex items-start justify-between gap-4">
+        <h2 id={titleId} className={`font-display text-foreground ${titleClassName}`}>
+          {product.name}
+        </h2>
+        <div className="flex shrink-0 items-center gap-1 rounded-full bg-accent/10 px-2 py-1">
+          <span className="text-[14px] font-bold text-accent">★ {rating > 0 ? rating.toFixed(1) : "0.0"}</span>
+          <span className="text-[12px] text-muted-foreground">({product.reviews?.length || 0})</span>
+        </div>
+      </div>
       <p className="text-[13px] text-muted-foreground">{product.description}</p>
       <p className="pt-[5px] font-display text-[24px] text-primary">
         {formatPeso(product.price)}
@@ -297,5 +339,70 @@ function InstructionsField({
       rows={2}
       className="min-h-[76px] w-full resize-none rounded-[13px] border border-field-border bg-card px-[14px] py-[12px] text-[14px] text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
     />
+  );
+}
+
+export function AddOnsSection({
+  addOns,
+  selectedAddOns,
+  onToggle,
+}: {
+  addOns?: { addon_id: string; name: string; price: number }[];
+  selectedAddOns: Set<string>;
+  onToggle: (addonId: string) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-[8px]">
+      <span className="text-[12px] font-bold uppercase tracking-[1.44px] text-muted-foreground">
+        Add-ons
+      </span>
+      <div className="flex flex-col gap-[8px] max-h-[150px] overflow-y-auto pr-1">
+        {!addOns || addOns.length === 0 ? (
+          <div className="text-[13px] text-muted-foreground italic px-1 py-2">No add-ons currently.</div>
+        ) : (
+          addOns.map((addon) => (
+            <label key={addon.addon_id} className="flex cursor-pointer items-center justify-between rounded-[12px] border border-field-border bg-card p-[14px]">
+              <div className="flex items-center gap-[12px]">
+                <input 
+                  type="checkbox" 
+                  checked={selectedAddOns.has(addon.addon_id)}
+                  onChange={() => onToggle(addon.addon_id)}
+                  className="h-[18px] w-[18px] rounded-[4px] border-field-border text-primary focus:ring-primary accent-primary"
+                />
+                <span className="text-[14px] text-foreground">{addon.name}</span>
+              </div>
+              <span className="text-[14px] text-muted-foreground">+{formatPeso(addon.price)}</span>
+            </label>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function ReviewsSection({
+  reviews,
+}: {
+  reviews?: { id: string; rating: number; comment: string; customerName: string; createdAt: string }[];
+}) {
+  if (!reviews || reviews.length === 0) return null;
+  
+  return (
+    <div className="flex flex-col gap-[8px]">
+      <span className="text-[12px] font-bold uppercase tracking-[1.44px] text-muted-foreground">
+        Reviews
+      </span>
+      <div className="flex flex-col gap-[12px] rounded-[13px] border border-field-border bg-card p-[14px]">
+        {reviews.slice(0, 5).map((rev) => (
+          <div key={rev.id} className="flex flex-col gap-1 border-b border-field-border pb-3 last:border-0 last:pb-0">
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-bold text-foreground">{rev.customerName}</span>
+              <span className="text-[12px] text-accent font-bold">★ {rev.rating}</span>
+            </div>
+            {rev.comment && <p className="text-[13px] text-muted-foreground leading-snug">"{rev.comment}"</p>}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
