@@ -13,6 +13,7 @@
  * disagreeing vocabularies exist — and this module asks it questions instead.
  */
 
+import { isPickupOrder } from "@/lib/orders/format";
 import { formatPeso } from "@/lib/menu/product-listing";
 import {
   resolveOrderProgress,
@@ -60,26 +61,13 @@ export type OrderOutcome = {
 export const MAX_RATING = 5;
 
 /**
- * `order_type` is free text like every other status column here, so it is
- * folded the same way `order-stage.ts` folds a status before comparing.
- */
-function normalise(value: string | null): string | null {
-  if (value === null) return null;
-  const folded = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
-  return folded === "" ? null : folded;
-}
-
-const PICKUP_TYPES = new Set(["pickup", "pick_up", "takeout", "take_out"]);
-
-/**
  * Pickup is the narrower case and the one that has to be recognised
  * explicitly; anything else — including a NULL type — is treated as a
  * delivery, matching the frames, where two of the three cards say
  * "Delivered".
  */
 export function isPickup(orderType: string | null): boolean {
-  const folded = normalise(orderType);
-  return folded !== null && PICKUP_TYPES.has(folded);
+  return isPickupOrder(orderType);
 }
 
 export function progressOf(order: PastOrder): OrderProgress {
@@ -87,6 +75,7 @@ export function progressOf(order: PastOrder): OrderProgress {
     orderStatus: order.orderStatus,
     cancelledAt: order.cancelledAt,
     deliveryStatus: order.deliveryStatus,
+    orderType: order.orderType,
   });
 }
 

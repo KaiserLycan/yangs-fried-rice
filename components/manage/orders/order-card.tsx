@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 
 import { OrderData } from "@/lib/mock-orders";
+import { canCancel, primaryActionFor, statusLabelFor, type StaffAction } from "@/lib/orders/staff-actions";
 
 interface OrderCardProps {
   order: OrderData;
@@ -8,7 +9,7 @@ interface OrderCardProps {
   onClick?: () => void;
   // The onAction callback handles specific button interactions (Cancel, Deliver, Confirm)
   // independent of the card's main click handler. This triggers the confirmation dialog.
-  onAction?: (type: 'Cancel' | 'Deliver' | 'Confirm', order: OrderData) => void;
+  onAction?: (type: StaffAction, order: OrderData) => void;
 }
 
 const statusConfig = {
@@ -22,7 +23,7 @@ const statusConfig = {
   },
   DELIVERY: {
     headerBg: "bg-[#507A9D]",
-    label: "DELIVERY",
+    label: "DELIVERING",
   },
   COMPLETED: {
     headerBg: "bg-[#48995F]",
@@ -36,6 +37,7 @@ const statusConfig = {
 
 export function OrderCard({ order, onClick, onAction }: OrderCardProps) {
   const config = statusConfig[order.status];
+  const primary = primaryActionFor(order);
 
   return (
     <div 
@@ -60,7 +62,7 @@ export function OrderCard({ order, onClick, onAction }: OrderCardProps) {
         </div>
         <div className="text-right flex flex-col items-end">
           <div className="text-[10px] font-bold uppercase tracking-widest leading-none mb-1">
-            {config.label}
+            {statusLabelFor(order)}
           </div>
           {order.timer && (
             <div className="text-lg font-bold tracking-wider leading-none">
@@ -87,30 +89,34 @@ export function OrderCard({ order, onClick, onAction }: OrderCardProps) {
       </div>
 
       {/* Footer Actions */}
-      {(order.status === "QUEUE" || order.status === "PREP") && (
+      {(canCancel(order) || primary) && (
         <div className="flex w-full mt-auto">
-          <button 
-            onClick={(e) => {
-              // e.stopPropagation() prevents the click event from bubbling up to the card's main container.
-              // This ensures that clicking "Cancel" only triggers the onAction callback (opening the confirmation dialog),
-              // and does not also trigger the onClick callback (opening the details modal).
-              e.stopPropagation();
-              onAction?.("Cancel", order);
-            }}
-            className="flex-1 py-3 bg-[#C73926] hover:bg-red-800 transition-colors text-white text-sm font-semibold text-center"
-          >
-            Cancel
-          </button>
-          <button 
-            onClick={(e) => {
-              // StopPropagation logic isolates button clicks from card clicks.
-              e.stopPropagation();
-              onAction?.(order.status === "QUEUE" ? "Confirm" : "Deliver", order);
-            }}
-            className="flex-1 py-3 bg-[#48995F] hover:bg-green-700 transition-colors text-white text-sm font-semibold text-center"
-          >
-            {order.status === "QUEUE" ? "Confirm" : "Deliver"}
-          </button>
+          {canCancel(order) && (
+            <button 
+              onClick={(e) => {
+                // e.stopPropagation() prevents the click event from bubbling up to the card's main container.
+                // This ensures that clicking "Cancel" only triggers the onAction callback (opening the confirmation dialog),
+                // and does not also trigger the onClick callback (opening the details modal).
+                e.stopPropagation();
+                onAction?.("Cancel", order);
+              }}
+              className="flex-1 py-3 bg-[#C73926] hover:bg-red-800 transition-colors text-white text-sm font-semibold text-center"
+            >
+              Cancel
+            </button>
+          )}
+          {primary && (
+            <button 
+              onClick={(e) => {
+                // StopPropagation logic isolates button clicks from card clicks.
+                e.stopPropagation();
+                onAction?.(primary.type, order);
+              }}
+              className="flex-1 py-3 bg-[#48995F] hover:bg-green-700 transition-colors text-white text-sm font-semibold text-center"
+            >
+              {primary.label}
+            </button>
+          )}
         </div>
       )}
     </div>

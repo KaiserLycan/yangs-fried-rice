@@ -27,34 +27,21 @@ describe("rider profile edit cards", () => {
     vi.stubGlobal("fetch", fetchMock);
   });
 
-  it("saves employee details through the employee profile API", async () => {
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({ message: "Profile updated successfully" }),
-    });
-
+  it("shows role and shift read-only — a rider cannot edit their own", () => {
     render(
       <ToastProvider>
         <EmployeeDetailsCard role="Delivery" shift="Night" />
       </ToastProvider>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /edit/i }));
-    fireEvent.change(screen.getByLabelText(/shift/i), {
-      target: { value: "Evening" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+    expect(screen.getByText("Delivery")).toBeInTheDocument();
+    expect(screen.getByText("Night")).toBeInTheDocument();
 
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        "/api/employee/profile",
-        expect.objectContaining({
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ scheduleShift: "Evening" }),
-        }),
-      );
-    });
+    // No Edit control and no inputs: nothing to change, nothing to submit.
+    expect(screen.queryByRole("button", { name: /edit/i })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/shift/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/role/i)).not.toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("saves rider vehicle details through the rider profile API", async () => {

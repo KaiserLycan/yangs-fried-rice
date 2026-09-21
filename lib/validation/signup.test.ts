@@ -162,3 +162,36 @@ describe("signupSchema", () => {
     }
   });
 });
+
+describe("signupSchema — date of birth", () => {
+  const base = {
+    firstName: "Liza",
+    lastName: "Reyes",
+    email: "liza@example.com",
+    phone: "+639171234567",
+    password: "securepassword123",
+    buildingNo: "123",
+    street: "Mapúa Ave",
+    barangay: "San Andres",
+    city: "Manila",
+    zip: "1000",
+  };
+
+  it("does not require a date of birth", () => {
+    expect(signupSchema.safeParse(base).success).toBe(true);
+    expect(signupSchema.safeParse({ ...base, dateOfBirth: "" }).success).toBe(true);
+  });
+
+  it("accepts a real past birthdate", () => {
+    expect(signupSchema.safeParse({ ...base, dateOfBirth: "1996-06-14" }).success).toBe(true);
+  });
+
+  it("rejects a birthdate that has not happened yet", () => {
+    const result = signupSchema.safeParse({ ...base, dateOfBirth: "2999-01-01" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].path[0]).toBe("dateOfBirth");
+      expect(result.error.issues[0].message).toMatch(/future/i);
+    }
+  });
+});

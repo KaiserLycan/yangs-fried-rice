@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { isEmployeeRole, canAccessManage, type EmployeeRole } from "@/lib/auth/roles";
+import { resolveEmployeeRole, canAccessManage, type EmployeeRole } from "@/lib/auth/roles";
 import {
   orderStatusSchema,
   isValidTransition,
@@ -9,6 +9,7 @@ import {
   type OrderStatus,
   type OrderFilters,
 } from "@/lib/validation/orders";
+import { ensureDeliveryRow } from "@/lib/orders/order-side-effects";
 import type { Tables, TablesUpdate } from "@/types/database.types";
 
 // ---------------------------------------------------------------------------
@@ -22,14 +23,16 @@ type ActionResult<T> =
 type Order = Tables<"order">;
 
 type OrderWithDetails = Order & {
-  customer: { name: string; email: string | null } | null;
+  customer: { name: string; email: string | null; phone_number: string | null } | null;
   order_item: {
     order_item_id: string;
     quantity: number;
     subtotal: number;
     special_instructions: string | null;
     product: { product_name: string; product_price: number } | null;
+    order_item_add_on: { add_on: { name: string; price: number } | null }[] | null;
   }[];
+  order_add_on: { price: number | null }[] | null;
   transaction: {
     transaction_id: string;
     payment_method: string | null;
@@ -88,8 +91,8 @@ async function requireManageAccess(): Promise<
     return { data: null, error: "You are not registered as an employee." };
   }
 
-  const role = employee.role;
-  if (!role || !isEmployeeRole(role) || !canAccessManage(role)) {
+  const role = resolveEmployeeRole(employee.role);
+  if (!role || !canAccessManage(role)) {
     return {
       data: null,
       error: "You do not have permission to manage orders.",
@@ -97,9 +100,37 @@ async function requireManageAccess(): Promise<
   }
 
   return {
-    data: { employee_id: employee.employee_id, role: role as EmployeeRole },
+    data: { employee_id: employee.employee_id, role },
     error: null,
   };
+}
+
+/**
+ * Order-level add-ons (`order_add_on`) are loaded in their own query instead of
+ * being embedded in the order select. An embed makes the WHOLE orders list fail
+ * ("Could not find a relationship between 'order' and 'order_add_on'") whenever
+ * that table is missing or PostgREST's schema cache is stale; a separate read
+ * just leaves the add-ons empty in that case, and the orders still load.
+ */
+async function attachOrderAddOns(
+  supabase: ReturnType<typeof createClient>,
+  orders: OrderWithDetails[],
+): Promise<void> {
+  const ids = orders.map((order) => order.order_id);
+  for (const order of orders) order.order_add_on = [];
+  if (ids.length === 0) return;
+
+  const { data, error } = await supabase
+    .from("order_add_on")
+    .select("order_id, price")
+    .in("order_id", ids);
+
+  if (error || !data) return;
+
+  for (const row of data) {
+    const order = orders.find((o) => o.order_id === row.order_id);
+    if (order) (order.order_add_on ??= []).push({ price: row.price });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -205,13 +236,14 @@ export async function getDetailedOrders(
     .select(
       `
       *,
-      customer:customer_id ( name, email ),
+      customer:customer_id ( name, email, phone_number ),
       order_item (
         order_item_id,
         quantity,
         subtotal,
         special_instructions,
-        product:product_id ( product_name, product_price )
+        product:product_id ( product_name, product_price ),
+        order_item_add_on ( add_on ( name, price ) )
       ),
       transaction (
         transaction_id,
@@ -248,9 +280,12 @@ export async function getDetailedOrders(
 
   if (error) return { data: null, error: error.message };
 
+  const rows = (data ?? []) as unknown as OrderWithDetails[];
+  await attachOrderAddOns(supabase, rows);
+
   return { 
     data: { 
-      data: data as unknown as OrderWithDetails[], 
+      data: rows, 
       totalCount: count ?? 0 
     }, 
     error: null 
@@ -275,13 +310,14 @@ export async function getOrderDetail(
     .select(
       `
       *,
-      customer:customer_id ( name, email ),
+      customer:customer_id ( name, email, phone_number ),
       order_item (
         order_item_id,
         quantity,
         subtotal,
         special_instructions,
-        product:product_id ( product_name, product_price )
+        product:product_id ( product_name, product_price ),
+        order_item_add_on ( add_on ( name, price ) )
       ),
       transaction (
         transaction_id,
@@ -303,7 +339,10 @@ export async function getOrderDetail(
     return { data: null, error: "Order not found." };
   }
 
-  return { data: data as unknown as OrderWithDetails, error: null };
+  const detail = data as unknown as OrderWithDetails;
+  await attachOrderAddOns(supabase, [detail]);
+
+  return { data: detail, error: null };
 }
 
 // ---------------------------------------------------------------------------
@@ -380,6 +419,16 @@ export async function updateOrderStatus(
     .single();
 
   if (updateError) return { data: null, error: updateError.message };
+
+  // A delivery order that is ready to go needs a `delivery` row, otherwise no
+  // rider can see it.
+  if (
+    validatedNewStatus === "ready" ||
+    validatedNewStatus === "out_for_delivery"
+  ) {
+    await ensureDeliveryRow(orderId);
+  }
+
   return { data: updated, error: null };
 }
 

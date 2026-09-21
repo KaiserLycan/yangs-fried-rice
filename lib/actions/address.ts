@@ -3,6 +3,7 @@
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { outsideDeliveryRadiusMessage } from "@/lib/address/validate-ncr";
 
 export async function setActiveAddress(addressId: string) {
   cookies().set("active_address_id", addressId, { maxAge: 60 * 60 * 24 * 365 });
@@ -26,6 +27,10 @@ export async function upsertCustomerAddress({
   if (!user) {
     throw new Error("You must be logged in to save an address");
   }
+
+  // Refuse an address that is known to be beyond the delivery radius.
+  const tooFar = await outsideDeliveryRadiusMessage(address_details);
+  if (tooFar) throw new Error(tooFar);
 
   // If no address_id is provided, we insert a new address.
   // Otherwise, we update the existing one.

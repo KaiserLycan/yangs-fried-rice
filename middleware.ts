@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import type { Database } from "@/types/database.types";
+import {
+  canAccessManagePath,
+  homePathForRole,
+  resolveEmployeeRole,
+} from "@/lib/auth/roles";
 
 /**
  * Route-protection seam.
@@ -74,6 +79,14 @@ export async function middleware(request: NextRequest) {
       redirectUrl.searchParams.set("next", pathname);
       return NextResponse.redirect(redirectUrl);
     }
+    // Role gate. The session payload carries the role, so this costs no
+    // network call. STAFF must not reach the dashboard, reports, customers or
+    // employee pages by typing the URL; RIDERs belong in /deliver only.
+    const role = resolveEmployeeRole(payload?.role);
+    if (pathname.startsWith("/manage") && !canAccessManagePath(role, pathname)) {
+      return NextResponse.redirect(new URL(homePathForRole(role), request.url));
+    }
+
     // Still return the response so Supabase cookies are passed through if needed
     return response;
   }
@@ -93,9 +106,8 @@ export async function middleware(request: NextRequest) {
 
   if (isAuthPage) {
     if (isValidEmployee) {
-      const role = String(payload.role).toUpperCase();
-      const redirectPath = role === "RIDER" ? "/deliver" : "/manage/dashboard";
-      return NextResponse.redirect(new URL(redirectPath, request.url));
+      const role = resolveEmployeeRole(payload.role);
+      return NextResponse.redirect(new URL(homePathForRole(role), request.url));
     }
     if (user) {
       return NextResponse.redirect(new URL("/", request.url));

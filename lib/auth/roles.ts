@@ -150,3 +150,67 @@ export function canResetEmployeePassword(
 }
 
 
+
+// ---------------------------------------------------------------------------
+// Display + routing
+// ---------------------------------------------------------------------------
+
+/**
+ * The three roles the back office presents. Every legacy label (Server, Cook,
+ * Cashier, …) is folded into STAFF by `normalizeEmployeeRoleLabel`, so the
+ * directory, its filter and the create/edit form only ever show these.
+ */
+export const ROLE_DISPLAY_LABELS: Record<EmployeeRole, string> = {
+  MANAGER: "Manager",
+  STAFF: "Staff",
+  RIDER: "Delivery",
+};
+
+/** "Manager" | "Staff" | "Delivery" for any stored role spelling; "Staff" if unknown. */
+export function roleDisplayLabel(role: string | null | undefined): string {
+  const normalized = normalizeEmployeeRoleLabel(role);
+  return normalized ? ROLE_DISPLAY_LABELS[normalized] : ROLE_DISPLAY_LABELS.STAFF;
+}
+
+/**
+ * Case-insensitive, alias-aware role read. Stored roles are not guaranteed to
+ * be upper-case ("Manager", "manager"), and comparing them with `===` against
+ * "MANAGER" is what made a valid manager fail every permission check.
+ */
+export function resolveEmployeeRole(
+  role: string | null | undefined,
+): EmployeeRole | null {
+  return normalizeEmployeeRoleLabel(role);
+}
+
+/** Where each role lands after signing in. */
+export function homePathForRole(role: EmployeeRole | null): string {
+  if (role === "RIDER") return "/deliver";
+  if (role === "STAFF") return "/manage/orders";
+  return "/manage/dashboard";
+}
+
+/**
+ * The /manage pages STAFF may open. Everything else under /manage (dashboard,
+ * reports, customers, employees) is manager-only, and is hidden from the
+ * sidebar *and* refused here, so typing the URL does not get around it.
+ */
+const STAFF_MANAGE_PREFIXES = [
+  "/manage/orders",
+  "/manage/menu",
+  "/manage/kds",
+  "/manage/profile",
+] as const;
+
+export function canAccessManagePath(
+  role: EmployeeRole | null,
+  pathname: string,
+): boolean {
+  if (role === "MANAGER") return true;
+  if (role === "STAFF") {
+    return STAFF_MANAGE_PREFIXES.some(
+      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+    );
+  }
+  return false;
+}

@@ -1,5 +1,6 @@
 import * as React from "react";
 import { OrderData } from "@/lib/mock-orders";
+import { canCancel, primaryActionFor, statusLabelFor, type StaffAction } from "@/lib/orders/staff-actions";
 import { cn } from "@/lib/utils";
 import { DialogRoot } from "@/components/ui/dialog";
 
@@ -7,7 +8,7 @@ interface OrderDetailModalProps {
   order: OrderData | null;
   isOpen: boolean;
   onClose: () => void;
-  onAction?: (type: 'Cancel' | 'Deliver' | 'Confirm', order: OrderData) => void;
+  onAction?: (type: StaffAction, order: OrderData) => void;
 }
 
 const statusConfig = {
@@ -21,7 +22,7 @@ const statusConfig = {
   },
   DELIVERY: {
     headerBg: "bg-[#507A9D]",
-    label: "DELIVERY",
+    label: "DELIVERING",
   },
   COMPLETED: {
     headerBg: "bg-[#48995F]",
@@ -37,6 +38,8 @@ export function OrderDetailModal({ order, isOpen, onClose, onAction }: OrderDeta
   if (!order) return null;
 
   const config = statusConfig[order.status];
+  const primary = primaryActionFor(order);
+  const statusLabel = statusLabelFor(order);
 
   return (
     // We use DialogRoot from components/ui/dialog.tsx to ensure consistent backdrop,
@@ -62,7 +65,7 @@ export function OrderDetailModal({ order, isOpen, onClose, onAction }: OrderDeta
           </div>
           <div className="text-right flex flex-col items-end">
             <div className="text-[10px] font-bold uppercase tracking-widest leading-none mb-1">
-              {config.label}
+              {statusLabel}
             </div>
             {order.timer && (
               <div className="text-lg font-bold tracking-wider leading-none">
@@ -110,7 +113,7 @@ export function OrderDetailModal({ order, isOpen, onClose, onAction }: OrderDeta
               </div>
               <div className="flex justify-between items-start gap-4">
                 <span className="font-bold text-gray-900 shrink-0">Status:</span>
-                <span className="text-right text-gray-800 capitalize">{order.status.toLowerCase()}</span>
+                <span className="text-right text-gray-800 capitalize">{statusLabel.toLowerCase()}</span>
               </div>
               {order.orderInfo.specialInstructions && (
                 <div className="flex flex-col gap-1 mt-1">
@@ -154,20 +157,24 @@ export function OrderDetailModal({ order, isOpen, onClose, onAction }: OrderDeta
 
         {/* Footer Actions */}
         <div className="flex flex-col w-full shrink-0">
-          {(order.status === "QUEUE" || order.status === "PREP") && (
+          {(canCancel(order) || primary) && (
             <div className="flex w-full">
-              <button 
-                onClick={() => onAction?.("Cancel", order)}
-                className="flex-1 py-4 bg-[#C73926] hover:bg-red-800 transition-colors text-white text-[13px] font-bold text-center"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={() => onAction?.(order.status === "QUEUE" ? "Confirm" : "Deliver", order)}
-                className="flex-1 py-4 bg-[#48995F] hover:bg-green-700 transition-colors text-white text-[13px] font-bold text-center"
-              >
-                {order.status === "QUEUE" ? "Confirm" : "Deliver"}
-              </button>
+              {canCancel(order) && (
+                <button 
+                  onClick={() => onAction?.("Cancel", order)}
+                  className="flex-1 py-4 bg-[#C73926] hover:bg-red-800 transition-colors text-white text-[13px] font-bold text-center"
+                >
+                  Cancel
+                </button>
+              )}
+              {primary && (
+                <button 
+                  onClick={() => onAction?.(primary.type, order)}
+                  className="flex-1 py-4 bg-[#48995F] hover:bg-green-700 transition-colors text-white text-[13px] font-bold text-center"
+                >
+                  {primary.label}
+                </button>
+              )}
             </div>
           )}
           <button 

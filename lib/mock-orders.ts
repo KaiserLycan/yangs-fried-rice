@@ -2,6 +2,9 @@ export type OrderStatus = "QUEUE" | "PREP" | "DELIVERY" | "COMPLETED" | "CANCELE
 
 export type OrderData = {
   id: string;
+  rawCreatedAt?: string | null;
+  /** true for delivery orders; false for take-out / dine-in. Decides the wording and the actions. */
+  isDelivery?: boolean;
   orderNumber: string;
   time: string;
   status: OrderStatus;

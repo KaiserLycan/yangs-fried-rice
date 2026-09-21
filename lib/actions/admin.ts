@@ -9,6 +9,7 @@ import {
   canDisableEmployee,
   canResetEmployeePassword,
   normalizeEmployeeRoleLabel,
+  resolveEmployeeRole,
   type EmployeeRole,
 } from "@/lib/auth/roles";
 import {
@@ -21,7 +22,10 @@ import {
   type ChangePasswordInput,
   type UpdateCustomerInput,
 } from "@/lib/validation/admin";
-import type { Tables } from "@/types/database.types";
+import { z } from "zod";
+import { isValidPhMobile, toInternationalMobile } from "@/lib/validation/phone";
+import { dateOfBirthSchema } from "@/lib/validation/date-of-birth";
+import type { Tables, TablesUpdate } from "@/types/database.types";
 
 // ---------------------------------------------------------------------------
 // Shared types
@@ -78,15 +82,18 @@ async function requireRole(
   const result = await getCurrentEmployee();
   if (!result.data) return result;
 
-  const role = result.data.role;
-  if (!role || !isEmployeeRole(role) || !allowed.includes(role)) {
+  // Stored roles are not guaranteed to be upper-case ("Manager", "manager"),
+  // so compare the normalised role. A strict === on the raw column is what
+  // locked valid managers out of every admin action.
+  const role = resolveEmployeeRole(result.data.role);
+  if (!role || !allowed.includes(role)) {
     return {
       data: null,
       error: "You do not have permission to perform this action.",
     };
   }
 
-  return result;
+  return { data: { ...result.data, role }, error: null };
 }
 
 // ---------------------------------------------------------------------------
@@ -139,6 +146,8 @@ export async function createEmployee(
     password,
     role: canonicalRole,
     scheduleShift,
+    phone,
+    dateOfBirth,
     riderDetails,
   } = {
     ...parsed.data,
@@ -173,7 +182,9 @@ export async function createEmployee(
       name,
       email,
       role: canonicalRole,
-      schedule_shift: canonicalRole === "RIDER" ? null : scheduleShift ?? null,
+      schedule_shift: scheduleShift ?? null,
+      "phone-num": phone ? toInternationalMobile(phone) : null,
+      date_of_birth: dateOfBirth ? dateOfBirth : null,
     };
 
     const { data: employee, error: insertError } = await supabase
@@ -249,8 +260,8 @@ export async function changeEmployeeRole(
     return { data: null, error: "Employee not found." };
   }
 
-  const targetCurrentRole = target.role as EmployeeRole;
-  if (!isEmployeeRole(targetCurrentRole)) {
+  const targetCurrentRole = resolveEmployeeRole(target.role);
+  if (!targetCurrentRole) {
     return { data: null, error: "Target employee has an invalid role." };
   }
 
@@ -300,8 +311,8 @@ export async function toggleEmployeeDisabled(
     return { data: null, error: "Employee not found." };
   }
 
-  const targetRole = target.role as EmployeeRole;
-  if (!canDisableEmployee(callerRole, targetRole, isSelf)) {
+  const targetRole = resolveEmployeeRole(target.role);
+  if (!targetRole || !canDisableEmployee(callerRole, targetRole, isSelf)) {
     return {
       data: null,
       error: isSelf
@@ -391,8 +402,8 @@ export async function resetEmployeePassword(
     return { data: null, error: "Employee not found." };
   }
 
-  const targetRole = target.role as EmployeeRole;
-  if (!canResetEmployeePassword(callerRole, targetRole, isSelf)) {
+  const targetRole = resolveEmployeeRole(target.role);
+  if (!targetRole || !canResetEmployeePassword(callerRole, targetRole, isSelf)) {
     return {
       data: null,
       error: "You do not have permission to change this employee's password.",
@@ -419,55 +430,257 @@ export async function resetEmployeePassword(
   }
 }
 /**
- * Update an employee's role, scheduled shift, and password.
+ * Everything a manager can change about an employee, read back for the edit
+ * form: the employee row plus, for riders, the vehicle/licence row.
  * Requires: MANAGER.
+ */
+export async function getEmployeeForEdit(employeeId: string): Promise<
+  ActionResult<{
+    employee: Employee;
+    rider: {
+      vehicle_make_model: string | null;
+      vehicle_plate_number: string | null;
+      driver_license_number: string | null;
+      license_expiry_date: string | null;
+    } | null;
+  }>
+> {
+  const auth = await requireRole("MANAGER");
+  if (!auth.data) return { data: null, error: auth.error };
+
+  const adminClient = createAdminClient();
+
+  const { data: employee, error } = await adminClient
+    .from("employee")
+    .select("*")
+    .eq("employee_id", employeeId)
+    .single();
+  if (error || !employee) return { data: null, error: "Employee not found." };
+
+  const { data: rider } = await adminClient
+    .from("rider")
+    .select("vehicle_make_model, vehicle_plate_number, driver_license_number, license_expiry_date")
+    .eq("employee_id", employeeId)
+    .maybeSingle();
+
+  return { data: { employee, rider: rider ?? null }, error: null };
+}
+
+type EmployeeEditInput = {
+  name?: string;
+  email?: string;
+  password?: string;
+  role?: string;
+  shift?: string | null;
+  phone?: string;
+  dateOfBirth?: string;
+  isAccountDisabled?: boolean;
+  riderDetails?: {
+    vehicle_make_model?: string;
+    vehicle_plate_number?: string;
+    driver_license_number?: string;
+    license_expiry_date?: string;
+  } | null;
+};
+
+/**
+ * Update any detail of an employee — name, email, password, role, shift,
+ * mobile, date of birth, active/disabled, and (for riders) vehicle and
+ * licence. Only the fields that are passed are changed.
+ * Requires: MANAGER.
+ *
+ * Email lives in two places — the Supabase Auth user (what they sign in
+ * with) and `employee.email` — so both are written, and the Auth change is
+ * rolled back if the row update fails. Leaving them out of step would leave
+ * someone unable to log in with the address the directory shows.
+ *
+ * Writes use the service role *after* the caller is verified as a manager, so
+ * a manager whose own row is stored as "Manager" (not "MANAGER") is not
+ * silently blocked by the row-level policies that compare the literal string.
+ * Two safety rules: a manager cannot change their own role or disable their
+ * own account (that is how an organisation ends up with no manager).
  */
 export async function updateEmployeeDetails(
   employeeId: string,
-  input: { role?: string; shift?: string; password?: string }
+  input: EmployeeEditInput,
 ): Promise<ActionResult<Employee>> {
   const auth = await requireRole("MANAGER");
   if (!auth.data) return { data: null, error: auth.error };
 
-  const supabase = createClient();
+  const callerRole = auth.data.role as EmployeeRole;
+  const isSelf = auth.data.employee_id === employeeId;
   const adminClient = createAdminClient();
 
-  // 1. Update Auth Password if a new one was provided
-  if (input.password && input.password.trim() !== "") {
+  // ---- validate what was sent ----
+  const name = input.name?.trim();
+  if (input.name !== undefined && !name) {
+    return { data: null, error: "Employee name is required." };
+  }
+  if (name && name.length > 100) {
+    return { data: null, error: "Name must be 100 characters or fewer." };
+  }
+
+  const newPassword = input.password?.trim() ?? "";
+  if (newPassword && newPassword.length < 8) {
+    return { data: null, error: "Password must be at least 8 characters." };
+  }
+
+  const newEmail = input.email?.trim() ?? "";
+  if (newEmail && !z.string().email().safeParse(newEmail).success) {
+    return { data: null, error: "Enter a valid email address." };
+  }
+
+  let phone: string | null | undefined;
+  if (input.phone !== undefined) {
+    if (input.phone.trim() === "") {
+      phone = null;
+    } else if (!isValidPhMobile(input.phone)) {
+      return { data: null, error: "Enter a valid Philippine mobile number, e.g. +63 9871230456." };
+    } else {
+      phone = toInternationalMobile(input.phone);
+    }
+  }
+
+  let dateOfBirth: string | null | undefined;
+  if (input.dateOfBirth !== undefined) {
+    const parsedDob = dateOfBirthSchema.safeParse(input.dateOfBirth);
+    if (!parsedDob.success) {
+      return { data: null, error: parsedDob.error.issues[0]?.message ?? "Enter a valid date of birth." };
+    }
+    dateOfBirth = input.dateOfBirth === "" ? null : input.dateOfBirth;
+  }
+
+  const requestedRole = input.role ? resolveEmployeeRole(input.role) : null;
+  if (input.role && !requestedRole) {
+    return { data: null, error: "Role must be Manager, Staff or Delivery." };
+  }
+
+  const rider = input.riderDetails ?? null;
+  if (rider) {
+    const filled = Object.values(rider).filter((v) => v !== undefined && v !== null && String(v).trim() !== "");
+    if (filled.length > 0 && filled.length < 4) {
+      return { data: null, error: "Rider details must include vehicle make/model, plate number, licence number and licence expiry." };
+    }
+  }
+
+  // ---- current state ----
+  const { data: current, error: lookupError } = await adminClient
+    .from("employee")
+    .select("employee_id, email, role, is_account_disabled")
+    .eq("employee_id", employeeId)
+    .single();
+
+  if (lookupError || !current) {
+    return { data: null, error: "Employee not found." };
+  }
+
+  const currentRole = resolveEmployeeRole(current.role);
+
+  if (isSelf && requestedRole && requestedRole !== currentRole) {
+    return { data: null, error: "You can't change your own role." };
+  }
+
+  if (
+    input.isAccountDisabled !== undefined &&
+    input.isAccountDisabled !== Boolean(current.is_account_disabled)
+  ) {
+    if (!currentRole || !canDisableEmployee(callerRole, currentRole, isSelf)) {
+      return {
+        data: null,
+        error: isSelf
+          ? "You cannot disable your own account."
+          : "You do not have permission to disable/enable this employee.",
+      };
+    }
+  }
+
+  // ---- 1. Auth: password, then email (only when it changed) ----
+  if (newPassword) {
     const { error: authError } = await adminClient.auth.admin.updateUserById(employeeId, {
-      password: input.password,
+      password: newPassword,
     });
     if (authError) return { data: null, error: authError.message };
   }
 
-  // 2. Update Employee Table (Role and Shift)
-  const updates: any = {};
-  if (input.role) updates.role = input.role;
-  if (input.shift) updates.schedule_shift = input.shift;
-
-  if (Object.keys(updates).length > 0) {
-    const { data, error } = await supabase
-      .from("employee")
-      .update(updates)
-      .eq("employee_id", employeeId)
-      .select()
-      .single();
-
-    if (error) return { data: null, error: error.message };
-    return { data, error: null };
+  const emailChanged =
+    newEmail !== "" && newEmail.toLowerCase() !== (current.email ?? "").toLowerCase();
+  if (emailChanged) {
+    const { error: emailError } = await adminClient.auth.admin.updateUserById(employeeId, {
+      email: newEmail,
+      email_confirm: true,
+    });
+    if (emailError) return { data: null, error: emailError.message };
   }
 
-  // If only the password was updated, fetch and return the unmodified employee row
-  // If only the password was updated, fetch and return the unmodified employee row
-  const { data, error } = await supabase
+  // ---- 2. Employee row ----
+  const updates: TablesUpdate<"employee"> = {};
+  if (name) updates.name = name;
+  if (emailChanged) updates.email = newEmail;
+  if (requestedRole) updates.role = requestedRole;
+  if (input.shift !== undefined) updates.schedule_shift = input.shift || null;
+  if (phone !== undefined) (updates as Record<string, unknown>)["phone-num"] = phone;
+  if (dateOfBirth !== undefined) (updates as Record<string, unknown>).date_of_birth = dateOfBirth;
+  if (input.isAccountDisabled !== undefined) updates.is_account_disabled = input.isAccountDisabled;
+
+  if (Object.keys(updates).length > 0) {
+    const { error } = await adminClient
+      .from("employee")
+      .update(updates)
+      .eq("employee_id", employeeId);
+
+    if (error) {
+      if (emailChanged) {
+        // Put the Auth email back so login and directory still agree.
+        await adminClient.auth.admin.updateUserById(employeeId, {
+          email: current.email ?? undefined,
+          email_confirm: true,
+        });
+      }
+      return { data: null, error: error.message };
+    }
+  }
+
+  // ---- 3. Rider row (vehicle / licence) ----
+  const finalRole = requestedRole ?? currentRole;
+  if (finalRole === "RIDER") {
+    const { data: riderRow } = await adminClient
+      .from("rider")
+      .select("rider_id")
+      .eq("employee_id", employeeId)
+      .maybeSingle();
+
+    const riderFields = rider
+      ? {
+          vehicle_make_model: rider.vehicle_make_model?.trim() || null,
+          vehicle_plate_number: rider.vehicle_plate_number?.trim() || null,
+          driver_license_number: rider.driver_license_number?.trim() || null,
+          license_expiry_date: rider.license_expiry_date?.trim() || null,
+        }
+      : null;
+
+    if (riderRow && riderFields) {
+      const { error: riderError } = await adminClient
+        .from("rider")
+        .update(riderFields)
+        .eq("employee_id", employeeId);
+      if (riderError) return { data: null, error: riderError.message };
+    } else if (!riderRow) {
+      // A rider needs a rider row to appear in the delivery queue.
+      const { error: riderError } = await adminClient
+        .from("rider")
+        .insert({ employee_id: employeeId, ...(riderFields ?? {}) });
+      if (riderError) return { data: null, error: riderError.message };
+    }
+  }
+
+  const { data, error } = await adminClient
     .from("employee")
     .select("*")
     .eq("employee_id", employeeId)
     .single();
 
-  if (error) return { data: null, error: error.message };
+  if (error || !data) return { data: null, error: error?.message ?? "Employee not found." };
   return { data, error: null };
-
 }
 
 
@@ -560,7 +773,13 @@ export async function updateCustomer(
   const supabase = createClient();
   const { data, error } = await supabase
     .from("customer")
-    .update(parsed.data)
+    .update({
+      ...parsed.data,
+      // One canonical stored shape, same as every other screen.
+      ...(parsed.data.phone_number !== undefined
+        ? { phone_number: toInternationalMobile(parsed.data.phone_number) || null }
+        : {}),
+    })
     .eq("customer_id", customerId)
     .select()
     .single();

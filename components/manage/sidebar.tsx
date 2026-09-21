@@ -44,6 +44,12 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition, useEffect } from "react";
 import { logout } from "@/app/(auth)/actions";
+import {
+  canAccessManagePath,
+  resolveEmployeeRole,
+  type EmployeeRole,
+} from "@/lib/auth/roles";
+
 function initialsFromName(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "E";
@@ -307,13 +313,18 @@ const COLLAPSED_KEY = "yangs-sidebar-collapsed";
 // Sidebar component
 // ---------------------------------------------------------------------------
 
-export function Sidebar() {
+export function Sidebar({ role: roleProp = null }: { role?: EmployeeRole | null } = {}) {
   const pathname = usePathname();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [user, setUser] = useState(DEFAULT_SIDEBAR_USER);
+  const [role, setRole] = useState<EmployeeRole | null>(roleProp);
+  // Transitions are switched on only after the first client render, so the
+  // stored open/closed state applies instantly instead of animating on load.
+  const [animate, setAnimate] = useState(false);
 
-  // Persist collapsed state in localStorage
+  // Persist collapsed state in localStorage. Expanding pushes the page over
+  // and collapsing gives the room back; the content resizes either way.
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
@@ -325,8 +336,12 @@ export function Sidebar() {
       return;
     }
 
+    // A phone always starts collapsed — open, the sidebar is full-screen and
+    // would hide the page on load. On larger screens the saved choice wins.
     const stored = window.localStorage.getItem(COLLAPSED_KEY);
-    if (stored === "true") setIsCollapsed(true);
+    if (window.innerWidth < 768 || stored === "true") setIsCollapsed(true);
+    const frame = window.requestAnimationFrame(() => setAnimate(true));
+    return () => window.cancelAnimationFrame(frame);
   }, []);
 
   useEffect(() => {
@@ -343,6 +358,9 @@ export function Sidebar() {
 
         const rawName = typeof employee.name === "string" ? employee.name : "Employee";
         const safeName = rawName.trim() || "Employee";
+
+        const fetchedRole = resolveEmployeeRole(employee.role);
+        if (fetchedRole) setRole(fetchedRole);
 
         setUser({
           name: safeName,
@@ -361,11 +379,22 @@ export function Sidebar() {
     };
   }, [pathname]);
 
+  // On a phone the open sidebar covers the whole screen, so choosing a page
+  // has to close it or the page would never be seen.
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setIsCollapsed(true);
+    }
+  }, [pathname]);
+
   function toggleCollapse() {
     setIsCollapsed((prev) => {
       const next = !prev;
+      // Only a desktop choice is remembered: opening the full-screen phone
+      // menu must not make the desktop sidebar start open next time.
       if (
         typeof window !== "undefined" &&
+        window.innerWidth >= 768 &&
         window.localStorage &&
         typeof window.localStorage.setItem === "function"
       ) {
@@ -387,10 +416,24 @@ export function Sidebar() {
   }
 
   return (
-    <div className="relative z-50 h-full w-[64px] shrink-0">
+    // The slot is as wide as the sidebar (64px collapsed, 232px open), so the
+    // page beside it resizes to fit instead of being covered. `main` in
+    // ManageShell is `flex-1 min-w-0`, which is what lets it shrink.
+    // On a phone (< md) the open sidebar is a full-screen panel rather than a
+    // 232px column — there is no room to share. Collapsed it is the same slim
+    // icon rail on every screen size.
+    <div
+      className={`relative z-20 h-full shrink-0 overflow-hidden ${
+        animate ? "md:transition-[width] md:duration-300 md:ease-in-out" : ""
+      } ${
+        isCollapsed
+          ? "w-[64px]"
+          : "w-[232px] max-md:fixed max-md:inset-0 max-md:z-50 max-md:h-[100dvh] max-md:w-screen"
+      }`}
+    >
       <aside
-        className={`absolute left-0 top-0 flex h-full flex-col gap-[6px] border-r border-[#7a6a60] bg-[#b8352a] py-[22px] transition-all duration-300 ease-in-out ${
-          isCollapsed ? "w-[64px] px-2" : "w-[232px] px-4 shadow-xl"
+        className={`flex h-full w-full flex-col gap-[6px] border-r border-[#7a6a60] bg-[#b8352a] py-[22px] ${
+          isCollapsed ? "px-2" : "px-4"
         }`}
       >
         {/* Wordmark + collapse toggle */}
@@ -421,7 +464,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation items */}
-      {NAV_ITEMS.map((item) => {
+      {NAV_ITEMS.filter((item) => canAccessManagePath(role, item.href)).map((item) => {
         const isActive = pathname.startsWith(item.href);
         const Icon = item.icon;
         return (

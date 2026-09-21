@@ -11,7 +11,11 @@ import { fieldErrorsFrom } from "@/components/profile/use-card-editor";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
-import { AddressValidationNote } from "@/components/checkout/address-validation-note";
+import {
+  AddressValidationNote,
+  type AddressValidationStatus,
+} from "@/components/checkout/address-validation-note";
+import { addressForGeocoding } from "@/lib/address/geocoding-query";
 import type { CustomerAddress } from "@/lib/profile/customer-profile";
 import {
   deliveryAddressSchema,
@@ -329,6 +333,8 @@ function AddressFormDialog({
     Partial<Record<DeliveryAddressField, string>>
   >({});
   const [draftAddressStr, setDraftAddressStr] = React.useState("");
+  const [addressStatus, setAddressStatus] =
+    React.useState<AddressValidationStatus>("checking");
 
   React.useEffect(() => {
     if (!open) {
@@ -348,12 +354,10 @@ function AddressFormDialog({
     const c = (form.elements.namedItem("city") as HTMLInputElement)?.value;
     const z = (form.elements.namedItem("zip") as HTMLInputElement)?.value;
 
-    const combined = [
-      b && s ? `${b} ${s}` : (b || s),
-      c
-    ].filter(Boolean).join(", ");
-    
-    setDraftAddressStr(combined);
+    // Street, barangay, city and ZIP only. The house/building number is left
+    // out on purpose: "B10 L10 Camella Homes" is a lot inside a subdivision
+    // that no map lists, and including it stops the street from matching.
+    setDraftAddressStr(addressForGeocoding({ street: s, barangay: br, city: c, zip: z }));
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -395,7 +399,9 @@ function AddressFormDialog({
             className="flex-1"
             type="submit"
             form={formId}
-            disabled={isSubmitting}
+            // An address the map rejects — including one beyond the delivery
+            // radius — can't be saved at all. The note under the form says why.
+            disabled={isSubmitting || addressStatus === "invalid"}
           >
             {isSubmitting ? "Saving…" : "Save"}
           </Button>
@@ -497,7 +503,10 @@ function AddressFormDialog({
           </CardField>
           
           <div className="pt-2">
-            <AddressValidationNote address={draftAddressStr} />
+            <AddressValidationNote
+              address={draftAddressStr}
+              onStatusChange={setAddressStatus}
+            />
           </div>
 
           {formError && (

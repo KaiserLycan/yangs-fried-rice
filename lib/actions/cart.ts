@@ -1,6 +1,9 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { validateNcrAddress } from "@/lib/address/validate-ncr";
+import { MAX_DELIVERY_RADIUS_KM, MIN_DELIVERY_FEE_PHP } from "@/lib/eta/engine";
+import { calculateDeliveryFee } from "@/lib/menu/cart-totals";
 import {
   addCartItemSchema,
   updateCartItemSchema,
@@ -66,6 +69,49 @@ async function requireCustomer(): Promise<
   // Optimization: We skip checking the `customer` table explicitly because 
   // foreign key constraints on `cart` will prevent non-customers from creating carts anyway.
   return { data: { customer_id: session.user.id }, error: null };
+}
+
+// ---------------------------------------------------------------------------
+// Delivery fee (server-side)
+// ---------------------------------------------------------------------------
+
+/**
+ * The fee an order is actually charged.
+ *
+ * - Pickup / dine-in: none.
+ * - Delivery: base + per-km, from the distance to the delivery address. If the
+ *   address can't be geocoded (no API key, service down) the fee falls back to
+ *   whatever the browser quoted, but never below the minimum — a delivery order
+ *   must not go out at ₱0.
+ * - An address that geocodes beyond the delivery radius is refused.
+ */
+async function resolveDeliveryFee({
+  orderType,
+  address,
+  clientFee,
+}: {
+  orderType: string;
+  address: string | null;
+  clientFee: number;
+}): Promise<{ fee: number; error: null } | { fee: 0; error: string }> {
+  if (orderType !== "delivery") return { fee: 0, error: null };
+
+  if (address && address.trim().length >= 5) {
+    const check = await validateNcrAddress(address);
+    if (Number.isFinite(check.distanceKm)) {
+      if (!check.valid) {
+        return {
+          fee: 0,
+          error:
+            check.message ??
+            `Delivery is limited to ${MAX_DELIVERY_RADIUS_KM} km from the store.`,
+        };
+      }
+      return { fee: calculateDeliveryFee(check.distanceKm), error: null };
+    }
+  }
+
+  return { fee: Math.max(clientFee, MIN_DELIVERY_FEE_PHP), error: null };
 }
 
 // ---------------------------------------------------------------------------
@@ -242,44 +288,111 @@ export async function addCartItem(
     return { data: null, error: `Product "${product.product_name}" is currently unavailable.` };
   }
 
-  const cartItemId = crypto.randomUUID();
+  const notes = parsed.data.special_instructions?.trim() || null;
+  const addOnIds = Array.from(new Set(parsed.data.add_on_ids ?? [])).sort();
 
-  // Insert item, add-ons, and update cart concurrently
-  const promises: any[] = [
-    supabase
+  // Adding a dish that is already in the cart raises its quantity instead of
+  // creating a second identical line — unless the customer attached special
+  // notes, in which case they mean this portion to be different. "Identical"
+  // means: same product, no notes on either line, and the same add-ons.
+  if (!notes) {
+    const { data: existingLines } = await supabase
       .from("cart_item")
-      .insert({
-        cart_item_id: cartItemId,
-        cart_id: cart.cart_id,
-        product_id: product.product_id,
-        quantity: parsed.data.quantity,
-        special_instructions: parsed.data.special_instructions ?? null,
-      })
-      .select()
-      .single()
-      .then((res) => res),
-    supabase
-      .from("cart")
-      .update({ updated_at: new Date().toISOString() })
+      .select("cart_item_id, quantity, special_instructions, cart_item_add_on ( addon_id )")
       .eq("cart_id", cart.cart_id)
-      .then((res) => res),
-  ];
+      .eq("product_id", product.product_id);
 
-  if (parsed.data.add_on_ids && parsed.data.add_on_ids.length > 0) {
-    const addOnsToInsert = parsed.data.add_on_ids.map(addonId => ({
-      cart_item_id: cartItemId,
-      addon_id: addonId,
-    }));
-    promises.push(supabase.from("cart_item_add_on").insert(addOnsToInsert));
+    const match = (existingLines ?? []).find((line) => {
+      if ((line.special_instructions ?? "").trim()) return false;
+      const lineAddOns = (line.cart_item_add_on ?? [])
+        .map((row: { addon_id: string | null }) => row.addon_id)
+        .filter((id: string | null): id is string => Boolean(id))
+        .sort();
+      return (
+        lineAddOns.length === addOnIds.length &&
+        lineAddOns.every((id: string, index: number) => id === addOnIds[index])
+      );
+    });
+
+    if (match) {
+      const mergedQuantity = Math.min(99, match.quantity + parsed.data.quantity);
+      const now = new Date().toISOString();
+
+      const [mergeResult] = await Promise.all([
+        supabase
+          .from("cart_item")
+          .update({ quantity: mergedQuantity })
+          .eq("cart_item_id", match.cart_item_id)
+          .select()
+          .single(),
+        supabase.from("cart").update({ updated_at: now }).eq("cart_id", cart.cart_id),
+      ]);
+
+      if (mergeResult.error || !mergeResult.data) {
+        return { data: null, error: mergeResult.error?.message ?? "Failed to update cart." };
+      }
+
+      const { revalidatePath } = await import("next/cache");
+      revalidatePath("/", "layout");
+
+      return {
+        data: {
+          cart_item_id: match.cart_item_id,
+          cart_id: cart.cart_id,
+          product_id: product.product_id,
+          product_name: product.product_name,
+          product_price: product.product_price,
+          quantity: mergedQuantity,
+          special_instructions: null,
+          subtotal: product.product_price * mergedQuantity,
+          add_ons: [],
+        },
+        error: null,
+      };
+    }
   }
 
-  const [insertResult] = await Promise.all(promises);
+  const cartItemId = crypto.randomUUID();
+
+  // The line must exist before its add-ons: cart_item_add_on has a foreign key
+  // to cart_item. They used to be inserted concurrently, so the add-on insert
+  // could reach the database first, fail the FK, and (its error unchecked) the
+  // add-ons would silently vanish.
+  const insertResult = await supabase
+    .from("cart_item")
+    .insert({
+      cart_item_id: cartItemId,
+      cart_id: cart.cart_id,
+      product_id: product.product_id,
+      quantity: parsed.data.quantity,
+      special_instructions: notes,
+    })
+    .select()
+    .single();
 
   const newItem = insertResult.data;
   const insertError = insertResult.error;
 
   if (insertError || !newItem) {
     return { data: null, error: insertError?.message ?? "Failed to add item to cart." };
+  }
+
+  const [addOnResult] = await Promise.all([
+    addOnIds.length > 0
+      ? supabase
+          .from("cart_item_add_on")
+          .insert(addOnIds.map((addonId) => ({ cart_item_id: cartItemId, addon_id: addonId })))
+      : Promise.resolve({ error: null }),
+    supabase
+      .from("cart")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("cart_id", cart.cart_id),
+  ]);
+
+  if (addOnResult.error) {
+    // Don't leave a line the customer didn't ask for (a dish without its add-ons).
+    await supabase.from("cart_item").delete().eq("cart_item_id", cartItemId);
+    return { data: null, error: "Couldn't add the selected add-ons. Please try again." };
   }
 
   const { revalidatePath } = await import("next/cache");
@@ -293,7 +406,7 @@ export async function addCartItem(
       product_name: product.product_name,
       product_price: product.product_price,
       quantity: parsed.data.quantity,
-      special_instructions: parsed.data.special_instructions ?? null,
+      special_instructions: notes,
       subtotal: product.product_price * parsed.data.quantity, // Optimistic base subtotal
       add_ons: [], // Add-ons not populated yet in add response
     },
@@ -573,6 +686,19 @@ export async function submitCart(
 
   const supabase = createClient();
 
+  // The delivery fee is decided here, not taken on trust from the browser:
+  // a delivery order pays a distance-based fee (never ₱0), a pickup order pays
+  // none, and an address beyond the delivery radius is refused outright.
+  const feeResult = await resolveDeliveryFee({
+    orderType: parsed.data.order_type,
+    address: parsed.data.delivery_address ?? null,
+    clientFee: parsed.data.delivery_fee ?? 0,
+  });
+  if (feeResult.error !== null) {
+    return { data: null, error: feeResult.error };
+  }
+  const deliveryFee = feeResult.fee;
+
   // Try RPC first (if installed in Supabase). The RPC is optional in this
   // codebase, so the generated types may not include it for every schema snapshot.
   const { data: rpcData, error: rpcError } = await (supabase.rpc as any)(
@@ -581,7 +707,7 @@ export async function submitCart(
       p_cart_id: parsed.data.cart_id,
       p_order_type: parsed.data.order_type,
       p_special_instructions: parsed.data.special_instructions ?? undefined,
-      p_delivery_fee: parsed.data.delivery_fee,
+      p_delivery_fee: deliveryFee,
     }
   );
 
@@ -649,7 +775,7 @@ export async function submitCart(
       order_status: "pending",
       order_type: parsed.data.order_type,
       special_instructions: parsed.data.special_instructions ?? null,
-      delivery_fee: parsed.data.delivery_fee ?? 0,
+      delivery_fee: deliveryFee,
       delivery_address: parsed.data.delivery_address ?? null,
     })
     .select()
@@ -662,12 +788,17 @@ export async function submitCart(
   // 2. Transfer cart items and their add-ons
   const orderItemsToInsert = cartItems.map((item) => {
     const price = (item.product as { product_price: number } | null)?.product_price ?? 0;
+    const addOnTotal = (
+      (item.cart_item_add_on as { add_on: { price: number } | null }[] | null) ?? []
+    ).reduce((sum, row) => sum + (row.add_on?.price ?? 0), 0);
     return {
       order_item_id: crypto.randomUUID(),
       order_id: newOrder.order_id,
       product_id: item.product_id,
       quantity: item.quantity,
-      subtotal: price * item.quantity,
+      // Add-ons are billed: the line is (dish + its add-ons) x quantity, the
+      // same figure the cart showed the customer.
+      subtotal: (price + addOnTotal) * item.quantity,
       special_instructions: item.special_instructions,
     };
   });

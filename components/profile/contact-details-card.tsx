@@ -12,10 +12,15 @@ import { useCardEditor } from "@/components/profile/use-card-editor";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import type { CustomerProfile } from "@/lib/profile/customer-profile";
-import { formatMobileNumber } from "@/lib/profile/mobile-number";
+import { PhoneInput } from "@/components/ui/phone-input";
+import {
+  PH_MOBILE_EXAMPLE,
+  formatMobileNumber,
+  toInternationalMobile,
+} from "@/lib/validation/phone";
 import { contactDetailsSchema } from "@/lib/validation/profile";
 
-const MOBILE_HINT = "We text this number about your delivery.";
+const MOBILE_HINT = `We text this number about your delivery. Format: ${PH_MOBILE_EXAMPLE}.`;
 
 const EMAIL_NOTE = "This is the email you sign in with.";
 
@@ -41,9 +46,7 @@ export function ContactDetailsCard({ profile }: { profile: CustomerProfile }) {
   const { isEditing, isSubmitting, edit, cancel, errors, handleSubmit } = useCardEditor({
     schema: contactDetailsSchema,
     read: (form) => ({
-      mobile: String(form.get("mobile") ?? "").replace(/[^0-9]/g, "")
-        ? `+63${String(form.get("mobile") ?? "").replace(/[^0-9]/g, "")}`
-        : "",
+      mobile: toInternationalMobile(String(form.get("mobile") ?? "")),
       email: String(form.get("email") ?? ""),
     }),
     onValid: async (values) => {
@@ -113,27 +116,18 @@ export function ContactDetailsCard({ profile }: { profile: CustomerProfile }) {
               hint={MOBILE_HINT}
               error={errors.mobile}
             >
-              <div
+              <PhoneInput
+                id="mobile"
+                name="mobile"
+                defaultValue={profile.mobile ?? ""}
+                invalid={Boolean(errors.mobile)}
                 className={cn(
-                  "flex w-full items-center rounded-md border bg-white focus-within:ring-2 focus-within:ring-ring/40",
+                  "rounded-md border bg-white focus-within:ring-2 focus-within:ring-ring/40",
                   errors.mobile ? "border-error-border" : "border-field-border"
                 )}
-              >
-                <span className="pl-[14px] text-[15px] text-muted-foreground select-none pointer-events-none">+63</span>
-                <input
-                  id="mobile"
-                  name="mobile"
-                  type="tel"
-                  autoComplete="tel"
-                  defaultValue={formatMobileNumber(profile.mobile).replace("+63 ", "")}
-                  maxLength={10}
-                  minLength={8}
-                  className="w-full bg-transparent px-[6px] py-[13px] text-[15px] text-foreground placeholder:text-placeholder focus:outline-none md:py-[14px]"
-                  onInput={(e) => {
-                    e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, "");
-                  }}
-                />
-              </div>
+                prefixClassName="pl-[14px] text-[15px] text-muted-foreground"
+                inputClassName="px-[6px] py-[13px] text-[15px] text-foreground placeholder:text-placeholder md:py-[14px]"
+              />
             </CardField>
 
             <CardField

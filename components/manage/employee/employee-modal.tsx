@@ -2,6 +2,16 @@ import { useState, useEffect } from "react";
 import { DialogRoot } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { ChevronDown, ChevronRight, Eye, EyeOff } from "lucide-react";
+import { roleDisplayLabel } from "@/lib/auth/roles";
+import { getEmployeeForEdit } from "@/lib/actions/admin";
+import { dateOfBirthSchema, earliestBirthdate, latestBirthdateForMinAge } from "@/lib/validation/date-of-birth";
+import { PhoneInput } from "@/components/ui/phone-input";
+import {
+  PH_MOBILE_EXAMPLE,
+  isValidPhMobile,
+  phoneDigitsOf,
+  toInternationalMobile,
+} from "@/lib/validation/phone";
 
 /**
  * EmployeeModal
@@ -29,19 +39,33 @@ interface EmployeeModalProps {
     shift?: string;
     lastAccessLog?: string;
     imageUrl?: string;
+    phone?: string;
+    dateOfBirth?: string;
+    isDisabled?: boolean;
   } | null;
 }
 
-const ROLES = ["Manager", "Server", "Cook", "Cashier", "Delivery"];
+// The three roles the back office uses. Server / Cook / Cashier are all just
+// "Staff" — see `roleDisplayLabel` / `normalizeEmployeeRoleLabel`.
+const ROLES = ["Manager", "Staff", "Delivery"];
+const DEFAULT_ROLE = "Staff";
+
+type FieldErrors = Partial<Record<"name" | "email" | "password" | "phone" | "dateOfBirth" | "rider", string>>;
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const SHIFTS = ["MWF – 12-3PM", "TThS – 9-5PM", "Weekends – 10-10PM", "Mon-Fri – 8-4PM"];
 
 export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee }: EmployeeModalProps) {
   const isEditMode = !!employee;
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState(ROLES[1]);
+  const [role, setRole] = useState(DEFAULT_ROLE);
   const [shift, setShift] = useState(SHIFTS[0]);
   const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [isDisabled, setIsDisabled] = useState(false);
+  const [loadingRider, setLoadingRider] = useState(false);
   const [lastAccessLog, setLastAccessLog] = useState("");
   const [riderDetails, setRiderDetails] = useState({
     vehicle_make_model: "",
@@ -53,17 +77,21 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee }: E
   const [roleOpen, setRoleOpen] = useState(false);
   const [shiftOpen, setShiftOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState<FieldErrors>({});
 
-  const isRiderRole = role === "Delivery" || role === "Rider" || role === "RIDER";
+  const isRiderRole = roleDisplayLabel(role) === "Delivery";
 
   useEffect(() => {
     if (isOpen) {
       if (employee) {
         setName(employee.name);
         setEmail(employee.email);
-        setRole(employee.role || ROLES[1]);
+        setRole(roleDisplayLabel(employee.role));
         setShift(employee.shift || SHIFTS[0]); 
         setPassword(""); // Admin shouldn't see passwords. Leave blank unless changing it.
+        setPhone(phoneDigitsOf(employee.phone));
+        setDateOfBirth(employee.dateOfBirth ?? "");
+        setIsDisabled(Boolean(employee.isDisabled));
         setLastAccessLog(employee.lastAccessLog || "No login history"); 
         setRiderDetails({
           vehicle_make_model: "",
@@ -74,9 +102,12 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee }: E
       } else {
         setName("");
         setEmail("");
-        setRole(ROLES[1]);
+        setRole(DEFAULT_ROLE);
         setShift(SHIFTS[0]);
         setPassword("");
+        setPhone("");
+        setDateOfBirth("");
+        setIsDisabled(false);
         setLastAccessLog("");
         setRiderDetails({
           vehicle_make_model: "",
@@ -85,8 +116,36 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee }: E
           license_expiry_date: "",
         });
       }
+      setErrors({});
     }
   }, [isOpen, employee]);
+
+  // Editing an existing rider: load their vehicle / licence row so the form
+  // shows (and can change) what is actually stored, instead of empty boxes.
+  useEffect(() => {
+    if (!isOpen || !employee?.id) return;
+    let cancelled = false;
+    setLoadingRider(true);
+    getEmployeeForEdit(employee.id)
+      .then((result) => {
+        if (cancelled || !result.data) return;
+        const rider = result.data.rider;
+        if (rider) {
+          setRiderDetails({
+            vehicle_make_model: rider.vehicle_make_model ?? "",
+            vehicle_plate_number: rider.vehicle_plate_number ?? "",
+            driver_license_number: rider.driver_license_number ?? "",
+            license_expiry_date: rider.license_expiry_date ?? "",
+          });
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingRider(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, employee?.id]);
 
   if (!isOpen) return null;
 
@@ -95,28 +154,52 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee }: E
     ? displayName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() 
     : 'LR';
 
+  // Validate BEFORE handing off to the confirm dialog, and never clear the
+  // form here. The old handler wiped every field the moment "Save" was
+  // pressed, so a validation error, a cancelled confirmation or a failed save
+  // all left the manager staring at an empty form. The parent closes the
+  // modal on success, and the effect above resets the fields the next time it
+  // opens.
   const handleSave = () => {
+    const next: FieldErrors = {};
+    if (!name.trim()) next.name = "Enter the employee's name.";
+    if (!EMAIL_PATTERN.test(email.trim())) next.email = "Enter a valid email address.";
+    if (!isEditMode && password.length < 8) {
+      next.password = "Password must be at least 8 characters.";
+    } else if (isEditMode && password && password.length < 8) {
+      next.password = "Password must be at least 8 characters.";
+    }
+
+    // The field can only hold digits, so this catches a short or half-typed
+    // number (and one that doesn't start with 9).
+    if (phone && !isValidPhMobile(phone)) {
+      next.phone = `Enter 10 digits after +63, e.g. ${PH_MOBILE_EXAMPLE}.`;
+    }
+    const dobResult = dateOfBirthSchema.safeParse(dateOfBirth);
+    if (!dobResult.success) {
+      next.dateOfBirth = dobResult.error.issues[0]?.message ?? "Enter a valid date of birth.";
+    }
+    if (isRiderRole) {
+      const filled = Object.values(riderDetails).filter((v) => v.trim() !== "").length;
+      if (filled > 0 && filled < 4) {
+        next.rider = "Fill in all four rider details, or leave them all blank.";
+      }
+    }
+
+    setErrors(next);
+    if (Object.keys(next).length > 0) return;
+
     onSave?.({
-      name,
-      email,
+      name: name.trim(),
+      email: email.trim(),
       role,
-      shift: isRiderRole ? null : shift,
+      shift,
       password,
+      phone: toInternationalMobile(phone),
+      dateOfBirth,
+      isAccountDisabled: isDisabled,
       lastAccessLog,
       riderDetails: isRiderRole ? riderDetails : null,
-    });
-
-    setName("");
-    setEmail("");
-    setRole(ROLES[1]);
-    setShift(SHIFTS[0]);
-    setPassword("");
-    setLastAccessLog("");
-    setRiderDetails({
-      vehicle_make_model: "",
-      vehicle_plate_number: "",
-      driver_license_number: "",
-      license_expiry_date: "",
     });
   };
 
@@ -159,8 +242,13 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee }: E
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="e.g. Alice Smith"
-              className="bg-white border border-[#DDCDB8] rounded-[12px] p-[14px] text-[15px] text-[#1A1210] focus:outline-none focus:ring-2 focus:ring-[#E8541F] placeholder:text-[#A2938A]"
+              aria-invalid={errors.name ? true : undefined}
+              className={cn(
+                "bg-white border rounded-[12px] p-[14px] text-[15px] text-[#1A1210] focus:outline-none focus:ring-2 focus:ring-[#E8541F] placeholder:text-[#A2938A]",
+                errors.name ? "border-[#C0392B]" : "border-[#DDCDB8]",
+              )}
             />
+            {errors.name && <p className="text-[12px] text-[#C0392B]">{errors.name}</p>}
           </div>
 
           {/* Email */}
@@ -172,8 +260,57 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee }: E
               value={email}
               onChange={e => setEmail(e.target.value)}
               placeholder="e.g. alice@gmail.com"
-              className="bg-white border border-[#DDCDB8] rounded-[12px] p-[14px] text-[15px] text-[#1A1210] focus:outline-none focus:ring-2 focus:ring-[#E8541F] placeholder:text-[#A2938A]"
+              type="email"
+              aria-invalid={errors.email ? true : undefined}
+              className={cn(
+                "bg-white border rounded-[12px] p-[14px] text-[15px] text-[#1A1210] focus:outline-none focus:ring-2 focus:ring-[#E8541F] placeholder:text-[#A2938A]",
+                errors.email ? "border-[#C0392B]" : "border-[#DDCDB8]",
+              )}
             />
+            {errors.email && <p className="text-[12px] text-[#C0392B]">{errors.email}</p>}
+          </div>
+
+          {/* Mobile number */}
+          <div className="flex flex-col gap-1.5 w-full">
+            <label className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase">
+              Mobile Number
+            </label>
+            <PhoneInput
+              value={phone}
+              onValueChange={setPhone}
+              invalid={Boolean(errors.phone)}
+              className={cn(
+                "rounded-[12px] border bg-white focus-within:ring-2 focus-within:ring-[#E8541F]",
+                errors.phone ? "border-[#C0392B]" : "border-[#DDCDB8]",
+              )}
+              prefixClassName="pl-[14px] text-[15px] text-[#7A6A60]"
+              inputClassName="px-[6px] py-[14px] text-[15px] text-[#1A1210] placeholder:text-[#A2938A]"
+            />
+            {errors.phone ? (
+              <p className="text-[12px] text-[#C0392B]">{errors.phone}</p>
+            ) : (
+              <p className="text-[12px] text-[#A2938A]">Format: {PH_MOBILE_EXAMPLE}</p>
+            )}
+          </div>
+
+          {/* Date of birth */}
+          <div className="flex flex-col gap-1.5 w-full">
+            <label className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase">
+              Date of Birth
+            </label>
+            <input
+              type="date"
+              value={dateOfBirth}
+              onChange={e => setDateOfBirth(e.target.value)}
+              min={earliestBirthdate()}
+              max={latestBirthdateForMinAge()}
+              aria-invalid={errors.dateOfBirth ? true : undefined}
+              className={cn(
+                "bg-white border rounded-[12px] p-[14px] text-[15px] text-[#1A1210] focus:outline-none focus:ring-2 focus:ring-[#E8541F]",
+                errors.dateOfBirth ? "border-[#C0392B]" : "border-[#DDCDB8]",
+              )}
+            />
+            {errors.dateOfBirth && <p className="text-[12px] text-[#C0392B]">{errors.dateOfBirth}</p>}
           </div>
 
           {/* Role Dropdown */}
@@ -213,7 +350,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee }: E
             </div>
           </div>
 
-          {!isRiderRole && (
+          {(
             <div className="flex flex-col gap-1.5 w-full">
               <label className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase">
                 Scheduled Shift
@@ -254,8 +391,9 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee }: E
           {isRiderRole && (
             <div className="flex flex-col gap-3 w-full rounded-[12px] border border-[#DDCDB8] bg-[#F8F1E6] p-3">
               <div className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase">
-                Rider Details
+                Rider Details{loadingRider ? " — loading…" : ""}
               </div>
+              {errors.rider && <p className="text-[12px] text-[#C0392B]">{errors.rider}</p>}
 
               <div className="flex flex-col gap-1.5 w-full">
                 <label className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase">
@@ -317,8 +455,12 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee }: E
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                placeholder={isEditMode ? "Leave blank to keep unchanged" : "Enter secure password"}
-                className="bg-white border border-[#DDCDB8] rounded-[12px] p-[14px] pr-[40px] w-full text-[15px] text-[#1A1210] focus:outline-none focus:ring-2 focus:ring-[#E8541F] placeholder:text-[#A2938A]"
+                placeholder={isEditMode ? "Leave blank to keep unchanged" : "At least 8 characters"}
+                aria-invalid={errors.password ? true : undefined}
+                className={cn(
+                  "bg-white border rounded-[12px] p-[14px] pr-[40px] w-full text-[15px] text-[#1A1210] focus:outline-none focus:ring-2 focus:ring-[#E8541F] placeholder:text-[#A2938A]",
+                  errors.password ? "border-[#C0392B]" : "border-[#DDCDB8]",
+                )}
               />
               <button 
                 type="button"
@@ -328,7 +470,29 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee }: E
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
+            {errors.password && <p className="text-[12px] text-[#C0392B]">{errors.password}</p>}
           </div>
+
+          {/* Account status — only for an existing employee */}
+          {isEditMode && (
+            <label className="flex items-center justify-between gap-3 rounded-[12px] border border-[#DDCDB8] bg-white p-[14px]">
+              <span className="flex flex-col">
+                <span className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase">
+                  Account
+                </span>
+                <span className="text-[13px] text-[#1A1210]">
+                  {isDisabled ? "Disabled — they can't sign in" : "Active"}
+                </span>
+              </span>
+              <input
+                type="checkbox"
+                checked={!isDisabled}
+                onChange={e => setIsDisabled(!e.target.checked)}
+                aria-label="Account active"
+                className="h-5 w-5 accent-[#E8541F]"
+              />
+            </label>
+          )}
 
           {/* Last Access Log */}
           <div className="flex flex-col gap-1.5 w-full">
@@ -353,7 +517,10 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee }: E
               </button>
               <button 
                 onClick={handleSave}
-                className="flex-1 bg-[#E8541F] rounded-[13px] py-[10px] font-bold text-white text-[14px] hover:bg-[#E8541F]/90 transition-colors"
+                // Not while the rider's stored details are still loading — saving
+                // the still-empty boxes would overwrite them.
+                disabled={loadingRider}
+                className="flex-1 bg-[#E8541F] rounded-[13px] py-[10px] font-bold text-white text-[14px] hover:bg-[#E8541F]/90 transition-colors disabled:opacity-60 disabled:pointer-events-none"
               >
                 {isEditMode ? "Save Changes" : "Add Employee"}
               </button>

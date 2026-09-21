@@ -29,6 +29,8 @@
  * whichever of the two is further along wins.
  */
 
+import { isPickupOrder } from "@/lib/orders/format";
+
 export const ORDER_STAGES = [
   "received",
   "preparing",
@@ -63,6 +65,29 @@ export const STAGE_HEADLINES: Record<OrderStage, string> = {
   delivered: "DELIVERED",
 };
 
+
+/**
+ * How the order reaches the customer. The four stages are the same; only the
+ * words for the last two change. A take-out order is never "out for delivery"
+ * — it is "ready for pick up" and then "picked up".
+ */
+export type Fulfilment = "delivery" | "pickup";
+
+export function fulfilmentOf(orderType: string | null | undefined): Fulfilment {
+  return isPickupOrder(orderType) ? "pickup" : "delivery";
+}
+
+const PICKUP_STAGE_LABELS: Record<OrderStage, string> = {
+  ...STAGE_LABELS,
+  out_for_delivery: "Ready for pick up",
+  delivered: "Picked up",
+};
+
+const PICKUP_STAGE_HEADLINES: Record<OrderStage, string> = {
+  ...STAGE_HEADLINES,
+  out_for_delivery: "READY FOR PICK UP",
+  delivered: "PICKED UP",
+};
 
 export const CANCELLED_HEADLINE = "ORDER CANCELLED";
 
@@ -108,6 +133,11 @@ export type OrderStageInput = {
   orderStatus: string | null;
   cancelledAt: string | null;
   deliveryStatus: string | null;
+  /**
+   * `order.order_type`. Optional: without it the order is read as a delivery,
+   * which is what every caller did before take-out had a stage of its own.
+   */
+  orderType?: string | null;
 };
 
 /**
@@ -174,8 +204,15 @@ export function resolveOrderProgress(input: OrderStageInput): OrderProgress {
   if (input.cancelledAt !== null) return { kind: "cancelled" };
 
   const orderStatus = normaliseStatus(input.orderStatus);
-  const fromOrder = ORDER_STATUS_STAGES[orderStatus ?? ""];
+  let fromOrder = ORDER_STATUS_STAGES[orderStatus ?? ""];
   if (fromOrder === "cancelled") return { kind: "cancelled" };
+
+  // For a delivery, "ready" is still the kitchen's business (see the table
+  // above). For a take-out order it is the moment the customer can come and
+  // get it — the stage the timeline calls "Ready for pick up".
+  if (orderStatus === "ready" && isPickupOrder(input.orderType)) {
+    fromOrder = "out_for_delivery";
+  }
 
   const fromDelivery =
     DELIVERY_STATUS_STAGES[normaliseStatus(input.deliveryStatus) ?? ""];
@@ -226,20 +263,29 @@ export function isCancellable(progress: OrderProgress): boolean {
  * design has no cancelled timeline, and blanking the list would leave the
  * screen with nothing where its main content belongs.
  */
-export function timelineStages(progress: OrderProgress): TimelineStage[] {
+export function timelineStages(
+  progress: OrderProgress,
+  fulfilment: Fulfilment = "delivery",
+): TimelineStage[] {
   const currentIndex =
     progress.kind === "stage" ? ORDER_STAGES.indexOf(progress.stage) : -1;
+  const labels = fulfilment === "pickup" ? PICKUP_STAGE_LABELS : STAGE_LABELS;
 
   return ORDER_STAGES.map((stage, index) => ({
     stage,
-    label: STAGE_LABELS[stage],
+    label: labels[stage],
     state:
       index < currentIndex ? "done" : index === currentIndex ? "now" : "pending",
   }));
 }
 
-export function headlineFor(progress: OrderProgress): string {
+export function headlineFor(
+  progress: OrderProgress,
+  fulfilment: Fulfilment = "delivery",
+): string {
   if (progress.kind === "cancelled") return CANCELLED_HEADLINE;
   if (progress.kind === "unknown") return UNKNOWN_HEADLINE;
-  return STAGE_HEADLINES[progress.stage];
+  const headlines =
+    fulfilment === "pickup" ? PICKUP_STAGE_HEADLINES : STAGE_HEADLINES;
+  return headlines[progress.stage];
 }
