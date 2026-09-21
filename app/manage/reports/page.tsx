@@ -8,6 +8,7 @@ import {
 } from "@/components/manage/reports/report-controls";
 import { ReportsSummary } from "@/components/manage/reports/reports-summary";
 import { ReportsCharts } from "@/components/manage/reports/reports-charts";
+import { normalizeReportType } from "@/lib/reports/report-types";
 
 function getToday() {
   return new Date().toISOString().split("T")[0];
@@ -23,7 +24,7 @@ function getDefaultStartDate() {
 
 function ReportsContent() {
   const searchParams = useSearchParams();
-  const reportType = searchParams.get("type") || "Sales and Order";
+  const reportType = normalizeReportType(searchParams.get("type"));
 
   const [startDate, setStartDate] = useState(getDefaultStartDate());
   const [endDate, setEndDate] = useState(getToday());

@@ -3,6 +3,7 @@ import {
   CANCELLED_HEADLINE,
   UNKNOWN_HEADLINE,
   headlineFor,
+  fulfilmentOf,
   isCancellable,
   resolveOrderProgress,
   timelineStages,
@@ -232,5 +233,59 @@ describe("headlineFor", () => {
     expect(headlineFor({ kind: "cancelled" })).toBe(CANCELLED_HEADLINE);
     expect(headlineFor({ kind: "unknown" })).toBe(UNKNOWN_HEADLINE);
     expect(headlineFor({ kind: "stage", stage: "delivered", orderStatus: "completed" })).not.toBe("");
+  });
+});
+
+describe("take-out orders", () => {
+  it("reads fulfilment from the order type, defaulting to delivery", () => {
+    expect(fulfilmentOf("take_out")).toBe("pickup");
+    expect(fulfilmentOf("Pickup")).toBe("pickup");
+    expect(fulfilmentOf("delivery")).toBe("delivery");
+    expect(fulfilmentOf(null)).toBe("delivery");
+  });
+
+  it("puts a take-out order that staff marked ready on the 'ready for pick up' stage", () => {
+    expect(
+      resolveOrderProgress(input({ orderStatus: "ready", orderType: "take_out" })),
+    ).toEqual({ kind: "stage", stage: "out_for_delivery", orderStatus: "ready" });
+  });
+
+  it("leaves a delivery order that is 'ready' in the kitchen stage, as before", () => {
+    expect(
+      resolveOrderProgress(input({ orderStatus: "ready", orderType: "delivery" })),
+    ).toEqual({ kind: "stage", stage: "preparing", orderStatus: "ready" });
+    expect(resolveOrderProgress(input({ orderStatus: "ready" }))).toEqual({
+      kind: "stage",
+      stage: "preparing",
+      orderStatus: "ready",
+    });
+  });
+
+  it("words the last two steps for pick up, never 'delivery'", () => {
+    const labels = timelineStages(
+      { kind: "stage", stage: "out_for_delivery", orderStatus: "ready" },
+      "pickup",
+    ).map((s) => s.label);
+    expect(labels).toEqual([
+      "Order received",
+      "Preparing in kitchen",
+      "Ready for pick up",
+      "Picked up",
+    ]);
+  });
+
+  it("headlines a ready take-out order 'READY FOR PICK UP' and a collected one 'PICKED UP'", () => {
+    expect(
+      headlineFor({ kind: "stage", stage: "out_for_delivery", orderStatus: "ready" }, "pickup"),
+    ).toBe("READY FOR PICK UP");
+    expect(
+      headlineFor({ kind: "stage", stage: "delivered", orderStatus: "completed" }, "pickup"),
+    ).toBe("PICKED UP");
+  });
+
+  it("keeps the delivery wording when no fulfilment is given", () => {
+    expect(
+      headlineFor({ kind: "stage", stage: "out_for_delivery", orderStatus: "out_for_delivery" }),
+    ).toBe("OUT FOR DELIVERY");
   });
 });

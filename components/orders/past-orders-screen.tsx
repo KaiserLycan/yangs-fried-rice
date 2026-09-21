@@ -48,16 +48,14 @@ export function PastOrdersScreen({ orders }: { orders: PastOrder[] }) {
 }
 
 /**
- * No frame draws this, and it is the state every real customer is in today —
- * nothing writes an `order` row yet, so a genuine read finds nothing. Phrased
- * as an invitation back to the menu, the same shape `CartEmptyState` uses for
- * the same reason.
+ * What a customer with no orders sees. Deliberately plain: no sample orders,
+ * just an invitation back to the menu, the same shape `CartEmptyState` uses.
  */
 function PastOrdersEmptyState() {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-[8px] px-[20px] py-[48px] text-center">
       <p className="text-[14px] text-muted-foreground">
-        No past orders yet.
+        You haven’t placed any orders yet.
       </p>
       <Link href="/menu" className="text-[14px] text-accent underline">
         Browse the menu

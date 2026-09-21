@@ -3,7 +3,8 @@
 import type { TablesUpdate } from "@/types/database.types";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isManager, isEmployeeRole, type EmployeeRole } from "@/lib/auth/roles";
+import { isManager, resolveEmployeeRole, type EmployeeRole } from "@/lib/auth/roles";
+import { toInternationalMobile } from "@/lib/validation/phone";
 import {
   employeeProfileUpdateSchema,
   riderDetailsUpdateSchema,
@@ -37,9 +38,10 @@ async function requireEmployee(
     .eq("employee_id", user.id)
     .single();
 
-  if (!employee || !isEmployeeRole(employee.role)) return null;
+  const role = resolveEmployeeRole(employee?.role);
+  if (!employee || !role) return null;
 
-  return { employeeId: employee.employee_id, role: employee.role };
+  return { employeeId: employee.employee_id, role };
 }
 
 // ---------------------------------------------------------------------------
@@ -99,7 +101,7 @@ export async function getMyEmployeeProfile(): Promise<
       email: employee.email,
       phoneNumber: (employee as any)["phone-num"] ?? null,
       dateOfBirth: employee.date_of_birth ?? null,
-      role: employee.role as EmployeeRole,
+      role: (resolveEmployeeRole(employee.role) ?? employee.role) as EmployeeRole,
       scheduleShift: employee.schedule_shift,
       profileImageUrl: employee.profileImage_URL,
       passwordLastUpdated: employee.password_last_updated,
@@ -156,6 +158,16 @@ export async function updateMyEmployeeProfile(
     };
   }
 
+  // Role and shift are assigned by a manager, never self-served — a rider or
+  // staff member must not be able to rewrite their own shift by calling this
+  // endpoint directly, whatever the profile card shows.
+  if (scheduleShift !== undefined && !isManager(caller.role)) {
+    return {
+      success: false,
+      error: "Only a manager can change an employee's shift.",
+    };
+  }
+
   const updatePayload: TablesUpdate<"employee"> = {} as TablesUpdate<"employee">;
   if (name !== undefined) updatePayload.name = name;
   if (scheduleShift !== undefined) updatePayload.schedule_shift = scheduleShift;
@@ -164,7 +176,8 @@ export async function updateMyEmployeeProfile(
     (updatePayload as Record<string, string | null>).date_of_birth = dateOfBirth || null;
   }
   if (mobile !== undefined) {
-    (updatePayload as Record<string, string | null>)["phone-num"] = mobile || null;
+    (updatePayload as Record<string, string | null>)["phone-num"] =
+      toInternationalMobile(mobile) || null;
   }
 
   if (Object.keys(updatePayload).length === 0) {
@@ -173,16 +186,54 @@ export async function updateMyEmployeeProfile(
     return { success: true, data: undefined };
   }
 
-  const { error } = await supabase
+  // `.select()` so a write that silently matched no row (blocked by RLS) is
+  // caught instead of reported as a success.
+  const { data: updatedRows, error } = await supabase
     .from("employee")
     .update(updatePayload)
-    .eq("employee_id", caller.employeeId);
+    .eq("employee_id", caller.employeeId)
+    .select("employee_id");
 
   if (error) {
-    return { success: false, error: "Could not update your profile." };
+    console.error("updateMyEmployeeProfile failed:", error);
+    return { success: false, error: describeProfileUpdateError(error) };
+  }
+  if (!updatedRows || updatedRows.length === 0) {
+    return {
+      success: false,
+      error:
+        "Your profile could not be updated — the database didn't allow the change. Ask a manager to check your employee record.",
+    };
   }
 
   return { success: true, data: undefined };
+}
+
+/**
+ * Turns a Postgres/PostgREST error into something the person (and whoever is
+ * helping them) can act on. The old blanket "Could not update your profile."
+ * hid the real cause — a missing column, a role the database rejects, a
+ * permission block — behind the same sentence every time.
+ */
+function describeProfileUpdateError(error: {
+  code?: string;
+  message?: string;
+}): string {
+  const message = error.message ?? "";
+
+  // 42703 = undefined_column, PGRST204 = column not in PostgREST's schema cache
+  if (error.code === "42703" || error.code === "PGRST204" || /phone-num/.test(message)) {
+    return "Couldn't save: the database is missing the employee phone number column (or its API cache is stale). Add the column and reload the API schema, then try again.";
+  }
+  // 23514 = check_violation — e.g. a stored role the role constraint rejects
+  if (error.code === "23514") {
+    return "Couldn't save: your employee record has a role the database doesn't accept. Ask a manager to set it to Manager, Staff or Delivery.";
+  }
+  // 42501 = insufficient_privilege (row-level security)
+  if (error.code === "42501") {
+    return "Couldn't save: you don't have permission to update this profile.";
+  }
+  return `Could not update your profile${message ? ` (${message})` : ""}.`;
 }
 
 /**

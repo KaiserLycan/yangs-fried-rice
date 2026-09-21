@@ -2,7 +2,10 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createSession, deleteSession } from "@/lib/auth/session";
-import { validateNcrAddress } from "@/lib/address/validate-ncr";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { homePathForRole, resolveEmployeeRole } from "@/lib/auth/roles";
+import { addressForGeocoding, validateNcrAddress } from "@/lib/address/validate-ncr";
+import { toInternationalMobile } from "@/lib/validation/phone";
 import {
   signupSchema,
   DEFAULT_ADDRESS_LABEL,
@@ -18,6 +21,16 @@ import {
 type ActionResult = { success: true } | { success: false; error: string };
 
 /**
+ * `signedIn: false` means the account exists but has no session yet — the
+ * normal case while Supabase's "Confirm email" setting is on. The form sends
+ * the person to /login with a green "check your email" notice instead of
+ * showing the old red error.
+ */
+type RegisterResult =
+  | { success: true; signedIn?: boolean }
+  | { success: false; error: string };
+
+/**
  * Cust1: register a new customer account.
  *
  * Re-validates with the same signupSchema the form already checked
@@ -31,7 +44,7 @@ type ActionResult = { success: true } | { success: false; error: string };
  */
 export async function registerCustomer(
   values: SignupValues
-): Promise<ActionResult> {
+): Promise<RegisterResult> {
   const parsed = signupSchema.safeParse(values);
   if (!parsed.success) {
     return {
@@ -39,14 +52,15 @@ export async function registerCustomer(
       error: "Some fields need fixing before we can create your account.",
     };
   }
-  const { firstName, lastName, email, phone, password, buildingNo, street, barangay, city, zip } = parsed.data;
+  const { firstName, lastName, email, phone, dateOfBirth, password, buildingNo, street, barangay, city, zip } = parsed.data;
 
   const name = `${firstName} ${lastName}`.trim();
 
   // Combine for database storage
   const fullAddress = `${buildingNo} ${street}, ${barangay}, ${city} ${zip}`;
-  // Extract essential info for Nominatim validation (avoids barangay/zip confusing the geocoder)
-  const essentialAddress = `${buildingNo} ${street}, ${city}`;
+  // What the map can actually find: street, barangay, city, ZIP. The building
+  // number is a lot/unit inside a subdivision and only makes the lookup miss.
+  const essentialAddress = addressForGeocoding({ street, barangay, city, zip });
 
   // Enforce delivery boundary: customer address must be within NCR
   const ncrCheck = await validateNcrAddress(essentialAddress);
@@ -88,14 +102,27 @@ export async function registerCustomer(
 
   const customerId = authData.user.id;
 
-  // customer.customer_id is set to the Supabase Auth user id — there's no
-  // DB-level FK enforcing this (confirmed against the generated types), so
-  // this app-layer link is what keeps them in sync.
-  const { error: customerError } = await supabase.from("customer").insert({
+  // The profile rows are written with the service role. While "Confirm email"
+  // is on, signUp() returns NO session, so the session-scoped client is still
+  // anonymous and RLS (`auth.uid() = customer_id`) rejects the insert — which
+  // is how people ended up with an auth account but no profile. The id being
+  // written is the one Supabase Auth just handed back, so nothing here can be
+  // pointed at someone else's row. Falls back to the session client if the
+  // service key isn't configured.
+  let writer: typeof supabase = supabase;
+  try {
+    writer = createAdminClient() as unknown as typeof supabase;
+  } catch {
+    // no service key configured — use the session client
+  }
+
+  // customer.customer_id is the Supabase Auth user id (FK to auth.users).
+  const { error: customerError } = await writer.from("customer").insert({
     customer_id: customerId,
     name,
     email,
-    phone_number: phone,
+    phone_number: toInternationalMobile(phone),
+    date_of_birth: dateOfBirth ? dateOfBirth : null,
   });
   if (customerError) {
     return {
@@ -105,7 +132,7 @@ export async function registerCustomer(
     };
   }
 
-  const { error: addressError } = await supabase
+  const { error: addressError } = await writer
     .from("customer_address")
     .insert({
       customer_id: customerId,
@@ -120,18 +147,18 @@ export async function registerCustomer(
     };
   }
 
+  // With email confirmation on, signing in fails until the address is
+  // confirmed. That is not an error — the account exists — so report it as a
+  // success without a session and let the form send them to the login page.
   const { error: signInError } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
   if (signInError) {
-    return {
-      success: false,
-      error: "Your account was created — please log in.",
-    };
+    return { success: true, signedIn: false };
   }
 
-  return { success: true };
+  return { success: true, signedIn: true };
 }
 
 /**
@@ -267,11 +294,15 @@ export async function loginEmployee(
     };
   }
 
-  const redirectTo =
-    EMPLOYEE_ROLE_REDIRECTS[employee.role ?? ""] ?? DEFAULT_EMPLOYEE_REDIRECT;
+  // Normalise the stored role ("Manager", "manager", "Server", …) so the
+  // redirect and the session cookie agree with the permission checks.
+  const role = resolveEmployeeRole(employee.role);
+  const redirectTo = role
+    ? homePathForRole(role)
+    : EMPLOYEE_ROLE_REDIRECTS[employee.role ?? ""] ?? DEFAULT_EMPLOYEE_REDIRECT;
 
   // Create the fast local session cookie for middleware
-  await createSession(authData.user.id, employee.role ?? "");
+  await createSession(authData.user.id, role ?? employee.role ?? "");
 
   return { success: true, redirectTo };
 }

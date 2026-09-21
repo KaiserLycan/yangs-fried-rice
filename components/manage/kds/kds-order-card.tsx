@@ -3,17 +3,20 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { OrderData } from "@/lib/mock-orders";
+import { primaryActionFor, type StaffAction } from "@/lib/orders/staff-actions";
 
 interface KdsOrderCardProps {
   order: OrderData;
-  onAction?: (type: "Cancel" | "Confirm" | "Deliver", order: OrderData) => void;
+  onAction?: (type: StaffAction, order: OrderData) => void;
 }
 
 export function KdsOrderCard({ order, onAction }: KdsOrderCardProps) {
   const isConfirmed = order.status === "PREP";
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const handleAction = async (type: "Cancel" | "Confirm" | "Deliver") => {
+  const primary = primaryActionFor(order);
+
+  const handleAction = async (type: StaffAction) => {
     if (!onAction || isProcessing) return;
     setIsProcessing(true);
     try {
@@ -89,15 +92,15 @@ export function KdsOrderCard({ order, onAction }: KdsOrderCardProps) {
           )}
         </button>
         <button
-          onClick={() => handleAction(isConfirmed ? "Deliver" : "Confirm")}
-          disabled={isProcessing}
+          onClick={() => primary && handleAction(primary.type)}
+          disabled={isProcessing || !primary}
           className="bg-[#4c9a5e] flex-1 flex justify-center items-center py-[13px] hover:brightness-110 transition-all border-t border-l border-[#3a2e2c]/20 disabled:opacity-60"
         >
           {isProcessing ? (
             <Loader2 className="h-4 w-4 animate-spin text-white" />
           ) : (
             <span className="font-bold text-[13px] text-white tracking-[0.52px] uppercase">
-              {isConfirmed ? "Deliver" : "Confirm"}
+              {primary?.label ?? ""}
             </span>
           )}
         </button>

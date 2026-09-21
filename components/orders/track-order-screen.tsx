@@ -10,6 +10,7 @@ import {
   arrivalWindowFrom,
 } from "@/lib/orders/arrival-window";
 import {
+  fulfilmentOf,
   headlineFor,
   resolveOrderProgress,
   timelineStages,
@@ -187,8 +188,10 @@ export function TrackOrderScreen({
     };
   }, [orderId, refreshEta]);
 
-  const progress = resolveOrderProgress(status);
-  const stages = timelineStages(progress);
+  // Take-out reads "Ready for pick up" / "Picked up"; delivery keeps its own words.
+  const fulfilment = fulfilmentOf(order.orderType);
+  const progress = resolveOrderProgress({ ...status, orderType: order.orderType });
+  const stages = timelineStages(progress, fulfilment);
 
   // While a fresh estimate is on its way the old one stays up rather than
   // flashing the fallback; only a screen with nothing yet says it is working.
@@ -223,7 +226,7 @@ export function TrackOrderScreen({
             Order #{order.orderNumber}
           </span>
           <h1 className="font-display text-[30px] text-on-ink md:text-[38px] md:leading-[1.05] md:text-foreground">
-            {headlineFor(progress)}
+            {headlineFor(progress, fulfilment)}
           </h1>
           <p
             className="pt-[2px] text-[13px] text-on-ink-muted md:pt-[3px] md:text-[14px] md:text-muted-strong"

@@ -1,5 +1,6 @@
 "use client";
 
+import { formatMobileNumber } from "@/lib/validation/phone";
 import { useState, useEffect } from "react";
 import { Search, ChevronDown, ChevronUp, ChevronsUpDown, Loader2 } from "lucide-react";
 import { ManagePagination } from "@/components/manage/manage-pagination";
@@ -51,7 +52,8 @@ function ManageCustomersInner() {
           id: c.customer_id,
           name: c.name || "Unknown User",
           email: c.email || "No email",
-          contact: c.phone_number || "No contact",
+          // Grouped for reading: stored numbers are a dense +639171234567.
+          contact: formatMobileNumber(c.phone_number) || "No contact",
           // Fallback to "Unknown" if created_at doesn't exist on the table yet
           customerSince: c.created_at ? new Date(c.created_at).toLocaleDateString() : "Unknown",
           imageUrl: c.profileImage_URL || undefined,

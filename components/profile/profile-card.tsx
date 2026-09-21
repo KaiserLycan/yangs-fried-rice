@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
  *
  * A card has two states and the header is what distinguishes them. Displaying:
  * a title and an Edit control. Editing: the title, an "EDITING" marker, a
- * Cancel control, and a flame border around the whole card so it is obvious
+ * Cancel control, and a neutral ink border around the whole card so it is obvious
  * at a glance which card is open. The body is the caller's — only the chrome
  * lives here, because the fields differ in every card and the chrome does not.
  *
@@ -54,7 +54,11 @@ export function ProfileCard({
       aria-label={title}
       className={cn(
         "rounded-sm border bg-card",
-        isEditing ? "border-accent" : "border-rule",
+        // Editing is marked by a neutral ink border. It used to be flame
+        // orange-red, which read as an error state for the WHOLE card even
+        // when only one field (the date of birth, say) was invalid. Errors
+        // now live on the offending field alone.
+        isEditing ? "border-foreground/40" : "border-rule",
       )}
     >
       <div className="flex items-center gap-[10px] rounded-t-sm border-b border-rule bg-background px-[14px] py-[12px] md:gap-[12px] md:px-[18px] md:py-[14px]">

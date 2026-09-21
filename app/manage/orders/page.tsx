@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { useToast, ToastProvider } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { getDetailedOrders, updateOrderStatus } from "@/lib/actions/orders";
+import { mapStaffOrder, type StaffOrderRow } from "@/lib/orders/map-staff-order";
+import { actionCopy, dbStatusFor, type StaffAction } from "@/lib/orders/staff-actions";
 
 // 1. Wrapper component to provide the Toast context
 export default function ManageOrdersPage() {
@@ -40,7 +42,7 @@ function ManageOrdersInner() {
   const [selectedOrder, setSelectedOrder] = useState<OrderData | null>(null);
   const [itemsPerPage, setItemsPerPage] = useState(6);
   
-  const [confirmAction, setConfirmAction] = useState<{ type: 'Cancel' | 'Deliver' | 'Confirm', order: OrderData } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ type: StaffAction, order: OrderData } | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [showCancelError, setShowCancelError] = useState(false);
 
@@ -56,7 +58,7 @@ function ManageOrdersInner() {
     
     if (uiTab === "queue") dbStatus = ["pending", "received"]; 
     else if (uiTab === "preparation" || uiTab === "prep") dbStatus = "preparing";
-    else if (uiTab === "delivery") dbStatus = ["ready", "out_for_delivery"];
+    else if (uiTab === "delivering" || uiTab === "delivery") dbStatus = ["ready", "out_for_delivery"];
     else if (uiTab === "completed") dbStatus = "completed";
     else if (uiTab === "canceled" || uiTab === "cancelled") dbStatus = "cancelled";
 
@@ -77,56 +79,10 @@ function ManageOrdersInner() {
       // Calculate and update total pages based on count
       setTotalPages(Math.max(1, Math.ceil(totalCount / pageSize)));
       
+      // Shared with the KDS: real delivery fee, real total, formatted order type.
       const mappedOrders: OrderData[] = detailedOrders
-        .filter(res => res !== null)
-        .map(order => {
-          // Map Database Status back to UI Status
-          let uiStatus: any = "QUEUE";
-          if (order.order_status === "pending" || order.order_status === "received") uiStatus = "QUEUE";
-          else if (order.order_status === "preparing") uiStatus = "PREP";
-          else if (order.order_status === "ready" || order.order_status === "out_for_delivery") uiStatus = "DELIVERY";
-          else if (order.order_status === "completed") uiStatus = "COMPLETED";
-          else if (order.order_status === "cancelled") uiStatus = "CANCELED";
-
-          const itemCount = order.order_item.reduce((acc, curr) => acc + curr.quantity, 0);
-          const prepMinutes = Math.min(45, Math.max(5, itemCount * 5));
-
-          const items = order.order_item.map(item => {
-            const prod = Array.isArray(item.product) ? item.product[0] : item.product;
-            return {
-              quantity: item.quantity,
-              name: prod?.product_name || "Unknown Item",
-              price: prod?.product_price || 0,
-              addons: item.special_instructions || undefined,
-            };
-          });
-
-          const calculatedTotal = items.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0);
-          const dbTotal = order.transaction?.[0]?.total_paid;
-
-          return {
-            id: order.order_id,
-            rawCreatedAt: order.created_at,
-            orderNumber: order.order_id.substring(0, 4).toUpperCase(),
-            time: order.created_at 
-              ? new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
-              : "Unknown time",
-            status: uiStatus,
-            timer: `${prepMinutes}:00`, 
-            contactInfo: {
-              name: order.customer?.name || "Walk-in Customer",
-              address: "Address details protected",
-              phone:order.customer?.email || "No contact",
-            },
-            orderInfo: {
-              type: order.order_type || "Take-Out",
-              specialInstructions: order.order_item?.[0]?.special_instructions || "",
-            },
-            deliveryFee: 0,
-            total: dbTotal || calculatedTotal,
-            items
-          };
-        });
+        .filter((res) => res !== null)
+        .map((order) => mapStaffOrder(order as unknown as StaffOrderRow));
 
       // 4. Custom Sort: Priority based on Type, then First-Come First-Serve
       mappedOrders.sort((a: any, b: any) => {
@@ -167,17 +123,14 @@ function ManageOrdersInner() {
 
     setIsProcessing(true);
 
-    let newDbStatus = "";
-    if (confirmAction.type === "Confirm") newDbStatus = "preparing";
-    else if (confirmAction.type === "Deliver") newDbStatus = "out_for_delivery";
-    else if (confirmAction.type === "Cancel") newDbStatus = "cancelled";
+    const newDbStatus = dbStatusFor(confirmAction.type);
 
     const result = await updateOrderStatus(confirmAction.order.id, newDbStatus);
 
     if (result.error) {
       showToast(`Failed to update order: ${result.error}`);
     } else {
-      showToast(`Order #${confirmAction.order.orderNumber} updated successfully.`);
+      showToast(actionCopy(confirmAction.type, confirmAction.order.orderNumber).done);
       await fetchOrders(); // Refresh the active list
       setConfirmAction(null);
       setSelectedOrder(null);
@@ -293,12 +246,8 @@ function ManageOrdersInner() {
           setCancelReason("");
           setShowCancelError(false);
         }}
-        title={confirmAction?.type === "Cancel" ? "Cancel this order?" : `Confirm ${confirmAction?.type}`}
-        description={
-          confirmAction?.type === "Cancel" 
-            ? "Canceling this order will notify the customer. Do you want to cancel this order?"
-            : `Are you sure you want to mark order #${confirmAction?.order.orderNumber} as ${confirmAction?.type === "Deliver" ? "delivered" : "confirmed"}?`
-        }
+        title={confirmAction ? actionCopy(confirmAction.type, confirmAction.order.orderNumber).title : ""}
+        description={confirmAction ? actionCopy(confirmAction.type, confirmAction.order.orderNumber).description : ""}
         tone="default"
         footer={
           <>
@@ -312,7 +261,7 @@ function ManageOrdersInner() {
               onClick={handleConfirmAction}
               disabled={isProcessing}
             >
-              {isProcessing ? "Processing..." : confirmAction?.type === "Cancel" ? "Confirm" : `Yes, ${confirmAction?.type}`}
+              {isProcessing ? "Processing..." : confirmAction ? actionCopy(confirmAction.type, confirmAction.order.orderNumber).confirm : "Confirm"}
             </Button>
           </>
         }

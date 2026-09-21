@@ -13,16 +13,16 @@ import { useToast } from "@/components/ui/toast";
 import type { CustomerProfile } from "@/lib/profile/customer-profile";
 import { formatDateOfBirth } from "@/lib/profile/identity";
 import { personalDetailsSchema } from "@/lib/validation/profile";
+import { earliestBirthdate, latestBirthdateForMinAge } from "@/lib/validation/date-of-birth";
 
 /**
  * Full name and date of birth (Cust4).
  *
- * The name is a real column and reads live, and now writes live too, via
- * PATCH /api/profile (lib/actions/profile.ts). Date of birth has no column
- * yet — it's validated here so the request shape is already correct the
- * day it lands, but it is NOT sent in the request body below: the backend
- * has nowhere to put it yet, and sending a field it silently can't persist
- * would be worse than just not sending it.
+ * Both fields read and write live via PATCH /api/profile
+ * (lib/actions/profile.ts). The date of birth is validated with the shared
+ * rule in `lib/validation/date-of-birth.ts` (not in the future, at least 13,
+ * a real calendar date); only the date input itself shows an error, the card
+ * around it stays neutral.
  */
 export function PersonalDetailsCard({ profile }: { profile: CustomerProfile }) {
   const router = useRouter();
@@ -57,13 +57,10 @@ export function PersonalDetailsCard({ profile }: { profile: CustomerProfile }) {
     },
   });
 
-  const today = new Date();
-  
-  const maxDate = new Date(today.getFullYear() - 13, today.getMonth(), today.getDate());
-  const maxDateStr = maxDate.toISOString().split("T")[0];
-
-  const minDate = new Date(today.getFullYear() - 150, today.getMonth(), today.getDate());
-  const minDateStr = minDate.toISOString().split("T")[0];
+  // Local calendar dates (not toISOString, which is UTC and can land a day
+  // off). The picker refuses future dates; the schema is the real check.
+  const maxDateStr = latestBirthdateForMinAge();
+  const minDateStr = earliestBirthdate();
 
   return (
     <ProfileCard

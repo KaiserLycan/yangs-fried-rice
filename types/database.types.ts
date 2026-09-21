@@ -697,7 +697,7 @@ export type Database = {
           {
             foreignKeyName: "review_order_id_fkey"
             columns: ["order_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "order"
             referencedColumns: ["order_id"]
           },
@@ -811,6 +811,10 @@ export type Database = {
     Functions: {
       get_customer_order_history: {
         Args: { p_customer_id: string }
+        Returns: Json
+      }
+      submit_direct_product_review: {
+        Args: { p_comment?: string; p_product_id: string; p_rating: number }
         Returns: Json
       }
       submit_order_review: {

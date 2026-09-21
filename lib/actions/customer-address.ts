@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { validateNcrAddress } from "@/lib/address/validate-ncr";
+import { addressForGeocoding, validateNcrAddress } from "@/lib/address/validate-ncr";
 
 export interface SaveAddressInput {
   label?: string | null;
@@ -54,7 +54,7 @@ export async function addCustomerAddressAction(
   }
 
   const fullAddress = `${buildingNo} ${street}, ${barangay}, ${city} ${zip}`;
-  const essentialAddress = `${buildingNo} ${street}, ${city}`;
+  const essentialAddress = addressForGeocoding({ street, barangay, city, zip });
 
   // Enforce NCR delivery boundary check
   const ncrValidation = await validateNcrAddress(essentialAddress);
