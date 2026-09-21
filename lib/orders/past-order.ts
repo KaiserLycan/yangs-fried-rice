@@ -66,15 +66,7 @@ function normalise(value: string | null): string | null {
   return folded === "" ? null : folded;
 }
 
-// `dine_in` is one of the three values `lib/actions/eta.ts` names; no rider
-// is ever involved, so for the customer it behaves like a pickup.
-const PICKUP_TYPES = new Set([
-  "pickup",
-  "pick_up",
-  "takeout",
-  "take_out",
-  "dine_in",
-]);
+const PICKUP_TYPES = new Set(["pickup", "pick_up", "takeout", "take_out"]);
 
 /**
  * Pickup is the narrower case and the one that has to be recognised

@@ -1,3 +1,4 @@
+import * as React from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { initialsFrom } from "@/lib/profile/identity";
 import type { AssignedRider } from "@/lib/orders/read-tracked-order";
@@ -13,7 +14,13 @@ import { cn } from "@/lib/utils";
  * when the rider appears, and "not assigned yet" tells the customer the
  * blank is expected rather than broken. When the card should not exist at
  * all — a take-out order, a cancelled one — the screen leaves it out.
+ *
+ * A rider whose employee record could not be read still gets the card, with
+ * a neutral name: the delivery *is* assigned, the details just are not
+ * readable, and "not assigned yet" would be the wrong thing to say.
  */
+const NAMELESS_RIDER = "Your rider";
+
 export function AssignedRiderCard({
   rider,
   className,
@@ -21,33 +28,38 @@ export function AssignedRiderCard({
   rider: AssignedRider | null;
   className?: string;
 }) {
+  const headingId = React.useId();
+  const name = rider?.name ?? NAMELESS_RIDER;
   const vehicleLine = rider
     ? [rider.vehicle, rider.plate].filter(Boolean).join(" · ")
     : "";
 
   return (
     <section
-      aria-label="Your rider"
+      aria-labelledby={headingId}
       className={cn(
         "flex flex-col gap-[12px] p-[20px]",
         "md:rounded-lg md:border md:border-rule md:bg-white",
         className,
       )}
     >
-      <h2 className="text-[11px] uppercase tracking-[1.76px] text-muted-foreground md:text-[12px] md:tracking-[1.92px]">
+      <h2
+        id={headingId}
+        className="text-[11px] uppercase tracking-[1.76px] text-muted-foreground md:text-[12px] md:tracking-[1.92px]"
+      >
         Your rider
       </h2>
 
       {rider ? (
         <div className="flex items-center gap-[14px]">
           <Avatar
-            initials={initialsFrom(rider.name)}
+            initials={rider.name ? initialsFrom(rider.name) : ""}
             imageUrl={rider.photoUrl}
             className="size-[48px] text-[16px] font-bold text-white"
           />
           <div className="flex min-w-0 flex-col gap-[2px]">
             <p className="truncate text-[15px] font-bold text-foreground">
-              {rider.name}
+              {name}
             </p>
             {vehicleLine && (
               <p className="text-[13px] text-muted-strong">{vehicleLine}</p>
