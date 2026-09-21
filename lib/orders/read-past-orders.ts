@@ -55,11 +55,11 @@ export async function readPastOrders(): Promise<PastOrder[]> {
       .in("order_id", orderIds),
     supabase
       .from("order_item")
-      .select("order_id, quantity, subtotal, product(product_name)")
+      .select("order_id, quantity, subtotal, product_id, product(product_name)")
       .in("order_id", orderIds),
     supabase
       .from("review")
-      .select("order_id, rating")
+      .select("order_id, rating, product_id")
       .eq("customer_id", user.id)
       .in("order_id", orderIds),
   ]);
@@ -70,11 +70,20 @@ export async function readPastOrders(): Promise<PastOrder[]> {
   }
 
   const ratingByOrder = new Map<string, number | null>();
+  const productRatingsByOrder = new Map<string, Record<string, number>>();
   for (const row of reviews.data ?? []) {
-    if (row.order_id) ratingByOrder.set(row.order_id, row.rating);
+    if (row.order_id) {
+      if (row.product_id === null) {
+        ratingByOrder.set(row.order_id, row.rating);
+      } else {
+        const pr = productRatingsByOrder.get(row.order_id) ?? {};
+        pr[row.product_id] = row.rating ?? 0;
+        productRatingsByOrder.set(row.order_id, pr);
+      }
+    }
   }
 
-  type ItemRow = { quantity: number; subtotal: number; name: string };
+  type ItemRow = { quantity: number; subtotal: number; name: string; productId: string | null };
   const itemsByOrder = new Map<string, ItemRow[]>();
   for (const row of items.data ?? []) {
     if (!row.order_id) continue;
@@ -82,6 +91,7 @@ export async function readPastOrders(): Promise<PastOrder[]> {
     list.push({
       quantity: row.quantity,
       subtotal: row.subtotal,
+      productId: (row as any).product_id ?? null,
       // A deleted product leaves the line in the order with nothing to name
       // it. Saying so beats rendering "2× " with a hole after it.
       name: productNameOf(row.product) ?? "Item no longer on the menu",
@@ -100,9 +110,10 @@ export async function readPastOrders(): Promise<PastOrder[]> {
         cancelledAt: row.cancelled_at,
         deliveryStatus: deliveryStatusByOrder.get(row.order_id) ?? null,
         orderType: row.order_type,
-        items: orderItems.map(({ name, quantity }) => ({ name, quantity })),
+        items: orderItems.map(({ name, quantity, productId }) => ({ name, quantity, productId })),
         total: totalOf(orderItems, row.delivery_fee, row.order_type),
         rating: ratingByOrder.get(row.order_id) ?? null,
+        productRatings: productRatingsByOrder.get(row.order_id) ?? {},
       };
     });
 }

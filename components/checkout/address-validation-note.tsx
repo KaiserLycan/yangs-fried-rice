@@ -34,13 +34,7 @@ type ValidateResponse = {
   error?: string;
 };
 
-export function AddressValidationNote({
-  address,
-  onStateChange,
-}: {
-  address: string;
-  onStateChange?: (state: ValidationState) => void;
-}) {
+export function AddressValidationNote({ address }: { address: string }) {
   const [state, setState] = React.useState<ValidationState>({
     status: "checking",
   });
@@ -48,19 +42,7 @@ export function AddressValidationNote({
   React.useEffect(() => {
     let stale = false;
 
-    const handleState = (next: ValidationState) => {
-      if (!stale) {
-        setState(next);
-        onStateChange?.(next);
-      }
-    };
-
     const timer = setTimeout(async () => {
-      if (!address.trim()) {
-        handleState({ status: "invalid", message: "Add a complete delivery address to continue." });
-        return;
-      }
-
       try {
         const response = await fetch("/api/address/validate", {
           method: "POST",
@@ -80,7 +62,7 @@ export function AddressValidationNote({
         if (stale) return;
 
         if (!response.ok) {
-          handleState({
+          setState({
             status: "invalid",
             message:
               result.error ?? "This address can't be checked as written.",
@@ -88,7 +70,7 @@ export function AddressValidationNote({
           return;
         }
 
-        handleState(
+        setState(
           result.valid
             ? { status: "valid" }
             : {
@@ -102,7 +84,7 @@ export function AddressValidationNote({
         // The service being down is not the customer's address being wrong,
         // so this says the check didn't happen rather than blaming the
         // address or claiming a validation that never ran.
-        if (!stale) handleState({ status: "unavailable" });
+        if (!stale) setState({ status: "unavailable" });
       }
     }, 500);
 

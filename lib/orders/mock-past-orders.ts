@@ -53,11 +53,12 @@ const DRAWN: PastOrder[] = [
     deliveryStatus: "delivered",
     orderType: "Delivery",
     items: [
-      { name: "Yangzhou Special", quantity: 2 },
-      { name: "Lumpia (5pc)", quantity: 1 },
+      { name: "Yangzhou Special", quantity: 2, productId: "1" },
+      { name: "Lumpia (5pc)", quantity: 1, productId: "7" },
     ],
     total: 545,
     rating: 5,
+    productRatings: {},
   },
   {
     orderId: "example-1039",
@@ -68,13 +69,14 @@ const DRAWN: PastOrder[] = [
     deliveryStatus: "delivered",
     orderType: "Delivery",
     items: [
-      { name: "Beef Tapa Fried Rice", quantity: 1 },
-      { name: "Calamansi Soda", quantity: 1 },
+      { name: "Beef Tapa Fried Rice", quantity: 1, productId: "4" },
+      { name: "Calamansi Soda", quantity: 1, productId: "10" },
     ],
     total: 255,
     // The only unrated card in the frames, and therefore the only one showing
-    // the hollow star row ticket 12 makes pressable.
+    // the unfilled stars rather than a filled row or the "Thanks" message.
     rating: null,
+    productRatings: {},
   },
   {
     orderId: "example-1031",
@@ -87,11 +89,12 @@ const DRAWN: PastOrder[] = [
     deliveryStatus: null,
     orderType: "Pickup",
     items: [
-      { name: "Fried Chicken (3pc)", quantity: 1 },
-      { name: "Iced Tea Pitcher", quantity: 1 },
+      { name: "Fried Chicken (3pc)", quantity: 1, productId: "5" },
+      { name: "Iced Tea Pitcher", quantity: 1, productId: "9" },
     ],
     total: 340,
     rating: 4,
+    productRatings: {},
   },
 ];
 
@@ -108,9 +111,10 @@ const CANCELLED: PastOrder = {
   cancelledAt: "2026-09-02T09:47:00Z",
   deliveryStatus: null,
   orderType: "Delivery",
-  items: [{ name: "Chili Garlic Fried Rice", quantity: 1 }],
+  items: [{ name: "Chili Garlic Fried Rice", quantity: 1, productId: "2" }],
   total: 260,
   rating: null,
+  productRatings: {},
 };
 
 const EXAMPLES: Record<ExampleHistory, PastOrder[]> = {

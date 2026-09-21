@@ -23,9 +23,6 @@ export function DeliveryDetailsCard({ profile }: { profile: CustomerProfile }) {
   const [draftCity, setDraftCity] = React.useState("");
   const [draftZip, setDraftZip] = React.useState("");
   const [editingAddressId, setEditingAddressId] = React.useState<string | null>(null);
-  const [addressValidationState, setAddressValidationState] = React.useState<
-    { status: "checking" | "valid" | "invalid" | "unavailable"; message?: string }
-  >({ status: "checking" });
 
   const startEditing = (addressId?: string) => {
     if (addressId) {
@@ -60,7 +57,7 @@ export function DeliveryDetailsCard({ profile }: { profile: CustomerProfile }) {
       draftCity && draftZip ? `${draftCity} ${draftZip}` : (draftCity || draftZip)
     ].filter(Boolean).join(", ");
     
-    if (!combinedAddress || addressValidationState.status !== "valid") return;
+    if (!combinedAddress) return;
     
     setIsSaving(true);
     try {
@@ -180,39 +177,17 @@ export function DeliveryDetailsCard({ profile }: { profile: CustomerProfile }) {
             />
           </CardField>
 
-          <AddressValidationNote
+          <AddressValidationNote 
             address={[
               draftBuildingNo && draftStreet ? `${draftBuildingNo} ${draftStreet}` : (draftBuildingNo || draftStreet),
               draftCity
             ].filter(Boolean).join(", ")}
-            onStateChange={setAddressValidationState}
           />
-
-          {addressValidationState.status === "invalid" && (
-            <p className="text-[12px] text-destructive">
-              {addressValidationState.message ?? "Choose a valid delivery address before saving."}
-            </p>
-          )}
 
           <div className="flex items-center gap-[8px] mt-[8px]">
             <button 
               onClick={handleSave} 
-              disabled={
-                isSaving ||
-                !draftStreet ||
-                !draftBarangay ||
-                !draftCity ||
-                !draftZip ||
-                addressValidationState.status !== "valid"
-              }
-              aria-disabled={
-                isSaving ||
-                !draftStreet ||
-                !draftBarangay ||
-                !draftCity ||
-                !draftZip ||
-                addressValidationState.status !== "valid"
-              }
+              disabled={isSaving || !draftStreet || !draftBarangay || !draftCity || !draftZip}
               className="rounded-sm bg-foreground px-[16px] py-[10px] text-[13px] font-bold text-background hover:bg-foreground/90 disabled:opacity-60 transition-colors"
             >
               {isSaving ? "Saving..." : "Save Address"}

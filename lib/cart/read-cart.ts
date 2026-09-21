@@ -52,7 +52,8 @@ export async function readCart(): Promise<CartRead> {
   const { data: items } = await supabase
     .from("cart_item")
     .select(
-      "cart_item_id, quantity, special_instructions, product:product(product_id, product_name, product_price)",
+      `cart_item_id, quantity, special_instructions, product:product(product_id, product_name, product_price),
+       cart_item_add_on ( addon_id, add_on ( name, price ) )`
     )
     .eq("cart_id", cart.cart_id);
 
@@ -61,13 +62,23 @@ export async function readCart(): Promise<CartRead> {
       (item): item is typeof item & { product: NonNullable<typeof item.product> } =>
         item.product !== null,
     )
-    .map((item) => ({
-      id: item.cart_item_id,
-      name: item.product.product_name,
-      unitPrice: item.product.product_price,
-      quantity: item.quantity,
-      specialInstructions: item.special_instructions,
-    }));
+    .map((item) => {
+      const addOns = (item.cart_item_add_on || []).map((addonRow: any) => ({
+        addon_id: addonRow.addon_id,
+        name: addonRow.add_on?.name ?? "Unknown Add-on",
+        price: addonRow.add_on?.price ?? 0,
+      }));
+      const addOnsPrice = addOns.reduce((sum: number, a: any) => sum + a.price, 0);
+
+      return {
+        id: item.cart_item_id,
+        name: item.product.product_name,
+        unitPrice: item.product.product_price + addOnsPrice,
+        quantity: item.quantity,
+        specialInstructions: item.special_instructions,
+        addOns,
+      };
+    });
 
   return { cartId: cart.cart_id, lines };
 }

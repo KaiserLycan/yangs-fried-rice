@@ -20,9 +20,10 @@ const order = (overrides: Partial<PastOrder> = {}): PastOrder => ({
   cancelledAt: null,
   deliveryStatus: "delivered",
   orderType: "Delivery",
-  items: [{ name: "Yangzhou Special", quantity: 2 }],
+  items: [{ name: "Yangzhou Special", quantity: 2, productId: "1" }],
   total: 545,
   rating: 5,
+  productRatings: {},
   ...overrides,
 });
 
@@ -148,8 +149,8 @@ describe("summariseItems", () => {
   it("writes the line the frames draw", () => {
     expect(
       summariseItems([
-        { name: "Yangzhou Special", quantity: 2 },
-        { name: "Lumpia (5pc)", quantity: 1 },
+        { name: "Yangzhou Special", quantity: 2, productId: "1" },
+        { name: "Lumpia (5pc)", quantity: 1, productId: "7" },
       ]),
     ).toBe("2× Yangzhou Special, 1× Lumpia (5pc)");
   });

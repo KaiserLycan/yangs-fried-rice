@@ -20,6 +20,7 @@ import {
 } from "@/lib/orders/order-stage";
 
 export type PastOrderItem = {
+  productId: string | null;
   name: string;
   quantity: number;
 };
@@ -45,6 +46,8 @@ export type PastOrder = {
   total: number;
   /** 1–5 from `review.rating`, or null when the customer hasn't rated it. */
   rating: number | null;
+  /** Product-level ratings, keyed by productId */
+  productRatings: Record<string, number>;
 };
 
 /** How the card describes the end of the order, and how that reads. */

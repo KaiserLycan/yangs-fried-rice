@@ -88,6 +88,39 @@ export type Database = {
           },
         ]
       }
+      cart_add_on: {
+        Row: {
+          addon_id: string | null
+          cart_add_on_id: string
+          cart_id: string | null
+        }
+        Insert: {
+          addon_id?: string | null
+          cart_add_on_id?: string
+          cart_id?: string | null
+        }
+        Update: {
+          addon_id?: string | null
+          cart_add_on_id?: string
+          cart_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cart_add_on_addon_id_fkey"
+            columns: ["addon_id"]
+            isOneToOne: false
+            referencedRelation: "add_on"
+            referencedColumns: ["addon_id"]
+          },
+          {
+            foreignKeyName: "cart_add_on_cart_id_fkey"
+            columns: ["cart_id"]
+            isOneToOne: false
+            referencedRelation: "cart"
+            referencedColumns: ["cart_id"]
+          },
+        ]
+      }
       cart_item: {
         Row: {
           cart_id: string | null
@@ -432,6 +465,42 @@ export type Database = {
           },
         ]
       }
+      order_add_on: {
+        Row: {
+          addon_id: string | null
+          order_add_on_id: string
+          order_id: string | null
+          price: number
+        }
+        Insert: {
+          addon_id?: string | null
+          order_add_on_id?: string
+          order_id?: string | null
+          price: number
+        }
+        Update: {
+          addon_id?: string | null
+          order_add_on_id?: string
+          order_id?: string | null
+          price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_add_on_addon_id_fkey"
+            columns: ["addon_id"]
+            isOneToOne: false
+            referencedRelation: "add_on"
+            referencedColumns: ["addon_id"]
+          },
+          {
+            foreignKeyName: "order_add_on_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order"
+            referencedColumns: ["order_id"]
+          },
+        ]
+      }
       order_item: {
         Row: {
           order_id: string | null
@@ -745,7 +814,7 @@ export type Database = {
         Returns: Json
       }
       submit_order_review: {
-        Args: { p_comment?: string; p_order_id: string; p_rating: number }
+        Args: { p_comment?: string; p_order_id: string; p_product_id?: string; p_rating: number }
         Returns: Json
       }
     }

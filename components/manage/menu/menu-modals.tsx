@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { MenuItem, MenuCategory, MOCK_CATEGORIES } from "@/components/manage/menu/mock-menu";
 import { cn } from "@/lib/utils";
-import { Camera, ChevronDown, ChevronRight } from "lucide-react";
+import { Camera, ChevronDown, ChevronRight, Trash2, Plus } from "lucide-react";
 import { compressImage } from "@/lib/image/compress";
 import { Dialog, DialogRoot } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -48,7 +48,7 @@ export function ConfirmationModal({
 interface MenuItemModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (item: Partial<MenuItem>, file?: File) => void;
+  onSave: (item: Partial<MenuItem>, addOns: { name: string; price: number }[], file?: File) => void;
   categories?: string[];
 }
 
@@ -68,6 +68,9 @@ export function MenuItemModal({
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [categoryOpen, setCategoryOpen] = useState(false);
+  const [newAddOns, setNewAddOns] = useState<{ name: string; price: number }[]>([]);
+  const [tempAddonName, setTempAddonName] = useState("");
+  const [tempAddonPrice, setTempAddonPrice] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Derive the list of selectable categories (exclude "All").
@@ -106,7 +109,14 @@ export function MenuItemModal({
       category: (category || selectableCategories[0] || "Uncategorized") as MenuCategory,
       description,
       available,
-    }, selectedFile || undefined);
+    }, newAddOns, selectedFile || undefined);
+  };
+
+  const handleAddAddOn = () => {
+    if (!tempAddonName || !tempAddonPrice) return;
+    setNewAddOns([...newAddOns, { name: tempAddonName, price: parseFloat(tempAddonPrice) }]);
+    setTempAddonName("");
+    setTempAddonPrice("");
   };
 
   // Safe fallback for the display label as well
@@ -116,10 +126,12 @@ export function MenuItemModal({
     <DialogRoot
       open={isOpen}
       onClose={onClose}
-      className="max-w-[440px] overflow-hidden rounded-[20px] bg-[#fbf6ec] shadow-[0px_30px_35px_rgba(26,18,16,0.26)]"
+      className="w-full max-w-[440px] md:max-w-3xl overflow-hidden rounded-[20px] bg-[#fbf6ec] shadow-[0px_30px_35px_rgba(26,18,16,0.26)]"
     >
-      <div className="flex w-full flex-col">
-        {/* ──────────────────────────────────── Image upload area */}
+      <div className="flex flex-col md:flex-row w-full md:h-[650px] max-h-[90vh] overflow-y-auto md:overflow-hidden">
+        {/* LEFT COLUMN */}
+        <div className="flex w-full md:w-1/2 flex-col md:border-r border-[#ddcdb8] md:overflow-y-auto">
+          {/* ──────────────────────────────────── Image upload area */}
         <div className="group relative w-full">
           <div className="relative h-[220px] w-full overflow-hidden bg-[#e7d7c1]">
             {imagePreview ? (
@@ -168,7 +180,7 @@ export function MenuItemModal({
         </div>
 
         {/* ──────────────────────────────────── Scrollable form */}
-        <div className="flex max-h-[calc(100vh-320px)] flex-col gap-[18px] overflow-y-auto p-[26px]">
+        <div className="flex flex-col gap-[18px] p-[26px]">
           {/* Product Name */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
@@ -246,6 +258,11 @@ export function MenuItemModal({
             />
           </div>
 
+          </div>
+        </div>
+        
+        {/* RIGHT COLUMN */}
+        <div className="flex w-full md:w-1/2 flex-col gap-[18px] p-[26px] md:overflow-y-auto border-t md:border-t-0 border-[#ddcdb8]">
           {/* Price */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
@@ -265,6 +282,67 @@ export function MenuItemModal({
               placeholder="0.00"
               className="w-full rounded-[12px] border border-[#ddcdb8] bg-white px-4 py-3 text-[15px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
             />
+          </div>
+
+          {/* Add-ons Configuration */}
+          <div className="flex flex-col gap-2 rounded-[12px] border border-[#ddcdb8] bg-[#fbf6ec] p-[16px]">
+            <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
+              Add-ons
+            </label>
+            <p className="text-[12px] text-[#7a6a60] leading-snug">
+              Define add-ons available specifically for this item (e.g. Extra Egg).
+            </p>
+            
+            <div className="flex flex-col gap-2 mt-2">
+              <div className="flex flex-col gap-2 h-[150px] overflow-y-auto pr-1">
+                {newAddOns.map((addon, index) => (
+                <div key={index} className="flex items-center justify-between rounded-[8px] bg-white p-3 shadow-sm">
+                  <span className="text-[14px] font-medium text-[#1a1210]">{addon.name}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[14px] text-[#7a6a60]">+₱{addon.price.toFixed(2)}</span>
+                    <button 
+                      type="button" 
+                      onClick={() => setNewAddOns(newAddOns.filter((_, i) => i !== index))}
+                      className="text-[#bf4342] hover:bg-[#fceeed] p-1 rounded transition-colors"
+                      aria-label="Remove add-on"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              </div>
+              
+              <div className="flex items-center gap-2 mt-1">
+                <input
+                  placeholder="New add-on name..."
+                  value={tempAddonName}
+                  onChange={(e) => setTempAddonName(e.target.value)}
+                  className="flex-1 min-w-0 rounded-[10px] border border-[#ddcdb8] bg-white px-3 py-2 text-[14px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
+                />
+                <input
+                  placeholder="₱ 0.00"
+                  type="text"
+                  inputMode="decimal"
+                  value={tempAddonPrice}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "" || /^\d*\.?\d{0,2}$/.test(val)) {
+                      setTempAddonPrice(val);
+                    }
+                  }}
+                  className="w-[70px] shrink-0 rounded-[10px] border border-[#ddcdb8] bg-white px-3 py-2 text-[14px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddAddOn}
+                  disabled={!tempAddonName.trim() || !tempAddonPrice || parseFloat(tempAddonPrice) < 0}
+                  className="flex shrink-0 items-center justify-center rounded-[10px] bg-[#3f6b4a] px-3 py-2 transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Plus className="h-5 w-5 text-white" />
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Available toggle */}

@@ -20,6 +20,8 @@ type Product = Tables<"product">;
 // Every product row joined with its category name.
 type ProductWithCategory = Product & {
   categories: { category_name: string } | null;
+  add_on?: Tables<"add_on">[];
+  review?: (Tables<"review"> & { customer: { name: string; profileImage_URL: string | null } | null })[];
 };
 
 // Standardised return type for every action.
@@ -44,7 +46,7 @@ export async function getMenuData(): Promise<
   // Parallel fetches on the server, but only one HTTP request from the client
   const [catsRes, prodsRes] = await Promise.all([
     supabase.from("categories").select("*").order("category_name"),
-    supabase.from("product").select("*, categories ( category_name )").order("product_name")
+    supabase.from("product").select("*, categories ( category_name ), add_on ( * )").order("product_name")
   ]);
 
   if (catsRes.error) return { data: null, error: catsRes.error.message };
@@ -178,7 +180,7 @@ export async function getProducts(): Promise<
 
   const { data, error } = await supabase
     .from("product")
-    .select("*, categories ( category_name )")
+    .select("*, categories ( category_name ), add_on ( * )")
     .order("product_name");
 
   if (error) return { data: null, error: error.message };
@@ -193,7 +195,7 @@ export async function getProductsByCategory(
 
   const { data, error } = await supabase
     .from("product")
-    .select("*, categories ( category_name )")
+    .select("*, categories ( category_name ), add_on ( * )")
     .eq("category_id", categoryId)
     .order("product_name");
 
@@ -316,4 +318,55 @@ export async function toggleAvailability(
   if (error) return { data: null, error: error.message };
   revalidateMenuPaths();
   return { data, error: null };
+}
+
+// ADD-ONS
+
+export async function createAddOn(
+  productId: string,
+  name: string,
+  price: number
+): Promise<ActionResult<Tables<"add_on">>> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("add_on")
+    .insert({ product_id: productId, name, price })
+    .select()
+    .single();
+
+  if (error) return { data: null, error: error.message };
+  revalidateMenuPaths();
+  return { data, error: null };
+}
+
+export async function updateAddOn(
+  addonId: string,
+  name: string,
+  price: number
+): Promise<ActionResult<Tables<"add_on">>> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("add_on")
+    .update({ name, price })
+    .eq("addon_id", addonId)
+    .select()
+    .single();
+
+  if (error) return { data: null, error: error.message };
+  revalidateMenuPaths();
+  return { data, error: null };
+}
+
+export async function deleteAddOn(
+  addonId: string
+): Promise<ActionResult<{ addon_id: string }>> {
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("add_on")
+    .delete()
+    .eq("addon_id", addonId);
+
+  if (error) return { data: null, error: error.message };
+  revalidateMenuPaths();
+  return { data: { addon_id: addonId }, error: null };
 }

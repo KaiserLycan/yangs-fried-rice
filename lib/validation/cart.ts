@@ -13,6 +13,7 @@ export const addCartItemSchema = z.object({
     .max(500, { message: "special_instructions cannot exceed 500 characters" })
     .nullable()
     .optional(),
+  add_on_ids: z.array(z.string().uuid()).optional(),
 });
 
 export const updateCartItemSchema = z
