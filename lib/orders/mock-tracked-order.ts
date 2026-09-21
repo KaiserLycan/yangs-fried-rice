@@ -1,4 +1,7 @@
-import type { TrackedOrder } from "@/lib/orders/read-tracked-order";
+import type {
+  AssignedRider,
+  TrackedOrder,
+} from "@/lib/orders/read-tracked-order";
 
 /**
  * Stand-in orders so the tracking screen renders before any order exists,
@@ -49,9 +52,23 @@ export type ExampleState = (typeof EXAMPLE_STATES)[number];
 export const DEFAULT_EXAMPLE_STATE: ExampleState = "received";
 
 /**
+ * The rider the two delivery-stage examples carry. No frame draws the rider
+ * card (ticket 16), so the values are only there to fill every field once.
+ */
+const LEO: AssignedRider = {
+  riderId: "rider-leo",
+  name: "Leo Torres",
+  photoUrl: null,
+  vehicle: "Honda Click 125",
+  plate: "ABC 1234",
+};
+
+/**
  * The fields every example shares. Mirrors frame `132:481`: order #1042,
- * arriving in 35–45 minutes, going to 21 Mabini St, with Ariel S. riding —
- * the desktop frame names a rider even at the first stage, so these do too.
+ * arriving in 35–45 minutes, going to 21 Mabini St. No rider by default —
+ * a rider only exists once a delivery row does, and that is not before
+ * dispatch — so the first two examples also show the "not assigned yet"
+ * card.
  */
 const BASE = {
   orderNumber: "1042",
@@ -63,7 +80,7 @@ const BASE = {
   orderType: "Delivery",
   arrivalWindow: "12:35 PM–12:45 PM" as string | null,
   destination: "3239 Pearl Street, Unit 2B, Malate" as string | null,
-  riderName: "Leo Torres" as string | null,
+  rider: null as AssignedRider | null,
   items: [{ productId: "1", name: "Yangzhou Special" }],
 };
 
@@ -89,10 +106,12 @@ const EXAMPLES: Record<ExampleState, Partial<typeof BASE>> = {
   out_for_delivery: {
     orderStatus: "preparing",
     deliveryStatus: "out_for_delivery",
+    rider: LEO,
   },
   delivered: {
     orderStatus: "preparing",
     deliveryStatus: "delivered",
+    rider: LEO,
   },
   cancelled: {
     orderStatus: "cancelled",
@@ -105,7 +124,6 @@ const EXAMPLES: Record<ExampleState, Partial<typeof BASE>> = {
     // confirmed" fallback can be seen.
     arrivalWindow: null,
     destination: null,
-    riderName: null,
     items: [],
   },
 };

@@ -84,4 +84,19 @@ describe("mockTrackedOrder", () => {
   it("always carries through the order id it was given", () => {
     expect(mockTrackedOrder("abc-123", "delivered").orderId).toBe("abc-123");
   });
+
+  it("shows a rider only once one would really have accepted", () => {
+    // Before dispatch there is no delivery row, let alone a rider on it, so
+    // the first two examples render the "not assigned yet" state and the
+    // two delivery-stage examples render the card.
+    expect(mockTrackedOrder("id", "received").rider).toBeNull();
+    expect(mockTrackedOrder("id", "preparing").rider).toBeNull();
+    expect(mockTrackedOrder("id", "out_for_delivery").rider).toMatchObject({
+      name: expect.any(String),
+      vehicle: expect.any(String),
+      plate: expect.any(String),
+    });
+    expect(mockTrackedOrder("id", "delivered").rider).not.toBeNull();
+    expect(mockTrackedOrder("id", "unknown").rider).toBeNull();
+  });
 });
