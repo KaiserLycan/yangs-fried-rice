@@ -105,16 +105,38 @@ export async function getAssignedDeliveries(): Promise<{
     };
   }
 
-  // Fetch deliveries that are EITHER assigned to this rider OR have no rider yet (the pending queue)
-  const { data, error } = await supabase
-    .from("delivery")
-    .select("delivery_id, order_id, delivery_status, estimated_time, order:order_id(created_at)")
-    .or(`rider_id.eq.${rider.rider_id},rider_id.is.null`)
-    .order("estimated_time", { ascending: true, nullsFirst: false });
+  // Deliveries assigned to this rider, plus the ones nobody has taken.
+  //
+  // Two filtered reads rather than one `.or("rider_id.eq." + id + ",…")`.
+  // That string is a PostgREST filter expression, so building it by
+  // concatenation is the same class of mistake as building SQL by
+  // concatenation; `.eq`/`.is` send values the client encodes, which nothing
+  // can break out of. `__tests__/security/injection.test.ts` fails the build
+  // if a filter string with interpolation reappears anywhere.
+  const SELECT =
+    "delivery_id, order_id, delivery_status, estimated_time, order:order_id(created_at)";
 
-  if (error) {
+  const [assigned, unassigned] = await Promise.all([
+    supabase.from("delivery").select(SELECT).eq("rider_id", rider.rider_id),
+    supabase.from("delivery").select(SELECT).is("rider_id", null),
+  ]);
+
+  if (assigned.error || unassigned.error) {
     return { deliveries: [], error: "Could not load your deliveries." };
   }
+
+  // Soonest estimate first, with un-estimated deliveries last — what the
+  // single query's `order(..., { nullsFirst: false })` used to do.
+  const data = [...(assigned.data ?? []), ...(unassigned.data ?? [])].sort(
+    (a: any, b: any) => {
+      if (!a.estimated_time && !b.estimated_time) return 0;
+      if (!a.estimated_time) return 1;
+      if (!b.estimated_time) return -1;
+      return (
+        new Date(a.estimated_time).getTime() - new Date(b.estimated_time).getTime()
+      );
+    },
+  );
 
   return {
     deliveries: data.map((d: any) => ({

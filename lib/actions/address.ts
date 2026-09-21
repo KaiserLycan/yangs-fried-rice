@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { outsideDeliveryRadiusMessage } from "@/lib/address/validate-ncr";
+import { escapeLikePattern } from "@/lib/validation/like-pattern";
 
 export async function setActiveAddress(addressId: string) {
   cookies().set("active_address_id", addressId, { maxAge: 60 * 60 * 24 * 365 });
@@ -58,7 +59,7 @@ export async function upsertCustomerAddress({
       .from("customer_address")
       .select("address_id")
       .eq("customer_id", user.id)
-      .ilike("address_details", address_details)
+      .ilike("address_details", escapeLikePattern(address_details))
       .maybeSingle();
       
     if (existing) {

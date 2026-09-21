@@ -183,11 +183,19 @@ export function resolveEmployeeRole(
   return normalizeEmployeeRoleLabel(role);
 }
 
-/** Where each role lands after signing in. */
+/**
+ * Where each role lands after signing in.
+ *
+ * A null role — no employee row, or one whose role nobody recognises — is sent
+ * to the employee login rather than to the dashboard. Returning a /manage page
+ * for a role that `canAccessManagePath` then refuses is how a redirect ends up
+ * pointing at itself.
+ */
 export function homePathForRole(role: EmployeeRole | null): string {
   if (role === "RIDER") return "/deliver";
   if (role === "STAFF") return "/manage/orders";
-  return "/manage/dashboard";
+  if (role === "MANAGER") return "/manage/dashboard";
+  return "/employee/login";
 }
 
 /**

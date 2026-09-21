@@ -1,3 +1,4 @@
+import { requireApiEmployee } from "@/lib/auth/api-guard";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -21,6 +22,9 @@ interface RouteParams {
  * Requires: manager or staff.
  */
 export async function getTransactions(request: Request) {
+  const guard = await requireApiEmployee("MANAGER", "STAFF");
+  if (guard.response) return guard.response;
+
   const supabase = createClient();
   const { searchParams } = new URL(request.url);
 
@@ -69,6 +73,9 @@ export async function getTransactions(request: Request) {
  *         transaction_type }
  */
 export async function createTransaction(request: Request) {
+  const guard = await requireApiEmployee("MANAGER", "STAFF");
+  if (guard.response) return guard.response;
+
   let body: unknown;
   try {
     body = await request.json();
@@ -142,6 +149,9 @@ export async function getTransactionById(
   _request: Request,
   { params }: RouteParams
 ) {
+  const guard = await requireApiEmployee("MANAGER", "STAFF");
+  if (guard.response) return guard.response;
+
   const supabase = createClient();
 
   const { data, error } = await supabase
@@ -172,6 +182,9 @@ export async function updateTransactionStatus(
   request: Request,
   { params }: RouteParams
 ) {
+  const guard = await requireApiEmployee("MANAGER", "STAFF");
+  if (guard.response) return guard.response;
+
   let body: unknown;
   try {
     body = await request.json();

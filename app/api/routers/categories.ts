@@ -1,3 +1,4 @@
+import { requireApiEmployee } from "@/lib/auth/api-guard";
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
@@ -37,6 +38,9 @@ export async function getCategories() {
  * Body: { category_name: string, category_id?: string }
  */
 export async function createCategory(request: Request) {
+  const guard = await requireApiEmployee("MANAGER", "STAFF");
+  if (guard.response) return guard.response;
+
   let body: unknown;
   try {
     body = await request.json();
@@ -130,6 +134,9 @@ export async function getCategoryById(_request: Request, { params }: RouteParams
  * Updates category_name for the given category_id.
  */
 export async function updateCategory(request: Request, { params }: RouteParams) {
+  const guard = await requireApiEmployee("MANAGER", "STAFF");
+  if (guard.response) return guard.response;
+
   const categoryId = params.id;
   if (!categoryId) {
     return NextResponse.json(
@@ -194,6 +201,9 @@ export async function updateCategory(request: Request, { params }: RouteParams) 
  * Deletes a category by category_id if no products are assigned to it.
  */
 export async function deleteCategory(_request: Request, { params }: RouteParams) {
+  const guard = await requireApiEmployee("MANAGER", "STAFF");
+  if (guard.response) return guard.response;
+
   const categoryId = params.id;
   if (!categoryId) {
     return NextResponse.json(
