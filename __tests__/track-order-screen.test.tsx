@@ -32,8 +32,11 @@ let channelsRemoved = 0;
 // is covered in `cancel-order-control.test.tsx`. `refresh` is shared so the
 // rider cases below can see the screen ask the page to re-read.
 const routerRefresh = vi.fn();
+const router = { push: vi.fn(), refresh: routerRefresh };
+// One object, as Next's real `useRouter` returns — a fresh one per render
+// would reopen the screen's channel on every render.
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), refresh: routerRefresh }),
+  useRouter: () => router,
 }));
 
 // The live map is Leaflet, which needs a real browser (ResizeObserver, a
@@ -421,11 +424,29 @@ describe("TrackOrderScreen", () => {
     });
 
     it("does not show the card for an order nobody will deliver", () => {
-      renderScreen(trackedOrder({ orderType: "take_out" }));
-
+      const { rerender } = renderScreen(trackedOrder({ orderType: "take_out" }));
       expect(
         screen.queryByRole("region", { name: "Your rider" }),
       ).not.toBeInTheDocument();
+
+      rerender(<TrackOrderScreen order={trackedOrder({ orderType: "dine_in" })} />);
+      expect(
+        screen.queryByRole("region", { name: "Your rider" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("still shows an assigned rider whose details could not be read", () => {
+      // rider_id is set but the employee row was unreadable: the delivery is
+      // assigned, so "not assigned yet" would be false.
+      renderScreen(
+        trackedOrder({
+          rider: { ...leo, name: null, vehicle: null, plate: null },
+        }),
+      );
+
+      const card = screen.getByRole("region", { name: "Your rider" });
+      expect(card).not.toHaveTextContent("Rider not assigned yet");
+      expect(card).toHaveTextContent("Your rider");
     });
 
     it("hides the empty card once the order is cancelled", () => {
