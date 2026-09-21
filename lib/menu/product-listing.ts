@@ -25,7 +25,6 @@ export type ProductListing = {
   isAvailable: boolean;
   imageUrl: string | null;
   add_ons?: { addon_id: string; name: string; price: number }[];
-  reviews?: { id: string; rating: number; comment: string; customerName: string; createdAt: string }[];
 };
 
 /** What `GET /api/menu/products` and `getProducts()` both actually return. */
@@ -38,7 +37,6 @@ export type RawProductRow = {
   image_url?: string | null;
   categories: { category_name: string } | null;
   add_on?: { addon_id: string; name: string; price: number }[];
-  review?: { review_id: string; rating: number | null; comment: string | null; created_at: string | null; customer?: { name: string; profileImage_URL: string | null } | null }[];
 };
 
 export function mapProductRow(row: RawProductRow): ProductListing {
@@ -51,13 +49,6 @@ export function mapProductRow(row: RawProductRow): ProductListing {
     isAvailable: row.is_available !== false,
     imageUrl: row.image_url ?? null,
     add_ons: row.add_on ?? [],
-    reviews: (row.review || []).map(r => ({
-      id: r.review_id,
-      rating: r.rating || 0,
-      comment: r.comment || "",
-      customerName: r.customer?.name || "Unknown Customer",
-      createdAt: r.created_at || new Date().toISOString(),
-    })),
   };
 }
 

@@ -687,10 +687,26 @@ export async function submitCart(
     price: (addon.add_on as any)?.price ?? 0,
   }));
 
+  const subtotal = orderItemsToInsert.reduce((acc, curr) => acc + curr.subtotal, 0)
+    + orderAddOnsToInsert.reduce((acc, curr) => acc + curr.price, 0);
+
+  const transactionToInsert = {
+    transaction_id: crypto.randomUUID(),
+    order_id: newOrder.order_id,
+    payment_method: parsed.data.payment_method || "cash_on_delivery",
+    payment_status: "pending",
+    subtotal: subtotal,
+    tax_amount: 0,
+    discount_amount: 0,
+    total_paid: 0,
+    transaction_date: new Date().toISOString(),
+  };
+
   await Promise.all([
     supabase.from("order_item").insert(orderItemsToInsert),
     orderItemAddOnsToInsert.length > 0 ? supabase.from("order_item_add_on").insert(orderItemAddOnsToInsert) : Promise.resolve(),
     orderAddOnsToInsert.length > 0 ? supabase.from("order_add_on").insert(orderAddOnsToInsert) : Promise.resolve(),
+    supabase.from("transaction").insert(transactionToInsert),
   ]);
 
   // 3. Lock cart immediately

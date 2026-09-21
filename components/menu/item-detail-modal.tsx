@@ -200,8 +200,6 @@ export function ItemDetailModal({
             />
           </LabelledSection>
 
-          <ReviewsSection reviews={product.reviews} />
-
           <button
             type="button"
             onClick={handleAddToCart}
@@ -246,8 +244,6 @@ export function ItemDetailModal({
             placeholder={`Special instructions — ${SPECIAL_INSTRUCTIONS_PLACEHOLDER}`}
           />
 
-          <ReviewsSection reviews={product.reviews} />
-
           <div className="grid grid-cols-[1fr_2fr] gap-[14px]">
             <button
               type="button"
@@ -282,21 +278,11 @@ function ItemSummary({
   titleClassName: string;
   titleId?: string;
 }) {
-  const rating = product.reviews && product.reviews.length > 0 
-    ? product.reviews.reduce((acc, curr) => acc + curr.rating, 0) / product.reviews.length 
-    : 0;
-    
   return (
     <div className="flex flex-col gap-[5px]">
-      <div className="flex items-start justify-between gap-4">
-        <h2 id={titleId} className={`font-display text-foreground ${titleClassName}`}>
-          {product.name}
-        </h2>
-        <div className="flex shrink-0 items-center gap-1 rounded-full bg-accent/10 px-2 py-1">
-          <span className="text-[14px] font-bold text-accent">★ {rating > 0 ? rating.toFixed(1) : "0.0"}</span>
-          <span className="text-[12px] text-muted-foreground">({product.reviews?.length || 0})</span>
-        </div>
-      </div>
+      <h2 id={titleId} className={`font-display text-foreground ${titleClassName}`}>
+        {product.name}
+      </h2>
       <p className="text-[13px] text-muted-foreground">{product.description}</p>
       <p className="pt-[5px] font-display text-[24px] text-primary">
         {formatPeso(product.price)}
@@ -375,33 +361,6 @@ export function AddOnsSection({
             </label>
           ))
         )}
-      </div>
-    </div>
-  );
-}
-
-export function ReviewsSection({
-  reviews,
-}: {
-  reviews?: { id: string; rating: number; comment: string; customerName: string; createdAt: string }[];
-}) {
-  if (!reviews || reviews.length === 0) return null;
-  
-  return (
-    <div className="flex flex-col gap-[8px]">
-      <span className="text-[12px] font-bold uppercase tracking-[1.44px] text-muted-foreground">
-        Reviews
-      </span>
-      <div className="flex flex-col gap-[12px] rounded-[13px] border border-field-border bg-card p-[14px]">
-        {reviews.slice(0, 5).map((rev) => (
-          <div key={rev.id} className="flex flex-col gap-1 border-b border-field-border pb-3 last:border-0 last:pb-0">
-            <div className="flex items-center justify-between">
-              <span className="text-[13px] font-bold text-foreground">{rev.customerName}</span>
-              <span className="text-[12px] text-accent font-bold">★ {rev.rating}</span>
-            </div>
-            {rev.comment && <p className="text-[13px] text-muted-foreground leading-snug">"{rev.comment}"</p>}
-          </div>
-        ))}
       </div>
     </div>
   );
