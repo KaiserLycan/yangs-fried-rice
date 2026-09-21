@@ -58,6 +58,7 @@ function dish(name: string): ProductListing {
     price: 180,
     categoryName: null,
     isAvailable: true,
+    imageUrl: null,
   };
 }
 

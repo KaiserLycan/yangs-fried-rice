@@ -13,7 +13,7 @@ import type { MenuItem } from "@/components/manage/menu/mock-menu";
 // Import real backend Server Actions and Supabase client
 import { 
   getMenuData, createCategory, updateCategory, deleteCategory,
-  createProduct, updateProduct, deleteProduct 
+  createProduct, updateProduct, deleteProduct, createAddOn
 } from "@/lib/actions/menu";
 import { createClient } from "@/lib/supabase/client"; // Added for Storage uploads
 
@@ -56,17 +56,34 @@ function ManageMenuInner() {
       setDbCategories(res.data.categories);
       
       // Map database schema to UI schema
-      const mapped: MenuItem[] = res.data.products.map((p: any) => ({
-        id: p.product_id,
-        name: p.product_name,
-        description: p.product_details || "",
-        price: p.product_price,
-        rating: 5.0, // Backend doesn't have ratings yet
-        category: p.categories?.category_name || "Uncategorized",
+      const mapped: MenuItem[] = res.data.products.map((p: any) => {
+        const mappedReviews = (p.review || []).map((r: any) => ({
+          id: r.review_id,
+          rating: r.rating || 0,
+          comment: r.comment || "",
+          customerName: r.customer?.name || "Unknown Customer",
+          createdAt: r.created_at || new Date().toISOString(),
+        }));
+        
+        const validRatings = mappedReviews.filter((r: any) => r.rating > 0);
+        const avgRating = validRatings.length > 0 
+          ? validRatings.reduce((sum: number, r: any) => sum + r.rating, 0) / validRatings.length 
+          : 0;
+          
+        return {
+          id: p.product_id,
+          name: p.product_name,
+          description: p.product_details || "",
+          price: p.product_price,
+          rating: avgRating,
+          category: p.categories?.category_name || "Uncategorized",
         // Map the real image_url from the database, fallback to empty string so components can show placeholders
         image: p.image_url || "",
         available: p.is_available,
-      }));
+        add_ons: p.add_on || [],
+        reviews: mappedReviews,
+      };
+      });
       setMenuItems(mapped);
     }
     setIsLoading(false);
@@ -126,7 +143,7 @@ function ManageMenuInner() {
   };
 
   // --- Product CRUD ---
-  const handleSaveProduct = async (item: Partial<MenuItem>, imageFile?: File) => {
+  const handleSaveProduct = async (item: Partial<MenuItem>, addOns: { name: string; price: number }[], imageFile?: File) => {
     setIsProcessing(true);
     let uploadedUrl = null;
     const supabase = createClient();
@@ -166,8 +183,14 @@ function ManageMenuInner() {
       image_url: uploadedUrl, // Send new URL to backend
     });
 
-    if (res.error) showToast(`Failed to create item: ${res.error}`);
-    else {
+    if (res.error) {
+      showToast(`Failed to create item: ${res.error}`);
+    } else {
+      // 3. Insert Add-ons if provided
+      if (res.data?.product_id && addOns.length > 0) {
+        await Promise.all(addOns.map(addon => createAddOn(res.data.product_id, addon.name, addon.price)));
+      }
+      
       showToast("Item created successfully.");
       await loadData();
       setIsAddModalOpen(false);

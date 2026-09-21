@@ -4,8 +4,10 @@ import { useState, useRef, useEffect } from "react";
 import { MenuItem, MenuCategory, MOCK_CATEGORIES } from "@/components/manage/menu/mock-menu";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Camera, ChevronDown, ChevronRight } from "lucide-react";
+import { Camera, ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
 import { compressImage } from "@/lib/image/compress";
+import { createAddOn, deleteAddOn } from "@/lib/actions/menu";
+import { useToast } from "@/components/ui/toast";
 
 // ---------------------------------------------------------------------------
 // Toggle Switch
@@ -68,6 +70,12 @@ export function MenuItemDetailModal({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [categoryOpen, setCategoryOpen] = useState(false);
 
+  const [addOns, setAddOns] = useState(item.add_ons || []);
+  const [newAddonName, setNewAddonName] = useState("");
+  const [newAddonPrice, setNewAddonPrice] = useState("");
+  const [isProcessingAddOn, setIsProcessingAddOn] = useState(false);
+  const showToast = useToast();
+
   const selectableCategories = (categories ?? MOCK_CATEGORIES).filter(
     (c) => c !== "All"
   );
@@ -78,6 +86,13 @@ export function MenuItemDetailModal({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const isDirty = name !== item.name ||
+                  category !== item.category ||
+                  description !== item.description ||
+                  price !== item.price.toFixed(2) ||
+                  available !== item.available ||
+                  selectedFile !== null;
+
   // Re-sync form state when the selected item changes.
   useEffect(() => {
     setName(item.name);
@@ -87,6 +102,9 @@ export function MenuItemDetailModal({
     setAvailable(item.available);
     setImagePreview(null);
     setSelectedFile(null);
+    setAddOns(item.add_ons || []);
+    setNewAddonName("");
+    setNewAddonPrice("");
   }, [item]);
 
   if (!isOpen) return null;
@@ -133,6 +151,33 @@ export function MenuItemDetailModal({
     onClose();
   };
 
+  const handleAddAddOn = async () => {
+    if (!newAddonName || !newAddonPrice) return;
+    setIsProcessingAddOn(true);
+    const res = await createAddOn(item.id, newAddonName, parseFloat(newAddonPrice));
+    if (res.error) {
+      showToast(`Failed to add add-on: ${res.error}`);
+    } else if (res.data) {
+      setAddOns([...addOns, res.data]);
+      setNewAddonName("");
+      setNewAddonPrice("");
+      showToast("Add-on added.");
+    }
+    setIsProcessingAddOn(false);
+  };
+
+  const handleDeleteAddOn = async (addonId: string) => {
+    setIsProcessingAddOn(true);
+    const res = await deleteAddOn(addonId);
+    if (res.error) {
+      showToast(`Failed to delete add-on: ${res.error}`);
+    } else {
+      setAddOns(addOns.filter(a => a.addon_id !== addonId));
+      showToast("Add-on removed.");
+    }
+    setIsProcessingAddOn(false);
+  };
+
   return (
     <>
       {/* Backdrop */}
@@ -141,8 +186,11 @@ export function MenuItemDetailModal({
         <div className="absolute inset-0" onClick={onClose} />
 
         {/* Modal card */}
-        <div className="relative z-10 flex w-full max-w-[440px] flex-col overflow-hidden rounded-[20px] bg-[#fbf6ec] shadow-[0px_30px_35px_rgba(26,18,16,0.26)]">
-          {/* ──────────────────────────────────────────────────────── Image */}
+        <div className="relative z-10 flex w-full max-w-[440px] md:max-w-3xl flex-col overflow-hidden rounded-[20px] bg-[#fbf6ec] shadow-[0px_30px_35px_rgba(26,18,16,0.26)]">
+          <div className="flex flex-col md:flex-row w-full md:h-[650px] max-h-[90vh] overflow-y-auto md:overflow-hidden">
+            {/* LEFT COLUMN */}
+            <div className="flex w-full md:w-1/2 flex-col md:border-r border-[#ddcdb8] md:overflow-y-auto">
+              {/* ──────────────────────────────────────────────────────── Image */}
           <div className="group relative w-full">
             <div className="relative h-[220px] w-full overflow-hidden bg-[#f6e9d9]">
               {(imagePreview || item.image) ? (
@@ -183,7 +231,7 @@ export function MenuItemDetailModal({
           </div>
 
           {/* ──────────────────────────────────────── Scrollable form area */}
-          <div className="flex max-h-[calc(100vh-320px)] flex-col gap-[18px] overflow-y-auto p-[26px]">
+          <div className="flex flex-col gap-[18px] p-[26px]">
             {/* Product Name */}
             <div className="flex flex-col gap-1.5">
               <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
@@ -263,6 +311,12 @@ export function MenuItemDetailModal({
             </div>
 
             {/* Price */}
+            </div>
+            </div>
+            
+            {/* RIGHT COLUMN */}
+            <div className="flex w-full md:w-1/2 flex-col gap-[18px] p-[26px] md:overflow-y-auto border-t md:border-t-0 border-[#ddcdb8]">
+            {/* Price */}
             <div className="flex flex-col gap-1.5">
               <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
                 Price ₱ <span className="text-[#bf4342]">*</span>
@@ -290,6 +344,100 @@ export function MenuItemDetailModal({
               <ToggleSwitch checked={available} onChange={setAvailable} />
             </div>
 
+            {/* Add-ons Section */}
+            <div className="flex flex-col gap-2 rounded-[12px] border border-[#ddcdb8] bg-[#fbf6ec] p-[16px]">
+              <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
+                Add-ons
+              </label>
+              <p className="text-[12px] text-[#7a6a60] leading-snug">
+                Define add-ons available specifically for this item (e.g. Extra Egg).
+              </p>
+              
+              <div className="flex flex-col gap-2 h-[150px] overflow-y-auto pr-1 mt-2">
+                {addOns.map((addon) => (
+                  <div key={addon.addon_id} className="flex items-center justify-between rounded-[8px] bg-white p-3 shadow-sm">
+                    <span className="text-[14px] font-medium text-[#1a1210]">{addon.name}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[14px] text-[#7a6a60]">₱{Number(addon.price).toFixed(2)}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteAddOn(addon.addon_id)}
+                        disabled={isProcessingAddOn}
+                        className="text-[#bf4342] hover:bg-[#fceeed] p-1 rounded transition-colors disabled:opacity-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {addOns.length === 0 && (
+                  <div className="text-[13px] text-[#a2938a] italic px-1">No add-ons currently.</div>
+                )}
+              </div>
+
+              {/* Add New Add-on */}
+              <div className="flex items-center gap-2 mt-1">
+                <input
+                  placeholder="New add-on name..."
+                  value={newAddonName}
+                  onChange={(e) => setNewAddonName(e.target.value)}
+                  className="flex-1 rounded-[10px] border border-[#ddcdb8] bg-white px-3 py-2 text-[14px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
+                />
+                <input
+                  placeholder="₱ 0.00"
+                  type="text"
+                  inputMode="decimal"
+                  value={newAddonPrice}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "" || /^\d*\.?\d{0,2}$/.test(val)) {
+                      setNewAddonPrice(val);
+                    }
+                  }}
+                  className="w-[80px] rounded-[10px] border border-[#ddcdb8] bg-white px-3 py-2 text-[14px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddAddOn}
+                  disabled={!newAddonName.trim() || !newAddonPrice || parseFloat(newAddonPrice) < 0 || isProcessingAddOn}
+                  className="flex shrink-0 items-center justify-center rounded-[10px] bg-[#3f6b4a] px-3 py-2 transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Plus className="h-5 w-5 text-white" />
+                </button>
+              </div>
+            </div>
+
+            {/* Reviews */}
+            <div className="flex flex-col gap-2 rounded-[12px] border border-[#ddcdb8] bg-[#fbf6ec] p-[16px]">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
+                  Reviews
+                </label>
+                {item.rating > 0 && (
+                  <div className="flex items-center gap-1">
+                    <span className="text-[14px] font-bold text-[#e8541f]">★ {item.rating.toFixed(1)}</span>
+                    <span className="text-[12px] text-[#a2938a]">({item.reviews?.length || 0})</span>
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex flex-col gap-3 mt-2">
+                {(!item.reviews || item.reviews.length === 0) ? (
+                  <p className="text-[13px] text-[#a2938a] italic">No reviews yet.</p>
+                ) : (
+                  item.reviews.slice(0, 5).map((rev) => (
+                    <div key={rev.id} className="flex flex-col gap-1 border-b border-[#ddcdb8] pb-2 last:border-0 last:pb-0">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[13px] font-bold text-[#1a1210]">{rev.customerName}</span>
+                        <span className="text-[12px] text-[#e8541f]">★ {rev.rating}</span>
+                      </div>
+                      {rev.comment && <p className="text-[12px] text-[#7a6a60] leading-snug">"{rev.comment}"</p>}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
             {/* ──────────────────────────────────────── Action buttons */}
             <div className="flex gap-[10px] pt-[6px]">
               <button
@@ -302,11 +450,11 @@ export function MenuItemDetailModal({
               </button>
               <button
                 onClick={() => setShowEditConfirm(true)}
-                disabled={!name.trim() || !price || parseFloat(price) <= 0}
+                disabled={!name.trim() || !price || parseFloat(price) <= 0 || !isDirty}
                 className="flex flex-1 items-center justify-center rounded-[12px] bg-[#ca762d] px-[14px] py-[15px] transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span className="text-[14px] font-bold leading-none text-white">
-                  Edit
+                  Save
                 </span>
               </button>
             </div>
@@ -320,6 +468,7 @@ export function MenuItemDetailModal({
                 Delete
               </span>
             </button>
+            </div>
           </div>
         </div>
       </div>

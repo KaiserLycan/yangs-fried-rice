@@ -29,6 +29,7 @@ export type CartItemDetail = {
   quantity: number;
   special_instructions: string | null;
   subtotal: number;
+  add_ons: { addon_id: string; name: string; price: number }[];
 };
 
 export type ActiveCart = {
@@ -91,6 +92,13 @@ export async function getActiveCart(): Promise<ActionResult<ActiveCart>> {
         product (
           product_name,
           product_price
+        ),
+        cart_item_add_on (
+          addon_id,
+          add_on (
+            name,
+            price
+          )
         )
       )
     `)
@@ -121,6 +129,17 @@ export async function getActiveCart(): Promise<ActionResult<ActiveCart>> {
     const product = row.product as { product_name: string; product_price: number } | null;
     const price = product?.product_price ?? 0;
     const qty = row.quantity;
+    
+    // Map add-ons
+    const addOns = (row.cart_item_add_on || []).map((addonRow: any) => ({
+      addon_id: addonRow.addon_id,
+      name: addonRow.add_on?.name ?? "Unknown Add-on",
+      price: addonRow.add_on?.price ?? 0,
+    }));
+    
+    // Calculate total add-on price
+    const addOnsPrice = addOns.reduce((sum: number, addon: any) => sum + addon.price, 0);
+
     return {
       cart_item_id: row.cart_item_id,
       cart_id: row.cart_id ?? cart!.cart_id,
@@ -129,7 +148,8 @@ export async function getActiveCart(): Promise<ActionResult<ActiveCart>> {
       product_price: price,
       quantity: qty,
       special_instructions: row.special_instructions,
-      subtotal: price * qty,
+      subtotal: (price + addOnsPrice) * qty,
+      add_ons: addOns,
     };
   });
 
@@ -222,23 +242,38 @@ export async function addCartItem(
     return { data: null, error: `Product "${product.product_name}" is currently unavailable.` };
   }
 
-  // Insert item and update cart concurrently
-  const [insertResult] = await Promise.all([
+  const cartItemId = crypto.randomUUID();
+
+  // Insert item, add-ons, and update cart concurrently
+  const promises: any[] = [
     supabase
       .from("cart_item")
       .insert({
+        cart_item_id: cartItemId,
         cart_id: cart.cart_id,
         product_id: product.product_id,
         quantity: parsed.data.quantity,
         special_instructions: parsed.data.special_instructions ?? null,
       })
       .select()
-      .single(),
+      .single()
+      .then((res) => res),
     supabase
       .from("cart")
       .update({ updated_at: new Date().toISOString() })
-      .eq("cart_id", cart.cart_id),
-  ]);
+      .eq("cart_id", cart.cart_id)
+      .then((res) => res),
+  ];
+
+  if (parsed.data.add_on_ids && parsed.data.add_on_ids.length > 0) {
+    const addOnsToInsert = parsed.data.add_on_ids.map(addonId => ({
+      cart_item_id: cartItemId,
+      addon_id: addonId,
+    }));
+    promises.push(supabase.from("cart_item_add_on").insert(addOnsToInsert));
+  }
+
+  const [insertResult] = await Promise.all(promises);
 
   const newItem = insertResult.data;
   const insertError = insertResult.error;
@@ -257,9 +292,10 @@ export async function addCartItem(
       product_id: product.product_id,
       product_name: product.product_name,
       product_price: product.product_price,
-      quantity: newItem.quantity,
-      special_instructions: newItem.special_instructions,
-      subtotal: product.product_price * newItem.quantity,
+      quantity: parsed.data.quantity,
+      special_instructions: parsed.data.special_instructions ?? null,
+      subtotal: product.product_price * parsed.data.quantity, // Optimistic base subtotal
+      add_ons: [], // Add-ons not populated yet in add response
     },
     error: null,
   };
@@ -374,6 +410,7 @@ export async function updateCartItem(
       quantity: updated.quantity,
       special_instructions: updated.special_instructions,
       subtotal: price * updated.quantity,
+      add_ons: [], // Add-ons not populated in update response
     },
     error: null,
   };
@@ -586,11 +623,18 @@ export async function submitCart(
   const { data: cartItems, error: itemsError } = await supabase
     .from("cart_item")
     .select(`
+      cart_item_id,
       product_id,
       quantity,
       special_instructions,
-      product ( product_price )
+      product ( product_price ),
+      cart_item_add_on ( addon_id, add_on ( price ) )
     `)
+    .eq("cart_id", cart.cart_id);
+
+  const { data: cartAddOns } = await supabase
+    .from("cart_add_on")
+    .select("addon_id, add_on ( price )")
     .eq("cart_id", cart.cart_id);
 
   if (itemsError || !cartItems || cartItems.length === 0) {
@@ -615,10 +659,11 @@ export async function submitCart(
     return { data: null, error: orderError?.message ?? "Failed to create order." };
   }
 
-  // 2. Transfer cart items to order_item
+  // 2. Transfer cart items and their add-ons
   const orderItemsToInsert = cartItems.map((item) => {
     const price = (item.product as { product_price: number } | null)?.product_price ?? 0;
     return {
+      order_item_id: crypto.randomUUID(),
       order_id: newOrder.order_id,
       product_id: item.product_id,
       quantity: item.quantity,
@@ -627,7 +672,26 @@ export async function submitCart(
     };
   });
 
-  await supabase.from("order_item").insert(orderItemsToInsert);
+  const orderItemAddOnsToInsert = cartItems.flatMap((item, index) => {
+    const addOns = item.cart_item_add_on as { addon_id: string; add_on: { price: number } }[] | null;
+    if (!addOns) return [];
+    return addOns.map(addon => ({
+      order_item_id: orderItemsToInsert[index].order_item_id,
+      addon_id: addon.addon_id,
+    }));
+  });
+
+  const orderAddOnsToInsert = (cartAddOns || []).map(addon => ({
+    order_id: newOrder.order_id,
+    addon_id: addon.addon_id,
+    price: (addon.add_on as any)?.price ?? 0,
+  }));
+
+  await Promise.all([
+    supabase.from("order_item").insert(orderItemsToInsert),
+    orderItemAddOnsToInsert.length > 0 ? supabase.from("order_item_add_on").insert(orderItemAddOnsToInsert) : Promise.resolve(),
+    orderAddOnsToInsert.length > 0 ? supabase.from("order_add_on").insert(orderAddOnsToInsert) : Promise.resolve(),
+  ]);
 
   // 3. Lock cart immediately
   const now = new Date().toISOString();

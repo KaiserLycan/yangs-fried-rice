@@ -19,6 +19,7 @@ export type CartLine = {
   unitPrice: number;
   quantity: number;
   specialInstructions: string | null;
+  addOns?: { addon_id: string; name: string; price: number }[];
 };
 
 export type CartTotals = {

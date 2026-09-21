@@ -11,6 +11,8 @@ export interface MenuItem {
   // CHANGED: Added `available` field to track stock status.
   // WHY: The Figma design includes an "Available?" toggle for managing items.
   available: boolean;
+  add_ons?: { addon_id: string; name: string; price: number }[];
+  reviews?: { id: string; rating: number; comment: string; customerName: string; createdAt: string }[];
 }
 
 export const MOCK_MENU_ITEMS: MenuItem[] = [
