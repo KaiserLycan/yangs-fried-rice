@@ -9,7 +9,6 @@ export interface DashboardContentProps {
   stats: DashboardStats;
   weeklySales: DailySales[];
   topSellers: RankedProduct[];
-  topRated: RankedProduct[];
   dateStr: string;
   branchName: string;
 }
@@ -18,7 +17,6 @@ export function DashboardContent({
   stats,
   weeklySales,
   topSellers,
-  topRated,
   dateStr,
   branchName,
 }: DashboardContentProps) {
@@ -66,14 +64,6 @@ export function DashboardContent({
         {/* Top Sellers */}
         <div className="md:row-span-1">
           <ProductRanking title="Top sellers" items={topSellers} />
-        </div>
-
-        {/* Empty space — hide on mobile so it doesn't create a massive gap */}
-        <div className="hidden md:block" />
-
-        {/* Top Rated */}
-        <div className="md:row-span-1">
-          <ProductRanking title="Top rated" items={topRated} />
         </div>
       </div>
     </div>

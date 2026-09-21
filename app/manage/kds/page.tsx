@@ -46,8 +46,25 @@ function KdsInner() {
             uiStatus = "QUEUE";
           else if (order.order_status === "preparing") uiStatus = "PREP";
 
+          const itemCount = order.order_item.reduce((acc, curr) => acc + curr.quantity, 0);
+          const prepMinutes = Math.min(45, Math.max(5, itemCount * 5));
+
+          const items = order.order_item.map((item) => {
+            const prod = Array.isArray(item.product) ? item.product[0] : item.product;
+            return {
+              quantity: item.quantity,
+              name: prod?.product_name || "Unknown Item",
+              price: prod?.product_price || 0,
+              addons: item.special_instructions || undefined,
+            };
+          });
+
+          const calculatedTotal = items.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0);
+          const dbTotal = order.transaction?.[0]?.total_paid;
+
           return {
             id: order.order_id,
+            rawCreatedAt: order.created_at,
             orderNumber: order.order_id.substring(0, 4).toUpperCase(),
             time: order.created_at
               ? new Date(order.created_at).toLocaleTimeString([], {
@@ -56,7 +73,7 @@ function KdsInner() {
                 })
               : "Unknown time",
             status: uiStatus,
-            timer: "5:00",
+            timer: `${prepMinutes}:00`,
             contactInfo: {
               name: order.customer?.name || "Walk-in Customer",
               address: "Address details protected",
@@ -68,21 +85,25 @@ function KdsInner() {
                 order.order_item?.[0]?.special_instructions || "",
             },
             deliveryFee: 0,
-            total: order.transaction?.[0]?.total_paid || 0,
-            items: order.order_item.map((item) => ({
-              quantity: item.quantity,
-              name: item.product?.product_name || "Unknown Item",
-              price: item.product?.product_price || 0,
-              addons: item.special_instructions || undefined,
-            })),
+            total: dbTotal || calculatedTotal,
+            items,
           };
         });
 
-      // Sort QUEUE before PREP
-      mappedOrders.sort((a, b) => {
-        if (a.status === "QUEUE" && b.status === "PREP") return -1;
-        if (a.status === "PREP" && b.status === "QUEUE") return 1;
-        return 0;
+      // Priority: 1. PREP, 2. QUEUE. Then First-Come First-Serve
+      mappedOrders.sort((a: any, b: any) => {
+        const priority: Record<string, number> = {
+          "PREP": 1,
+          "QUEUE": 2,
+        };
+        const pA = priority[a.status] || 99;
+        const pB = priority[b.status] || 99;
+        
+        if (pA !== pB) return pA - pB;
+        
+        const timeA = new Date(a.rawCreatedAt || 0).getTime();
+        const timeB = new Date(b.rawCreatedAt || 0).getTime();
+        return timeA - timeB; // Oldest first
       });
 
       setOrders(mappedOrders);

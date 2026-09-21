@@ -88,14 +88,31 @@ function ManageOrdersInner() {
           else if (order.order_status === "completed") uiStatus = "COMPLETED";
           else if (order.order_status === "cancelled") uiStatus = "CANCELED";
 
+          const itemCount = order.order_item.reduce((acc, curr) => acc + curr.quantity, 0);
+          const prepMinutes = Math.min(45, Math.max(5, itemCount * 5));
+
+          const items = order.order_item.map(item => {
+            const prod = Array.isArray(item.product) ? item.product[0] : item.product;
+            return {
+              quantity: item.quantity,
+              name: prod?.product_name || "Unknown Item",
+              price: prod?.product_price || 0,
+              addons: item.special_instructions || undefined,
+            };
+          });
+
+          const calculatedTotal = items.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0);
+          const dbTotal = order.transaction?.[0]?.total_paid;
+
           return {
             id: order.order_id,
+            rawCreatedAt: order.created_at,
             orderNumber: order.order_id.substring(0, 4).toUpperCase(),
             time: order.created_at 
               ? new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
               : "Unknown time",
             status: uiStatus,
-            timer: "5:00", 
+            timer: `${prepMinutes}:00`, 
             contactInfo: {
               name: order.customer?.name || "Walk-in Customer",
               address: "Address details protected",
@@ -106,23 +123,28 @@ function ManageOrdersInner() {
               specialInstructions: order.order_item?.[0]?.special_instructions || "",
             },
             deliveryFee: 0,
-            total: order.transaction?.[0]?.total_paid || 0,
-            items: order.order_item.map(item => ({
-              quantity: item.quantity,
-              name: item.product?.product_name || "Unknown Item",
-              price: item.product?.product_price || 0,
-              addons: item.special_instructions || undefined,
-            }))
+            total: dbTotal || calculatedTotal,
+            items
           };
         });
 
-      // 4. Custom Sort: Push Completed and Canceled to the back of the grid
-      mappedOrders.sort((a, b) => {
-        const aIsDone = a.status === "COMPLETED" || a.status === "CANCELED";
-        const bIsDone = b.status === "COMPLETED" || b.status === "CANCELED";
-        if (aIsDone && !bIsDone) return 1;
-        if (!aIsDone && bIsDone) return -1;
-        return 0; // Maintain original time-based order for active items
+      // 4. Custom Sort: Priority based on Type, then First-Come First-Serve
+      mappedOrders.sort((a: any, b: any) => {
+        const priority: Record<string, number> = {
+          "DELIVERY": 1,
+          "PREP": 2,
+          "QUEUE": 3,
+          "COMPLETED": 4,
+          "CANCELED": 4
+        };
+        const pA = priority[a.status] || 99;
+        const pB = priority[b.status] || 99;
+        
+        if (pA !== pB) return pA - pB;
+        
+        const timeA = new Date(a.rawCreatedAt || 0).getTime();
+        const timeB = new Date(b.rawCreatedAt || 0).getTime();
+        return timeA - timeB; // Oldest first
       });
         
       setOrders(mappedOrders);

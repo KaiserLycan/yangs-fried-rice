@@ -18,6 +18,8 @@ export function ProductRow({
   product: ProductListing;
   onSelect: (product: ProductListing) => void;
 }) {
+
+
   const content = (
     <>
       {product.imageUrl ? (
@@ -31,9 +33,12 @@ export function ProductRow({
       )}
 
       <div className="flex min-w-0 flex-1 flex-col gap-[6px]">
-        <h3 className="text-[15px] font-bold text-foreground">
-          {product.name}
-        </h3>
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="text-[15px] font-bold text-foreground">
+            {product.name}
+          </h3>
+
+        </div>
         <p className="line-clamp-2 text-[13px] text-muted-foreground">
           {product.description}
         </p>
@@ -51,19 +56,13 @@ export function ProductRow({
     </>
   );
 
-  if (!product.isAvailable) {
-    return (
-      <div className="flex gap-[13px] border-b border-field-border px-[20px] py-[12px] text-left last:border-b-0 opacity-50">
-        {content}
-      </div>
-    );
-  }
-
   return (
     <button
       type="button"
       onClick={() => onSelect(product)}
-      className="flex gap-[13px] border-b border-field-border px-[20px] py-[12px] text-left last:border-b-0 transition-opacity hover:opacity-90"
+      className={`flex gap-[13px] border-b border-field-border px-[20px] py-[12px] text-left last:border-b-0 transition-opacity hover:opacity-90 ${
+        !product.isAvailable ? "opacity-50" : ""
+      }`}
     >
       {content}
     </button>

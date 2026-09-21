@@ -52,15 +52,11 @@ function SignupFormInner() {
   const searchParams = useSearchParams();
   const [errors, setErrors] = useState<FieldErrors>({});
   const [serverError, setServerError] = useState<string | null>(null);
-  const [serverSuccess, setServerSuccess] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [hasEmptyRequired, setHasEmptyRequired] = useState(true);
   const [draftAddressStr, setDraftAddressStr] = useState("");
-  const [addressValidationState, setAddressValidationState] = useState<
-    { status: "checking" | "valid" | "invalid" | "unavailable"; message?: string }
-  >({ status: "checking" });
   const formRef = useRef<HTMLFormElement>(null);
 
   function checkFormEmpty(form: HTMLFormElement) {
@@ -111,26 +107,14 @@ function SignupFormInner() {
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (addressValidationState.status === "invalid") {
-      setServerError(
-        addressValidationState.message ?? "Sorry, we only deliver within 15 km of our store.",
-      );
-      return;
-    }
-
-    if (!draftAddressStr.trim()) {
-      setServerError("Add a valid delivery address before creating your account.");
-      return;
-    }
-
     const data = new FormData(event.currentTarget);
-    const rawPhone = String(data.get("phone") ?? "");
-    const normalizedPhone = rawPhone.replace(/[^0-9]/g, "");
     const result = signupSchema.safeParse({
       firstName: String(data.get("firstName") ?? ""),
       lastName: String(data.get("lastName") ?? ""),
       email: String(data.get("email") ?? ""),
-      phone: normalizedPhone ? `+63${normalizedPhone.replace(/^0/, "")}` : "",
+      phone: String(data.get("phone") ?? "").replace(/[^0-9]/g, "") 
+        ? `+63${String(data.get("phone") ?? "").replace(/[^0-9]/g, "")}`
+        : "",
       password: String(data.get("password") ?? ""),
       buildingNo: String(data.get("buildingNo") ?? ""),
       street: String(data.get("street") ?? ""),
@@ -152,17 +136,10 @@ function SignupFormInner() {
 
     setErrors({});
     setServerError(null);
-    setServerSuccess(null);
 
     startTransition(async () => {
       const outcome = await registerCustomer(result.data);
       if (!outcome.success) {
-        if (outcome.error.toLowerCase().includes("created")) {
-          const message = encodeURIComponent(outcome.error);
-          router.push(`/login?message=${message}`);
-          router.refresh();
-          return;
-        }
         setServerError(outcome.error);
         return;
       }
@@ -194,8 +171,6 @@ function SignupFormInner() {
 
         {serverError ? (
           <Alert>{serverError}</Alert>
-        ) : serverSuccess ? (
-          <Alert tone="success" role="status">{serverSuccess}</Alert>
         ) : null}
 
         <div className="flex flex-col gap-[10px] md:flex-row md:gap-[14px]">
@@ -358,10 +333,7 @@ function SignupFormInner() {
         </div>
 
         <div className="-mt-1 px-1">
-          <AddressValidationNote
-            address={draftAddressStr}
-            onStateChange={setAddressValidationState}
-          />
+          <AddressValidationNote address={draftAddressStr} />
         </div>
 
         <label className="flex items-start gap-[9px] text-[13px] mt-1 mb-1">
@@ -371,14 +343,7 @@ function SignupFormInner() {
           </span>
         </label>
 
-        <Button
-          type="submit"
-          disabled={
-            isPending ||
-            hasEmptyRequired ||
-            addressValidationState.status === "invalid"
-          }
-        >
+        <Button type="submit" disabled={isPending || hasEmptyRequired}>
           {isPending ? "Creating account…" : "Create account"}
         </Button>
 

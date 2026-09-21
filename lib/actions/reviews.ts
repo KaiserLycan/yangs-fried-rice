@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { revalidatePath } from "next/cache";
 
 export async function submitProductReview(
   orderId: string,
@@ -42,3 +43,5 @@ export async function submitProductReview(
 
   return { success: true };
 }
+
+

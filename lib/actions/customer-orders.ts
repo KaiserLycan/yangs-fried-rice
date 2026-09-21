@@ -41,8 +41,9 @@ export type OrderHistoryItem = {
     review_id: string;
     rating: number;
     comment: string | null;
+    product_id: string | null;
     created_at: string;
-  } | null;
+  }[] | null;
 };
 
 /** Shape returned by the submit_order_review RPC. */
@@ -86,6 +87,7 @@ export type OrderDetail = {
     review_id: string;
     rating: number | null;
     comment: string | null;
+    product_id: string | null;
     created_at: string | null;
   }[];
 };
@@ -202,6 +204,7 @@ export async function getMyOrderDetail(
         review_id,
         rating,
         comment,
+        product_id,
         created_at
       )
     `,
@@ -247,13 +250,14 @@ export async function submitReview(
     return { data: null, error: parsed.error.errors[0].message };
   }
 
-  const { rating, comment } = parsed.data;
+  const { rating, comment, productId } = parsed.data;
 
   const supabase = createClient();
   const { data, error } = await supabase.rpc("submit_order_review", {
     p_order_id: orderId,
     p_rating: rating,
     p_comment: comment ?? undefined,
+    p_product_id: productId ?? undefined,
   });
 
   if (error) {
