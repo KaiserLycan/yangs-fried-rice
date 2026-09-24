@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { cn } from "@/lib/utils";
+import { Tooltip } from "@/components/ui/tooltip";
+import { useValidatedValues } from "@/lib/forms/use-live-validation";
+import { SHORTCUTS, useShortcut } from "@/lib/hooks/use-shortcut";
+import { FIELD_LIMITS, lengthProps } from "@/lib/validation/fields";
+import { addOnFormSchema, menuItemFormSchema } from "@/components/manage/menu/menu-modals";
 import { MenuItem, MenuCategory, MOCK_CATEGORIES } from "@/components/manage/menu/mock-menu";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -93,6 +99,22 @@ export function MenuItemDetailModal({
                   available !== item.available ||
                   selectedFile !== null;
 
+  // Live validation — the same rules as the Add Item dialog.
+  const itemValues = useMemo(() => ({ name, price, description }), [name, price, description]);
+  const itemForm = useValidatedValues(menuItemFormSchema, itemValues);
+  const addOnValues = useMemo(
+    () => ({ addonName: newAddonName, addonPrice: newAddonPrice }),
+    [newAddonName, newAddonPrice],
+  );
+  const addOnForm = useValidatedValues(addOnFormSchema, addOnValues);
+  const canSave = itemForm.isValid && isDirty;
+
+  // Ctrl/⌘+Enter asks to save, exactly as the Save button would.
+  useShortcut(SHORTCUTS.submitForm.combo, () => {
+    if (canSave) setShowEditConfirm(true);
+    else itemForm.attemptSubmit();
+  }, { enabled: isOpen && !showEditConfirm && !showDeleteConfirm });
+
   // Re-sync form state when the selected item changes.
   useEffect(() => {
     setName(item.name);
@@ -132,7 +154,7 @@ export function MenuItemDetailModal({
 
   const handleEditConfirm = (e: React.MouseEvent) => {
     e.preventDefault();
-    
+
     onEdit({
     ...item,
     name,
@@ -141,7 +163,7 @@ export function MenuItemDetailModal({
       price: parseFloat(price) || 0,
       available,
     }, selectedFile || undefined);
-    
+
     setShowEditConfirm(false); // Safe to keep: this just closes the small confirmation popup
   };
 
@@ -239,10 +261,20 @@ export function MenuItemDetailModal({
               </label>
               <input
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  itemForm.touch("name");
+                }}
+                onBlur={() => itemForm.touch("name")}
                 placeholder="e.g. Yangzhou Special"
-                className="w-full rounded-[12px] border border-[#ddcdb8] bg-white px-4 py-3 text-[15px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
+                {...lengthProps("productName")}
+                aria-invalid={itemForm.errors.name ? true : undefined}
+                className={cn(
+                  "w-full rounded-[12px] border bg-white px-4 py-3 text-[15px] text-[#1a1210] outline-none placeholder:text-[#a2938a]",
+                  itemForm.errors.name ? "border-[#bf4342]" : "border-[#ddcdb8]",
+                )}
               />
+              {itemForm.errors.name ? <p className="text-[12px] text-[#bf4342]">{itemForm.errors.name}</p> : null}
             </div>
 
             {/* Category */}
@@ -303,17 +335,28 @@ export function MenuItemDetailModal({
               </label>
               <textarea
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={(e) => {
+                  setDescription(e.target.value);
+                  itemForm.touch("description");
+                }}
                 placeholder="Describe this menu item..."
                 rows={4}
-                className="w-full resize-none rounded-[12px] border border-[#ddcdb8] bg-white px-4 py-3 text-[15px] leading-[22px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
+                maxLength={FIELD_LIMITS.productDetails.max}
+                aria-invalid={itemForm.errors.description ? true : undefined}
+                className={cn(
+                  "w-full resize-none rounded-[12px] border bg-white px-4 py-3 text-[15px] leading-[22px] text-[#1a1210] outline-none placeholder:text-[#a2938a]",
+                  itemForm.errors.description ? "border-[#bf4342]" : "border-[#ddcdb8]",
+                )}
               />
+              <p className={cn("text-[12px]", itemForm.errors.description ? "text-[#bf4342]" : "text-[#a2938a]")}>
+                {itemForm.errors.description ?? `Optional. ${(description ?? "").length}/${FIELD_LIMITS.productDetails.max} characters.`}
+              </p>
             </div>
 
             {/* Price */}
             </div>
             </div>
-            
+
             {/* RIGHT COLUMN */}
             <div className="flex w-full md:w-1/2 flex-col gap-[18px] p-[26px] md:overflow-y-auto border-t md:border-t-0 border-[#ddcdb8]">
             {/* Price */}
@@ -327,13 +370,20 @@ export function MenuItemDetailModal({
                 value={price}
                 onChange={(e) => {
                   const val = e.target.value;
-                  if (val === "" || /^\d*\.?\d{0,2}$/.test(val)) {
+                  if (val === "" || /^\d{0,5}(\.\d{0,2})?$/.test(val)) {
                     setPrice(val);
+                    itemForm.touch("price");
                   }
                 }}
+                onBlur={() => itemForm.touch("price")}
                 placeholder="0.00"
-                className="w-full rounded-[12px] border border-[#ddcdb8] bg-white px-4 py-3 text-[15px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
+                aria-invalid={itemForm.errors.price ? true : undefined}
+                className={cn(
+                  "w-full rounded-[12px] border bg-white px-4 py-3 text-[15px] text-[#1a1210] outline-none placeholder:text-[#a2938a]",
+                  itemForm.errors.price ? "border-[#bf4342]" : "border-[#ddcdb8]",
+                )}
               />
+              {itemForm.errors.price ? <p className="text-[12px] text-[#bf4342]">{itemForm.errors.price}</p> : null}
             </div>
 
             {/* Available toggle */}
@@ -352,7 +402,7 @@ export function MenuItemDetailModal({
               <p className="text-[12px] text-[#7a6a60] leading-snug">
                 Define add-ons available specifically for this item (e.g. Extra Egg).
               </p>
-              
+
               <div className="flex flex-col gap-2 h-[150px] overflow-y-auto pr-1 mt-2">
                 {addOns.map((addon) => (
                   <div key={addon.addon_id} className="flex items-center justify-between rounded-[8px] bg-white p-3 shadow-sm">
@@ -380,8 +430,16 @@ export function MenuItemDetailModal({
                 <input
                   placeholder="New add-on name..."
                   value={newAddonName}
-                  onChange={(e) => setNewAddonName(e.target.value)}
-                  className="flex-1 min-w-0 rounded-[10px] border border-[#ddcdb8] bg-white px-3 py-2 text-[14px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
+                  onChange={(e) => {
+                    setNewAddonName(e.target.value);
+                    addOnForm.touch("addonName");
+                  }}
+                  {...lengthProps("addonName")}
+                  aria-invalid={addOnForm.errors.addonName ? true : undefined}
+                  className={cn(
+                    "flex-1 min-w-0 rounded-[10px] border bg-white px-3 py-2 text-[14px] text-[#1a1210] outline-none placeholder:text-[#a2938a]",
+                    addOnForm.errors.addonName ? "border-[#bf4342]" : "border-[#ddcdb8]",
+                  )}
                 />
                 <input
                   placeholder="₱ 0.00"
@@ -390,21 +448,34 @@ export function MenuItemDetailModal({
                   value={newAddonPrice}
                   onChange={(e) => {
                     const val = e.target.value;
-                    if (val === "" || /^\d*\.?\d{0,2}$/.test(val)) {
+                    if (val === "" || /^\d{0,4}(\.\d{0,2})?$/.test(val)) {
                       setNewAddonPrice(val);
+                      addOnForm.touch("addonPrice");
                     }
                   }}
-                  className="w-[70px] shrink-0 rounded-[10px] border border-[#ddcdb8] bg-white px-3 py-2 text-[14px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
+                  aria-invalid={addOnForm.errors.addonPrice ? true : undefined}
+                  className={cn(
+                    "w-[70px] shrink-0 rounded-[10px] border bg-white px-3 py-2 text-[14px] text-[#1a1210] outline-none placeholder:text-[#a2938a]",
+                    addOnForm.errors.addonPrice ? "border-[#bf4342]" : "border-[#ddcdb8]",
+                  )}
                 />
-                <button
-                  type="button"
-                  onClick={handleAddAddOn}
-                  disabled={!newAddonName.trim() || !newAddonPrice || parseFloat(newAddonPrice) < 0 || isProcessingAddOn}
-                  className="flex shrink-0 items-center justify-center rounded-[10px] bg-[#3f6b4a] px-3 py-2 transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Plus className="h-5 w-5 text-white" />
-                </button>
+                <Tooltip content={addOnForm.isValid ? "Add this add-on to the item" : "Enter an add-on name and price first"}>
+                  <button
+                    type="button"
+                    onClick={handleAddAddOn}
+                    disabled={!addOnForm.isValid || isProcessingAddOn}
+                    aria-label="Add add-on"
+                    className="flex shrink-0 items-center justify-center rounded-[10px] bg-[#3f6b4a] px-3 py-2 transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Plus className="h-5 w-5 text-white" />
+                  </button>
+                </Tooltip>
               </div>
+              {addOnForm.errors.addonName || addOnForm.errors.addonPrice ? (
+                <p className="text-[12px] text-[#bf4342]">
+                  {addOnForm.errors.addonName ?? addOnForm.errors.addonPrice}
+                </p>
+              ) : null}
             </div>
 
             {/* ──────────────────────────────────────── Action buttons */}
@@ -417,15 +488,28 @@ export function MenuItemDetailModal({
                   Cancel
                 </span>
               </button>
-              <button
-                onClick={() => setShowEditConfirm(true)}
-                disabled={!name.trim() || !price || parseFloat(price) <= 0 || !isDirty}
-                className="flex flex-1 items-center justify-center rounded-[12px] bg-[#ca762d] px-[14px] py-[15px] transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              <Tooltip
+                content={
+                  canSave
+                    ? "Save changes to this menu item"
+                    : !isDirty
+                      ? "Nothing has changed yet."
+                      : "Complete the highlighted fields to continue."
+                }
+                shortcut={canSave ? SHORTCUTS.submitForm.combo : undefined}
+                className="flex-1"
               >
-                <span className="text-[14px] font-bold leading-none text-white">
-                  Save
-                </span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setShowEditConfirm(true)}
+                  disabled={!canSave}
+                  className="flex w-full flex-1 items-center justify-center rounded-[12px] bg-[#ca762d] px-[14px] py-[15px] transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span className="text-[14px] font-bold leading-none text-white">
+                    Save
+                  </span>
+                </button>
+              </Tooltip>
             </div>
 
             {/* Delete */}

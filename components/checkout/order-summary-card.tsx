@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { Tooltip } from "@/components/ui/tooltip";
+import { SHORTCUTS, useShortcut } from "@/lib/hooks/use-shortcut";
 import { useRouter } from "next/navigation";
 import { OrderSummaryRows } from "@/components/checkout/order-summary-rows";
 import { useToast } from "@/components/ui/toast";
@@ -98,6 +100,14 @@ export function OrderSummaryCard({
   //
   // A failure from `submitCart` itself stays here with the backend's reason
   // in a toast, as before.
+  // Ctrl/⌘+Enter places the order — unless focus is inside a form (the
+  // address editor), where the same keys save that form instead.
+  useShortcut(SHORTCUTS.placeOrder.combo, () => {
+    if (document.activeElement?.closest("form")) return;
+    if (pending || redirecting) return;
+    handlePlaceOrder();
+  });
+
   function handlePlaceOrder() {
     if (paymentMethod === "card") {
       showToast(CARD_NOT_YET);
@@ -166,18 +176,24 @@ export function OrderSummaryCard({
         kitchen queue and delivery distance.
       </p>
 
-      <button
-        type="button"
-        onClick={handlePlaceOrder}
-        disabled={pending || redirecting}
-        className="rounded-[13px] bg-accent p-[16px] text-[15px] font-bold text-accent-foreground disabled:opacity-60"
+      <Tooltip
+        content="Send this order to the kitchen"
+        shortcut={pending || redirecting ? undefined : SHORTCUTS.placeOrder.combo}
+        className="w-full"
       >
-        {redirecting
-          ? "Opening wallet…"
-          : pending
-            ? "Placing order…"
-            : `Place order · ${formatPeso(totals.total)}`}
-      </button>
+        <button
+          type="button"
+          onClick={handlePlaceOrder}
+          disabled={pending || redirecting}
+          className="w-full rounded-[13px] bg-accent p-[16px] text-[15px] font-bold text-accent-foreground disabled:opacity-60"
+        >
+          {redirecting
+            ? "Opening wallet…"
+            : pending
+              ? "Placing order…"
+              : `Place order · ${formatPeso(totals.total)}`}
+        </button>
+      </Tooltip>
     </section>
   );
 }

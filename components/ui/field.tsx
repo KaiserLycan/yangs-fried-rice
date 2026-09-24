@@ -10,6 +10,7 @@ export function Field({
   htmlFor,
   action,
   error,
+  errorId,
   children,
   className,
 }: {
@@ -17,6 +18,8 @@ export function Field({
   htmlFor: string;
   action?: React.ReactNode;
   error?: string;
+  /** Lets the input point `aria-describedby` at its error. */
+  errorId?: string;
   children: React.ReactNode;
   className?: string;
 }) {
@@ -34,7 +37,15 @@ export function Field({
         {action}
       </div>
       {children}
-      {error ? <p className="text-[12px] text-primary">{error}</p> : null}
+      {error ? (
+        <p
+          id={errorId ?? `${htmlFor}-error`}
+          aria-live="polite"
+          className="text-[12px] text-primary"
+        >
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

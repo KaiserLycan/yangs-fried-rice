@@ -1,5 +1,7 @@
 "use client";
 
+import { Tooltip } from "@/components/ui/tooltip";
+import { SHORTCUTS, useShortcut } from "@/lib/hooks/use-shortcut";
 import { useState, useCallback, useEffect } from "react";
 import { Search } from "lucide-react";
 import { MenuSidebar } from "@/components/manage/menu/menu-sidebar";
@@ -11,7 +13,7 @@ import { useToast, ToastProvider } from "@/components/ui/toast";
 import type { MenuItem } from "@/components/manage/menu/mock-menu";
 
 // Import real backend Server Actions and Supabase client
-import { 
+import {
   getMenuData, createCategory, updateCategory, deleteCategory,
   createProduct, updateProduct, deleteProduct, createAddOn
 } from "@/lib/actions/menu";
@@ -42,6 +44,11 @@ function ManageMenuInner() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
 
+  // Shift+N opens "Add item" (listed in the ? shortcuts overlay).
+  useShortcut(SHORTCUTS.newItem.combo, () => setIsAddModalOpen(true), {
+    enabled: !isAddModalOpen && !isDetailModalOpen && !isProcessing,
+  });
+
   // Derived Category Strings for UI
   const categoryStrings = ["All", ...dbCategories.map(c => c.category_name)];
 
@@ -54,7 +61,7 @@ function ManageMenuInner() {
       showToast(`Error loading menu data: ${res.error}`);
     } else if (res.data) {
       setDbCategories(res.data.categories);
-      
+
       // Map database schema to UI schema
       const mapped: MenuItem[] = res.data.products.map((p: any) => {
         const mappedReviews = (p.review || []).map((r: any) => ({
@@ -64,12 +71,12 @@ function ManageMenuInner() {
           customerName: r.customer?.name || "Unknown Customer",
           createdAt: r.created_at || new Date().toISOString(),
         }));
-        
+
         const validRatings = mappedReviews.filter((r: any) => r.rating > 0);
-        const avgRating = validRatings.length > 0 
-          ? validRatings.reduce((sum: number, r: any) => sum + r.rating, 0) / validRatings.length 
+        const avgRating = validRatings.length > 0
+          ? validRatings.reduce((sum: number, r: any) => sum + r.rating, 0) / validRatings.length
           : 0;
-          
+
         return {
           id: p.product_id,
           name: p.product_name,
@@ -101,7 +108,7 @@ function ManageMenuInner() {
     while (dbCategories.some(c => c.category_name === name)) {
       name = `New Category ${counter++}`;
     }
-    
+
     const res = await createCategory({ category_name: name });
     if (res.error) showToast(`Failed: ${res.error}`);
     else {
@@ -152,7 +159,7 @@ function ManageMenuInner() {
     if (imageFile) {
       const fileExt = imageFile.name.split('.').pop();
       const fileName = `${Date.now()}.${fileExt}`;
-      
+
       const { error: uploadError } = await supabase.storage
         .from('menu-images')
         .upload(fileName, imageFile);
@@ -167,13 +174,13 @@ function ManageMenuInner() {
       const { data: { publicUrl } } = supabase.storage
         .from('menu-images')
         .getPublicUrl(fileName);
-        
+
       uploadedUrl = publicUrl;
     }
 
     // 2. Database Insertion
     const targetCat = dbCategories.find(c => c.category_name === item.category);
-    
+
     const res = await createProduct({
       product_name: item.name || "Untitled",
       product_price: item.price || 0,
@@ -190,7 +197,7 @@ function ManageMenuInner() {
       if (res.data?.product_id && addOns.length > 0) {
         await Promise.all(addOns.map(addon => createAddOn(res.data.product_id, addon.name, addon.price)));
       }
-      
+
       showToast("Item created successfully.");
       await loadData();
       setIsAddModalOpen(false);
@@ -207,7 +214,7 @@ function ManageMenuInner() {
     if (imageFile) {
       const fileExt = imageFile.name.split('.').pop();
       const fileName = `${Date.now()}.${fileExt}`;
-      
+
       const { error: uploadError } = await supabase.storage
         .from('menu-images')
         .upload(fileName, imageFile);
@@ -221,13 +228,13 @@ function ManageMenuInner() {
       const { data: { publicUrl } } = supabase.storage
         .from('menu-images')
         .getPublicUrl(fileName);
-        
+
       uploadedUrl = publicUrl;
     }
 
     // 2. Database Update
     const targetCat = dbCategories.find(c => c.category_name === updatedItem.category);
-    
+
     const updatePayload: Record<string, any> = {
       product_name: updatedItem.name,
       product_price: updatedItem.price,
@@ -256,7 +263,7 @@ function ManageMenuInner() {
   const handleDeleteProduct = async (itemId: string) => {
     setIsProcessing(true);
     const res = await deleteProduct(itemId);
-    
+
     if (res.error) showToast(`Failed to delete item: ${res.error}`);
     else {
       showToast("Item deleted.");
@@ -274,7 +281,7 @@ function ManageMenuInner() {
         <h1 className="font-display text-[24px] md:text-[30px] leading-normal text-[#1a1210]">
           MENU MANAGEMENT
         </h1>
-        
+
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 md:gap-[20px]">
           <div className="flex w-full md:w-[442px] items-center gap-[10px] rounded-[10px] border border-[#ddcdb8] bg-white px-[14px] py-[10px]">
             <Search className="h-4 w-4 text-[#7a6a60]" />
@@ -286,22 +293,29 @@ function ManageMenuInner() {
               className="w-full bg-transparent text-[13px] md:text-[15px] text-[#7a6a60] outline-none placeholder:text-[#7a6a60]"
             />
           </div>
-          
-          <button 
-            onClick={() => setIsAddModalOpen(true)}
-            disabled={isProcessing}
-            className="flex items-center justify-center rounded-[10px] bg-[#e8541f] px-[18px] py-[11px] transition-opacity hover:opacity-90 disabled:opacity-50"
+
+          <Tooltip
+            content="Add a new dish to the menu"
+            shortcut={SHORTCUTS.newItem.combo}
+            side="bottom"
           >
-            <span className="text-[13px] md:text-[15px] font-bold text-white whitespace-nowrap">
-              + Add item
-            </span>
-          </button>
+            <button
+              type="button"
+              onClick={() => setIsAddModalOpen(true)}
+              disabled={isProcessing}
+              className="flex items-center justify-center rounded-[10px] bg-[#e8541f] px-[18px] py-[11px] transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              <span className="text-[13px] md:text-[15px] font-bold text-white whitespace-nowrap">
+                + Add item
+              </span>
+            </button>
+          </Tooltip>
         </div>
       </div>
 
       {/* Main Content: Sidebar + Grid */}
       <div className="flex flex-col md:flex-row flex-1 gap-4 md:gap-[10px] overflow-hidden pt-[10px]">
-        <MenuSidebar 
+        <MenuSidebar
           categories={categoryStrings}
           selectedCategory={selectedCategory}
           onSelectCategory={setSelectedCategory}
@@ -310,7 +324,7 @@ function ManageMenuInner() {
           onDeleteCategory={handleDeleteCategory}
         />
 
-        <MenuGrid 
+        <MenuGrid
           searchText={debouncedSearchText}
           selectedCategory={selectedCategory}
           items={menuItems}
@@ -323,7 +337,7 @@ function ManageMenuInner() {
       </div>
 
       {/* Modals */}
-      <MenuItemModal 
+      <MenuItemModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSave={handleSaveProduct}

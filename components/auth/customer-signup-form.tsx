@@ -3,36 +3,71 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useTransition, useRef, useEffect } from "react";
+import { useState, useTransition } from "react";
 import { cn } from "@/lib/utils";
-import { Alert } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ShowHideToggle } from "@/components/ui/show-hide-toggle";
 import { PhoneInput } from "@/components/ui/phone-input";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { AuthTabs } from "@/components/auth/auth-tabs";
+import {
+  AddressFields,
+  ADDRESS_FIELD_LABELS,
+} from "@/components/forms/address-fields";
+import { FormErrorSummary } from "@/components/forms/form-error-summary";
 import {
   AddressValidationNote,
   type AddressValidationStatus,
 } from "@/components/checkout/address-validation-note";
 import { addressForGeocoding } from "@/lib/address/geocoding-query";
+import { useLiveValidation } from "@/lib/forms/use-live-validation";
+import { useSubmitShortcut } from "@/lib/hooks/use-shortcut";
 import { toInternationalMobile } from "@/lib/profile/mobile-number";
+import { PH_MOBILE_EXAMPLE } from "@/lib/validation/phone";
+import { lengthProps } from "@/lib/validation/fields";
+import type { FieldErrors } from "@/lib/validation/field-errors";
 import { earliestBirthdate, latestBirthdateForMinAge } from "@/lib/validation/date-of-birth";
-import { signupSchema, type SignupField } from "@/lib/validation/signup";
+import { signupFormSchema } from "@/lib/validation/signup";
 import { registerCustomer } from "@/app/(auth)/actions";
 
-type FieldErrors = Partial<Record<SignupField, string>>;
+const ID_PREFIX = "signup-";
 
+const FIELD_LABELS: Record<string, string> = {
+  firstName: "First name",
+  lastName: "Last name",
+  email: "Email",
+  phone: "Mobile number",
+  dateOfBirth: "Date of birth",
+  password: "Password",
+  terms: "Terms & Policy",
+  ...ADDRESS_FIELD_LABELS,
+};
+
+function readSignupForm(data: FormData) {
+  const text = (name: string) => String(data.get(name) ?? "");
+  return {
+    firstName: text("firstName"),
+    lastName: text("lastName"),
+    email: text("email"),
+    // The field shows the masked digits; this is the stored form.
+    phone: toInternationalMobile(text("phone")),
+    dateOfBirth: text("dateOfBirth"),
+    password: text("password"),
+    buildingNo: text("buildingNo"),
+    street: text("street"),
+    barangay: text("barangay"),
+    city: text("city"),
+    zip: text("zip"),
+    terms: data.get("terms") === "on",
+  };
+}
 
 /**
- * Exported wrapper — keeps the same name/interface the page imports, so
- * page.tsx needs no changes. useSearchParams() (used inside
- * SignupFormInner) requires a Suspense boundary during static
- * prerendering, or `next build` fails with "should be wrapped in a
- * suspense boundary" — dev mode doesn't surface this, production builds
- * do.
+ * Exported wrapper — keeps the same name/interface the page imports.
+ * useSearchParams() (used inside SignupFormInner) requires a Suspense
+ * boundary during static prerendering, or `next build` fails.
  */
 export function CustomerSignupForm() {
   return (
@@ -43,116 +78,54 @@ export function CustomerSignupForm() {
 }
 
 /**
- * DESIGNER: there is no Figma frame for this screen. It is composed from the
- * login frames — same shell, same brand panel, same tabs, same field and
- * error treatment — so that it reads as the other half of one screen rather
- * than a second design. Every value here is either taken from the login
- * frames or shared with them through the primitives; nothing is invented
- * beyond the field set and its copy. This is the concrete screen to review.
+ * Customer sign-up. Same shell, brand panel, tabs and field treatment as the
+ * login frames, so it reads as the other half of one screen.
  *
- * Two departures from login, both forced by there being five fields instead
- * of two: the heading is desktop-only (as on login) and the page is allowed
- * to scroll on mobile rather than the card being compressed to fit.
+ * Validation is live: each field is checked as it is typed in and when it is
+ * left, errors appear under the field, and "Create account" stays disabled
+ * until every rule passes (including the Terms box and the delivery-area
+ * check). If the server still rejects the submission, the banner names each
+ * failing field and the same message appears under it.
  */
 function SignupFormInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [errors, setErrors] = useState<FieldErrors>({});
   const [serverError, setServerError] = useState<string | null>(null);
-  const [submitted, setSubmitted] = useState(false);
+  const [serverFieldErrors, setServerFieldErrors] = useState<FieldErrors | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const [hasEmptyRequired, setHasEmptyRequired] = useState(true);
   const [draftAddressStr, setDraftAddressStr] = useState("");
   const [addressStatus, setAddressStatus] =
     useState<AddressValidationStatus>("checking");
-  const formRef = useRef<HTMLFormElement>(null);
 
-  function checkFormEmpty(form: HTMLFormElement) {
-    let empty = false;
-    const elements = form.elements;
-    for (let i = 0; i < elements.length; i++) {
-      const el = elements[i] as HTMLInputElement;
-      if (el.hasAttribute('required')) {
-        if (el.type === 'checkbox' && !el.checked) {
-          empty = true;
-          break;
-        } else if (el.type !== 'checkbox' && !el.value.trim()) {
-          empty = true;
-          break;
-        }
-      }
-    }
-    setHasEmptyRequired(empty);
-  }
-
-  useEffect(() => {
-    if (formRef.current) {
-      checkFormEmpty(formRef.current);
-    }
-    const timer = setTimeout(() => {
-      if (formRef.current) checkFormEmpty(formRef.current);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
+  const live = useLiveValidation({ schema: signupFormSchema, read: readSignupForm });
+  const { errors } = live;
+  useSubmitShortcut(live.formRef);
 
   function handleFormChange(event: React.FormEvent<HTMLFormElement>) {
-    const form = event.currentTarget;
-    checkFormEmpty(form);
-
-    const b = (form.elements.namedItem("buildingNo") as HTMLInputElement)?.value;
-    const s = (form.elements.namedItem("street") as HTMLInputElement)?.value;
-    const br = (form.elements.namedItem("barangay") as HTMLInputElement)?.value;
-    const c = (form.elements.namedItem("city") as HTMLInputElement)?.value;
-    const z = (form.elements.namedItem("zip") as HTMLInputElement)?.value;
-
+    live.formProps.onChange(event);
+    const values = readSignupForm(new FormData(event.currentTarget));
     // Street, barangay, city and ZIP only. The house/building number is left
     // out on purpose: "B10 L10 Camella Homes" is a lot inside a subdivision
     // that no map lists, and including it stops the street from matching.
-    setDraftAddressStr(addressForGeocoding({ street: s, barangay: br, city: c, zip: z }));
+    setDraftAddressStr(addressForGeocoding(values));
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const result = signupSchema.safeParse({
-      firstName: String(data.get("firstName") ?? ""),
-      lastName: String(data.get("lastName") ?? ""),
-      email: String(data.get("email") ?? ""),
-      // The field only ever holds the ten digits; this is the stored form.
-      phone: toInternationalMobile(String(data.get("phone") ?? "")),
-      dateOfBirth: String(data.get("dateOfBirth") ?? ""),
-      password: String(data.get("password") ?? ""),
-      buildingNo: String(data.get("buildingNo") ?? ""),
-      street: String(data.get("street") ?? ""),
-      barangay: String(data.get("barangay") ?? ""),
-      city: String(data.get("city") ?? ""),
-      zip: String(data.get("zip") ?? ""),
-    });
-
-    setSubmitted(true);
-    if (!result.success) {
-      const next: FieldErrors = {};
-      for (const issue of result.error.issues) {
-        const key = issue.path[0] as keyof FieldErrors;
-        next[key] ??= issue.message;
-      }
-      setErrors(next);
-      return;
-    }
-
-    setErrors({});
+  const handleSubmit = live.handleSubmit(async ({ terms: _terms, ...values }) => {
     setServerError(null);
+    setServerFieldErrors(null);
 
     startTransition(async () => {
-      const outcome = await registerCustomer(result.data);
+      const outcome = await registerCustomer(values);
       if (!outcome.success) {
         setServerError(outcome.error);
+        setServerFieldErrors(outcome.fieldErrors ?? null);
+        live.setServerErrors(outcome.fieldErrors);
         return;
       }
       // Account created but not signed in (email confirmation pending): go
       // straight to the login page, which shows the green "check your email"
-      // notice. No detour through an error banner.
+      // notice.
       if (outcome.signedIn === false) {
         const nextParam = searchParams.get("next");
         router.push(
@@ -165,13 +138,14 @@ function SignupFormInner() {
       router.push(next);
       router.refresh();
     });
-  }
+  });
+
+  const addressBlocked = addressStatus === "invalid";
 
   return (
     <div className="relative flex flex-col px-6 pb-[30px] md:justify-center md:bg-background md:px-[52px] md:py-[48px]">
       <form
-        ref={formRef}
-        noValidate
+        {...live.formProps}
         onChange={handleFormChange}
         onSubmit={handleSubmit}
         className="flex flex-col gap-[10px] rounded-[22px] bg-background p-5 md:gap-[14px] md:rounded-none md:bg-transparent md:p-0"
@@ -187,58 +161,58 @@ function SignupFormInner() {
           </p>
         </div>
 
-        {serverError ? (
-          <Alert>{serverError}</Alert>
-        ) : null}
+        <FormErrorSummary
+          message={serverError}
+          fieldErrors={serverFieldErrors}
+          labels={FIELD_LABELS}
+          idPrefix={ID_PREFIX}
+        />
 
         <div className="flex flex-col gap-[10px] md:flex-row md:gap-[14px]">
-          <Field className="flex-1" label="First Name *" htmlFor="firstName" error={errors.firstName}>
+          <Field className="flex-1" label="First name *" htmlFor={`${ID_PREFIX}firstName`} error={errors.firstName}>
             <Input
-              id="firstName"
+              id={`${ID_PREFIX}firstName`}
               name="firstName"
               type="text"
               autoComplete="given-name"
               placeholder="Liza"
               required
-              minLength={2}
-              maxLength={50}
+              {...lengthProps("firstName")}
               invalid={Boolean(errors.firstName)}
             />
           </Field>
 
-          <Field className="flex-1" label="Last Name *" htmlFor="lastName" error={errors.lastName}>
+          <Field className="flex-1" label="Last name *" htmlFor={`${ID_PREFIX}lastName`} error={errors.lastName}>
             <Input
-              id="lastName"
+              id={`${ID_PREFIX}lastName`}
               name="lastName"
               type="text"
               autoComplete="family-name"
               placeholder="Reyes"
               required
-              minLength={2}
-              maxLength={50}
+              {...lengthProps("lastName")}
               invalid={Boolean(errors.lastName)}
             />
           </Field>
         </div>
 
         <div className="flex flex-col gap-[10px] md:flex-row md:gap-[14px]">
-          <Field className="flex-1" label="Email *" htmlFor="email" error={errors.email}>
+          <Field className="flex-1" label="Email *" htmlFor={`${ID_PREFIX}email`} error={errors.email}>
             <Input
-              id="email"
+              id={`${ID_PREFIX}email`}
               name="email"
               type="email"
               autoComplete="email"
               placeholder="you@example.com"
               required
-              minLength={5}
-              maxLength={255}
+              {...lengthProps("email")}
               invalid={Boolean(errors.email)}
             />
           </Field>
 
-          <Field className="flex-1" label="Mobile number *" htmlFor="phone" error={errors.phone}>
+          <Field className="flex-1" label="Mobile number *" htmlFor={`${ID_PREFIX}phone`} error={errors.phone}>
             <PhoneInput
-              id="phone"
+              id={`${ID_PREFIX}phone`}
               name="phone"
               required
               invalid={Boolean(errors.phone)}
@@ -249,12 +223,15 @@ function SignupFormInner() {
               prefixClassName="pl-[14px] text-[15px] text-muted-foreground"
               inputClassName="px-[6px] py-[13px] text-[15px] text-foreground placeholder:text-placeholder md:py-[14px]"
             />
+            {!errors.phone ? (
+              <p className="text-[12px] text-muted-foreground">e.g. {PH_MOBILE_EXAMPLE}</p>
+            ) : null}
           </Field>
         </div>
 
-        <Field label="Date of birth" htmlFor="dateOfBirth" error={errors.dateOfBirth}>
+        <Field label="Date of birth" htmlFor={`${ID_PREFIX}dateOfBirth`} error={errors.dateOfBirth}>
           <Input
-            id="dateOfBirth"
+            id={`${ID_PREFIX}dateOfBirth`}
             name="dateOfBirth"
             type="date"
             autoComplete="bday"
@@ -262,14 +239,16 @@ function SignupFormInner() {
             max={latestBirthdateForMinAge()}
             invalid={Boolean(errors.dateOfBirth)}
           />
-          <p className="text-[12px] text-muted-foreground">
-            Optional. Must be a past date — you need to be 13 or older.
-          </p>
+          {!errors.dateOfBirth ? (
+            <p className="text-[12px] text-muted-foreground">
+              Optional. Must be a past date — you need to be 13 or older.
+            </p>
+          ) : null}
         </Field>
 
         <Field
           label="Password *"
-          htmlFor="password"
+          htmlFor={`${ID_PREFIX}password`}
           error={errors.password}
           action={
             <ShowHideToggle
@@ -279,81 +258,18 @@ function SignupFormInner() {
           }
         >
           <Input
-            id="password"
+            id={`${ID_PREFIX}password`}
             name="password"
             type={showPassword ? "text" : "password"}
             autoComplete="new-password"
-            placeholder="At least 8 characters"
+            placeholder="8 to 72 characters"
             required
-            minLength={8}
-            maxLength={72}
+            {...lengthProps("password")}
             invalid={Boolean(errors.password)}
           />
         </Field>
 
-        <div className="flex flex-col gap-[10px] md:flex-row md:gap-[14px]">
-          <Field className="flex-1" label="Building / House No. *" htmlFor="buildingNo" error={errors.buildingNo}>
-            <Input
-              id="buildingNo"
-              name="buildingNo"
-              placeholder="e.g. Unit 123, Tower A"
-              required
-              minLength={1}
-              maxLength={100}
-              invalid={Boolean(errors.buildingNo)}
-            />
-          </Field>
-
-          <Field className="flex-1" label="Street *" htmlFor="street" error={errors.street}>
-            <Input
-              id="street"
-              name="street"
-              placeholder="e.g. Ayala Ave"
-              required
-              minLength={2}
-              maxLength={100}
-              invalid={Boolean(errors.street)}
-            />
-          </Field>
-        </div>
-
-        <Field label="Barangay *" htmlFor="barangay" error={errors.barangay}>
-          <Input
-            id="barangay"
-            name="barangay"
-            placeholder="e.g. Bel-Air"
-            required
-            minLength={2}
-            maxLength={100}
-            invalid={Boolean(errors.barangay)}
-          />
-        </Field>
-
-        <div className="flex flex-col gap-[10px] md:flex-row md:gap-[14px]">
-          <Field className="flex-1" label="City *" htmlFor="city" error={errors.city}>
-            <Input
-              id="city"
-              name="city"
-              placeholder="e.g. Makati"
-              required
-              minLength={2}
-              maxLength={50}
-              invalid={Boolean(errors.city)}
-            />
-          </Field>
-
-          <Field className="flex-1" label="ZIP Code *" htmlFor="zip" error={errors.zip}>
-            <Input
-              id="zip"
-              name="zip"
-              placeholder="e.g. 1209"
-              required
-              minLength={4}
-              maxLength={4}
-              invalid={Boolean(errors.zip)}
-            />
-          </Field>
-        </div>
+        <AddressFields idPrefix="signup" variant="auth" errors={errors} />
 
         <div className="-mt-1 px-1">
           <AddressValidationNote
@@ -375,21 +291,32 @@ function SignupFormInner() {
           </p>
         ) : null}
 
-        <label className="flex items-start gap-[9px] text-[13px] mt-1 mb-1">
-          <Checkbox name="terms" required />
-          <span className="text-muted-foreground leading-tight">
-            I have read and agree to the <Link href="/terms" target="_blank" className="font-bold text-primary hover:underline">Terms & Policy</Link>.
-          </span>
-        </label>
+        <div className="flex flex-col gap-[4px]">
+          <label className="mb-1 mt-1 flex items-start gap-[9px] text-[13px]">
+            <Checkbox id={`${ID_PREFIX}terms`} name="terms" required aria-invalid={Boolean(errors.terms) || undefined} />
+            <span className="leading-tight text-muted-foreground">
+              I have read and agree to the <Link href="/terms" target="_blank" className="font-bold text-primary hover:underline">Terms & Policy</Link>.
+            </span>
+          </label>
+          {errors.terms ? <p className="text-[12px] text-primary">{errors.terms}</p> : null}
+        </div>
 
         {/* An address outside the delivery radius (or one the map can't find)
             can't be used to sign up — the note above says why. */}
-        <Button
-          type="submit"
-          disabled={isPending || hasEmptyRequired || addressStatus === "invalid"}
+        <SubmitButton
+          pending={isPending}
+          invalid={!live.isValid || addressBlocked}
+          pendingLabel="Creating account…"
+          hint="Create your account and sign in"
+          blockedHint={
+            addressBlocked
+              ? "We can't deliver to this address — check the note above."
+              : "Complete the highlighted fields to continue."
+          }
+          wrapperClassName="w-full"
         >
-          {isPending ? "Creating account…" : "Create account"}
-        </Button>
+          Create account
+        </SubmitButton>
 
         {/* The tabs above already lead back to login, but they read as a mode
             switch rather than an escape hatch. This is the sentence someone

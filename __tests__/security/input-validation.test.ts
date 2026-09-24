@@ -41,8 +41,8 @@ function messageFor(schema: { safeParse: (v: unknown) => any }, value: unknown, 
 
 describe("A1. required fields reject blank input", () => {
   it.each([
-    ["first name", "firstName", "Enter your name."],
-    ["last name", "lastName", "Enter your name."],
+    ["first name", "firstName", "Enter your first name."],
+    ["last name", "lastName", "Enter your last name."],
     ["building / house no.", "buildingNo", "Enter building/house number."],
     ["street", "street", "Enter street."],
     ["barangay", "barangay", "Enter barangay."],
@@ -54,7 +54,7 @@ describe("A1. required fields reject blank input", () => {
 
   it("rejects whitespace-only input, not just an empty string", () => {
     expect(messageFor(signupSchema, { ...SIGNUP, firstName: "   " }, "firstName")).toBe(
-      "Enter your name.",
+      "Enter your first name.",
     );
   });
 
@@ -102,7 +102,7 @@ describe("A4. password", () => {
   });
 
   it("applies the same rule to a manager creating an employee", () => {
-    const base = { name: "Alice", email: "a@b.com", role: "STAFF" as const };
+    const base = { firstName: "Alice", lastName: "Smith", email: "a@b.com", role: "STAFF" as const };
     expect(createEmployeeSchema.safeParse({ ...base, password: "short" }).success).toBe(false);
     expect(createEmployeeSchema.safeParse({ ...base, password: "12345678" }).success).toBe(true);
   });
@@ -111,16 +111,16 @@ describe("A4. password", () => {
 describe("A5. date of birth", () => {
   it("rejects a date in the future", () => {
     const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-    expect(messageFor(personalDetailsSchema, { name: "Liza", dateOfBirth: tomorrow }, "dateOfBirth"))
+    expect(messageFor(personalDetailsSchema, { firstName: "Liza", lastName: "Reyes", dateOfBirth: tomorrow }, "dateOfBirth"))
       .toMatch(/future/i);
   });
 
   it("rejects an impossible calendar date", () => {
-    expect(personalDetailsSchema.safeParse({ name: "Liza", dateOfBirth: "2001-02-30" }).success).toBe(false);
+    expect(personalDetailsSchema.safeParse({ firstName: "Liza", lastName: "Reyes", dateOfBirth: "2001-02-30" }).success).toBe(false);
   });
 
   it("accepts a blank date — the field is optional", () => {
-    expect(personalDetailsSchema.safeParse({ name: "Liza", dateOfBirth: "" }).success).toBe(true);
+    expect(personalDetailsSchema.safeParse({ firstName: "Liza", lastName: "Reyes", dateOfBirth: "" }).success).toBe(true);
   });
 });
 

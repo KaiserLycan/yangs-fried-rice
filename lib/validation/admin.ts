@@ -2,6 +2,16 @@ import { z } from "zod";
 import { EMPLOYEE_ROLES, type EmployeeRole } from "@/lib/auth/roles";
 import { optionalPhoneSchema } from "./phone";
 import { dateOfBirthSchema } from "./date-of-birth";
+import {
+  driverLicenseNumberSchema,
+  emailSchema,
+  firstNameSchema,
+  lastNameSchema,
+  licenseExpiryDateSchema,
+  passwordSchema,
+  vehicleMakeModelSchema,
+  vehiclePlateNumberSchema,
+} from "./fields";
 
 /**
  * Admin validation schemas — employee creation and role management.
@@ -15,21 +25,23 @@ import { dateOfBirthSchema } from "./date-of-birth";
 // Create Employee
 // ---------------------------------------------------------------------------
 
+/** A rider's four vehicle/licence fields — all required when the role is Rider. */
+export const riderDetailsSchema = z.object({
+  vehicle_make_model: vehicleMakeModelSchema,
+  vehicle_plate_number: vehiclePlateNumberSchema,
+  driver_license_number: driverLicenseNumberSchema,
+  license_expiry_date: licenseExpiryDateSchema,
+});
+
+export type RiderDetailsInput = z.infer<typeof riderDetailsSchema>;
+
 export const createEmployeeSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1, "Employee name is required.")
-    .max(100, "Name must be 100 characters or fewer."),
+  firstName: firstNameSchema,
+  lastName: lastNameSchema,
 
-  email: z
-    .string()
-    .trim()
-    .email("Enter a valid email address."),
+  email: emailSchema,
 
-  password: z
-    .string()
-    .min(8, "Password must be at least 8 characters."),
+  password: passwordSchema,
 
   role: z.enum(EMPLOYEE_ROLES, {
     errorMap: () => ({
@@ -45,22 +57,15 @@ export const createEmployeeSchema = z.object({
   /** Optional ISO date, not in the future. */
   dateOfBirth: dateOfBirthSchema.optional(),
 
-  riderDetails: z
-    .object({
-      vehicle_make_model: z.string().trim().min(1, "Vehicle make/model is required.").optional(),
-      vehicle_plate_number: z.string().trim().min(1, "Vehicle plate number is required.").optional(),
-      driver_license_number: z.string().trim().min(1, "Driver license number is required.").optional(),
-      license_expiry_date: z.string().trim().min(1, "License expiry date is required.").optional(),
-    })
-    .strict()
-    .optional()
-    .refine((details) => {
-      if (!details) return true;
-      const values = Object.values(details).filter((value) => value !== undefined && value !== null && value !== "");
-      return values.length === 0 || values.length === 4;
-    }, {
-      message: "Rider details must include all required vehicle and license fields.",
-    }),
+  riderDetails: riderDetailsSchema.optional(),
+}).superRefine((values, ctx) => {
+  if (values.role === "RIDER" && !values.riderDetails) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["riderDetails"],
+      message: "A rider needs a licence number, vehicle and plate number.",
+    });
+  }
 });
 
 export type CreateEmployeeInput = z.infer<typeof createEmployeeSchema>;
@@ -88,9 +93,7 @@ export type ChangeRoleInput = z.infer<typeof changeRoleSchema>;
 // ---------------------------------------------------------------------------
 
 export const changePasswordSchema = z.object({
-  new_password: z
-    .string()
-    .min(8, "Password must be at least 8 characters."),
+  new_password: passwordSchema,
 });
 
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
@@ -100,18 +103,10 @@ export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 // ---------------------------------------------------------------------------
 
 export const updateCustomerSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1, "Customer name is required.")
-    .max(100, "Name must be 100 characters or fewer.")
-    .optional(),
+  firstName: firstNameSchema.optional(),
+  lastName: lastNameSchema.optional(),
 
-  email: z
-    .string()
-    .trim()
-    .email("Enter a valid email address.")
-    .optional(),
+  email: emailSchema.optional(),
 
   /** +63 followed by 10 digits, or blank. */
   phone_number: optionalPhoneSchema.optional(),

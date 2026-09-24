@@ -6,6 +6,8 @@ import { CardField, CardInput, ProfileCard } from "@/components/profile/profile-
 import { useCardEditor } from "@/components/profile/use-card-editor";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
+import { SubmitButton } from "@/components/ui/submit-button";
+import { lengthProps } from "@/lib/validation/fields";
 import { ShowHideToggle } from "@/components/ui/show-hide-toggle";
 import { useToast } from "@/components/ui/toast";
 import { passwordStrength } from "@/lib/profile/password-strength";
@@ -48,18 +50,16 @@ function readPasswordForm(form: FormData) {
  * drift apart between the two.
  *
  * PATCH /api/profile/password verifies currentPassword server-side before
- * allowing the change. A wrong current password surfaces as a toast, not
- * a field-level error — useCardEditor's error state only comes from
- * client-side schema validation, and threading an async server error back
- * into that same state would mean changing the hook's contract, which is
- * shared by every other card on this screen. Worth revisiting if a field-
- * level error becomes a real requirement.
+ * allowing the change. A wrong current password comes back as a field
+ * error and is shown under "Current password", not only as a toast.
  */
 export function PasswordCard({ lastUpdated }: { lastUpdated?: string | null }) {
   const router = useRouter();
   const showToast = useToast();
 
-  async function submitPasswordChange(values: PasswordChangeValues) {
+  async function submitPasswordChange(
+    values: PasswordChangeValues,
+  ): Promise<boolean | { fieldErrors: Record<string, string> }> {
     try {
       const res = await fetch("/api/profile/password", {
         method: "PATCH",
@@ -70,7 +70,7 @@ export function PasswordCard({ lastUpdated }: { lastUpdated?: string | null }) {
 
       if (!res.ok) {
         showToast(json.error ?? "Could not update your password.");
-        return false;
+        return json.fieldErrors ? { fieldErrors: json.fieldErrors } : false;
       }
 
       showToast("Password updated.");
@@ -106,17 +106,24 @@ export function PasswordCard({ lastUpdated }: { lastUpdated?: string | null }) {
         >
           {desktop.isEditing ? (
             <form
-              noValidate
+              {...desktop.formProps}
               onSubmit={desktop.handleSubmit}
               className="flex flex-col gap-[16px]"
             >
               <PasswordFields idPrefix="password-desktop" errors={desktop.errors} />
               <div className="flex items-center gap-[12px]">
-                <Button type="submit" variant="save" disabled={desktop.isSubmitting}>
-                  {desktop.isSubmitting ? "Updating..." : "Update password"}
-                </Button>
+                <SubmitButton
+                  variant="save"
+                  pending={desktop.isSubmitting}
+                  invalid={!desktop.isValid}
+                  pendingLabel="Updating..."
+                  hint="Change your password"
+                  wrapperClassName="w-auto"
+                >
+                  Update password
+                </SubmitButton>
                 <p className="text-[12.5px] text-muted-foreground">
-                  At least 8 characters. You’ll stay logged in on this device.
+                  8 to 72 characters. You’ll stay logged in on this device.
                 </p>
               </div>
             </form>
@@ -156,16 +163,24 @@ export function PasswordCard({ lastUpdated }: { lastUpdated?: string | null }) {
             <Button variant="outline" className="flex-1 p-[14px]" onClick={mobile.cancel}>
               Cancel
             </Button>
-            <Button variant="confirm" className="flex-1" type="submit" form="password-mobile-form" disabled={mobile.isSubmitting}>
-              {mobile.isSubmitting ? "Updating..." : "Update"}
-            </Button>
+            <SubmitButton
+              variant="confirm"
+              form="password-mobile-form"
+              pending={mobile.isSubmitting}
+              invalid={!mobile.isValid}
+              pendingLabel="Updating..."
+              hint="Change your password"
+              wrapperClassName="flex-1"
+            >
+              Update
+            </SubmitButton>
           </>
         }
       >
         {mobile.isEditing ? (
           <form
             id="password-mobile-form"
-            noValidate
+            {...mobile.formProps}
             onSubmit={mobile.handleSubmit}
             className="flex flex-col gap-[14px]"
           >
@@ -182,7 +197,7 @@ function PasswordFields({
   errors,
 }: {
   idPrefix: string;
-  errors: Partial<Record<PasswordChangeField, string>>;
+  errors: Partial<Record<PasswordChangeField | string, string>>;
 }) {
   const [showCurrent, setShowCurrent] = React.useState(false);
   const [showNew, setShowNew] = React.useState(false);
@@ -209,6 +224,7 @@ function PasswordFields({
           name="currentPassword"
           type={showCurrent ? "text" : "password"}
           autoComplete="current-password"
+          maxLength={128}
           invalid={Boolean(errors.currentPassword)}
         />
       </CardField>
@@ -231,6 +247,7 @@ function PasswordFields({
           autoComplete="new-password"
           value={newPassword}
           onChange={(event) => setNewPassword(event.target.value)}
+          {...lengthProps("password")}
           invalid={Boolean(errors.newPassword)}
         />
         {newPassword ? (
@@ -264,6 +281,7 @@ function PasswordFields({
           name="confirmPassword"
           type={showConfirm ? "text" : "password"}
           autoComplete="new-password"
+          {...lengthProps("password")}
           invalid={Boolean(errors.confirmPassword)}
         />
       </CardField>

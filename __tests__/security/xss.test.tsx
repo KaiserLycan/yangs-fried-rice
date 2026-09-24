@@ -190,7 +190,8 @@ describe("E5. no unsafe rendering escape hatch exists", () => {
         // path or fragment — the scheme cannot be changed by the value.
         const fixedStart = /^[`"']\s*[/#]/.test(value) || /["'`]\s*[/#]/.test(value);
         if (fixedStart) continue;
-        if (ALLOWED.has(file)) continue;
+        // `join` builds backslash paths on Windows; the list uses forward slashes.
+        if (ALLOWED.has(file.replace(/\\/g, "/"))) continue;
 
         offenders.push(`${file}: ${match}`);
       }

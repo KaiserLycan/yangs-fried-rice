@@ -23,6 +23,8 @@ function renderNavBar(ui: ReactElement) {
 }
 
 const profile: CustomerProfile = {
+  firstName: "Liza",
+  lastName: "Reyes",
   name: "Liza Reyes",
   dateOfBirth: null,
   mobile: null,
@@ -37,6 +39,11 @@ const profile: CustomerProfile = {
     {
       id: "addr-1",
       addressDetails: "21 Mabini St, Malolos, Bulacan",
+      buildingNo: "21",
+      street: "Mabini St",
+      barangay: "Malolos",
+      city: "Bulacan",
+      zip: "",
       label: "Home",
       deliveryNote: "",
       isDefault: true,

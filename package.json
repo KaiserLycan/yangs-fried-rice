@@ -11,7 +11,9 @@
     "format:check": "prettier --check .",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
-    "supabase:types": "npx supabase gen types typescript --linked --schema public > types/database.types.ts"
+    "supabase:types": "npx supabase gen types typescript --linked --schema public > types/database.types.ts",
+    "db:cleanse": "node scripts/db-cleanse.mjs",
+    "db:seed": "node scripts/db-seed.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

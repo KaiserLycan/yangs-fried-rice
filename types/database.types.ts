@@ -213,6 +213,9 @@ export type Database = {
           customer_id: string
           email: string | null
           is_account_disabled: boolean
+          first_name: string
+          last_name: string
+          /** Generated: first_name + " " + last_name. Read-only. */
           name: string
           password_last_updated: string | null
           phone_number: string | null
@@ -223,7 +226,8 @@ export type Database = {
           customer_id?: string
           email?: string | null
           is_account_disabled?: boolean
-          name: string
+          first_name: string
+          last_name: string
           password_last_updated?: string | null
           phone_number?: string | null
           date_of_birth?: string | null
@@ -233,7 +237,8 @@ export type Database = {
           customer_id?: string
           email?: string | null
           is_account_disabled?: boolean
-          name?: string
+          first_name?: string
+          last_name?: string
           password_last_updated?: string | null
           phone_number?: string | null
           date_of_birth?: string | null
@@ -243,7 +248,13 @@ export type Database = {
       }
       customer_address: {
         Row: {
+          /** Generated from the parts below. Read-only. */
           address_details: string
+          barangay: string
+          building_no: string
+          city: string
+          street: string
+          zip_code: string
           address_id: string
           address_note: string | null
           customer_id: string | null
@@ -251,7 +262,11 @@ export type Database = {
           label: string | null
         }
         Insert: {
-          address_details: string
+          barangay: string
+          building_no: string
+          city: string
+          street: string
+          zip_code: string
           address_id?: string
           address_note?: string | null
           customer_id?: string | null
@@ -259,7 +274,11 @@ export type Database = {
           label?: string | null
         }
         Update: {
-          address_details?: string
+          barangay?: string
+          building_no?: string
+          city?: string
+          street?: string
+          zip_code?: string
           address_id?: string
           address_note?: string | null
           customer_id?: string | null
@@ -338,6 +357,9 @@ export type Database = {
           employee_id: string
           is_account_disabled: boolean
           last_access_log: string | null
+          first_name: string
+          last_name: string
+          /** Generated: first_name + " " + last_name. Read-only. */
           name: string
           password_last_updated: string | null
           "phone-num": string | null
@@ -351,7 +373,8 @@ export type Database = {
           employee_id?: string
           is_account_disabled?: boolean
           last_access_log?: string | null
-          name: string
+          first_name: string
+          last_name: string
           password_last_updated?: string | null
           "phone-num"?: string | null
           profileImage_URL?: string | null
@@ -364,7 +387,8 @@ export type Database = {
           employee_id?: string
           is_account_disabled?: boolean
           last_access_log?: string | null
-          name?: string
+          first_name?: string
+          last_name?: string
           password_last_updated?: string | null
           "phone-num"?: string | null
           profileImage_URL?: string | null

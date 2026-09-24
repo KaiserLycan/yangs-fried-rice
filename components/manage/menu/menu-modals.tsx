@@ -1,10 +1,50 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
+import { z } from "zod";
 import { MenuItem, MenuCategory, MOCK_CATEGORIES } from "@/components/manage/menu/mock-menu";
 import { cn } from "@/lib/utils";
 import { Camera, ChevronDown, ChevronRight, Trash2, Plus } from "lucide-react";
 import { compressImage } from "@/lib/image/compress";
 import { Dialog, DialogRoot } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Tooltip } from "@/components/ui/tooltip";
+import { useValidatedValues } from "@/lib/forms/use-live-validation";
+import { SHORTCUTS, useShortcut } from "@/lib/hooks/use-shortcut";
+import { FIELD_LIMITS, lengthProps } from "@/lib/validation/fields";
+
+/**
+ * The menu item form's rules — the same bounds as `productSchema` and the
+ * product CHECK constraints: name 2–80, details up to 300, price above ₱0
+ * and at most ₱99,999.99.
+ */
+export const menuItemFormSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, "Enter the product name.")
+    .min(FIELD_LIMITS.productName.min, `Product name must be at least ${FIELD_LIMITS.productName.min} characters.`)
+    .max(FIELD_LIMITS.productName.max, `Product name must be ${FIELD_LIMITS.productName.max} characters or fewer.`),
+  price: z
+    .string()
+    .min(1, "Enter the price.")
+    .refine((value) => Number(value) > 0, "Price must be more than ₱0.")
+    .refine((value) => Number(value) <= 99999.99, "Price can't exceed ₱99,999.99."),
+  description: z
+    .string()
+    .max(FIELD_LIMITS.productDetails.max, `Details must be ${FIELD_LIMITS.productDetails.max} characters or fewer.`),
+});
+
+/** A new add-on row: name 2–60, price ₱0–₱9,999.99 (₱0 is a free add-on). */
+export const addOnFormSchema = z.object({
+  addonName: z
+    .string()
+    .trim()
+    .min(FIELD_LIMITS.addonName.min, `Add-on name must be at least ${FIELD_LIMITS.addonName.min} characters.`)
+    .max(FIELD_LIMITS.addonName.max, `Add-on name must be ${FIELD_LIMITS.addonName.max} characters or fewer.`),
+  addonPrice: z
+    .string()
+    .min(1, "Enter the add-on price.")
+    .refine((value) => Number(value) >= 0 && Number(value) <= 9999.99, "Price must be ₱0 to ₱9,999.99."),
+});
 
 // 1. Update Confirmation Modal
 interface ConfirmationModalProps {
@@ -29,8 +69,8 @@ export function ConfirmationModal({
       footer={
         <>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button 
-            variant="primary" 
+          <Button
+            variant="primary"
             onClick={() => {
               onConfirm();
               onClose();
@@ -73,6 +113,21 @@ export function MenuItemModal({
   const [tempAddonPrice, setTempAddonPrice] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const itemValues = useMemo(() => ({ name, price, description }), [name, price, description]);
+  const itemForm = useValidatedValues(menuItemFormSchema, itemValues);
+  const addOnValues = useMemo(
+    () => ({ addonName: tempAddonName, addonPrice: tempAddonPrice }),
+    [tempAddonName, tempAddonPrice],
+  );
+  const addOnForm = useValidatedValues(addOnFormSchema, addOnValues);
+  const itemErrors = itemForm.errors;
+
+  // Ctrl/⌘+Enter adds the item, exactly as the Add button would.
+  useShortcut(SHORTCUTS.submitForm.combo, () => {
+    if (itemForm.isValid) submitItem();
+    else itemForm.attemptSubmit();
+  }, { enabled: isOpen });
+
   // Derive the list of selectable categories (exclude "All").
   const selectableCategories = (categories ?? MOCK_CATEGORIES).filter(
     (c) => c !== "All"
@@ -101,7 +156,12 @@ export function MenuItemModal({
 
   const handleSave = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    
+    submitItem();
+  };
+
+  function submitItem() {
+    itemForm.attemptSubmit();
+    if (!itemForm.isValid) return;
     onSave({
       name,
       price: parseFloat(price) || 0,
@@ -110,13 +170,15 @@ export function MenuItemModal({
       description,
       available,
     }, newAddOns, selectedFile || undefined);
-  };
+  }
 
   const handleAddAddOn = () => {
-    if (!tempAddonName || !tempAddonPrice) return;
-    setNewAddOns([...newAddOns, { name: tempAddonName, price: parseFloat(tempAddonPrice) }]);
+    addOnForm.attemptSubmit();
+    if (!addOnForm.isValid) return;
+    setNewAddOns([...newAddOns, { name: tempAddonName.trim(), price: parseFloat(tempAddonPrice) }]);
     setTempAddonName("");
     setTempAddonPrice("");
+    addOnForm.reset();
   };
 
   // Safe fallback for the display label as well
@@ -188,10 +250,20 @@ export function MenuItemModal({
             </label>
             <input
               value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Product Name"
-              className="w-full rounded-[12px] border border-[#ddcdb8] bg-white px-4 py-3 text-[15px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
+              onChange={(e) => {
+                setName(e.target.value);
+                itemForm.touch("name");
+              }}
+              onBlur={() => itemForm.touch("name")}
+              placeholder="e.g. Yang Chow Fried Rice"
+              {...lengthProps("productName")}
+              aria-invalid={itemErrors.name ? true : undefined}
+              className={cn(
+                "w-full rounded-[12px] border bg-white px-4 py-3 text-[15px] text-[#1a1210] outline-none placeholder:text-[#a2938a]",
+                itemErrors.name ? "border-[#bf4342]" : "border-[#ddcdb8]",
+              )}
             />
+            {itemErrors.name ? <p className="text-[12px] text-[#bf4342]">{itemErrors.name}</p> : null}
           </div>
 
           {/* Category — custom dropdown */}
@@ -251,16 +323,27 @@ export function MenuItemModal({
             </label>
             <textarea
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="placeholder"
+              onChange={(e) => {
+                setDescription(e.target.value);
+                itemForm.touch("description");
+              }}
+              placeholder="What's in it, how spicy, how big"
               rows={4}
-              className="w-full resize-none rounded-[12px] border border-[#ddcdb8] bg-white px-4 py-3 text-[15px] leading-[22px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
+              maxLength={FIELD_LIMITS.productDetails.max}
+              aria-invalid={itemErrors.description ? true : undefined}
+              className={cn(
+                "w-full resize-none rounded-[12px] border bg-white px-4 py-3 text-[15px] leading-[22px] text-[#1a1210] outline-none placeholder:text-[#a2938a]",
+                itemErrors.description ? "border-[#bf4342]" : "border-[#ddcdb8]",
+              )}
             />
+            <p className={cn("text-[12px]", itemErrors.description ? "text-[#bf4342]" : "text-[#a2938a]")}>
+              {itemErrors.description ?? `Optional. ${description.length}/${FIELD_LIMITS.productDetails.max} characters.`}
+            </p>
           </div>
 
           </div>
         </div>
-        
+
         {/* RIGHT COLUMN */}
         <div className="flex w-full md:w-1/2 flex-col gap-[18px] p-[26px] md:overflow-y-auto border-t md:border-t-0 border-[#ddcdb8]">
           {/* Price */}
@@ -275,13 +358,20 @@ export function MenuItemModal({
               onChange={(e) => {
                 const val = e.target.value;
                 // Only allow numbers and a single decimal point with up to 2 decimal places
-                if (val === "" || /^\d*\.?\d{0,2}$/.test(val)) {
+                if (val === "" || /^\d{0,5}(\.\d{0,2})?$/.test(val)) {
                   setPrice(val);
+                  itemForm.touch("price");
                 }
               }}
+              onBlur={() => itemForm.touch("price")}
               placeholder="0.00"
-              className="w-full rounded-[12px] border border-[#ddcdb8] bg-white px-4 py-3 text-[15px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
+              aria-invalid={itemErrors.price ? true : undefined}
+              className={cn(
+                "w-full rounded-[12px] border bg-white px-4 py-3 text-[15px] text-[#1a1210] outline-none placeholder:text-[#a2938a]",
+                itemErrors.price ? "border-[#bf4342]" : "border-[#ddcdb8]",
+              )}
             />
+            {itemErrors.price ? <p className="text-[12px] text-[#bf4342]">{itemErrors.price}</p> : null}
           </div>
 
           {/* Add-ons Configuration */}
@@ -292,7 +382,7 @@ export function MenuItemModal({
             <p className="text-[12px] text-[#7a6a60] leading-snug">
               Define add-ons available specifically for this item (e.g. Extra Egg).
             </p>
-            
+
             <div className="flex flex-col gap-2 mt-2">
               <div className="flex flex-col gap-2 h-[150px] overflow-y-auto pr-1">
                 {newAddOns.map((addon, index) => (
@@ -300,8 +390,8 @@ export function MenuItemModal({
                   <span className="text-[14px] font-medium text-[#1a1210]">{addon.name}</span>
                   <div className="flex items-center gap-3">
                     <span className="text-[14px] text-[#7a6a60]">+₱{addon.price.toFixed(2)}</span>
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={() => setNewAddOns(newAddOns.filter((_, i) => i !== index))}
                       className="text-[#bf4342] hover:bg-[#fceeed] p-1 rounded transition-colors"
                       aria-label="Remove add-on"
@@ -312,13 +402,21 @@ export function MenuItemModal({
                 </div>
               ))}
               </div>
-              
+
               <div className="flex items-center gap-2 mt-1">
                 <input
                   placeholder="New add-on name..."
                   value={tempAddonName}
-                  onChange={(e) => setTempAddonName(e.target.value)}
-                  className="flex-1 min-w-0 rounded-[10px] border border-[#ddcdb8] bg-white px-3 py-2 text-[14px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
+                  onChange={(e) => {
+                    setTempAddonName(e.target.value);
+                    addOnForm.touch("addonName");
+                  }}
+                  {...lengthProps("addonName")}
+                  aria-invalid={addOnForm.errors.addonName ? true : undefined}
+                  className={cn(
+                    "flex-1 min-w-0 rounded-[10px] border bg-white px-3 py-2 text-[14px] text-[#1a1210] outline-none placeholder:text-[#a2938a]",
+                    addOnForm.errors.addonName ? "border-[#bf4342]" : "border-[#ddcdb8]",
+                  )}
                 />
                 <input
                   placeholder="₱ 0.00"
@@ -327,21 +425,34 @@ export function MenuItemModal({
                   value={tempAddonPrice}
                   onChange={(e) => {
                     const val = e.target.value;
-                    if (val === "" || /^\d*\.?\d{0,2}$/.test(val)) {
+                    if (val === "" || /^\d{0,4}(\.\d{0,2})?$/.test(val)) {
                       setTempAddonPrice(val);
+                      addOnForm.touch("addonPrice");
                     }
                   }}
-                  className="w-[70px] shrink-0 rounded-[10px] border border-[#ddcdb8] bg-white px-3 py-2 text-[14px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
+                  aria-invalid={addOnForm.errors.addonPrice ? true : undefined}
+                  className={cn(
+                    "w-[70px] shrink-0 rounded-[10px] border bg-white px-3 py-2 text-[14px] text-[#1a1210] outline-none placeholder:text-[#a2938a]",
+                    addOnForm.errors.addonPrice ? "border-[#bf4342]" : "border-[#ddcdb8]",
+                  )}
                 />
-                <button
-                  type="button"
-                  onClick={handleAddAddOn}
-                  disabled={!tempAddonName.trim() || !tempAddonPrice || parseFloat(tempAddonPrice) < 0}
-                  className="flex shrink-0 items-center justify-center rounded-[10px] bg-[#3f6b4a] px-3 py-2 transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Plus className="h-5 w-5 text-white" />
-                </button>
+                <Tooltip content={addOnForm.isValid ? "Add this add-on to the item" : "Enter an add-on name and price first"}>
+                  <button
+                    type="button"
+                    onClick={handleAddAddOn}
+                    disabled={!addOnForm.isValid}
+                    aria-label="Add add-on"
+                    className="flex shrink-0 items-center justify-center rounded-[10px] bg-[#3f6b4a] px-3 py-2 transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Plus className="h-5 w-5 text-white" />
+                  </button>
+                </Tooltip>
               </div>
+              {addOnForm.errors.addonName || addOnForm.errors.addonPrice ? (
+                <p className="text-[12px] text-[#bf4342]">
+                  {addOnForm.errors.addonName ?? addOnForm.errors.addonPrice}
+                </p>
+              ) : null}
             </div>
           </div>
 
@@ -379,16 +490,22 @@ export function MenuItemModal({
                 Cancel
               </span>
             </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={!name.trim() || !price || parseFloat(price) <= 0}
-              className="flex flex-1 items-center justify-center rounded-[12px] bg-[#e8541f] px-[14px] py-[15px] transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            <Tooltip
+              content={itemForm.isValid ? "Add this item to the menu" : "Complete the highlighted fields to continue."}
+              shortcut={itemForm.isValid ? SHORTCUTS.submitForm.combo : undefined}
+              className="flex-1"
             >
-              <span className="text-[14px] font-bold leading-none text-white">
-                Add
-              </span>
-            </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={!itemForm.isValid}
+                className="flex w-full flex-1 items-center justify-center rounded-[12px] bg-[#e8541f] px-[14px] py-[15px] transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span className="text-[14px] font-bold leading-none text-white">
+                  Add
+                </span>
+              </button>
+            </Tooltip>
           </div>
         </div>
       </div>

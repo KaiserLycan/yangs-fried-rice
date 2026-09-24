@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { validateNcrAddress } from "@/lib/address/validate-ncr";
+import { addressForGeocoding, validateNcrAddress } from "@/lib/address/validate-ncr";
+import { ADDRESS_COLUMNS, addressRowFromParts } from "@/lib/address/format";
+import { deliveryAddressSchema } from "@/lib/validation/profile";
+import {
+  fieldErrorFromDbError,
+  fieldErrorsFromIssues,
+} from "@/lib/validation/field-errors";
 
 export async function GET() {
   const supabase = createClient();
@@ -18,7 +24,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("customer_address")
-    .select("address_id, label, address_details, address_note, is_default")
+    .select(ADDRESS_COLUMNS)
     .eq("customer_id", user.id)
     .order("address_id");
 
@@ -29,6 +35,13 @@ export async function GET() {
   return NextResponse.json({ addresses: data ?? [] }, { status: 200 });
 }
 
+/**
+ * POST /api/customer/addresses
+ * Body: { label?, buildingNo, street, barangay, city, zip, deliveryNote?, is_default? }
+ *
+ * The address is five atomic parts, each validated on its own; a 400 names
+ * the failing ones in `fieldErrors`.
+ */
 export async function POST(request: Request) {
   const supabase = createClient();
 
@@ -43,14 +56,7 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: {
-    label?: string;
-    address_details?: string;
-    address?: string;
-    delivery_note?: string;
-    is_default?: boolean;
-  };
-
+  let body: Record<string, unknown>;
   try {
     body = await request.json();
   } catch {
@@ -60,25 +66,33 @@ export async function POST(request: Request) {
     );
   }
 
-  const rawAddress = body.address_details || body.address;
-  if (!rawAddress || typeof rawAddress !== "string" || rawAddress.trim().length < 5) {
+  const parsed = deliveryAddressSchema.safeParse({
+    label: typeof body.label === "string" ? body.label : "",
+    buildingNo: body.buildingNo ?? "",
+    street: body.street ?? "",
+    barangay: body.barangay ?? "",
+    city: body.city ?? "",
+    zip: body.zip ?? "",
+    deliveryNote: typeof body.deliveryNote === "string" ? body.deliveryNote : "",
+  });
+  if (!parsed.success) {
     return NextResponse.json(
-      { error: "Address must be at least 5 characters long." },
+      {
+        error: "Some address fields need fixing.",
+        fieldErrors: fieldErrorsFromIssues(parsed.error.issues),
+      },
       { status: 400 }
     );
   }
 
-  const address = rawAddress.trim();
-
   // Enforce NCR boundary validation
-  const validation = await validateNcrAddress(address);
+  const validation = await validateNcrAddress(addressForGeocoding(parsed.data));
   if (!validation.valid) {
+    const message =
+      validation.message ??
+      "Delivery is currently restricted to Metro Manila (NCR). Addresses outside NCR cannot be accepted.";
     return NextResponse.json(
-      {
-        error:
-          validation.message ??
-          "Delivery is currently restricted to Metro Manila (NCR). Addresses outside NCR cannot be accepted.",
-      },
+      { error: message, fieldErrors: { city: message } },
       { status: 400 }
     );
   }
@@ -87,16 +101,20 @@ export async function POST(request: Request) {
     .from("customer_address")
     .insert({
       customer_id: user.id,
-      label: body.label?.trim() || "Home",
-      address_details: address,
-      address_note: body.delivery_note?.trim() || null,
-      is_default: body.is_default ?? false,
+      label: parsed.data.label || "Home",
+      ...addressRowFromParts(parsed.data),
+      address_note: parsed.data.deliveryNote || null,
+      is_default: body.is_default === true,
     })
-    .select("address_id, label, address_details, address_note, is_default")
+    .select(ADDRESS_COLUMNS)
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const fieldErrors = fieldErrorFromDbError(error);
+    return NextResponse.json(
+      { error: error.message, fieldErrors: fieldErrors ?? undefined },
+      { status: fieldErrors ? 400 : 500 }
+    );
   }
 
   return NextResponse.json(

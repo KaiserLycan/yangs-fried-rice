@@ -1,81 +1,112 @@
 "use client";
 import * as React from "react";
-import Link from "next/link";
-import { AddressValidationNote } from "@/components/checkout/address-validation-note";
+import {
+  AddressValidationNote,
+  type AddressValidationStatus,
+} from "@/components/checkout/address-validation-note";
 import { formatMobileNumber } from "@/lib/profile/mobile-number";
 import type { CustomerProfile } from "@/lib/profile/customer-profile";
 import { setActiveAddress, upsertCustomerAddress } from "@/lib/actions/address";
 import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 import { CardField, CardInput } from "@/components/profile/profile-card";
+import {
+  AddressFields,
+  ADDRESS_FIELD_LABELS,
+} from "@/components/forms/address-fields";
+import { FormErrorSummary } from "@/components/forms/form-error-summary";
+import { SubmitButton } from "@/components/ui/submit-button";
+import { Tooltip } from "@/components/ui/tooltip";
+import { addressForGeocoding } from "@/lib/address/geocoding-query";
+import { useLiveValidation } from "@/lib/forms/use-live-validation";
+import { useSubmitShortcut } from "@/lib/hooks/use-shortcut";
+import { lengthProps } from "@/lib/validation/fields";
+import type { FieldErrors } from "@/lib/validation/field-errors";
+import { deliveryAddressSchema } from "@/lib/validation/profile";
+
+const FORM_LABELS: Record<string, string> = {
+  label: "Label",
+  deliveryNote: "Delivery note",
+  ...ADDRESS_FIELD_LABELS,
+};
+
+function readAddressForm(form: FormData) {
+  const text = (name: string) => String(form.get(name) ?? "");
+  return {
+    label: text("label"),
+    buildingNo: text("buildingNo"),
+    street: text("street"),
+    barangay: text("barangay"),
+    city: text("city"),
+    zip: text("zip"),
+    deliveryNote: text("deliveryNote"),
+  };
+}
 
 export function DeliveryDetailsCard({ profile }: { profile: CustomerProfile }) {
   const [isEditing, setIsEditing] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
   const [dropdownOpen, setDropdownOpen] = React.useState(false);
-
-  // Draft state for new/edited address
-  const [draftDetails, setDraftDetails] = React.useState("");
-  const [draftLabel, setDraftLabel] = React.useState("");
-  const [draftNote, setDraftNote] = React.useState("");
-  const [draftBuildingNo, setDraftBuildingNo] = React.useState("");
-  const [draftStreet, setDraftStreet] = React.useState("");
-  const [draftBarangay, setDraftBarangay] = React.useState("");
-  const [draftCity, setDraftCity] = React.useState("");
-  const [draftZip, setDraftZip] = React.useState("");
   const [editingAddressId, setEditingAddressId] = React.useState<string | null>(null);
+  const [saveError, setSaveError] = React.useState<string | null>(null);
+  const [saveFieldErrors, setSaveFieldErrors] = React.useState<FieldErrors | null>(null);
+  const [draftAddressStr, setDraftAddressStr] = React.useState("");
+  const [addressStatus, setAddressStatus] =
+    React.useState<AddressValidationStatus>("checking");
+
+  const live = useLiveValidation({ schema: deliveryAddressSchema, read: readAddressForm });
+  useSubmitShortcut(live.formRef, { enabled: isEditing });
+
+  const editingAddress = editingAddressId
+    ? profile.addresses.find((a) => a.id === editingAddressId)
+    : undefined;
 
   const startEditing = (addressId?: string) => {
-    if (addressId) {
-      const addr = profile.addresses.find(a => a.id === addressId);
-      setEditingAddressId(addressId);
-      setDraftLabel(addr?.label || "");
-      setDraftNote(addr?.deliveryNote || "");
-      
-      const parsed = parseAddress(addr?.addressDetails);
-      setDraftBuildingNo(parsed.buildingNo);
-      setDraftStreet(parsed.street);
-      setDraftBarangay(parsed.barangay);
-      setDraftCity(parsed.city);
-      setDraftZip(parsed.zip);
-    } else {
-      setEditingAddressId(null);
-      setDraftBuildingNo("");
-      setDraftStreet("");
-      setDraftBarangay("");
-      setDraftCity("");
-      setDraftZip("");
-      setDraftLabel("");
-      setDraftNote("");
-    }
+    const address = addressId ? profile.addresses.find((a) => a.id === addressId) : undefined;
+    setEditingAddressId(address?.id ?? null);
+    setDraftAddressStr(address ? addressForGeocoding(address) : "");
+    setSaveError(null);
+    setSaveFieldErrors(null);
+    live.reset();
     setIsEditing(true);
   };
 
-  const handleSave = async () => {
-    const combinedAddress = [
-      draftBuildingNo && draftStreet ? `${draftBuildingNo} ${draftStreet}` : (draftBuildingNo || draftStreet),
-      draftBarangay,
-      draftCity && draftZip ? `${draftCity} ${draftZip}` : (draftCity || draftZip)
-    ].filter(Boolean).join(", ");
-    
-    if (!combinedAddress) return;
-    
+  const stopEditing = () => {
+    setIsEditing(false);
+    setSaveError(null);
+    setSaveFieldErrors(null);
+    live.reset();
+  };
+
+  function handleFormChange(event: React.FormEvent<HTMLFormElement>) {
+    live.formProps.onChange(event);
+    setDraftAddressStr(addressForGeocoding(readAddressForm(new FormData(event.currentTarget))));
+  }
+
+  const handleSave = live.handleSubmit(async (values) => {
     setIsSaving(true);
+    setSaveError(null);
+    setSaveFieldErrors(null);
     try {
-      await upsertCustomerAddress({
+      const result = await upsertCustomerAddress({
         address_id: editingAddressId || undefined,
-        address_details: combinedAddress,
-        label: draftLabel,
-        address_note: draftNote,
+        ...values,
       });
-      setIsEditing(false);
-    } catch (err) {
-      console.error(err);
+      if (!result.success) {
+        setSaveError(result.error);
+        setSaveFieldErrors(result.fieldErrors ?? null);
+        live.setServerErrors(result.fieldErrors);
+        return;
+      }
+      stopEditing();
+    } catch {
+      setSaveError("Could not save the address. Check your connection and try again.");
     } finally {
       setIsSaving(false);
     }
-  };
+  });
 
   const activeAddress = profile.addresses.find(a => a.id === profile.activeAddressId) ?? profile.addresses[0];
+  const addressBlocked = addressStatus === "invalid";
 
   return (
     <section className="flex flex-col gap-[12px] rounded-lg border border-rule bg-card p-[20px]">
@@ -94,113 +125,86 @@ export function DeliveryDetailsCard({ profile }: { profile: CustomerProfile }) {
       </div>
 
       {isEditing ? (
-        <div className="flex flex-col gap-[12px] rounded-[11px] border border-rule bg-background p-[16px] mt-[4px]">
+        <form
+          key={editingAddressId ?? "new"}
+          {...live.formProps}
+          onChange={handleFormChange}
+          onSubmit={handleSave}
+          className="mt-[4px] flex flex-col gap-[12px] rounded-[11px] border border-rule bg-background p-[16px]"
+        >
+          <FormErrorSummary
+            message={saveError}
+            fieldErrors={saveFieldErrors}
+            labels={FORM_LABELS}
+            idPrefix="checkout-address-"
+          />
+
           <CardField
             label="Label"
-            htmlFor="address-label"
+            htmlFor="checkout-address-label"
             hint="Optional. e.g. Home or Work."
+            error={live.errors.label}
           >
             <CardInput
-              id="address-label"
+              id="checkout-address-label"
               name="label"
-              value={draftLabel}
-              onChange={e => setDraftLabel(e.target.value)}
-              maxLength={50}
+              defaultValue={editingAddress?.label ?? ""}
+              {...lengthProps("addressLabel")}
+              invalid={Boolean(live.errors.label)}
             />
           </CardField>
 
-          <div className="flex flex-col gap-[12px] md:flex-row md:gap-[16px]">
-            <CardField className="flex-1" label="Building / House No. *" htmlFor="address-buildingNo">
-              <CardInput
-                id="address-buildingNo"
-                name="buildingNo"
-                value={draftBuildingNo}
-                onChange={e => setDraftBuildingNo(e.target.value)}
-                maxLength={100}
-              />
-            </CardField>
-
-            <CardField className="flex-1" label="Street *" htmlFor="address-street">
-              <CardInput
-                id="address-street"
-                name="street"
-                value={draftStreet}
-                onChange={e => setDraftStreet(e.target.value)}
-                maxLength={100}
-              />
-            </CardField>
-          </div>
-
-          <CardField label="Barangay *" htmlFor="address-barangay">
-            <CardInput
-              id="address-barangay"
-              name="barangay"
-              value={draftBarangay}
-              onChange={e => setDraftBarangay(e.target.value)}
-              maxLength={100}
-            />
-          </CardField>
-
-          <div className="flex flex-col gap-[12px] md:flex-row md:gap-[16px]">
-            <CardField className="flex-1" label="City *" htmlFor="address-city">
-              <CardInput
-                id="address-city"
-                name="city"
-                value={draftCity}
-                onChange={e => setDraftCity(e.target.value)}
-                maxLength={50}
-              />
-            </CardField>
-
-            <CardField className="flex-1" label="ZIP Code *" htmlFor="address-zip">
-              <CardInput
-                id="address-zip"
-                name="zip"
-                value={draftZip}
-                onChange={e => setDraftZip(e.target.value)}
-                maxLength={4}
-              />
-            </CardField>
-          </div>
+          <AddressFields
+            idPrefix="checkout-address"
+            variant="card"
+            defaults={editingAddress}
+            errors={live.errors}
+            gapClassName="gap-[12px] md:gap-[16px]"
+          />
 
           <CardField
             label="Delivery note"
-            htmlFor="address-note"
+            htmlFor="checkout-address-deliveryNote"
             hint="Optional. e.g. Beside the blue gate."
+            error={live.errors.deliveryNote}
           >
             <CardInput
-              id="address-note"
+              id="checkout-address-deliveryNote"
               name="deliveryNote"
-              value={draftNote}
-              onChange={e => setDraftNote(e.target.value)}
-              maxLength={255}
+              defaultValue={editingAddress?.deliveryNote ?? ""}
+              {...lengthProps("deliveryNote")}
+              invalid={Boolean(live.errors.deliveryNote)}
             />
           </CardField>
 
-          <AddressValidationNote 
-            address={[
-              draftBuildingNo && draftStreet ? `${draftBuildingNo} ${draftStreet}` : (draftBuildingNo || draftStreet),
-              draftCity
-            ].filter(Boolean).join(", ")}
-          />
+          <AddressValidationNote address={draftAddressStr} onStatusChange={setAddressStatus} />
 
-          <div className="flex items-center gap-[8px] mt-[8px]">
-            <button 
-              onClick={handleSave} 
-              disabled={isSaving || !draftStreet || !draftBarangay || !draftCity || !draftZip}
-              className="rounded-sm bg-foreground px-[16px] py-[10px] text-[13px] font-bold text-background hover:bg-foreground/90 disabled:opacity-60 transition-colors"
+          <div className="mt-[8px] flex items-center gap-[8px]">
+            <SubmitButton
+              pending={isSaving}
+              invalid={!live.isValid || addressBlocked}
+              pendingLabel="Saving..."
+              hint="Save this address and deliver to it"
+              blockedHint={
+                addressBlocked
+                  ? "We can't deliver to this address — see the note above."
+                  : "Complete the highlighted fields to continue."
+              }
+              wrapperClassName="w-auto"
+              className="w-auto rounded-sm bg-foreground px-[16px] py-[10px] text-[13px] hover:bg-foreground/90 md:p-[10px] md:px-[16px]"
             >
-              {isSaving ? "Saving..." : "Save Address"}
-            </button>
-            <button 
-              onClick={() => setIsEditing(false)} 
+              Save Address
+            </SubmitButton>
+            <button
+              type="button"
+              onClick={stopEditing}
               disabled={isSaving}
               className="rounded-sm border border-rule bg-card px-[16px] py-[10px] text-[13px] font-bold text-foreground hover:bg-background disabled:opacity-60 transition-colors"
             >
               Cancel
             </button>
           </div>
-        </div>
+        </form>
       ) : (
         <div className="flex flex-col gap-[5px]">
           <div className="flex items-center justify-between">
@@ -208,19 +212,23 @@ export function DeliveryDetailsCard({ profile }: { profile: CustomerProfile }) {
               Address
             </span>
             {activeAddress && (
-              <button 
-                onClick={() => startEditing(activeAddress.id)} 
-                className="text-[11px] font-bold text-primary hover:underline"
-              >
-                Edit
-              </button>
+              <Tooltip content="Change this delivery address">
+                <button
+                  type="button"
+                  onClick={() => startEditing(activeAddress.id)}
+                  className="text-[11px] font-bold text-primary hover:underline"
+                >
+                  Edit
+                </button>
+              </Tooltip>
             )}
           </div>
-          
+
           <div className="relative">
             <button
               type="button"
               onClick={() => setDropdownOpen((prev) => !prev)}
+              aria-expanded={dropdownOpen}
               className="flex w-full items-center justify-between rounded-[12px] border border-[#ddcdb8] bg-white px-4 py-3 text-[14px] text-[#1a1210] outline-none transition-colors hover:bg-[#faf5eb]"
             >
               <span className="truncate pr-4">
@@ -260,9 +268,9 @@ export function DeliveryDetailsCard({ profile }: { profile: CustomerProfile }) {
                       <span className="text-[14px] truncate">{a.addressDetails}</span>
                     </button>
                   ))}
-                  
+
                   <div className="my-1 border-t border-[#ddcdb8]/40"></div>
-                  
+
                   <button
                     type="button"
                     onClick={() => {
@@ -282,12 +290,7 @@ export function DeliveryDetailsCard({ profile }: { profile: CustomerProfile }) {
       )}
 
       {!isEditing && activeAddress ? (
-        <AddressValidationNote 
-          address={(() => {
-            const p = parseAddress(activeAddress.addressDetails);
-            return [p.street, p.city].filter(Boolean).join(", ");
-          })()} 
-        />
+        <AddressValidationNote address={addressForGeocoding(activeAddress)} />
       ) : !isEditing && (
         <p className="text-[12px] text-muted-foreground">
           You have no saved delivery address yet. Please add one above.
@@ -308,36 +311,4 @@ function Field({ label, value }: { label: string; value: string }) {
       </p>
     </div>
   );
-}
-
-function parseAddress(fullAddress: string = "") {
-  if (!fullAddress) {
-    return { buildingNo: "", street: "", barangay: "", city: "", zip: "" };
-  }
-  const parts = fullAddress.split(",").map((p) => p.trim());
-  let buildingNo = "";
-  let street = "";
-  let barangay = "";
-  let city = "";
-  let zip = "";
-
-  if (parts.length >= 3) {
-    const bldStreet = parts[0];
-    street = bldStreet;
-    
-    barangay = parts[1];
-    
-    const cityZip = parts[parts.length - 1];
-    const match = cityZip.match(/^(.*?)\s+(\d+)$/);
-    if (match) {
-      city = match[1];
-      zip = match[2];
-    } else {
-      city = cityZip;
-    }
-  } else {
-    street = fullAddress;
-  }
-
-  return { buildingNo, street, barangay, city, zip };
 }

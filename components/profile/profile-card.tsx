@@ -119,10 +119,13 @@ export function CardField({
   action,
   hint,
   error,
+  errorId,
   children,
   className,
 }: {
   label: string;
+  /** Lets the input point `aria-describedby` at its error. */
+  errorId?: string;
   htmlFor?: string;
   /**
    * Trailing control on the label row — the password field's "Show" toggle,
@@ -150,7 +153,13 @@ export function CardField({
       </div>
       {children}
       {error ? (
-        <p className="text-[12px] text-primary">{error}</p>
+        <p
+          id={errorId ?? (htmlFor ? `${htmlFor}-error` : undefined)}
+          aria-live="polite"
+          className="text-[12px] text-primary"
+        >
+          {error}
+        </p>
       ) : hint ? (
         <p className="text-[12px] text-muted-foreground">{hint}</p>
       ) : null}

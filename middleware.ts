@@ -110,6 +110,34 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
+  // Signed in is not the same as being a customer. Administrators, staff and
+  // riders have Supabase accounts too; one without a `customer` row must not
+  // reach the cart, checkout, orders or profile pages. RLS only lets a person
+  // read their OWN customer row, so this answers "is this account a
+  // customer?" and nothing more.
+  if (isCustomerArea && user) {
+    const { data: customer } = await supabase
+      .from("customer")
+      .select("customer_id")
+      .eq("customer_id", user.id)
+      .maybeSingle();
+
+    if (!customer) {
+      if (isValidEmployee) {
+        return NextResponse.redirect(new URL(homePathForRole(sessionRole), request.url));
+      }
+      const redirectUrl = new URL("/login", request.url);
+      redirectUrl.searchParams.set("error", "not-customer");
+      // Drop the Supabase session cookies so the next sign-in starts clean.
+      const redirect = NextResponse.redirect(redirectUrl);
+      request.cookies
+        .getAll()
+        .filter(({ name }) => name.startsWith("sb-"))
+        .forEach(({ name }) => redirect.cookies.delete(name));
+      return redirect;
+    }
+  }
+
   if (isAuthPage) {
     if (isValidEmployee) {
       return NextResponse.redirect(new URL(homePathForRole(sessionRole), request.url));

@@ -22,7 +22,8 @@ describe("personalDetailsSchema", () => {
   it("accepts a name with a date of birth", () => {
     expect(
       personalDetailsSchema.safeParse({
-        name: "Liza Reyes",
+        firstName: "Liza",
+        lastName: "Reyes",
         dateOfBirth: "1996-06-14",
       }).success,
     ).toBe(true);
@@ -32,25 +33,43 @@ describe("personalDetailsSchema", () => {
   // so a customer must be able to correct their name without supplying one.
   it("accepts a name with no date of birth", () => {
     expect(
-      personalDetailsSchema.safeParse({ name: "Liza Reyes", dateOfBirth: "" })
+      personalDetailsSchema.safeParse({ firstName: "Liza", lastName: "Reyes", dateOfBirth: "" })
         .success,
     ).toBe(true);
   });
 
-  it("rejects an empty name with sign-up's message", () => {
+  it("rejects an empty first name with sign-up's message", () => {
     expect(
-      messageFor(personalDetailsSchema, { name: "", dateOfBirth: "" }, "name"),
-    ).toBe("Enter your name.");
+      messageFor(personalDetailsSchema, { firstName: "", lastName: "Reyes", dateOfBirth: "" }, "firstName"),
+    ).toBe("Enter your first name.");
   });
 
-  it("rejects a whitespace-only name", () => {
+  it("rejects a whitespace-only last name", () => {
     expect(
       messageFor(
         personalDetailsSchema,
-        { name: "   ", dateOfBirth: "" },
-        "name",
+        { firstName: "Liza", lastName: "   ", dateOfBirth: "" },
+        "lastName",
       ),
-    ).toBe("Enter your name.");
+    ).toBe("Enter your last name.");
+  });
+
+  it("rejects a one-letter last name", () => {
+    expect(
+      messageFor(personalDetailsSchema, { firstName: "Liza", lastName: "R", dateOfBirth: "" }, "lastName"),
+    ).toBe("Last name must be at least 2 characters.");
+  });
+
+  it("rejects digits and symbols in a name", () => {
+    expect(
+      messageFor(personalDetailsSchema, { firstName: "L1za", lastName: "Reyes", dateOfBirth: "" }, "firstName"),
+    ).toMatch(/only contain letters/);
+  });
+
+  it("accepts real-world names with spaces, hyphens, apostrophes and ñ", () => {
+    for (const [firstName, lastName] of [["Maria Clara", "dela Cruz"], ["Jean-Luc", "O'Neil"], ["José", "Peñaflor Jr."]]) {
+      expect(personalDetailsSchema.safeParse({ firstName, lastName, dateOfBirth: "" }).success).toBe(true);
+    }
   });
 });
 

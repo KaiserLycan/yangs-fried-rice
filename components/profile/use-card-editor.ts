@@ -2,35 +2,39 @@
 
 import * as React from "react";
 import type { z } from "zod";
+import { useLiveValidation } from "@/lib/forms/use-live-validation";
+import { useSubmitShortcut } from "@/lib/hooks/use-shortcut";
+import {
+  fieldErrorsFromIssues,
+  type FieldErrors,
+} from "@/lib/validation/field-errors";
 
 /**
  * First message per field wins — a field with two failing rules should say
- * one thing, not stack them.
- *
- * Exported so a dialog form whose open/close isn't owned by this hook (the
- * delivery-address form, opened and closed by its parent's own dialog state)
- * can still use the same field-error mapping `useCardEditor` uses, rather
- * than an independently-maintained copy of this loop drifting from it.
+ * one thing, not stack them. Kept for callers that map issues themselves.
  */
 export function fieldErrorsFrom<Values>(
   issues: z.ZodIssue[],
 ): Partial<Record<keyof Values, string>> {
-  const next: Partial<Record<keyof Values, string>> = {};
-  for (const issue of issues) {
-    const key = issue.path[0] as keyof Values;
-    next[key] ??= issue.message;
-  }
-  return next;
+  return fieldErrorsFromIssues(issues) as Partial<Record<keyof Values, string>>;
 }
 
 /**
+ * What `onValid` may hand back:
+ *   - `false` keeps the card open (the save failed; the caller already said why)
+ *   - `{ fieldErrors }` keeps it open and puts each message under its field
+ *   - anything else closes the card
+ */
+type OnValidResult = boolean | void | { fieldErrors?: FieldErrors | null };
+
+/**
  * The behaviour every read/edit card on the profile screen shares: which
- * state it is in, the field errors from its last submit, and what happens
- * when it is cancelled.
+ * state it is in, live field errors while it is open, whether Save may be
+ * pressed, and what happens when it is cancelled.
  *
- * `ProfileCard` is the chrome and this is the conduct. They are separate
- * because a card that only displays values — the delivery address in its
- * collapsed state, say — wants the chrome without any of this.
+ * Validation is live (see `useLiveValidation`): a field's error appears as
+ * it is typed in or left, `isValid` drives the Save button's `disabled`, and
+ * a server rejection lands under the field it names. Ctrl/⌘+Enter saves.
  *
  * Each card calls this for itself. Nothing here is shared between cards, and
  * that is the point: hoisting it into one parent is exactly how opening one
@@ -41,17 +45,18 @@ export function useCardEditor<Values extends Record<string, unknown>>({
   read,
   onValid,
 }: {
-  schema: z.ZodType<Values>;
+  schema: z.ZodType<Values, z.ZodTypeDef, unknown>;
   /** Pulls this card's fields out of its form. */
   read: (form: FormData) => unknown;
-  /** Runs only when everything parsed. Return false to keep the form open on error. */
-  onValid: (values: Values) => Promise<boolean | void> | boolean | void;
+  /** Runs only when everything parsed. */
+  onValid: (values: Values) => Promise<OnValidResult> | OnValidResult;
 }) {
   const [isEditing, setIsEditing] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [errors, setErrors] = React.useState<
-    Partial<Record<keyof Values, string>>
-  >({});
+  const live = useLiveValidation<Values>({ schema, read });
+  const { reset } = live;
+
+  useSubmitShortcut(live.formRef, { enabled: isEditing });
 
   // Closing the card unmounts the form, and that is what makes Cancel restore
   // the values that were on screen: the inputs are uncontrolled, so the next
@@ -59,35 +64,33 @@ export function useCardEditor<Values extends Record<string, unknown>>({
   // was half-typed.
   const cancel = React.useCallback(() => {
     setIsEditing(false);
-    setErrors({});
-  }, []);
+    reset();
+  }, [reset]);
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const result = schema.safeParse(read(new FormData(event.currentTarget)));
-
-    if (!result.success) {
-      setErrors(fieldErrorsFrom<Values>(result.error.issues));
-      return;
-    }
-
+  const handleSubmit = live.handleSubmit(async (values) => {
     setIsSubmitting(true);
     try {
-      const success = await onValid(result.data);
-      if (success !== false) {
-        cancel();
+      const outcome = await onValid(values);
+      if (outcome && typeof outcome === "object" && outcome.fieldErrors) {
+        live.setServerErrors(outcome.fieldErrors);
+        return;
       }
+      if (outcome !== false) cancel();
     } finally {
       setIsSubmitting(false);
     }
-  }
+  });
 
   return {
     isEditing,
     isSubmitting,
     edit: () => setIsEditing(true),
     cancel,
-    errors,
+    errors: live.errors,
+    isValid: live.isValid,
+    formProps: live.formProps,
+    formRef: live.formRef,
+    setServerErrors: live.setServerErrors,
     handleSubmit,
   };
 }

@@ -8,59 +8,55 @@ import {
   ProfileCard,
 } from "@/components/profile/profile-card";
 import { useCardEditor } from "@/components/profile/use-card-editor";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { useToast } from "@/components/ui/toast";
 import type { CustomerProfile } from "@/lib/profile/customer-profile";
 import { formatDateOfBirth } from "@/lib/profile/identity";
+import { lengthProps } from "@/lib/validation/fields";
 import { personalDetailsSchema } from "@/lib/validation/profile";
 import { earliestBirthdate, latestBirthdateForMinAge } from "@/lib/validation/date-of-birth";
 
 /**
- * Full name and date of birth (Cust4).
+ * First name, last name and date of birth (Cust4), saved via PATCH
+ * /api/profile (lib/actions/profile.ts).
  *
- * Both fields read and write live via PATCH /api/profile
- * (lib/actions/profile.ts). The date of birth is validated with the shared
- * rule in `lib/validation/date-of-birth.ts` (not in the future, at least 13,
- * a real calendar date); only the date input itself shows an error, the card
- * around it stays neutral.
+ * Validated live against the same rules as sign-up; Save stays disabled until
+ * they pass, and a server rejection is shown under the field it names.
  */
 export function PersonalDetailsCard({ profile }: { profile: CustomerProfile }) {
   const router = useRouter();
   const showToast = useToast();
-  const { isEditing, isSubmitting, edit, cancel, errors, handleSubmit } = useCardEditor({
-    schema: personalDetailsSchema,
-    read: (form) => ({
-      name: String(form.get("name") ?? ""),
-      dateOfBirth: String(form.get("dateOfBirth") ?? ""),
-    }),
-    onValid: async (values) => {
-      try {
-        const res = await fetch("/api/profile", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: values.name, dateOfBirth: values.dateOfBirth }),
-        });
-        const json = await res.json();
+  const { isEditing, isSubmitting, isValid, edit, cancel, errors, formProps, handleSubmit } =
+    useCardEditor({
+      schema: personalDetailsSchema,
+      read: (form) => ({
+        firstName: String(form.get("firstName") ?? ""),
+        lastName: String(form.get("lastName") ?? ""),
+        dateOfBirth: String(form.get("dateOfBirth") ?? ""),
+      }),
+      onValid: async (values) => {
+        try {
+          const res = await fetch("/api/profile", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(values),
+          });
+          const json = await res.json();
 
-        if (!res.ok) {
-          showToast(json.error ?? "Could not save your details.");
+          if (!res.ok) {
+            showToast(json.error ?? "Could not save your details.");
+            return json.fieldErrors ? { fieldErrors: json.fieldErrors } : false;
+          }
+
+          showToast("Personal details saved.");
+          router.refresh();
+          return true;
+        } catch {
+          showToast("Could not save your details. Check your connection.");
           return false;
         }
-
-        showToast("Personal details saved.");
-        router.refresh();
-        return true;
-      } catch {
-        showToast("Could not save your details. Check your connection.");
-        return false;
-      }
-    },
-  });
-
-  // Local calendar dates (not toISOString, which is UTC and can land a day
-  // off). The picker refuses future dates; the schema is the real check.
-  const maxDateStr = latestBirthdateForMinAge();
-  const minDateStr = earliestBirthdate();
+      },
+    });
 
   return (
     <ProfileCard
@@ -71,21 +67,32 @@ export function PersonalDetailsCard({ profile }: { profile: CustomerProfile }) {
     >
       {isEditing ? (
         <form
-          noValidate
+          {...formProps}
           onSubmit={handleSubmit}
           className="flex flex-col gap-[12px] md:gap-[16px]"
         >
-          <div className="grid gap-[12px] md:grid-cols-2 md:gap-[36px]">
-            <CardField label="Full name" htmlFor="name" error={errors.name}>
+          <div className="grid gap-[12px] md:grid-cols-3 md:gap-[24px]">
+            <CardField label="First name" htmlFor="firstName" error={errors.firstName}>
               <CardInput
-                id="name"
-                name="name"
+                id="firstName"
+                name="firstName"
                 type="text"
-                autoComplete="name"
-                defaultValue={profile.name}
-                minLength={2}
-                maxLength={100}
-                invalid={Boolean(errors.name)}
+                autoComplete="given-name"
+                defaultValue={profile.firstName}
+                {...lengthProps("firstName")}
+                invalid={Boolean(errors.firstName)}
+              />
+            </CardField>
+
+            <CardField label="Last name" htmlFor="lastName" error={errors.lastName}>
+              <CardInput
+                id="lastName"
+                name="lastName"
+                type="text"
+                autoComplete="family-name"
+                defaultValue={profile.lastName}
+                {...lengthProps("lastName")}
+                invalid={Boolean(errors.lastName)}
               />
             </CardField>
 
@@ -101,21 +108,30 @@ export function PersonalDetailsCard({ profile }: { profile: CustomerProfile }) {
                 type="date"
                 autoComplete="bday"
                 defaultValue={profile.dateOfBirth ?? ""}
-                min={minDateStr}
-                max={maxDateStr}
+                min={earliestBirthdate()}
+                max={latestBirthdateForMinAge()}
                 invalid={Boolean(errors.dateOfBirth)}
               />
             </CardField>
           </div>
 
-          <Button type="submit" variant="save" disabled={isSubmitting}>
-            {isSubmitting ? "Saving..." : "Save changes"}
-          </Button>
+          <SubmitButton
+            variant="save"
+            pending={isSubmitting}
+            invalid={!isValid}
+            pendingLabel="Saving..."
+            hint="Save your personal details"
+          >
+            Save changes
+          </SubmitButton>
         </form>
       ) : (
-        <div className="grid gap-[12px] md:grid-cols-2 md:gap-[36px]">
-          <CardField label="Full name">
-            <CardValue value={profile.name} emptyState="Not added yet" />
+        <div className="grid gap-[12px] md:grid-cols-3 md:gap-[24px]">
+          <CardField label="First name">
+            <CardValue value={profile.firstName} emptyState="Not added yet" />
+          </CardField>
+          <CardField label="Last name">
+            <CardValue value={profile.lastName} emptyState="Not added yet" />
           </CardField>
           <CardField label="Date of birth">
             <CardValue

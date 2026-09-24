@@ -9,7 +9,8 @@ import {
   ProfileCard,
 } from "@/components/profile/profile-card";
 import { useCardEditor } from "@/components/profile/use-card-editor";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
+import { lengthProps } from "@/lib/validation/fields";
 import { useToast } from "@/components/ui/toast";
 import type { CustomerProfile } from "@/lib/profile/customer-profile";
 import { PhoneInput } from "@/components/ui/phone-input";
@@ -43,7 +44,7 @@ const EMAIL_EDITING_HINT = "A new email needs verifying before your next order."
 export function ContactDetailsCard({ profile }: { profile: CustomerProfile }) {
   const router = useRouter();
   const showToast = useToast();
-  const { isEditing, isSubmitting, edit, cancel, errors, handleSubmit } = useCardEditor({
+  const { isEditing, isSubmitting, isValid, edit, cancel, errors, formProps, handleSubmit } = useCardEditor({
     schema: contactDetailsSchema,
     read: (form) => ({
       mobile: toInternationalMobile(String(form.get("mobile") ?? "")),
@@ -74,7 +75,7 @@ export function ContactDetailsCard({ profile }: { profile: CustomerProfile }) {
 
         if (!res.ok) {
           showToast(json.error ?? "Could not save your contact details.");
-          return false;
+          return json.fieldErrors ? { fieldErrors: json.fieldErrors } : false;
         }
 
         if (body.email) {
@@ -105,7 +106,7 @@ export function ContactDetailsCard({ profile }: { profile: CustomerProfile }) {
     >
       {isEditing ? (
         <form
-          noValidate
+          {...formProps}
           onSubmit={handleSubmit}
           className="flex flex-col gap-[12px] md:gap-[16px]"
         >
@@ -142,16 +143,21 @@ export function ContactDetailsCard({ profile }: { profile: CustomerProfile }) {
                 type="email"
                 autoComplete="email"
                 defaultValue={profile.email}
-                minLength={5}
-                maxLength={255}
+                {...lengthProps("email")}
                 invalid={Boolean(errors.email)}
               />
             </CardField>
           </div>
 
-          <Button type="submit" variant="save" disabled={isSubmitting}>
-            {isSubmitting ? "Saving..." : "Save changes"}
-          </Button>
+          <SubmitButton
+            variant="save"
+            pending={isSubmitting}
+            invalid={!isValid}
+            pendingLabel="Saving..."
+            hint="Save your mobile number and email"
+          >
+            Save changes
+          </SubmitButton>
         </form>
       ) : (
         <div className="grid gap-[12px] md:grid-cols-2 md:gap-[24px]">

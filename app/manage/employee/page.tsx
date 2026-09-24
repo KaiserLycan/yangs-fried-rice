@@ -8,6 +8,9 @@ import { useDebounce } from "@/lib/hooks/use-debounce";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast, ToastProvider } from "@/components/ui/toast";
+import { Tooltip } from "@/components/ui/tooltip";
+import { SHORTCUTS, useShortcut } from "@/lib/hooks/use-shortcut";
+import type { FieldErrors } from "@/lib/validation/field-errors";
 import { 
   getAllEmployees, 
   createEmployee, 
@@ -19,6 +22,8 @@ import { normalizeEmployeeRoleLabel, resolveEmployeeRole, roleDisplayLabel, type
 export type EmployeeData = {
   id: string;
   name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   contact: string;
   role: string;
@@ -67,6 +72,14 @@ function ManageEmployeeInner() {
   const [employeeToDelete, setEmployeeToDelete] = useState<EmployeeData | null>(null);
   const [employeeToAdd, setEmployeeToAdd] = useState<any | null>(null);
   const [employeeToEdit, setEmployeeToEdit] = useState<any | null>(null);
+  // Field errors from the last failed add/edit, shown inside the dialog.
+  const [modalFieldErrors, setModalFieldErrors] = useState<FieldErrors | null>(null);
+
+  // Shift+N opens "Add Employee" (listed in the ? shortcuts overlay).
+  useShortcut(SHORTCUTS.newItem.combo, () => {
+    setModalFieldErrors(null);
+    setIsAddModalOpen(true);
+  }, { enabled: !isAddModalOpen && selectedEmployee === null });
 
   // Fetch Employees on Mount
   const loadEmployees = useCallback(async () => {
@@ -81,6 +94,8 @@ function ManageEmployeeInner() {
       const mappedData: EmployeeData[] = result.data.map((e: any) => ({
         id: e.employee_id,
         name: e.name || "Unknown User",
+        firstName: e.first_name || "",
+        lastName: e.last_name || "",
         email: e.email || "No email",
         contact: e["phone-num"] || "N/A",
         role: roleDisplayLabel(e.role),
@@ -112,9 +127,10 @@ function ManageEmployeeInner() {
     const dbRole = normalizeEmployeeRoleLabel(employeeToAdd.role ?? "Staff") ?? "STAFF";
 
     const result = await createEmployee({
-      name: employeeToAdd.name,
+      firstName: employeeToAdd.firstName,
+      lastName: employeeToAdd.lastName,
       email: employeeToAdd.email,
-      password: employeeToAdd.password || "Yangstemp123!",
+      password: employeeToAdd.password,
       role: dbRole as any,
       scheduleShift: employeeToAdd.shift ?? null,
       phone: employeeToAdd.phone ?? "",
@@ -131,7 +147,11 @@ function ManageEmployeeInner() {
 
     if (result.error) {
       showToast(`Failed to add employee: ${result.error}`);
+      // Back to the form, with each rejected field marked.
+      setModalFieldErrors(result.fieldErrors ?? null);
+      setEmployeeToAdd(null);
     } else {
+      setModalFieldErrors(null);
       showToast("Employee added successfully.");
       await loadEmployees(); // Refresh the list from the DB
       setEmployeeToAdd(null);
@@ -147,7 +167,8 @@ function ManageEmployeeInner() {
     const dbRole = normalizeEmployeeRoleLabel(employeeToEdit.role ?? "Staff") ?? "STAFF";
 
     const result = await updateEmployeeDetails(selectedEmployee.id, {
-      name: employeeToEdit.name,
+      firstName: employeeToEdit.firstName,
+      lastName: employeeToEdit.lastName,
       email: employeeToEdit.email,
       role: dbRole,
       shift: employeeToEdit.shift,
@@ -160,7 +181,10 @@ function ManageEmployeeInner() {
 
     if (result.error) {
       showToast(`Failed to update employee: ${result.error}`);
+      setModalFieldErrors(result.fieldErrors ?? null);
+      setEmployeeToEdit(null);
     } else {
+      setModalFieldErrors(null);
       showToast("Employee details updated successfully.");
       await loadEmployees();
       setEmployeeToEdit(null);
@@ -278,12 +302,23 @@ function ManageEmployeeInner() {
               </>
             )}
           </div>
-          <button 
+          <Tooltip
+            content="Create a new staff, manager or rider account"
+            shortcut={SHORTCUTS.newItem.combo}
+            side="bottom"
+            className="w-full sm:w-auto"
+          >
+          <button
+            type="button"
             className="w-full sm:w-auto bg-[#E8541F] text-white font-bold text-[13px] px-[18px] py-[11px] rounded-[10px] hover:bg-[#E8541F]/90 transition-colors whitespace-nowrap"
-            onClick={() => setIsAddModalOpen(true)}
+            onClick={() => {
+              setModalFieldErrors(null);
+              setIsAddModalOpen(true);
+            }}
           >
             + Add Employee
           </button>
+          </Tooltip>
         </div>
       </div>
 
@@ -360,8 +395,10 @@ function ManageEmployeeInner() {
         onClose={() => {
           setIsAddModalOpen(false);
           setSelectedEmployee(null);
-        }} 
+          setModalFieldErrors(null);
+        }}
         employee={selectedEmployee}
+        serverErrors={modalFieldErrors}
         onSave={(data) => {
           if (selectedEmployee) {
             setEmployeeToEdit(data);

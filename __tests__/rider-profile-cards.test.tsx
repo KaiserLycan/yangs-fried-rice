@@ -78,6 +78,8 @@ describe("rider profile edit cards", () => {
     const mockResult = {
       success: true,
       data: {
+        firstName: "Liza",
+        lastName: "Reyes",
         name: "Liza Reyes",
         email: "liza@yangs.com",
         phoneNumber: "09123456789",
@@ -106,8 +108,8 @@ describe("rider profile edit cards", () => {
     render(result);
 
     fireEvent.click(screen.getAllByRole("button", { name: /edit/i })[0]);
-    fireEvent.change(screen.getByLabelText(/full name/i), {
-      target: { value: "Liza Angela Reyes" },
+    fireEvent.change(screen.getByLabelText(/first name/i), {
+      target: { value: "Liza Angela" },
     });
     fireEvent.change(screen.getByLabelText(/date of birth/i), {
       target: { value: "1995-06-17" },
@@ -120,8 +122,26 @@ describe("rider profile edit cards", () => {
         expect.objectContaining({
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ firstName: "Liza Angela", lastName: "Reyes", dateOfBirth: "1995-06-17" }),
         }),
       );
     });
+  });
+
+  it("keeps Save disabled and shows the error as soon as a field is cleared", () => {
+    render(
+      <ToastProvider>
+        <DriverDetailsCard vehicleMakeModel="Toyota Vios" vehiclePlateNumber="ABC 1234" />
+      </ToastProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /edit/i }));
+    fireEvent.change(screen.getByLabelText(/vehicle plate number/i), {
+      target: { value: "" },
+    });
+
+    expect(screen.getByText("Enter the plate number.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /save changes/i })).toBeDisabled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

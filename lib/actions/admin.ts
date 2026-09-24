@@ -25,15 +25,32 @@ import {
 import { z } from "zod";
 import { isValidPhMobile, toInternationalMobile } from "@/lib/validation/phone";
 import { dateOfBirthSchema } from "@/lib/validation/date-of-birth";
+import {
+  emailSchema,
+  firstNameSchema,
+  joinFullName,
+  lastNameSchema,
+  passwordSchema,
+} from "@/lib/validation/fields";
+import { riderDetailsSchema } from "@/lib/validation/admin";
+import {
+  fieldErrorFromDbError,
+  fieldErrorsFromIssues,
+  type FieldErrors,
+} from "@/lib/validation/field-errors";
 import type { Tables, TablesUpdate } from "@/types/database.types";
 
 // ---------------------------------------------------------------------------
 // Shared types
 // ---------------------------------------------------------------------------
 
+/**
+ * `fieldErrors` names the form field a rejection is about (`firstName`,
+ * `email`, …) so the manager's dialog can show it under that input.
+ */
 type ActionResult<T> =
-  | { data: T; error: null }
-  | { data: null; error: string };
+  | { data: T; error: null; fieldErrors?: undefined }
+  | { data: null; error: string; fieldErrors?: FieldErrors };
 
 type Employee = Tables<"employee">;
 type Customer = Tables<"customer">;
@@ -135,13 +152,18 @@ export async function createEmployee(
 
   const parsed = createEmployeeSchema.safeParse(input);
   if (!parsed.success) {
-    return { data: null, error: parsed.error.errors[0].message };
+    return {
+      data: null,
+      error: parsed.error.errors[0].message,
+      fieldErrors: fieldErrorsFromIssues(parsed.error.issues),
+    };
   }
 
   const normalizedRole =
     normalizeEmployeeRoleLabel(parsed.data.role) ?? parsed.data.role;
   const {
-    name,
+    firstName,
+    lastName,
     email,
     password,
     role: canonicalRole,
@@ -163,11 +185,19 @@ export async function createEmployee(
         email,
         password,
         email_confirm: true,
-        user_metadata: { name },
+        user_metadata: { name: joinFullName(firstName, lastName) },
       });
 
     if (authError) {
-      return { data: null, error: authError.message };
+      return {
+        data: null,
+        error: authError.message,
+        fieldErrors: /email|registered/i.test(authError.message)
+          ? { email: authError.message }
+          : /password/i.test(authError.message)
+            ? { password: authError.message }
+            : undefined,
+      };
     }
     if (!authData.user) {
       return {
@@ -179,7 +209,8 @@ export async function createEmployee(
     const supabase = createClient();
     const employeeRow = {
       employee_id: authData.user.id,
-      name,
+      first_name: firstName,
+      last_name: lastName,
       email,
       role: canonicalRole,
       schedule_shift: scheduleShift ?? null,
@@ -196,7 +227,11 @@ export async function createEmployee(
     if (insertError) {
       // Roll back the Auth user — we don't want an orphan.
       await adminClient.auth.admin.deleteUser(authData.user.id);
-      return { data: null, error: insertError.message };
+      return {
+        data: null,
+        error: insertError.message,
+        fieldErrors: fieldErrorFromDbError(insertError) ?? undefined,
+      };
     }
 
     if (canonicalRole === "RIDER") {
@@ -467,7 +502,8 @@ export async function getEmployeeForEdit(employeeId: string): Promise<
 }
 
 type EmployeeEditInput = {
-  name?: string;
+  firstName?: string;
+  lastName?: string;
   email?: string;
   password?: string;
   role?: string;
@@ -512,30 +548,33 @@ export async function updateEmployeeDetails(
   const adminClient = createAdminClient();
 
   // ---- validate what was sent ----
-  const name = input.name?.trim();
-  if (input.name !== undefined && !name) {
-    return { data: null, error: "Employee name is required." };
-  }
-  if (name && name.length > 100) {
-    return { data: null, error: "Name must be 100 characters or fewer." };
-  }
+  // Every field is checked (not just the first failure) so the dialog can
+  // mark each one that needs fixing.
+  const fieldErrors: FieldErrors = {};
+  const check = <T,>(field: string, schema: z.ZodType<T>, value: unknown): T | undefined => {
+    const result = schema.safeParse(value);
+    if (result.success) return result.data;
+    fieldErrors[field] = result.error.issues[0]?.message ?? "Check this field.";
+    return undefined;
+  };
+
+  const firstName =
+    input.firstName !== undefined ? check("firstName", firstNameSchema, input.firstName) : undefined;
+  const lastName =
+    input.lastName !== undefined ? check("lastName", lastNameSchema, input.lastName) : undefined;
 
   const newPassword = input.password?.trim() ?? "";
-  if (newPassword && newPassword.length < 8) {
-    return { data: null, error: "Password must be at least 8 characters." };
-  }
+  if (newPassword) check("password", passwordSchema, newPassword);
 
   const newEmail = input.email?.trim() ?? "";
-  if (newEmail && !z.string().email().safeParse(newEmail).success) {
-    return { data: null, error: "Enter a valid email address." };
-  }
+  if (newEmail) check("email", emailSchema, newEmail);
 
   let phone: string | null | undefined;
   if (input.phone !== undefined) {
     if (input.phone.trim() === "") {
       phone = null;
     } else if (!isValidPhMobile(input.phone)) {
-      return { data: null, error: "Enter a valid Philippine mobile number, e.g. +63 9871230456." };
+      fieldErrors.phone = "Enter a valid Philippine mobile number, e.g. +63 917 123 4567.";
     } else {
       phone = toInternationalMobile(input.phone);
     }
@@ -543,24 +582,32 @@ export async function updateEmployeeDetails(
 
   let dateOfBirth: string | null | undefined;
   if (input.dateOfBirth !== undefined) {
-    const parsedDob = dateOfBirthSchema.safeParse(input.dateOfBirth);
-    if (!parsedDob.success) {
-      return { data: null, error: parsedDob.error.issues[0]?.message ?? "Enter a valid date of birth." };
+    if (check("dateOfBirth", dateOfBirthSchema, input.dateOfBirth) !== undefined) {
+      dateOfBirth = input.dateOfBirth === "" ? null : input.dateOfBirth;
     }
-    dateOfBirth = input.dateOfBirth === "" ? null : input.dateOfBirth;
   }
 
   const requestedRole = input.role ? resolveEmployeeRole(input.role) : null;
   if (input.role && !requestedRole) {
-    return { data: null, error: "Role must be Manager, Staff or Delivery." };
+    fieldErrors.role = "Role must be Manager, Staff or Delivery.";
   }
 
   const rider = input.riderDetails ?? null;
   if (rider) {
-    const filled = Object.values(rider).filter((v) => v !== undefined && v !== null && String(v).trim() !== "");
-    if (filled.length > 0 && filled.length < 4) {
-      return { data: null, error: "Rider details must include vehicle make/model, plate number, licence number and licence expiry." };
+    const riderResult = riderDetailsSchema.safeParse(rider);
+    if (!riderResult.success) {
+      for (const [key, message] of Object.entries(fieldErrorsFromIssues(riderResult.error.issues))) {
+        fieldErrors[key] = message;
+      }
     }
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    return {
+      data: null,
+      error: Object.values(fieldErrors)[0],
+      fieldErrors,
+    };
   }
 
   // ---- current state ----
@@ -614,7 +661,8 @@ export async function updateEmployeeDetails(
 
   // ---- 2. Employee row ----
   const updates: TablesUpdate<"employee"> = {};
-  if (name) updates.name = name;
+  if (firstName) updates.first_name = firstName;
+  if (lastName) updates.last_name = lastName;
   if (emailChanged) updates.email = newEmail;
   if (requestedRole) updates.role = requestedRole;
   if (input.shift !== undefined) updates.schedule_shift = input.shift || null;
@@ -636,7 +684,11 @@ export async function updateEmployeeDetails(
           email_confirm: true,
         });
       }
-      return { data: null, error: error.message };
+      return {
+        data: null,
+        error: error.message,
+        fieldErrors: fieldErrorFromDbError(error) ?? undefined,
+      };
     }
   }
 
@@ -767,17 +819,24 @@ export async function updateCustomer(
 
   const parsed = updateCustomerSchema.safeParse(input);
   if (!parsed.success) {
-    return { data: null, error: parsed.error.errors[0].message };
+    return {
+      data: null,
+      error: parsed.error.errors[0].message,
+      fieldErrors: fieldErrorsFromIssues(parsed.error.issues),
+    };
   }
 
+  const { firstName, lastName, email, phone_number } = parsed.data;
   const supabase = createClient();
   const { data, error } = await supabase
     .from("customer")
     .update({
-      ...parsed.data,
+      ...(firstName !== undefined ? { first_name: firstName } : {}),
+      ...(lastName !== undefined ? { last_name: lastName } : {}),
+      ...(email !== undefined ? { email } : {}),
       // One canonical stored shape, same as every other screen.
-      ...(parsed.data.phone_number !== undefined
-        ? { phone_number: toInternationalMobile(parsed.data.phone_number) || null }
+      ...(phone_number !== undefined
+        ? { phone_number: toInternationalMobile(phone_number) || null }
         : {}),
     })
     .eq("customer_id", customerId)

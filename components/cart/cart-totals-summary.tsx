@@ -57,6 +57,7 @@ export function CartTotalsSummary({
       ) : null}
 
       <Link
+        title={!isOpen ? "We're closed right now — ordering opens with the store." : "Review your order and pay"}
         href={!isOpen || isClicked ? "#" : `/checkout?fulfilment=${fulfilment}`}
         onClick={(e) => {
           if (!isOpen || isClicked) {

@@ -58,6 +58,8 @@ afterEach(() => {
  */
 
 const profile: CustomerProfile = {
+  firstName: "Liza",
+  lastName: "Reyes",
   name: "Liza Reyes",
   dateOfBirth: null,
   mobile: "09175550123",

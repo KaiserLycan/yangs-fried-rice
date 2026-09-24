@@ -37,6 +37,8 @@ vi.mock("@/lib/checkout/paymongo", () => ({
  */
 
 const profile: CustomerProfile = {
+  firstName: "Liza",
+  lastName: "Reyes",
   name: "Liza Reyes",
   dateOfBirth: null,
   mobile: "09175550123",
@@ -51,6 +53,11 @@ const profile: CustomerProfile = {
     {
       id: "addr-1",
       addressDetails: "21 Mabini St, Malate, Manila",
+      buildingNo: "21",
+      street: "Mabini St",
+      barangay: "Malate",
+      city: "Manila",
+      zip: "",
       label: "Home",
       deliveryNote: "",
       isDefault: true,
@@ -164,6 +171,11 @@ describe("Checkout order summary", () => {
           {
             id: "addr-2",
             addressDetails: "Blk 12 Lot 4 Barangay San Isidro, Quezon City",
+            buildingNo: "Blk",
+            street: "12 Lot 4 Barangay San Isidro",
+            barangay: "",
+            city: "Quezon City",
+            zip: "",
             label: "Home",
             deliveryNote: "",
             isDefault: true,

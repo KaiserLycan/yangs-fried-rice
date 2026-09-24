@@ -30,7 +30,7 @@ export async function getMyProfile() {
   const result = await getMyProfileAction();
   if (result.error || !result.data) {
     return NextResponse.json(
-      { error: result.error },
+      { error: result.error, fieldErrors: result.fieldErrors },
       { status: errorToStatus(result.error || "") }
     );
   }
@@ -51,7 +51,7 @@ export async function updateMyProfile(request: Request) {
   const result = await updateMyProfileAction(body as any);
   if (result.error) {
     return NextResponse.json(
-      { error: result.error },
+      { error: result.error, fieldErrors: result.fieldErrors },
       { status: errorToStatus(result.error) }
     );
   }
@@ -66,7 +66,7 @@ export async function deleteMyAccount() {
   const result = await deleteMyAccountAction();
   if (result.error) {
     return NextResponse.json(
-      { error: result.error },
+      { error: result.error, fieldErrors: result.fieldErrors },
       { status: errorToStatus(result.error) }
     );
   }
@@ -87,7 +87,7 @@ export async function addMyAddress(request: Request) {
   const result = await addMyAddressAction(body as any);
   if (result.error || !result.data) {
     return NextResponse.json(
-      { error: result.error },
+      { error: result.error, fieldErrors: result.fieldErrors },
       { status: errorToStatus(result.error || "") }
     );
   }
@@ -115,7 +115,7 @@ export async function updateMyAddress(
   const result = await updateMyAddressAction(params.id, body as any);
   if (result.error) {
     return NextResponse.json(
-      { error: result.error },
+      { error: result.error, fieldErrors: result.fieldErrors },
       { status: errorToStatus(result.error) }
     );
   }
@@ -130,7 +130,7 @@ export async function deleteMyAddress(
   const result = await deleteMyAddressAction(params.id);
   if (result.error) {
     return NextResponse.json(
-      { error: result.error },
+      { error: result.error, fieldErrors: result.fieldErrors },
       { status: errorToStatus(result.error) }
     );
   }
@@ -144,7 +144,7 @@ export async function setDefaultAddress(
   const result = await setDefaultAddressAction(params.id);
   if (result.error) {
     return NextResponse.json(
-      { error: result.error },
+      { error: result.error, fieldErrors: result.fieldErrors },
       { status: errorToStatus(result.error) }
     );
   }
@@ -165,7 +165,7 @@ export async function changeMyPassword(request: Request) {
   const result = await changeMyPasswordAction(body as any);
   if (result.error) {
     return NextResponse.json(
-      { error: result.error },
+      { error: result.error, fieldErrors: result.fieldErrors },
       { status: errorToStatus(result.error) }
     );
   }
