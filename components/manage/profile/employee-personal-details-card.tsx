@@ -25,6 +25,8 @@ import { useCardEditor } from "@/components/profile/use-card-editor";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { personalDetailsSchema } from "@/lib/validation/profile";
+import { earliestBirthdate, latestBirthdateForMinAge } from "@/lib/validation/date-of-birth";
+import { formatDateOfBirth } from "@/lib/profile/identity";
 
 const SAVE_TOAST =
   "Saving your personal details isn’t available yet. We’re still building it.";
@@ -104,6 +106,8 @@ export function EmployeePersonalDetailsCard({
                 type="date"
                 autoComplete="bday"
                 defaultValue={profile.dateOfBirth ?? ""}
+                min={earliestBirthdate()}
+                max={latestBirthdateForMinAge()}
                 invalid={Boolean(errors.dateOfBirth)}
               />
             </CardField>
@@ -120,7 +124,7 @@ export function EmployeePersonalDetailsCard({
           </CardField>
           <CardField label="Date of birth">
             <CardValue
-              value={profile.dateOfBirth || ""}
+              value={profile.dateOfBirth ? formatDateOfBirth(profile.dateOfBirth) : ""}
               emptyState="Not added yet"
             />
           </CardField>

@@ -4,6 +4,7 @@ import { formatMobileNumber } from "@/lib/validation/phone";
 import { useState, useEffect } from "react";
 import { Search, ChevronDown, ChevronUp, ChevronsUpDown, Loader2 } from "lucide-react";
 import { ManagePagination } from "@/components/manage/manage-pagination";
+import { SortableHeader } from "@/components/manage/sortable-header";
 import { CustomerModal, CustomerData } from "@/components/manage/customers/customer-modal";
 import { useDebounce } from "@/lib/hooks/use-debounce";
 import { Dialog } from "@/components/ui/dialog";
@@ -141,13 +142,11 @@ function ManageCustomersInner() {
         <div className="bg-white rounded-[12px] overflow-hidden flex flex-col min-h-0 border border-[#F0E6D8] shadow-[0_2px_10px_rgba(26,18,16,0.02)]">
           {/* Table Head - Hidden on Mobile */}
           <div className="hidden md:grid grid-cols-[1.5fr_1.5fr_1fr_1fr] px-8 py-5 border-b border-[#F0E6D8] bg-[#EAE0D5] text-[12px] font-bold text-[#7A6A60] uppercase tracking-[1px]">
-            <button
-              className="flex items-center gap-2 hover:text-[#4A3D36] transition-colors focus:outline-none w-fit"
-              onClick={() => setNameSort(prev => prev === 'none' ? 'asc' : prev === 'asc' ? 'desc' : 'none')}
-            >
-              Name
-              {nameSort === 'asc' ? <ChevronUp className="h-[14px] w-[14px]" /> : nameSort === 'desc' ? <ChevronDown className="h-[14px] w-[14px]" /> : <ChevronsUpDown className="h-[14px] w-[14px]" />}
-            </button>
+            <SortableHeader 
+              label="Name" 
+              currentSort={nameSort} 
+              onSortChange={setNameSort} 
+            />
             <div className="flex items-center">Email</div>
             <div className="flex items-center">Contact</div>
             <div className="flex items-center">Customer Since</div>
