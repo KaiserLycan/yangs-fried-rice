@@ -43,10 +43,15 @@ export default async function DashboardPage() {
     redirect(homePathForRole(role));
   }
 
+  // Get start and end of today
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString();
+
   const [stats, weeklySales, topSellers] = await Promise.all([
     getDashboardStats(),
     getWeeklySales(),
-    getTopSellers(),
+    getTopSellers(undefined, startOfDay, endOfDay),
   ]);
 
   // Branch mock for now until multi-branch support

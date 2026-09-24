@@ -9,6 +9,7 @@ import {
 import { ReportsSummary } from "@/components/manage/reports/reports-summary";
 import { ReportsCharts } from "@/components/manage/reports/reports-charts";
 import { normalizeReportType } from "@/lib/reports/report-types";
+import { Alert } from "@/components/ui/alert";
 
 function getToday() {
   return new Date().toISOString().split("T")[0];
@@ -65,19 +66,27 @@ function ReportsContent() {
 
       {/* Analytics Content */}
       <div className="flex flex-col gap-[20px] md:gap-[30px] overflow-y-auto pb-[20px]">
-        {/* KPI Cards */}
-        <ReportsSummary
-          type={reportType}
-          startDate={startDate}
-          endDate={endDate}
-        />
+        {!startDate || !endDate ? (
+          <Alert tone="error">Start date and end date are required.</Alert>
+        ) : endDate < startDate ? (
+          <Alert tone="error">End date cannot be earlier than start date.</Alert>
+        ) : (
+          <>
+            {/* KPI Cards */}
+            <ReportsSummary
+              type={reportType}
+              startDate={startDate}
+              endDate={endDate}
+            />
 
-        {/* Interactive Charts */}
-        <ReportsCharts
-          type={reportType}
-          startDate={startDate}
-          endDate={endDate}
-        />
+            {/* Interactive Charts */}
+            <ReportsCharts
+              type={reportType}
+              startDate={startDate}
+              endDate={endDate}
+            />
+          </>
+        )}
       </div>
     </div>
   );

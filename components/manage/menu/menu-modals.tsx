@@ -1,7 +1,7 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { MenuItem, MenuCategory, MOCK_CATEGORIES } from "@/components/manage/menu/mock-menu";
 import { cn } from "@/lib/utils";
-import { Camera, ChevronDown, ChevronRight, Trash2, Plus } from "lucide-react";
+import { Camera, ChevronDown, ChevronRight, Trash2, Plus, Loader2 } from "lucide-react";
 import { compressImage } from "@/lib/image/compress";
 import { Dialog, DialogRoot } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -50,6 +50,7 @@ interface MenuItemModalProps {
   onClose: () => void;
   onSave: (item: Partial<MenuItem>, addOns: { name: string; price: number }[], file?: File) => void;
   categories?: string[];
+  isProcessing?: boolean;
 }
 
 export function MenuItemModal({
@@ -57,6 +58,7 @@ export function MenuItemModal({
   onClose,
   onSave,
   categories,
+  isProcessing,
 }: MenuItemModalProps) {
   // Redesigned the modal to match the Figma design (node 2102-5225).
   // Needed image upload, custom category dropdown, and availability toggle for new items.
@@ -72,6 +74,22 @@ export function MenuItemModal({
   const [tempAddonName, setTempAddonName] = useState("");
   const [tempAddonPrice, setTempAddonPrice] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setName("");
+      setPrice("");
+      setCategory("");
+      setDescription("");
+      setAvailable(false);
+      setImagePreview(null);
+      setSelectedFile(null);
+      setCategoryOpen(false);
+      setNewAddOns([]);
+      setTempAddonName("");
+      setTempAddonPrice("");
+    }
+  }, [isOpen]);
 
   // Derive the list of selectable categories (exclude "All").
   const selectableCategories = (categories ?? MOCK_CATEGORIES).filter(
@@ -183,12 +201,16 @@ export function MenuItemModal({
         <div className="flex flex-col gap-[18px] p-[26px]">
           {/* Product Name */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
-              Product Name <span className="text-[#bf4342]">*</span>
-            </label>
+            <div className="flex justify-between items-end">
+              <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
+                Product Name <span className="text-[#bf4342]">*</span>
+              </label>
+              <span className="text-[11px] text-[#a2938a]">{name.length}/50</span>
+            </div>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
+              maxLength={50}
               placeholder="Product Name"
               className="w-full rounded-[12px] border border-[#ddcdb8] bg-white px-4 py-3 text-[15px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
             />
@@ -246,12 +268,16 @@ export function MenuItemModal({
 
           {/* Product Details */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
-              Product Details
-            </label>
+            <div className="flex justify-between items-end">
+              <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
+                Product Details
+              </label>
+              <span className="text-[11px] text-[#a2938a]">{description.length}/150</span>
+            </div>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              maxLength={150}
               placeholder="placeholder"
               rows={4}
               className="w-full resize-none rounded-[12px] border border-[#ddcdb8] bg-white px-4 py-3 text-[15px] leading-[22px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
@@ -276,6 +302,7 @@ export function MenuItemModal({
                 const val = e.target.value;
                 // Only allow numbers and a single decimal point with up to 2 decimal places
                 if (val === "" || /^\d*\.?\d{0,2}$/.test(val)) {
+                  if (val !== "" && parseFloat(val) > 99999.99) return;
                   setPrice(val);
                 }
               }}
@@ -286,9 +313,12 @@ export function MenuItemModal({
 
           {/* Add-ons Configuration */}
           <div className="flex flex-col gap-2 rounded-[12px] border border-[#ddcdb8] bg-[#fbf6ec] p-[16px]">
-            <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
-              Add-ons
-            </label>
+            <div className="flex justify-between items-end">
+              <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
+                Add-ons
+              </label>
+              <span className="text-[11px] text-[#a2938a]">{tempAddonName.length}/100</span>
+            </div>
             <p className="text-[12px] text-[#7a6a60] leading-snug">
               Define add-ons available specifically for this item (e.g. Extra Egg).
             </p>
@@ -318,6 +348,7 @@ export function MenuItemModal({
                   placeholder="New add-on name..."
                   value={tempAddonName}
                   onChange={(e) => setTempAddonName(e.target.value)}
+                  maxLength={50}
                   className="flex-1 min-w-0 rounded-[10px] border border-[#ddcdb8] bg-white px-3 py-2 text-[14px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
                 />
                 <input
@@ -328,6 +359,7 @@ export function MenuItemModal({
                   onChange={(e) => {
                     const val = e.target.value;
                     if (val === "" || /^\d*\.?\d{0,2}$/.test(val)) {
+                      if (val !== "" && parseFloat(val) > 9999.0) return;
                       setTempAddonPrice(val);
                     }
                   }}
@@ -372,8 +404,25 @@ export function MenuItemModal({
           {/* ──────────────────────────────────── Action buttons */}
           <div className="flex gap-[10px] pt-[6px]">
             <button
-              onClick={onClose}
-              className="flex flex-1 items-center justify-center rounded-[12px] border border-[#ddcdb8] bg-transparent p-[14px] transition-colors hover:bg-black/5"
+              onClick={() => {
+                if (!isProcessing) {
+                  // Explicitly reset form in case onClose doesn't trigger effect soon enough
+                  setName("");
+                  setPrice("");
+                  setCategory("");
+                  setDescription("");
+                  setAvailable(false);
+                  setImagePreview(null);
+                  setSelectedFile(null);
+                  setCategoryOpen(false);
+                  setNewAddOns([]);
+                  setTempAddonName("");
+                  setTempAddonPrice("");
+                  onClose();
+                }
+              }}
+              disabled={isProcessing}
+              className="flex flex-1 items-center justify-center rounded-[12px] border border-[#ddcdb8] bg-transparent p-[14px] transition-colors hover:bg-black/5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <span className="text-[14px] font-bold leading-none text-[#1a1210]">
                 Cancel
@@ -382,11 +431,12 @@ export function MenuItemModal({
             <button
               type="button"
               onClick={handleSave}
-              disabled={!name.trim() || !price || parseFloat(price) <= 0}
-              className="flex flex-1 items-center justify-center rounded-[12px] bg-[#e8541f] px-[14px] py-[15px] transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isProcessing || !name.trim() || !price || parseFloat(price) <= 0}
+              className="flex flex-1 items-center justify-center gap-2 rounded-[12px] bg-[#e8541f] px-[14px] py-[15px] transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
             >
+              {isProcessing && <Loader2 className="h-4 w-4 animate-spin text-white" />}
               <span className="text-[14px] font-bold leading-none text-white">
-                Add
+                {isProcessing ? "Saving..." : "Add"}
               </span>
             </button>
           </div>

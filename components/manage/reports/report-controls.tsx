@@ -122,7 +122,7 @@ export function ReportDateFilters({
       }
 
       if (result.error) {
-        alert(`Export failed: ${result.error}`);
+        console.error(`Export failed: ${result.error}`);
         return;
       }
 
@@ -136,7 +136,7 @@ export function ReportDateFilters({
         document.body.removeChild(link);
       }
     } catch (err) {
-      alert("Export failed. Please try again.");
+      console.error("Export failed. Please try again.");
     } finally {
       setIsExporting(false);
     }
@@ -161,8 +161,8 @@ export function ReportDateFilters({
 
       <button
         onClick={handleExport}
-        disabled={isExporting}
-        className="flex h-[50px] w-full md:w-auto items-center justify-center md:justify-start gap-[10px] rounded-[12px] bg-[#b8352a] px-[20px] text-[15px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+        disabled={isExporting || !startDate || !endDate || endDate < startDate}
+        className="flex h-[50px] w-full md:w-auto items-center justify-center md:justify-start gap-[10px] rounded-[12px] bg-[#b8352a] px-[20px] text-[15px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {isExporting ? (
           <Loader2 className="h-5 w-5 animate-spin" />

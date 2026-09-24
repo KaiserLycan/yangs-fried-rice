@@ -475,23 +475,45 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee }: E
 
           {/* Account status — only for an existing employee */}
           {isEditMode && (
-            <label className="flex items-center justify-between gap-3 rounded-[12px] border border-[#DDCDB8] bg-white p-[14px]">
-              <span className="flex flex-col">
-                <span className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase">
-                  Account
-                </span>
-                <span className="text-[13px] text-[#1A1210]">
-                  {isDisabled ? "Disabled — they can't sign in" : "Active"}
-                </span>
-              </span>
-              <input
-                type="checkbox"
-                checked={!isDisabled}
-                onChange={e => setIsDisabled(!e.target.checked)}
-                aria-label="Account active"
-                className="h-5 w-5 accent-[#E8541F]"
-              />
-            </label>
+            <div className="flex flex-col gap-1.5 w-full">
+              <label className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase">
+                Account Status
+              </label>
+              <div
+                role="radiogroup"
+                aria-label="Account status"
+                className="grid grid-cols-2 gap-[8px]"
+              >
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={!isDisabled}
+                  onClick={() => setIsDisabled(false)}
+                  className={cn(
+                    "rounded-[12px] border p-[14px] text-center text-[14px] font-bold transition-colors",
+                    !isDisabled
+                      ? "border-[#E8541F] bg-[#FAF5EB] text-[#1A1210]"
+                      : "border-[#DDCDB8] bg-white text-[#7A6A60] hover:bg-black/5"
+                  )}
+                >
+                  Active
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={isDisabled}
+                  onClick={() => setIsDisabled(true)}
+                  className={cn(
+                    "rounded-[12px] border p-[14px] text-center text-[14px] font-bold transition-colors",
+                    isDisabled
+                      ? "border-[#E8541F] bg-[#FAF5EB] text-[#1A1210]"
+                      : "border-[#DDCDB8] bg-white text-[#7A6A60] hover:bg-black/5"
+                  )}
+                >
+                  Inactive
+                </button>
+              </div>
+            </div>
           )}
 
           {/* Last Access Log */}
