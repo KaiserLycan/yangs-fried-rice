@@ -1,29 +1,19 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { render } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 import { WalletTabCloser } from "@/components/checkout/wallet-tab-closer";
+import { answerAsWatcher } from "@/lib/checkout/wallet-tab";
+
+const ORDER = "order-79";
 
 /**
  * Closing the wrong tab would be far worse than leaving a spare one open —
- * it would take the customer's own receipt away mid-payment. So every guard
- * gets its own case.
+ * it would take the customer's own receipt away while they are mid-payment.
+ * So every route to a close, and every route to staying put, gets a case.
  */
-function setup({
-  opener,
-}: {
-  opener: { closed: boolean } | null | "cross-origin";
-}) {
+function stubWindow({ opener }: { opener: { closed: boolean } | null }) {
   const close = vi.fn();
   vi.stubGlobal("close", close);
-  if (opener === "cross-origin") {
-    // Reading `.closed` on a cross-origin opener throws.
-    vi.stubGlobal("opener", {
-      get closed(): boolean {
-        throw new Error("cross-origin");
-      },
-    });
-  } else {
-    vi.stubGlobal("opener", opener);
-  }
+  vi.stubGlobal("opener", opener);
   return close;
 }
 
@@ -32,37 +22,68 @@ afterEach(() => {
 });
 
 describe("WalletTabCloser", () => {
-  it("closes the tab the payment happened in", () => {
-    const close = setup({ opener: { closed: false } });
-    render(<WalletTabCloser active />);
+  it("closes at once when the opener survived", () => {
+    const close = stubWindow({ opener: { closed: false } });
+    render(<WalletTabCloser active orderId={ORDER} />);
     expect(close).toHaveBeenCalled();
   });
 
-  it("leaves the tab alone when the URL does not say it is disposable", () => {
-    const close = setup({ opener: { closed: false } });
-    render(<WalletTabCloser active={false} />);
+  /**
+   * The case that matters in practice. A payment provider sending
+   * `Cross-Origin-Opener-Policy: same-origin` severs the opener for good,
+   * so the tab comes home unable to prove it was opened by us — and the
+   * first version of this component then refused to close, which is exactly
+   * what was reported.
+   */
+  it("closes when the opener is gone but another tab answers", async () => {
+    const close = stubWindow({ opener: null });
+    const stopWatching = answerAsWatcher(ORDER);
+
+    render(<WalletTabCloser active orderId={ORDER} />);
+
+    await waitFor(() => expect(close).toHaveBeenCalled());
+    stopWatching();
+  });
+
+  it("stays put when nobody is watching", async () => {
+    // The popup-blocked fallback: one tab, which is the customer's own.
+    const close = stubWindow({ opener: null });
+    render(<WalletTabCloser active orderId={ORDER} />);
+
+    await new Promise((resolve) => setTimeout(resolve, 800));
     expect(close).not.toHaveBeenCalled();
   });
 
-  it("leaves a tab the customer opened themselves alone", () => {
-    // No opener: not script-opened, so this is the customer's own tab — and
-    // the marker can only have come from a hand-crafted or shared URL.
-    const close = setup({ opener: null });
-    render(<WalletTabCloser active />);
+  it("stays put when the tab watching is a different order", async () => {
+    const close = stubWindow({ opener: null });
+    const stopWatching = answerAsWatcher("some-other-order");
+
+    render(<WalletTabCloser active orderId={ORDER} />);
+
+    await new Promise((resolve) => setTimeout(resolve, 800));
     expect(close).not.toHaveBeenCalled();
+    stopWatching();
   });
 
-  it("leaves the tab alone when the opener is already gone", () => {
-    // Nothing is watching for the payment any more, so this tab is the only
-    // place the customer can see what happened.
-    const close = setup({ opener: { closed: true } });
-    render(<WalletTabCloser active />);
+  it("stays put, and answers, when this is the customer's own receipt", async () => {
+    const close = stubWindow({ opener: { closed: false } });
+    render(<WalletTabCloser active={false} orderId={ORDER} />);
+
     expect(close).not.toHaveBeenCalled();
+
+    // It is now the watcher another tab can find.
+    const { anotherTabIsWatching } = await import("@/lib/checkout/wallet-tab");
+    await expect(anotherTabIsWatching(ORDER)).resolves.toBe(true);
   });
 
-  it("leaves the tab alone when the opener cannot be inspected", () => {
-    const close = setup({ opener: "cross-origin" });
-    render(<WalletTabCloser active />);
-    expect(close).not.toHaveBeenCalled();
+  it("stops answering once it is gone", async () => {
+    stubWindow({ opener: null });
+    const { unmount } = render(
+      <WalletTabCloser active={false} orderId={ORDER} />,
+    );
+    unmount();
+
+    const { anotherTabIsWatching } = await import("@/lib/checkout/wallet-tab");
+    await expect(anotherTabIsWatching(ORDER)).resolves.toBe(false);
   });
 });

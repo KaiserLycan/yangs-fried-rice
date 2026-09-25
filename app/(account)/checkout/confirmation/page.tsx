@@ -49,7 +49,10 @@ export default async function CheckoutConfirmationPage({
           customer's own tab is already watching the row. The receipt below
           still renders, so a browser that refuses to close leaves them on a
           usable page rather than a blank one. */}
-      <WalletTabCloser active={searchParams[WALLET_TAB_PARAM] === "1"} />
+      <WalletTabCloser
+        active={searchParams[WALLET_TAB_PARAM] === "1"}
+        orderId={order.orderId}
+      />
       <OrderPlacedScreen
         profile={profile}
         order={order}

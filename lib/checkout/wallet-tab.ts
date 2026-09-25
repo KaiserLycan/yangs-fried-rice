@@ -26,28 +26,115 @@
  * Marks the `return_url` a wallet tab comes back to, so the receipt that
  * loads there knows it is the throwaway tab rather than the customer's own.
  *
- * Only added when a tab was actually opened. The same-tab fallback must not
- * carry it — though the receipt checks `window.opener` before acting on it
- * anyway, and a tab the customer opened themselves has none.
+ * Only added when a tab was actually opened. It is never the sole reason a
+ * tab closes: something must also confirm that the customer has another tab
+ * to be returned to.
  */
 export const WALLET_TAB_PARAM = "wallet_tab";
 
 /**
- * Whether this document is the wallet tab, come back from PayMongo and safe
- * to close: it says so in the URL, and it has an opener that is still around
- * to be returned to.
+ * Whether this document still has the tab that opened it.
  *
- * `window.close()` only works on a script-opened window, which is exactly
- * what having an opener means here.
+ * This is the cheap check, not a reliable one. A payment provider that sends
+ * `Cross-Origin-Opener-Policy: same-origin` severs the opener permanently,
+ * so a tab that goes out to PayMongo and comes back can find
+ * `window.opener` null even though it really was script-opened. Hence the
+ * channel below.
  */
-export function isDisposableWalletTab(): boolean {
+export function hasLiveOpener(): boolean {
   if (typeof window === "undefined") return false;
   try {
     return Boolean(window.opener) && !window.opener.closed;
   } catch {
-    // A cross-origin opener throws on `.closed`. Not ours, so not disposable.
+    // A cross-origin opener throws on `.closed`. Not ours, so not ours to
+    // return to either.
     return false;
   }
+}
+
+/**
+ * How the two tabs find each other when the opener link is gone.
+ *
+ * The question that actually decides whether this tab may close is not "was
+ * I opened by a script" but "is another tab already watching this order" —
+ * and that one can be asked directly. The receipt the customer kept open
+ * answers; PayMongo's headers cannot interfere, because both tabs are on
+ * our own origin by the time it is asked.
+ *
+ * This also keeps the same-tab fallback safe without any special case: when
+ * the popup was blocked there is only ever one tab, nobody answers, and
+ * nothing closes.
+ */
+const CHANNEL = "yfr-wallet-payment";
+
+type Signal =
+  /** "Is anyone else watching this order?" — from the tab hoping to close. */
+  | { kind: "who-is-watching"; orderId: string }
+  /** "I am." — from the customer's own tab. */
+  | { kind: "watching"; orderId: string };
+
+function openChannel(): BroadcastChannel | null {
+  if (typeof window === "undefined" || typeof BroadcastChannel === "undefined") {
+    return null;
+  }
+  try {
+    return new BroadcastChannel(CHANNEL);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Answer, for as long as this tab is open, that it is watching `orderId`.
+ * Returns the teardown.
+ */
+export function answerAsWatcher(orderId: string): () => void {
+  const channel = openChannel();
+  if (!channel) return () => {};
+
+  channel.onmessage = (event: MessageEvent<Signal>) => {
+    if (
+      event.data?.kind === "who-is-watching" &&
+      event.data.orderId === orderId
+    ) {
+      channel.postMessage({ kind: "watching", orderId } satisfies Signal);
+    }
+  };
+
+  return () => channel.close();
+}
+
+/**
+ * Ask whether another tab is watching `orderId`, and resolve true if one
+ * says so within `timeoutMs`.
+ *
+ * Resolves false on silence rather than waiting, because silence is the
+ * answer that means "do not close" — the cautious direction.
+ */
+export function anotherTabIsWatching(
+  orderId: string,
+  timeoutMs = 600,
+): Promise<boolean> {
+  const channel = openChannel();
+  if (!channel) return Promise.resolve(false);
+
+  return new Promise<boolean>((resolve) => {
+    let settled = false;
+    const finish = (answer: boolean) => {
+      if (settled) return;
+      settled = true;
+      channel.close();
+      resolve(answer);
+    };
+
+    channel.onmessage = (event: MessageEvent<Signal>) => {
+      if (event.data?.kind === "watching" && event.data.orderId === orderId) {
+        finish(true);
+      }
+    };
+    channel.postMessage({ kind: "who-is-watching", orderId } satisfies Signal);
+    window.setTimeout(() => finish(false), timeoutMs);
+  });
 }
 
 /** What the empty tab shows for the moment before the wallet's page loads. */
