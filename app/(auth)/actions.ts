@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createSession, deleteSession } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -86,10 +87,21 @@ export async function registerCustomer(
 
   const supabase = createClient();
 
+  // Send the confirmation link back to the site the person signed up on
+  // (localhost or Vercel) instead of the dashboard's Site URL. Supabase only
+  // honours it if it matches Authentication → URL Configuration → Redirect URLs.
+  const requestHeaders = headers();
+  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
+  const protocol = requestHeaders.get("x-forwarded-proto") ?? "https";
+  const origin = requestHeaders.get("origin") ?? (host ? `${protocol}://${host}` : undefined);
+
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { name } },
+    options: {
+      data: { name },
+      ...(origin && { emailRedirectTo: `${origin}/login` }),
+    },
   });
 
   if (authError) {
