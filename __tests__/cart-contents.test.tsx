@@ -215,3 +215,53 @@ describe("CartLineRow writes", () => {
     expect(refresh).toHaveBeenCalled();
   });
 });
+
+/**
+ * Issue #106: "the quantity can go into the negatives if you click minus
+ * fast." The write was the only thing checking the lower bound, and it only
+ * ran 600ms after the last click — so until then the screen showed whatever
+ * had been clicked down to, with the line total going negative underneath.
+ * `isPending` was no defence: it only becomes true once the write starts.
+ */
+describe("CartLineRow lower bound", () => {
+  const single: CartLine[] = [
+    {
+      id: "1",
+      name: "Yangzhou Special",
+      unitPrice: 180,
+      quantity: 1,
+      specialInstructions: null,
+    },
+  ];
+
+  it("removes the line instead of showing zero", async () => {
+    renderCart(<CartContents lines={single} ctaLabel="Checkout" showEstimate />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Decrease quantity" }));
+
+    await waitFor(() => expect(removeCartItem).toHaveBeenCalledWith("1"));
+    expect(screen.queryByText("0")).toBeNull();
+  });
+
+  it("never renders a negative quantity or a negative total, however fast", async () => {
+    renderCart(<CartContents lines={single} ctaLabel="Checkout" showEstimate />);
+
+    const minus = screen.getByRole("button", { name: "Decrease quantity" });
+    for (let click = 0; click < 6; click += 1) fireEvent.click(minus);
+
+    expect(screen.queryByText("-1")).toBeNull();
+    expect(screen.queryByText("−1")).toBeNull();
+    // A negative line total would render with a minus before the peso sign.
+    expect(document.body.textContent).not.toMatch(/-\s*₱/);
+    expect(document.body.textContent).not.toMatch(/₱\s*-/);
+  });
+
+  it("does not send a quantity update for a line it is removing", async () => {
+    renderCart(<CartContents lines={single} ctaLabel="Checkout" showEstimate />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Decrease quantity" }));
+
+    await waitFor(() => expect(removeCartItem).toHaveBeenCalled());
+    expect(updateCartItem).not.toHaveBeenCalled();
+  });
+});
