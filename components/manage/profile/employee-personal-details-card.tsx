@@ -27,6 +27,7 @@ import { lengthProps } from "@/lib/validation/fields";
 import { earliestBirthdate, latestBirthdateForMinAge } from "@/lib/validation/date-of-birth";
 import { useToast } from "@/components/ui/toast";
 import { employeePersonalDetailsSchema } from "@/lib/validation/employee-profile";
+import { formatDateOfBirth } from "@/lib/profile/identity";
 
 export function EmployeePersonalDetailsCard({
   profile,
@@ -146,7 +147,7 @@ export function EmployeePersonalDetailsCard({
           </CardField>
           <CardField label="Date of birth">
             <CardValue
-              value={profile.dateOfBirth || ""}
+              value={profile.dateOfBirth ? formatDateOfBirth(profile.dateOfBirth) : ""}
               emptyState="Not added yet"
             />
           </CardField>
