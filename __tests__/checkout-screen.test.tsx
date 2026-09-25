@@ -12,9 +12,10 @@ import {
 
 const push = vi.fn();
 const refresh = vi.fn();
+const replace = vi.fn();
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push, refresh }),
+  useRouter: () => ({ push, refresh, replace }),
 }));
 
 vi.mock("@/lib/actions/cart", () => ({
@@ -419,6 +420,47 @@ describe("Checkout online payment", () => {
     // a cart that is already locked.
     const [button] = screen.getAllByRole("button", { name: /Opening wallet/ });
     expect(button).toBeDisabled();
+  });
+
+  /**
+   * The wallet's page does not always send the customer back. PayMongo
+   * answers an expired or already-consumed source with its own error page,
+   * which never honours `return_url`, so Back is the only way home — and
+   * Back restores this screen from the back/forward cache, server untouched.
+   *
+   * Issue #106: that left the customer looking at the summary they had
+   * already submitted, with no route to the order or to cash on delivery.
+   */
+  it("sends the customer to the receipt when Back restores this page from the wallet", async () => {
+    vi.mocked(submitCart).mockResolvedValue(placedOrder);
+    vi.mocked(startWalletPayment).mockResolvedValue({
+      kind: "redirect",
+      url: "https://gcash.test/pay",
+    });
+    renderCheckout();
+    chooseWallet("Maya");
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Place order/ })[0]);
+    await waitFor(() => expect(assign).toHaveBeenCalled());
+
+    fireEvent(window, new PageTransitionEvent("pageshow", { persisted: true }));
+
+    // `replace`, not `push`: Back from the receipt must not land here and
+    // bounce them forward again.
+    await waitFor(() =>
+      expect(replace).toHaveBeenCalledWith(
+        "/checkout/confirmation?order=order-79&pay=paymaya",
+      ),
+    );
+  });
+
+  it("only refreshes on a cached restore that did not come from a wallet", async () => {
+    renderCheckout();
+
+    fireEvent(window, new PageTransitionEvent("pageshow", { persisted: true }));
+
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+    expect(replace).not.toHaveBeenCalled();
   });
 
   it("still opens the receipt, with the wallet named and the failure flagged, when the payment cannot start", async () => {

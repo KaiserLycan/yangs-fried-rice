@@ -66,13 +66,35 @@ export function OrderSummaryCard({
   // press would submit a cart that is already locked.
   const [redirecting, setRedirecting] = React.useState(false);
 
-  // Back from the wallet page can restore this screen from the browser's
-  // cache with the button still disabled. `pageshow` + `persisted` is that
-  // case; the cart behind it is locked by then, so a refresh shows the
-  // empty state rather than a stale summary.
+  // Where to send the customer if they come back from the wallet. Set just
+  // before the browser leaves for PayMongo, and read on the way back in.
+  // A ref, not state: the back/forward cache restores this page's JavaScript
+  // heap intact, so whatever was written here survives the round trip.
+  const walletReceipt = React.useRef<string | null>(null);
+
+  // Back from the wallet page restores this screen from the browser's cache:
+  // same DOM, same state, button still disabled, and — because nothing was
+  // re-requested — no idea that an order now exists.
+  //
+  // `router.refresh()` alone is not enough. The checkout route redirects an
+  // unpaid order to its receipt, but a `redirect()` raised inside a Server
+  // Component during a refresh does not reliably navigate; the payload comes
+  // back and the page stays put. That left a customer whose payment failed
+  // looking at the summary they had already submitted, with no way to reach
+  // the order or to switch it to cash on delivery (issue #106).
+  //
+  // So this does not ask the server where to go. It already knows: the order
+  // id came back from `submitCart` before the browser ever left.
   React.useEffect(() => {
     const onPageShow = (event: PageTransitionEvent) => {
       if (!event.persisted) return;
+      const receipt = walletReceipt.current;
+      if (receipt) {
+        // `replace`, so Back from the receipt does not come straight back
+        // here and bounce them forward again.
+        router.replace(receipt);
+        return;
+      }
       setRedirecting(false);
       router.refresh();
     };
@@ -160,6 +182,11 @@ export function OrderSummaryCard({
           });
           if (start.kind === "redirect") {
             setRedirecting(true);
+            // Remembered before leaving: the wallet's page may never come
+            // back on its own (PayMongo serves its own "source has expired"
+            // dead end instead of honouring return_url), so Back is the
+            // customer's way home and this is where it leads.
+            walletReceipt.current = receiptForWallet;
             window.location.assign(start.url);
           } else {
             router.push(receiptForWallet);
