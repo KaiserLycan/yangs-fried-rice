@@ -5,6 +5,8 @@ import {
   formatTotal,
   isPast,
   isPickup,
+  isUnpaid,
+  payUrlFor,
   outcomeOf,
   primaryActionOf,
   summariseItems,
@@ -212,5 +214,61 @@ describe("totalOf", () => {
 describe("formatTotal", () => {
   it("writes whole pesos, matching every other price in the flow", () => {
     expect(formatTotal(545)).toBe("₱545");
+  });
+});
+
+/**
+ * A wallet order whose payment never landed sits in the history like any
+ * other order, but it is neither finished nor trackable: the kitchen has
+ * not been told about it. Issue #106 — the customer needs a way back to
+ * paying for it, and the only one they had was knowing to type /checkout.
+ */
+describe("an order nobody has paid for yet", () => {
+  const unpaid = (status: string) =>
+    order({ orderStatus: status, deliveryStatus: null, rating: null });
+
+  it("is not filed as finished", () => {
+    expect(isPast(unpaid("awaiting_payment"))).toBe(false);
+    expect(isPast(unpaid("payment_failed"))).toBe(false);
+  });
+
+  it("is recognised as unpaid", () => {
+    expect(isUnpaid(unpaid("awaiting_payment"))).toBe(true);
+    expect(isUnpaid(unpaid("payment_failed"))).toBe(true);
+    expect(isUnpaid(order())).toBe(false);
+  });
+
+  it("says which of the two unpaid states it is in", () => {
+    expect(outcomeOf(unpaid("awaiting_payment"))).toEqual({
+      label: "Waiting for payment",
+      tone: "muted",
+    });
+    expect(outcomeOf(unpaid("payment_failed"))).toEqual({
+      label: "Payment failed",
+      tone: "muted",
+    });
+  });
+
+  it("offers paying, never tracking", () => {
+    // A Track link would point at a timeline for food the kitchen has not
+    // been told about.
+    expect(primaryActionOf(unpaid("awaiting_payment"))).toBe("pay");
+    expect(primaryActionOf(unpaid("payment_failed"))).toBe("pay");
+  });
+
+  it("sends the customer to the receipt it was placed on", () => {
+    expect(payUrlFor(unpaid("payment_failed"))).toBe(
+      "/checkout/confirmation?order=00000000-0000-0000-0000-000000001042",
+    );
+  });
+
+  it("cannot be rated", () => {
+    expect(canRate(unpaid("awaiting_payment"))).toBe(false);
+  });
+
+  it("leaves a paid order's action alone", () => {
+    expect(primaryActionOf(order({ rating: null }))).toBe("rate");
+    expect(primaryActionOf(order({ rating: 5 }))).toBe("reorder");
+    expect(primaryActionOf(order({ orderStatus: "preparing", deliveryStatus: null }))).toBe("track");
   });
 });

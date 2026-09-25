@@ -329,6 +329,70 @@ describe("OrderPlacedScreen online payment", () => {
     );
   });
 
+  /**
+   * jsdom's `window.open` returns null, so the test above exercises the
+   * popup-blocked fallback. This one stands a tab in for the real thing.
+   */
+  it("opens the wallet in its own tab and stays on the receipt", async () => {
+    const assign = vi.fn();
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { origin: "https://yangs.test", assign },
+    });
+    const tab = {
+      closed: false,
+      location: { href: "" },
+      focus: vi.fn(),
+      close: vi.fn(),
+      document: { write: vi.fn(), close: vi.fn() },
+    };
+    vi.stubGlobal("open", vi.fn(() => tab));
+    vi.mocked(startWalletPayment).mockResolvedValue({
+      kind: "redirect",
+      url: "https://gcash.test/pay",
+    });
+    renderScreen(walletOrder("failed"), "gcash");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Try again with GCash" }),
+    );
+
+    await waitFor(() => expect(tab.location.href).toBe("https://gcash.test/pay"));
+    // This tab keeps watching rather than being handed over.
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The card used to stop watching as soon as a payment failed — only a
+   * Realtime event could revive it. With the wallet in its own tab that is
+   * exactly the case that matters: the customer pays over there and comes
+   * back to find "Try again with GCash" on an order already paid for.
+   */
+  it("notices a payment that succeeded in the other tab", async () => {
+    renderScreen(walletOrder("failed"), "gcash");
+    expect(
+      screen.getByRole("button", { name: "Try again with GCash" }),
+    ).toBeInTheDocument();
+
+    // The webhook lands while the customer is on the wallet's tab.
+    select.mockResolvedValue({ data: [{ payment_status: "paid" }] });
+
+    // Coming back to this tab is what triggers the re-read.
+    await act(async () => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    await waitFor(() =>
+      expect(screen.getByText("Payment received — thank you.")).toBeInTheDocument(),
+    );
+    expect(
+      screen.queryByRole("button", { name: /Try again with/ }),
+    ).toBeNull();
+    // The page around the card was rendered from the pre-payment order
+    // status, so it has to be asked again before the Track link can appear.
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+  });
+
   it("shows the reason when the payment cannot be restarted", async () => {
     vi.mocked(startWalletPayment).mockRejectedValue(
       new Error("This order has already been paid."),

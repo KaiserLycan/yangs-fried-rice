@@ -1,12 +1,14 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/toast";
 import {
   WALLET_PROVIDERS,
   type WalletProvider,
 } from "@/lib/checkout/payment-methods";
 import { startWalletPayment } from "@/lib/checkout/paymongo";
+import { openWalletTab } from "@/lib/checkout/wallet-tab";
 import {
   foldPaymentStatus,
   type PaymentStatus,
@@ -63,6 +65,7 @@ export function PaymentStatusCard({
    * by the time this screen mounts, so the receipt says so instead. */
   startFailed?: boolean;
 }) {
+  const router = useRouter();
   const showToast = useToast();
   const [status, setStatus] = React.useState(initialStatus);
   const [starting, setStarting] = React.useState<WalletProvider | null>(null);
@@ -98,28 +101,63 @@ export function PaymentStatusCard({
     };
   }, [orderId, reread]);
 
+  // Watch until the money has actually moved — not only while the row says
+  // "pending". A failed attempt used to end the watch, which was wrong the
+  // moment the wallet moved into its own tab: the customer pays over there,
+  // the webhook writes `paid`, and this tab would sit on "Try again with
+  // GCash" for an order that is already paid for. Realtime alone cannot be
+  // relied on, since nothing here can check that `transaction` is published.
+  const settled = status === "paid" || status === "refunded";
+
   React.useEffect(() => {
-    if (status !== "pending") {
+    if (settled) {
       setStalePending(false);
       return;
     }
 
     const timer = window.setInterval(() => void reread(), POLL_MS);
-    const grace = window.setTimeout(
-      () => setStalePending(true),
-      PENDING_GRACE_MS,
-    );
+    // Coming back to this tab is the strongest hint that something happened
+    // in the other one, so it re-reads immediately rather than waiting out
+    // the interval.
     const onVisible = () => {
       if (document.visibilityState === "visible") void reread();
     };
     document.addEventListener("visibilitychange", onVisible);
+
+    // The grace period is only about a *pending* row: it stops a second
+    // intent being started on top of a payment that is still going through.
+    // A failed or missing row has nothing in flight to protect.
+    if (status !== "pending") {
+      setStalePending(false);
+      return () => {
+        window.clearInterval(timer);
+        document.removeEventListener("visibilitychange", onVisible);
+      };
+    }
+
+    const grace = window.setTimeout(
+      () => setStalePending(true),
+      PENDING_GRACE_MS,
+    );
 
     return () => {
       window.clearInterval(timer);
       window.clearTimeout(grace);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [status, reread]);
+  }, [status, settled, reread]);
+
+  // Everything around this card is server-rendered from `order.order_status`
+  // — whether the order can be tracked, and whether "switch to cash on
+  // delivery" is offered. Those were decided before the payment landed, so
+  // the moment it does, the page behind this card is out of date and has to
+  // be asked again. Once only: `settled` stays true afterwards.
+  const alreadyRefreshed = React.useRef(false);
+  React.useEffect(() => {
+    if (!settled || alreadyRefreshed.current) return;
+    alreadyRefreshed.current = true;
+    router.refresh();
+  }, [settled, router]);
 
   // Coming *back* from the wallet page with the browser's Back button can
   // restore this page from cache exactly as it was left — buttons disabled,
@@ -136,6 +174,10 @@ export function PaymentStatusCard({
   }, [reread]);
 
   async function payWith(provider: WalletProvider) {
+    // Opened first, synchronously inside the click: a popup asked for after
+    // the awaits below is one the browser blocks. Empty until there is a
+    // wallet page to point it at.
+    const walletTab = openWalletTab();
     setStarting(provider);
     try {
       const start = await startWalletPayment({
@@ -143,16 +185,28 @@ export function PaymentStatusCard({
         wallet: provider,
         returnUrl: `${window.location.origin}/checkout/confirmation?order=${orderId}&pay=${provider}`,
       });
+
       if (start.kind === "redirect") {
-        // Deliberately left `starting` set: the page is on its way to the
-        // wallet, and a button that woke up during the hand-off could start
-        // a second intent on the same pending row.
+        if (walletTab?.send(start.url)) {
+          // This tab stays put and keeps watching. `create-payment-intent`
+          // has already written the pending row, so re-reading now flips the
+          // card to "waiting" and withdraws the buttons — which is what
+          // stops a second intent being started on top of this one.
+          setStarting(null);
+          void reread();
+          return;
+        }
+        // Popup blocked. Fall back to giving up this tab, and leave
+        // `starting` set so no button wakes up during the hand-off.
         window.location.assign(start.url);
         return;
       }
+
+      walletTab?.close();
       setStatus(start.kind === "paid" ? "paid" : "pending");
       setStarting(null);
     } catch (error) {
+      walletTab?.close();
       showToast(
         error instanceof Error ? error.message : "Couldn’t start the payment.",
       );
