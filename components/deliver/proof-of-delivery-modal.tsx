@@ -105,6 +105,14 @@ export function ProofOfDeliveryModal({
 
   const displayItems = deliverySummary?.items ?? [];
 
+  // A cash-on-delivery run is not finished until the rider has the money.
+  // "Complete delivery" used to be clickable with the box unticked, so an
+  // order could be marked delivered without anyone confirming the cash was
+  // handed over (issue #106). The server enforces the same rule — this only
+  // saves the rider a round trip.
+  const isCOD = deliverySummary?.paymentMethod === "cash_on_delivery";
+  const cashOutstanding = isCOD && !isCashCollected;
+
   return (
     <dialog
       ref={dialogRef}
@@ -183,7 +191,7 @@ export function ProofOfDeliveryModal({
                 />
               </div>
 
-              {deliverySummary?.paymentMethod === "cash_on_delivery" && (
+              {isCOD && (
                 <label className="flex items-center gap-3 cursor-pointer group">
                   <div className={`w-6 h-6 rounded-[6px] border-2 flex items-center justify-center transition-colors ${isCashCollected ? 'bg-[#E8541F] border-[#E8541F]' : 'border-[#DDCDB8] bg-white group-hover:border-[#E8541F]'}`}>
                     {isCashCollected && <Check className="w-4 h-4 text-white" strokeWidth={3} />}
@@ -207,7 +215,7 @@ export function ProofOfDeliveryModal({
                 <Button
                   className="w-full py-6 text-[16px] bg-[#1A1210] hover:bg-[#2c1f1c] text-white"
                   onClick={handleComplete}
-                  disabled={!proofPreview || isSubmitting}
+                  disabled={!proofPreview || isSubmitting || cashOutstanding}
                 >
                   {isSubmitting ? (
                     <>
@@ -217,6 +225,11 @@ export function ProofOfDeliveryModal({
                     "Complete delivery"
                   )}
                 </Button>
+                {cashOutstanding && (
+                  <p className="pt-2 text-center text-[13px] text-[#7A6A60]">
+                    Confirm the cash payment before completing this delivery.
+                  </p>
+                )}
               </div>
             </>
           )}
