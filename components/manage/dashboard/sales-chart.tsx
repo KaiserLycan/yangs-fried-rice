@@ -35,11 +35,25 @@ const BAR_COLOR_HIGHLIGHT = "#8c1c13";
 
 /**
  * Custom label renderer — positions the ₱-formatted value above each bar.
+ *
+ * Hidden below `md`. Seven peso amounts across a phone-width chart do not
+ * fit: they collide with their neighbours and read as one smear (issue
+ * #106). Done with `display` rather than by measuring the container, so
+ * there is no breakpoint to track in JavaScript and nothing that can render
+ * differently on the server than in the browser. `display` applies to SVG
+ * the same way it applies to anything else.
+ *
+ * The bars keep their day labels and their relative heights, which is what
+ * the chart is for at that size; the exact figures are a tap away on the
+ * dashboard's own counters.
+ *
+ * Exported for the test — the chart itself needs a measured container that
+ * jsdom will not give it.
  */
 // Recharts v2 LabelList `content` typing is overly strict — the actual
 // runtime props are a loose bag of values. A typed wrapper would fight the
 // library more than it helps, so we accept `any` here.
-function renderValueLabel(props: any) {
+export function renderValueLabel(props: any) {
   const { x = 0, y = 0, width = 0, value } = props as {
     x?: number;
     y?: number;
@@ -51,7 +65,7 @@ function renderValueLabel(props: any) {
       x={Number(x) + Number(width) / 2}
       y={Number(y) - 8}
       textAnchor="middle"
-      className="fill-[#8c1c13] text-[11px] font-bold"
+      className="hidden fill-[#8c1c13] text-[11px] font-bold md:block"
       style={{ fontFamily: "var(--font-sans)", fontWeight: 700 }}
     >
       {value}
