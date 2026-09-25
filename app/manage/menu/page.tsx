@@ -140,13 +140,15 @@ function ManageMenuInner() {
 
     setIsProcessing(true);
     const res = await deleteCategory(cat.category_id);
-    if (res.error) showToast(`Failed: ${res.error}`);
-    else {
+    setIsProcessing(false);
+    
+    if (res.error) {
+      return res.error;
+    } else {
       showToast("Category deleted.");
       await loadData();
       if (selectedCategory === categoryName) setSelectedCategory("All");
     }
-    setIsProcessing(false);
   };
 
   // --- Product CRUD ---
@@ -342,6 +344,7 @@ function ManageMenuInner() {
         onClose={() => setIsAddModalOpen(false)}
         onSave={handleSaveProduct}
         categories={categoryStrings}
+        isProcessing={isProcessing}
       />
 
       {selectedItem && (

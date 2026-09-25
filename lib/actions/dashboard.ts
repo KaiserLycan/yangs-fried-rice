@@ -168,21 +168,34 @@ export async function getWeeklySales(branchId?: string): Promise<DailySales[]> {
   return results;
 }
 
-/**
- * Get top sellers for the last 7 days and today.
- */
-export async function getTopSellers(branchId?: string): Promise<RankedProduct[]> {
+export async function getTopSellers(
+  branchId?: string,
+  startDate?: string,
+  endDate?: string
+): Promise<RankedProduct[]> {
   const supabase = createClient();
   const now = new Date();
   
-  const sevenDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
-  sevenDaysAgo.setHours(0, 0, 0, 0);
+  let start = startDate;
+  let end = endDate;
 
-  const { data: orders } = await supabase
+  if (!start) {
+    const sevenDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+    start = sevenDaysAgo.toISOString();
+  }
+
+  let query = supabase
     .from("order")
     .select("order_id")
-    .gte("created_at", sevenDaysAgo.toISOString())
+    .gte("created_at", start)
     .neq("order_status", "cancelled");
+
+  if (end) {
+    query = query.lte("created_at", end);
+  }
+
+  const { data: orders } = await query;
 
   if (!orders || orders.length === 0) return [];
   
