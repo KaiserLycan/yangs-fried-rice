@@ -842,10 +842,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      current_employee_role: { Args: never; Returns: string }
       get_customer_order_history: {
         Args: { p_customer_id: string }
         Returns: Json
       }
+      is_menu_manager: { Args: never; Returns: boolean }
       submit_direct_product_review: {
         Args: { p_comment?: string; p_product_id: string; p_rating: number }
         Returns: Json
