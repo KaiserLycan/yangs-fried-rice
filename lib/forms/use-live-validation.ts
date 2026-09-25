@@ -176,13 +176,55 @@ export function useValidatedValues<Values>(
     setServerErrorsState({});
   }, []);
 
+  const attemptSubmit = React.useCallback(() => setSubmitAttempted(true), []);
+
+  /**
+   * Stable across renders, and a no-op when nothing actually changed.
+   *
+   * Both halves matter. This used to be an inline arrow in the returned
+   * object, so every render handed callers a new function — and a caller
+   * that mirrors a prop into here, as the employee modal does:
+   *
+   *     useEffect(() => { setServerErrors(serverErrors); },
+   *               [serverErrors, setServerErrors]);
+   *
+   * saw its dependency change on every render. Effect runs, state is set,
+   * component re-renders, a new function appears, effect runs again:
+   * "Maximum update depth exceeded", and the render loop pegs the main
+   * thread. The page still paints, so it looks fine — but nothing responds
+   * to a click, including navigation elsewhere on the screen, because React
+   * never gets an idle moment to process the event. That was reported as
+   * "the sidebar doesn't work on /manage/employee".
+   *
+   * The equality check is the second half: `next ?? {}` produced a brand new
+   * empty object each call, so even a stable function would have re-rendered
+   * every consumer that passes null.
+   */
+  const setServerErrors = React.useCallback(
+    (next: FieldErrors | null | undefined) => {
+      setServerErrorsState((prev) => {
+        const incoming = next ?? {};
+        const prevKeys = Object.keys(prev);
+        const nextKeys = Object.keys(incoming);
+        if (
+          prevKeys.length === nextKeys.length &&
+          prevKeys.every((key) => prev[key] === incoming[key])
+        ) {
+          return prev;
+        }
+        return incoming;
+      });
+    },
+    [],
+  );
+
   return {
     errors,
     isValid: result.success && Object.keys(serverErrors).length === 0,
     parsed: result.success ? result.data : null,
     touch,
-    attemptSubmit: () => setSubmitAttempted(true),
-    setServerErrors: (next: FieldErrors | null | undefined) => setServerErrorsState(next ?? {}),
+    attemptSubmit,
+    setServerErrors,
     reset,
   };
 }

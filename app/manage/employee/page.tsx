@@ -8,7 +8,7 @@ import { EmployeeModal } from "@/components/manage/employee/employee-modal";
 import { useDebounce } from "@/lib/hooks/use-debounce";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useToast, ToastProvider } from "@/components/ui/toast";
+import { useToast } from "@/components/ui/toast";
 import { Tooltip } from "@/components/ui/tooltip";
 import { SHORTCUTS, useShortcut } from "@/lib/hooks/use-shortcut";
 import type { FieldErrors } from "@/lib/validation/field-errors";
@@ -43,11 +43,11 @@ const ROLES = ["All Roles", "Manager", "Staff", "Delivery"];
 
 // 1. Wrapper component to provide the Toast context
 export default function ManageEmployeePage() {
-  return (
-    <ToastProvider>
-      <ManageEmployeeInner />
-    </ToastProvider>
-  );
+  // No ToastProvider here: the root layout already mounts one. A second,
+  // nested provider gives this page its own toast list and its own live
+  // region, so toasts raised here stack in a different place from every
+  // other screen's.
+  return <ManageEmployeeInner />;
 }
 
 // 2. The inner component that handles data logic
