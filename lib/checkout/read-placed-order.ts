@@ -32,7 +32,7 @@ export async function readPlacedOrder(
   // this filter is what actually prevents that.
   const { data: order } = await supabase
     .from("order")
-    .select("order_id, order_type, created_at, delivery_address")
+    .select("order_id, order_type, order_status, created_at, delivery_address")
     .eq("order_id", orderId)
     .eq("customer_id", user.id)
     .maybeSingle();
@@ -84,7 +84,25 @@ export async function readPlacedOrder(
     })),
     paymentMethodLabel: paymentLabelFor(transaction.data?.[0]?.payment_method),
     paymentStatus: foldPaymentStatus(transaction.data ?? []),
+    isWalletOrder: isWalletMethod(transaction.data?.[0]?.payment_method),
+    orderStatus: order.order_status,
   };
+}
+
+/**
+ * Does this transaction row describe a wallet payment?
+ *
+ * `submitCart` writes "paymongo" for a wallet order and
+ * `create-payment-intent` writes the same, so that is the value in practice.
+ * "gcash" and "paymaya" are accepted too because `payment_method` is free
+ * text and older rows may name the wallet rather than the gateway — reading
+ * one of those as a cash order would hand the customer a Track link for
+ * food nobody has paid for.
+ */
+function isWalletMethod(stored: string | null | undefined): boolean {
+  if (!stored) return false;
+  const folded = stored.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return folded === "paymongo" || folded === "gcash" || folded === "paymaya";
 }
 
 /**
@@ -116,8 +134,9 @@ function fulfilmentFromOrderType(orderType: string | null): Fulfilment {
  * which wallet was used — the intent allows any of them. It is shown as the
  * option the customer picked.
  *
- * TODO (Backend): `submitCart` records no payment method for cash on
- * delivery or pay in store, so those orders read "Not recorded" here.
+ * `submitCart` now records the method the customer actually picked, so cash
+ * on delivery and pay in store label themselves. Rows written before that
+ * change may still read "Not recorded".
  */
 function paymentLabelFor(stored: string | null | undefined): string {
   if (!stored) return "Not recorded";

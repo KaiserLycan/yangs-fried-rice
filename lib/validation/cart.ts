@@ -58,6 +58,25 @@ export const submitCartSchema = z.object({
     .max(500, { message: "delivery_address cannot exceed 500 characters" })
     .nullable()
     .optional(),
+  /**
+   * How the customer said they would pay. This decides whether the new order
+   * is fit to cook: a wallet order is held at `awaiting_payment` until
+   * PayMongo confirms, while cash on delivery and pay in store are `pending`
+   * straight away because the money is collected later by design.
+   *
+   * The ids match `PAYMENT_METHODS` in `lib/checkout/payment-methods.ts`.
+   * Defaulting to cash on delivery keeps older callers that send no method
+   * behaving exactly as they did before.
+   */
+  payment_method: z
+    .enum(["wallet", "cash-on-delivery", "pay-in-store"], {
+      errorMap: () => ({
+        message:
+          "payment_method must be wallet, cash-on-delivery, or pay-in-store",
+      }),
+    })
+    .optional()
+    .default("cash-on-delivery"),
 });
 
 export const cancelOrderSchema = z.object({

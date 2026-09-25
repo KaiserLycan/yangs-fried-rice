@@ -293,6 +293,10 @@ describe("Checkout place order", () => {
         order_type: "take_out",
         delivery_fee: 0,
         delivery_address: "21 Mabini St, Malate, Manila",
+        // The picker's default. Tells `submitCart` the order is payable on
+        // collection, so it is `pending` and cookable straight away rather
+        // than held at `awaiting_payment` like a wallet order.
+        payment_method: "cash-on-delivery",
       }),
     );
     await waitFor(() =>
@@ -393,6 +397,14 @@ describe("Checkout online payment", () => {
 
     fireEvent.click(screen.getAllByRole("button", { name: /Place order/ })[0]);
 
+    // The order must be created as a wallet order, which is what holds it at
+    // `awaiting_payment` so the kitchen never sees a payment that is
+    // abandoned or refused (issue #106).
+    await waitFor(() =>
+      expect(submitCart).toHaveBeenCalledWith(
+        expect.objectContaining({ payment_method: "wallet" }),
+      ),
+    );
     await waitFor(() =>
       expect(startWalletPayment).toHaveBeenCalledWith({
         orderId: "order-79",

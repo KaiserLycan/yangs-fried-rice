@@ -87,12 +87,15 @@ export function OrderSummaryCard({
   //
   // What happens next depends on how they said they'd pay:
   //
-  //   - Cash on delivery / Pay in store: straight to the receipt at
-  //     `/checkout/confirmation?order=`. Nothing is charged.
-  //   - GCash / Maya: the order exists, so start the online payment and send
-  //     them to the wallet's page. If that start fails they still land on
-  //     the receipt — the order is real and must not vanish — with `?pay=`
-  //     naming the wallet so the receipt can offer "Pay now".
+  //   - Cash on delivery / Pay in store: the order is `pending` and straight
+  //     to the receipt at `/checkout/confirmation?order=`. Nothing is charged
+  //     now, but these are collected later by design.
+  //   - GCash / Maya: the order is created held at `awaiting_payment`, so it
+  //     is out of the kitchen's sight until PayMongo's webhook says the money
+  //     arrived. Start the online payment and send them to the wallet's page.
+  //     If that start fails they still land on the receipt — the order is
+  //     real and must not vanish — with `?pay=` naming the wallet so the
+  //     receipt can offer "Pay now" or a switch to cash on delivery.
   //   - Card: refused before any order is created. There is no card form
   //     yet, and locking a cart behind an order nobody can pay for would be
   //     worse than a toast. A wallet on a site with no PayMongo key is
@@ -118,6 +121,16 @@ export function OrderSummaryCard({
       return;
     }
 
+    // `card` is refused above, so only the three the action accepts remain.
+    // Spelled out rather than cast so adding a fifth method fails to compile
+    // here instead of silently arriving as cash on delivery.
+    const chosenMethod: "wallet" | "cash-on-delivery" | "pay-in-store" =
+      paymentMethod === "wallet"
+        ? "wallet"
+        : paymentMethod === "pay-in-store"
+          ? "pay-in-store"
+          : "cash-on-delivery";
+
     run(
       () =>
         submitCart({
@@ -125,6 +138,10 @@ export function OrderSummaryCard({
           order_type: orderTypeFor(fulfilment),
           delivery_fee: totals.deliveryFee,
           delivery_address: address ?? undefined,
+          // Decides whether the order is cookable on arrival. A wallet order
+          // is held at `awaiting_payment` until PayMongo confirms, so the
+          // kitchen never sees a payment that was abandoned or refused.
+          payment_method: chosenMethod,
         }),
       async ({ order_id }) => {
         const receipt = `/checkout/confirmation?order=${order_id}`;

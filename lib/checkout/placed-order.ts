@@ -23,6 +23,18 @@ export type PlacedOrder = {
   lines: CartLine[];
   /** "Cash on delivery" — what they chose, not what was charged. */
   paymentMethodLabel: string;
+  /**
+   * Whether this order is waiting on a wallet payment, as opposed to one of
+   * the pay-later methods.
+   *
+   * The label above cannot answer this: a cash-on-delivery order and an
+   * unpaid GCash order both sit at `payment_status: "pending"`, and the
+   * receipt has to treat them completely differently — one may be tracked,
+   * the other must not be until the money lands (issue #106).
+   */
+  isWalletOrder: boolean;
+  /** The order's own status, so the receipt can tell "held" from "live". */
+  orderStatus: string | null;
   /** Where an online payment stands. Null when nothing was ever charged —
    * every pay-on-collection order, and a wallet order whose payment never
    * started. */

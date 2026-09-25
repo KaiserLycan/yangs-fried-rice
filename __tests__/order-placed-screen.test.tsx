@@ -41,6 +41,17 @@ vi.mock("@/lib/checkout/paymongo", () => ({
   startWalletPayment: vi.fn(),
 }));
 
+// An unpaid wallet order draws "Switch to Cash on Delivery", which refreshes
+// the route on success. There is no app router in this environment.
+const refresh = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh, push: vi.fn() }),
+}));
+
+vi.mock("@/lib/actions/cart", () => ({
+  switchOrderToCashOnDelivery: vi.fn(),
+}));
+
 beforeEach(() => {
   select.mockResolvedValue({ data: [] });
 });
@@ -82,6 +93,10 @@ const order = (overrides: Partial<PlacedOrder> = {}): PlacedOrder => ({
   fulfilment: "delivery",
   paymentMethodLabel: "Cash on delivery",
   paymentStatus: null,
+  // The default fixture is a cash-on-delivery order: it tracks immediately,
+  // which is what every pre-existing test here expects.
+  isWalletOrder: false,
+  orderStatus: "pending",
   lines: [
     {
       id: "1",
@@ -119,7 +134,19 @@ function renderScreen(
 }
 
 const walletOrder = (status: PlacedOrder["paymentStatus"]) =>
-  order({ paymentMethodLabel: "GCash / Maya wallet", paymentStatus: status });
+  order({
+    paymentMethodLabel: "GCash / Maya wallet",
+    paymentStatus: status,
+    isWalletOrder: true,
+    // The order status the webhook would have left behind for this payment.
+    // Paid releases the order into the kitchen queue; anything else holds it.
+    orderStatus:
+      status === "paid" || status === "refunded"
+        ? "pending"
+        : status === "failed"
+          ? "payment_failed"
+          : "awaiting_payment",
+  });
 
 describe("OrderPlacedScreen", () => {
   it("says the order was placed and shows its number", () => {
@@ -336,5 +363,75 @@ describe("OrderPlacedScreen online payment", () => {
       ),
     );
     expect(screen.queryByRole("button", { name: /pay now/i })).toBeNull();
+  });
+});
+
+/**
+ * Issue #106, comment 3: "When online payment fails, Order should not be able
+ * to proceed to tracking and should remain in cart until payment becomes
+ * successful or is switched to CoD."
+ *
+ * The receipt is the visible half of that. The invisible half — the order
+ * being held out of the kitchen and rider queues at `awaiting_payment` — is
+ * `submitCart`'s and the webhook's job.
+ */
+describe("OrderPlacedScreen tracking gate", () => {
+  const trackLink = () =>
+    screen.queryByRole("link", { name: "Track this order" });
+
+  it("withholds tracking when the wallet payment failed", () => {
+    renderScreen(walletOrder("failed"));
+    expect(trackLink()).toBeNull();
+    expect(screen.getByTestId("tracking-blocked")).toHaveTextContent(
+      /complete payment to track your order/i,
+    );
+  });
+
+  it("withholds tracking when the wallet payment never started", () => {
+    renderScreen(walletOrder(null));
+    expect(trackLink()).toBeNull();
+  });
+
+  it("withholds tracking while the wallet payment is still pending", () => {
+    renderScreen(walletOrder("pending"));
+    expect(trackLink()).toBeNull();
+  });
+
+  it("offers the way out that the issue asks for, alongside paying again", () => {
+    renderScreen(walletOrder("failed"), "paymaya");
+    expect(
+      screen.getByRole("button", { name: /switch to cash on delivery/i }),
+    ).toBeInTheDocument();
+    // "Try again with Maya" — the other half of the choice.
+    expect(
+      screen.getByRole("button", { name: /try again with maya/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("restores tracking once the wallet payment is paid", () => {
+    renderScreen(walletOrder("paid"));
+    expect(trackLink()).toHaveAttribute("href", "/orders/example-1042");
+    expect(screen.queryByTestId("tracking-blocked")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /switch to cash on delivery/i }),
+    ).toBeNull();
+  });
+
+  it("never withholds tracking from a cash order, whose payment is always pending", () => {
+    // The regression this guards: cash on delivery and an unpaid wallet order
+    // both sit at payment_status "pending", so gating on that alone would
+    // strand every cash customer on the receipt.
+    renderScreen(order({ paymentStatus: "pending" }));
+    expect(trackLink()).toHaveAttribute("href", "/orders/example-1042");
+    expect(
+      screen.queryByRole("button", { name: /switch to cash on delivery/i }),
+    ).toBeNull();
+  });
+
+  it("promises no arrival time for an order nobody is cooking", () => {
+    renderScreen(walletOrder("failed"));
+    const line = screen.getByTestId("fulfilment-line");
+    expect(line).toHaveTextContent(/waiting for payment/i);
+    expect(line).not.toHaveTextContent("35–45 min");
   });
 });

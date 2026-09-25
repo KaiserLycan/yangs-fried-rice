@@ -6,6 +6,7 @@ import {
   orderStatusSchema,
   isValidTransition,
   orderFilterSchema,
+  UNPAID_ORDER_STATUSES,
   type OrderStatus,
   type OrderFilters,
 } from "@/lib/validation/orders";
@@ -182,8 +183,18 @@ export async function getAllOrders(
       // If the frontend sends a single string like "preparing"
       query = query.eq("order_status", filters.status);
     }
+  } else {
+    // No explicit filter means "everything staff should be working on", which
+    // is not the same as every row. An order whose online payment was never
+    // completed or came back refused is not the kitchen's problem until the
+    // money lands, so it is hidden unless asked for by name (issue #106).
+    query = query.not(
+      "order_status",
+      "in",
+      `(${UNPAID_ORDER_STATUSES.join(",")})`,
+    );
   }
-  
+
   if (filters.date_from) {
     query = query.gte("created_at", filters.date_from);
   }
@@ -268,6 +279,15 @@ export async function getDetailedOrders(
     } else {
       query = query.eq("order_status", filters.status);
     }
+  } else {
+    // Same rule as the summary list above: orders still waiting on an online
+    // payment, or whose payment was refused, are not work for the kitchen or
+    // the riders and stay out of the default view (issue #106).
+    query = query.not(
+      "order_status",
+      "in",
+      `(${UNPAID_ORDER_STATUSES.join(",")})`,
+    );
   }
   if (filters.date_from) {
     query = query.gte("created_at", filters.date_from);
