@@ -214,6 +214,7 @@ export function PaymentStatusCard({
       walletTab?.close();
       showToast(
         error instanceof Error ? error.message : "Couldn’t start the payment.",
+        "error",
       );
       setStarting(null);
     }
