@@ -60,7 +60,22 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith(path)
   );
 
-  const isAuthPage = ["/login", "/register", "/employee/login"].some(path => pathname === path);
+  // Pages you reach precisely because you are not signed in — so a signed-in
+  // visitor is sent on to their home instead (see below). /forgot-password
+  // belongs here: someone with a live session has no use for it.
+  //
+  // /reset-password deliberately does NOT. The link in the reset email
+  // carries a recovery token that the Supabase client exchanges for a real
+  // session as soon as the page mounts, so treating a session as "already
+  // signed in, go home" would throw the customer off the very page that
+  // token exists to open (issue #106). It is not under a guarded area, so
+  // leaving it out of both lists makes it reachable either way.
+  const isAuthPage = [
+    "/login",
+    "/register",
+    "/employee/login",
+    "/forgot-password",
+  ].some(path => pathname === path);
 
   // ========================================================================
   // FAST PATH: Employee Areas (No Supabase network requests)
