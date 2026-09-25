@@ -460,6 +460,15 @@ describe("Checkout online payment", () => {
     await waitFor(() =>
       expect(tab.location.href).toBe("https://gcash.test/pay"),
     );
+    // The return URL carries the marker that lets the wallet's tab close
+    // itself once PayMongo answers, rather than leaving the customer with
+    // two copies of the same receipt.
+    expect(startWalletPayment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        returnUrl:
+          "https://yangs.test/checkout/confirmation?order=order-79&pay=paymaya&wallet_tab=1",
+      }),
+    );
     // This tab stays ours, on the receipt, where the payment is watched and
     // both ways out live. PayMongo's dead end now costs a tab switch.
     await waitFor(() =>

@@ -14,7 +14,7 @@ import {
   isOnlinePaymentConfigured,
   startWalletPayment,
 } from "@/lib/checkout/paymongo";
-import { openWalletTab } from "@/lib/checkout/wallet-tab";
+import { WALLET_TAB_PARAM, openWalletTab } from "@/lib/checkout/wallet-tab";
 import type {
   PaymentMethodId,
   WalletProvider,
@@ -195,7 +195,13 @@ export function OrderSummaryCard({
           const start = await startWalletPayment({
             orderId: order_id,
             wallet,
-            returnUrl: `${window.location.origin}${receiptForWallet}`,
+            // Baked into the payment intent, so it has to be decided now —
+            // which is fine, because the tab was opened before any of this
+            // was awaited. The marker tells the receipt that loads over
+            // there that it is the throwaway tab and may close itself.
+            returnUrl: `${window.location.origin}${receiptForWallet}${
+              walletTab ? `&${WALLET_TAB_PARAM}=1` : ""
+            }`,
           });
 
           if (start.kind !== "redirect") {

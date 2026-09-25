@@ -22,6 +22,34 @@
  * there is somewhere to point it.
  */
 
+/**
+ * Marks the `return_url` a wallet tab comes back to, so the receipt that
+ * loads there knows it is the throwaway tab rather than the customer's own.
+ *
+ * Only added when a tab was actually opened. The same-tab fallback must not
+ * carry it — though the receipt checks `window.opener` before acting on it
+ * anyway, and a tab the customer opened themselves has none.
+ */
+export const WALLET_TAB_PARAM = "wallet_tab";
+
+/**
+ * Whether this document is the wallet tab, come back from PayMongo and safe
+ * to close: it says so in the URL, and it has an opener that is still around
+ * to be returned to.
+ *
+ * `window.close()` only works on a script-opened window, which is exactly
+ * what having an opener means here.
+ */
+export function isDisposableWalletTab(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return Boolean(window.opener) && !window.opener.closed;
+  } catch {
+    // A cross-origin opener throws on `.closed`. Not ours, so not disposable.
+    return false;
+  }
+}
+
 /** What the empty tab shows for the moment before the wallet's page loads. */
 const PLACEHOLDER = `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <title>Opening your wallet…</title></head>

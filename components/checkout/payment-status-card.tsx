@@ -8,7 +8,7 @@ import {
   type WalletProvider,
 } from "@/lib/checkout/payment-methods";
 import { startWalletPayment } from "@/lib/checkout/paymongo";
-import { openWalletTab } from "@/lib/checkout/wallet-tab";
+import { WALLET_TAB_PARAM, openWalletTab } from "@/lib/checkout/wallet-tab";
 import {
   foldPaymentStatus,
   type PaymentStatus,
@@ -183,7 +183,12 @@ export function PaymentStatusCard({
       const start = await startWalletPayment({
         orderId,
         wallet: provider,
-        returnUrl: `${window.location.origin}/checkout/confirmation?order=${orderId}&pay=${provider}`,
+        // The marker rides along only when a tab was opened for this
+        // payment; the same-tab fallback must not ask a tab to close
+        // itself. See `WalletTabCloser`.
+        returnUrl: `${window.location.origin}/checkout/confirmation?order=${orderId}&pay=${provider}${
+          walletTab ? `&${WALLET_TAB_PARAM}=1` : ""
+        }`,
       });
 
       if (start.kind === "redirect") {

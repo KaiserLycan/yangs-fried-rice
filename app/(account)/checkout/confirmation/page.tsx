@@ -1,9 +1,11 @@
 import { notFound, redirect } from "next/navigation";
 import { OrderPlacedScreen } from "@/components/checkout/order-placed-screen";
+import { WalletTabCloser } from "@/components/checkout/wallet-tab-closer";
 import { ToastProvider } from "@/components/ui/toast";
 import { walletFromParam } from "@/lib/checkout/payment-methods";
 import { readPlacedOrder } from "@/lib/checkout/read-placed-order";
 import { readCustomerProfile } from "@/lib/profile/customer-profile";
+import { WALLET_TAB_PARAM } from "@/lib/checkout/wallet-tab";
 
 /**
  * Order placed (Browsing12, Browsing16, PP1) — the receipt a customer lands
@@ -23,7 +25,12 @@ import { readCustomerProfile } from "@/lib/profile/customer-profile";
 export default async function CheckoutConfirmationPage({
   searchParams,
 }: {
-  searchParams: { order?: string; pay?: string; pay_error?: string };
+  searchParams: {
+    order?: string;
+    pay?: string;
+    pay_error?: string;
+    [WALLET_TAB_PARAM]?: string;
+  };
 }) {
   const profile = await readCustomerProfile();
 
@@ -37,6 +44,12 @@ export default async function CheckoutConfirmationPage({
 
   return (
     <ToastProvider>
+      {/* Renders nothing. If this document is the tab checkout opened for
+          the payment, it closes itself now that PayMongo has answered — the
+          customer's own tab is already watching the row. The receipt below
+          still renders, so a browser that refuses to close leaves them on a
+          usable page rather than a blank one. */}
+      <WalletTabCloser active={searchParams[WALLET_TAB_PARAM] === "1"} />
       <OrderPlacedScreen
         profile={profile}
         order={order}
