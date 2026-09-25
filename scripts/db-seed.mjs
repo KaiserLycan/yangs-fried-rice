@@ -321,14 +321,16 @@ async function createOrder({ customer, createdAt, status, orderType }) {
 
   if (orderType === "delivery" && ["out_for_delivery", "completed"].includes(status)) {
     const rider = pick(riders);
-    check(await db.from("delivery").insert({
+    // Upsert: trg_create_delivery_for_ready_order already inserted a pending
+    // row for an out_for_delivery order, so fill that one in.
+    check(await db.from("delivery").upsert({
       order_id: order.order_id,
       rider_id: rider.rider_id,
       employee_id: rider.employee_id,
       delivery_status: status === "completed" ? "delivered" : "in_transit",
       estimated_time: new Date(createdAt.getTime() + 40 * 60000).toISOString(),
       completed_at: completedAt?.toISOString() ?? null,
-    }), "delivery");
+    }, { onConflict: "order_id" }), "delivery");
   }
 
   if (status === "completed" && random() < 0.55) {
