@@ -7,8 +7,8 @@ import { DeliveryDetailsCard } from "@/components/checkout/delivery-details-card
 import { OrderSummaryCard } from "@/components/checkout/order-summary-card";
 import { PaymentMethodPicker } from "@/components/checkout/payment-method-picker";
 import {
-  DEFAULT_PAYMENT_METHOD,
   DEFAULT_WALLET_PROVIDER,
+  defaultPaymentMethodFor,
   type PaymentMethodId,
   type WalletProvider,
 } from "@/lib/checkout/payment-methods";
@@ -52,8 +52,10 @@ export function CheckoutScreen({
   distanceKm?: number | null;
   placedAtLabel: string;
 }) {
+  // Seeded from the fulfilment rather than from the global default, which is
+  // cash on delivery — not an option when the customer is collecting.
   const [paymentMethod, setPaymentMethod] = React.useState<PaymentMethodId>(
-    DEFAULT_PAYMENT_METHOD,
+    () => defaultPaymentMethodFor(fulfilment),
   );
   const [wallet, setWallet] = React.useState<WalletProvider>(
     DEFAULT_WALLET_PROVIDER,
@@ -128,6 +130,7 @@ export function CheckoutScreen({
                   onChange={setPaymentMethod}
                   wallet={wallet}
                   onWalletChange={setWallet}
+                  fulfilment={fulfilment}
                 />
               </section>
             </div>
