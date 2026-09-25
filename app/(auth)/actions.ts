@@ -211,12 +211,21 @@ export async function registerCustomer(
 }
 
 /**
- * Shown when valid credentials belong to an account with no customer record
- * — an administrator, staff member or rider. It names the right door rather
- * than pretending the password was wrong.
+ * Deliberately identical to the wrong-password message.
+ *
+ * It used to say "This account isn't a customer account. Staff and
+ * administrators sign in at the employee login." — which told anyone who
+ * asked two things they should not learn from a login form: that the address
+ * is registered, and that it belongs to staff. That turns this form into a
+ * way to enumerate accounts and then pick out the privileged ones, which is
+ * the opposite of what the generic wrong-password message a few lines down
+ * is for (issue #106).
+ *
+ * Staff who land here by mistake are not left stranded: /login carries a
+ * standing "Employee sign-in" link that is shown to everyone and so reveals
+ * nothing about any particular address.
  */
-const CUSTOMER_ONLY_MESSAGE =
-  "This account isn't a customer account. Staff and administrators sign in at the employee login.";
+const CUSTOMER_ONLY_MESSAGE = "Incorrect email or password.";
 
 /**
  * Cust2: authenticate an existing customer via Supabase.

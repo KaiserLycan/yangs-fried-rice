@@ -180,6 +180,21 @@ function LoginFormInner() {
         >
           Log in
         </SubmitButton>
+
+        {/* Shown to everyone, always. The login failure above is now the same
+            generic message whether or not the address belongs to staff, so
+            this is what stops an employee who used the wrong door from being
+            stranded — without the error itself having to say which door is
+            right (issue #106). Mirrors "I'm a customer →" on the employee
+            form. */}
+        <div className="flex justify-end">
+          <Link
+            href="/employee/login"
+            className="pb-[2px] text-[13px] font-bold text-primary"
+          >
+            I&apos;m an employee &rarr;
+          </Link>
+        </div>
       </form>
 
     </div>
