@@ -3,10 +3,16 @@ import { z } from "zod";
 import { DialogRoot } from "@/components/ui/dialog";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { Switch } from "@/components/ui/switch";
 import { ChevronDown, ChevronRight, Eye, EyeOff } from "lucide-react";
 import { roleDisplayLabel } from "@/lib/auth/roles";
 import { getEmployeeForEdit } from "@/lib/actions/admin";
-import { dateOfBirthSchema, earliestBirthdate, latestBirthdateForMinAge } from "@/lib/validation/date-of-birth";
+import {
+  EMPLOYEE_MIN_AGE_YEARS,
+  earliestBirthdate,
+  employeeDateOfBirthSchema,
+  latestBirthdateForMinAge,
+} from "@/lib/validation/date-of-birth";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { useValidatedValues } from "@/lib/forms/use-live-validation";
 import { SHORTCUTS, useShortcut } from "@/lib/hooks/use-shortcut";
@@ -83,7 +89,7 @@ function employeeFormSchema(isEditMode: boolean) {
       // Required for a new account; on edit, blank means "leave unchanged".
       password: isEditMode ? z.union([z.literal(""), passwordSchema]) : passwordSchema,
       phone: optionalPhoneSchema,
-      dateOfBirth: dateOfBirthSchema,
+      dateOfBirth: employeeDateOfBirthSchema,
       isRider: z.boolean(),
       vehicle_make_model: z.string(),
       vehicle_plate_number: z.string(),
@@ -396,7 +402,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
               }}
               onBlur={() => touch("dateOfBirth")}
               min={earliestBirthdate()}
-              max={latestBirthdateForMinAge()}
+              max={latestBirthdateForMinAge(EMPLOYEE_MIN_AGE_YEARS)}
               aria-invalid={errors.dateOfBirth ? true : undefined}
               className={inputClass(Boolean(errors.dateOfBirth))}
             />
@@ -529,45 +535,30 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
             {errors.password && <p className="text-[12px] text-[#C0392B]">{errors.password}</p>}
           </div>
 
-          {/* Account status — only for an existing employee */}
+          {/* Account status — only for an existing employee.
+
+              QA asked for a toggle here; PRs #102/#103 shipped a pair of
+              radio buttons, which issue #106 flagged as the wrong control.
+              This is the same `Switch` the menu modals use, so there is one
+              on/off control in the app rather than three lookalikes. The
+              wording is JM's from the issue screenshot. */}
           {isEditMode && (
             <div className="flex flex-col gap-1.5 w-full">
-              <label className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase">
+              <label
+                id="employee-account-status-label"
+                className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase"
+              >
                 Account Status
               </label>
-              <div
-                role="radiogroup"
-                aria-label="Account status"
-                className="grid grid-cols-2 gap-[8px]"
-              >
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={!isDisabled}
-                  onClick={() => setIsDisabled(false)}
-                  className={cn(
-                    "rounded-[12px] border p-[14px] text-center text-[14px] font-bold transition-colors",
-                    !isDisabled
-                      ? "border-[#E8541F] bg-[#FAF5EB] text-[#1A1210]"
-                      : "border-[#DDCDB8] bg-white text-[#7A6A60] hover:bg-black/5"
-                  )}
-                >
-                  Active
-                </button>
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={isDisabled}
-                  onClick={() => setIsDisabled(true)}
-                  className={cn(
-                    "rounded-[12px] border p-[14px] text-center text-[14px] font-bold transition-colors",
-                    isDisabled
-                      ? "border-[#E8541F] bg-[#FAF5EB] text-[#1A1210]"
-                      : "border-[#DDCDB8] bg-white text-[#7A6A60] hover:bg-black/5"
-                  )}
-                >
-                  Inactive
-                </button>
+              <div className="flex items-center justify-between rounded-[12px] border border-[#DDCDB8] bg-white p-[14px]">
+                <span className="text-[14px] font-bold text-[#1A1210]">
+                  {isDisabled ? "Disabled — they can’t sign in" : "Active"}
+                </span>
+                <Switch
+                  checked={!isDisabled}
+                  onChange={(next) => setIsDisabled(!next)}
+                  labelledBy="employee-account-status-label"
+                />
               </div>
             </div>
           )}

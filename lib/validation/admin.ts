@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { EMPLOYEE_ROLES, type EmployeeRole } from "@/lib/auth/roles";
 import { optionalPhoneSchema } from "./phone";
-import { dateOfBirthSchema } from "./date-of-birth";
+import { employeeDateOfBirthSchema } from "./date-of-birth";
 import {
   driverLicenseNumberSchema,
   emailSchema,
@@ -55,7 +55,7 @@ export const createEmployeeSchema = z.object({
   phone: optionalPhoneSchema.optional(),
 
   /** Optional ISO date, not in the future. */
-  dateOfBirth: dateOfBirthSchema.optional(),
+  dateOfBirth: employeeDateOfBirthSchema.optional(),
 
   riderDetails: riderDetailsSchema.optional(),
 }).superRefine((values, ctx) => {

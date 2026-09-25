@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo, useEffect } from "react";
+import { Switch } from "@/components/ui/switch";
 import { z } from "zod";
 import { MenuItem, MenuCategory, MOCK_CATEGORIES } from "@/components/manage/menu/mock-menu";
 import { cn } from "@/lib/utils";
@@ -488,23 +489,11 @@ export function MenuItemModal({
             <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
               Available?
             </label>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={available}
-              onClick={() => setAvailable(!available)}
-              className="relative inline-flex h-[26px] w-[48px] shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200"
-              style={{ backgroundColor: available ? "#3f6b4a" : "#ddcdb8" }}
-            >
-              <span
-                className="pointer-events-none inline-block h-[20px] w-[20px] rounded-full bg-white shadow-sm transition-transform duration-200"
-                style={{
-                  transform: available
-                    ? "translateX(24px)"
-                    : "translateX(4px)",
-                }}
-              />
-            </button>
+            <Switch
+              checked={available}
+              onChange={setAvailable}
+              label="Available?"
+            />
           </div>
 
           {/* ──────────────────────────────────── Action buttons */}

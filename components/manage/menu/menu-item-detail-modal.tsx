@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useValidatedValues } from "@/lib/forms/use-live-validation";
@@ -14,35 +15,6 @@ import { Camera, ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
 import { compressImage } from "@/lib/image/compress";
 import { createAddOn, deleteAddOn } from "@/lib/actions/menu";
 import { useToast } from "@/components/ui/toast";
-
-// ---------------------------------------------------------------------------
-// Toggle Switch
-// ---------------------------------------------------------------------------
-function ToggleSwitch({
-  checked,
-  onChange,
-}: {
-  checked: boolean;
-  onChange: (value: boolean) => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className="relative inline-flex h-[26px] w-[48px] shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200"
-      style={{ backgroundColor: checked ? "#3f6b4a" : "#ddcdb8" }}
-    >
-      <span
-        className="pointer-events-none inline-block h-[20px] w-[20px] rounded-full bg-white shadow-sm transition-transform duration-200"
-        style={{
-          transform: checked ? "translateX(24px)" : "translateX(4px)",
-        }}
-      />
-    </button>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Menu Item Detail Modal
@@ -391,7 +363,7 @@ export function MenuItemDetailModal({
               <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
                 Available?
               </label>
-              <ToggleSwitch checked={available} onChange={setAvailable} />
+              <Switch checked={available} onChange={setAvailable} />
             </div>
 
             {/* Add-ons Section */}
