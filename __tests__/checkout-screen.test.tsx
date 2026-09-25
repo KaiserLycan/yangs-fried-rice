@@ -423,6 +423,93 @@ describe("Checkout online payment", () => {
   });
 
   /**
+   * A stand-in for the tab the browser opens. jsdom's own `window.open`
+   * returns null, which is why every other test here exercises the
+   * popup-blocked fallback without asking for it.
+   */
+  function stubWalletTab() {
+    const tab = {
+      closed: false,
+      location: { href: "" },
+      focus: vi.fn(),
+      close: vi.fn(function (this: { closed: boolean }) {
+        this.closed = true;
+      }),
+      document: { write: vi.fn(), close: vi.fn() },
+    };
+    const open = vi.fn(() => tab);
+    // `stubGlobal`, not `defineProperty`: the file's afterEach undoes stubs,
+    // so the stand-in cannot leak into the tests that assert the
+    // popup-blocked fallback, where `window.open` must return null.
+    vi.stubGlobal("open", open);
+    return { tab, open };
+  }
+
+  it("sends the wallet to its own tab and keeps this one on the receipt", async () => {
+    const { tab, open } = stubWalletTab();
+    vi.mocked(submitCart).mockResolvedValue(placedOrder);
+    vi.mocked(startWalletPayment).mockResolvedValue({
+      kind: "redirect",
+      url: "https://gcash.test/pay",
+    });
+    renderCheckout();
+    chooseWallet("Maya");
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Place order/ })[0]);
+
+    await waitFor(() =>
+      expect(tab.location.href).toBe("https://gcash.test/pay"),
+    );
+    // This tab stays ours, on the receipt, where the payment is watched and
+    // both ways out live. PayMongo's dead end now costs a tab switch.
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith(
+        "/checkout/confirmation?order=order-79&pay=paymaya",
+      ),
+    );
+    expect(assign).not.toHaveBeenCalled();
+    // Opened empty inside the click — a popup asked for after `submitCart`
+    // resolves is one the browser blocks.
+    expect(open).toHaveBeenCalledWith("", "_blank");
+    expect(open.mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(submitCart).mock.invocationCallOrder[0],
+    );
+  });
+
+  it("closes the empty tab when the order is never created", async () => {
+    const { tab } = stubWalletTab();
+    vi.mocked(submitCart).mockResolvedValue({
+      data: null,
+      error: "Cannot submit an empty cart.",
+    } as never);
+    renderCheckout();
+    chooseWallet();
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Place order/ })[0]);
+
+    await waitFor(() => expect(tab.close).toHaveBeenCalled());
+    expect(startWalletPayment).not.toHaveBeenCalled();
+  });
+
+  it("closes the empty tab when the payment cannot be started", async () => {
+    const { tab } = stubWalletTab();
+    vi.mocked(submitCart).mockResolvedValue(placedOrder);
+    vi.mocked(startWalletPayment).mockRejectedValue(new Error("Gateway down."));
+    renderCheckout();
+    chooseWallet();
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Place order/ })[0]);
+
+    await waitFor(() => expect(tab.close).toHaveBeenCalled());
+    // The receipt explains, since this screen's toast unmounts with it.
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith(
+        expect.stringContaining("pay_error=1"),
+      ),
+    );
+  });
+
+  /**
    * The wallet's page does not always send the customer back. PayMongo
    * answers an expired or already-consumed source with its own error page,
    * which never honours `return_url`, so Back is the only way home — and

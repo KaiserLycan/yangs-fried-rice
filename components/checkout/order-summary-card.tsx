@@ -14,6 +14,7 @@ import {
   isOnlinePaymentConfigured,
   startWalletPayment,
 } from "@/lib/checkout/paymongo";
+import { openWalletTab } from "@/lib/checkout/wallet-tab";
 import type {
   PaymentMethodId,
   WalletProvider,
@@ -153,18 +154,34 @@ export function OrderSummaryCard({
           ? "pay-in-store"
           : "cash-on-delivery";
 
+    // Opened here, in the click itself, and before anything is awaited: a
+    // popup asked for later — after `submitCart` comes back — is one the
+    // browser did not see the customer request, and it gets blocked. Empty
+    // for now; it is pointed at the wallet once PayMongo has answered.
+    const walletTab = paymentMethod === "wallet" ? openWalletTab() : null;
+
     run(
-      () =>
-        submitCart({
-          cart_id: cartId,
-          order_type: orderTypeFor(fulfilment),
-          delivery_fee: totals.deliveryFee,
-          delivery_address: address ?? undefined,
-          // Decides whether the order is cookable on arrival. A wallet order
-          // is held at `awaiting_payment` until PayMongo confirms, so the
-          // kitchen never sees a payment that was abandoned or refused.
-          payment_method: chosenMethod,
-        }),
+      async () => {
+        try {
+          const result = await submitCart({
+            cart_id: cartId,
+            order_type: orderTypeFor(fulfilment),
+            delivery_fee: totals.deliveryFee,
+            delivery_address: address ?? undefined,
+            // Decides whether the order is cookable on arrival. A wallet
+            // order is held at `awaiting_payment` until PayMongo confirms,
+            // so the kitchen never sees a payment that was abandoned or
+            // refused.
+            payment_method: chosenMethod,
+          });
+          // No order, so nothing to pay: don't leave an empty tab behind.
+          if (result.error !== null) walletTab?.close();
+          return result;
+        } catch (thrown) {
+          walletTab?.close();
+          throw thrown;
+        }
+      },
       async ({ order_id }) => {
         const receipt = `/checkout/confirmation?order=${order_id}`;
 
@@ -180,18 +197,30 @@ export function OrderSummaryCard({
             wallet,
             returnUrl: `${window.location.origin}${receiptForWallet}`,
           });
-          if (start.kind === "redirect") {
-            setRedirecting(true);
-            // Remembered before leaving: the wallet's page may never come
-            // back on its own (PayMongo serves its own "source has expired"
-            // dead end instead of honouring return_url), so Back is the
-            // customer's way home and this is where it leads.
-            walletReceipt.current = receiptForWallet;
-            window.location.assign(start.url);
-          } else {
+
+          if (start.kind !== "redirect") {
+            walletTab?.close();
             router.push(receiptForWallet);
+            return;
           }
+
+          // The wallet goes in its own tab and this one goes to the receipt,
+          // which watches the payment settle and offers "pay again" and
+          // "switch to cash on delivery" throughout. PayMongo's dead-end
+          // page then costs a tab switch instead of the whole order.
+          if (walletTab?.send(start.url)) {
+            router.push(receiptForWallet);
+            return;
+          }
+
+          // The popup was blocked, or the customer closed it while the
+          // intent was being created. Fall back to the old hand-off: give
+          // up this tab, and leave a note for the way back in.
+          setRedirecting(true);
+          walletReceipt.current = receiptForWallet;
+          window.location.assign(start.url);
         } catch {
+          walletTab?.close();
           // This screen is about to unmount, and its toast with it, so the
           // receipt is told to explain instead.
           router.push(`${receiptForWallet}&pay_error=1`);
