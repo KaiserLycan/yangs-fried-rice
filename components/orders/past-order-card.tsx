@@ -8,6 +8,7 @@ import {
   canRate,
   formatPlacedAt,
   formatTotal,
+  isUnpaid,
   outcomeOf,
   primaryActionOf,
   summariseItems,
@@ -43,6 +44,9 @@ export function PastOrderCard({ order }: { order: PastOrder }) {
   const outcome = outcomeOf(order);
   const rateable = canRate(order);
   const action = primaryActionOf(order);
+  // An unpaid order has no receipt worth reading and no timeline to track —
+  // every route off this card leads to the one place it can be paid for.
+  const unpaid = isUnpaid(order);
 
   const handleReorder = () => {
     startTransition(async () => {
@@ -90,12 +94,24 @@ export function PastOrderCard({ order }: { order: PastOrder }) {
           with nothing in the data to say when it applies, and the order
           detail screen already is the receipt. One interactive element, not
           a button nested inside a link. */}
+      {/* Both branches are written out as literals rather than through
+          `payUrlFor`, because the href security rule in
+          `__tests__/security/xss.test.tsx` requires the fixed `/` at the
+          start of every dynamic href to be visible at the binding itself. */}
       <Link
-        href={`/orders/${order.orderId}`}
+        href={
+          unpaid
+            ? `/checkout/confirmation?order=${order.orderId}`
+            : `/orders/${order.orderId}`
+        }
         className="order-2 text-[14px] font-bold leading-[18.2px] text-foreground hover:underline md:leading-[18.9px]"
       >
         {summariseItems(order.items)}
-        <span className="sr-only"> — view receipt for order #{order.orderNumber}</span>
+        <span className="sr-only">
+          {unpaid
+            ? ` — complete payment for order #${order.orderNumber}`
+            : ` — view receipt for order #${order.orderNumber}`}
+        </span>
       </Link>
 
       {/* Below the total on mobile, above it on desktop. A cancelled order
@@ -119,7 +135,15 @@ export function PastOrderCard({ order }: { order: PastOrder }) {
           {formatTotal(order.total)}
         </span>
 
-        {action === "track" ? (
+        {action === "pay" ? (
+          <Link
+            href={`/checkout/confirmation?order=${order.orderId}`}
+            className="shrink-0 text-[13px] font-bold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          >
+            Complete payment
+            <span className="sr-only"> for order #{order.orderNumber}</span>
+          </Link>
+        ) : action === "track" ? (
           <Link
             href={`/orders/${order.orderId}`}
             className="shrink-0 text-[13px] font-bold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"

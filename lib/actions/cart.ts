@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { validateNcrAddress } from "@/lib/address/validate-ncr";
 import { MAX_DELIVERY_RADIUS_KM, MIN_DELIVERY_FEE_PHP } from "@/lib/eta/engine";
 import { calculateDeliveryFee } from "@/lib/menu/cart-totals";
@@ -14,6 +15,10 @@ import {
   type SubmitCartInput,
   type CancelOrderInput,
 } from "@/lib/validation/cart";
+import {
+  UNPAID_ORDER_STATUSES,
+  isUnpaidStatus,
+} from "@/lib/validation/orders";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -753,7 +758,7 @@ export async function submitCart(
       product_id,
       quantity,
       special_instructions,
-      product ( product_price ),
+      product ( product_name, product_price ),
       cart_item_add_on ( addon_id, add_on ( price ) )
     `)
     .eq("cart_id", cart.cart_id);
@@ -767,12 +772,21 @@ export async function submitCart(
     return { data: null, error: "Cannot submit an empty cart." };
   }
 
-  // 1. Create order with status 'pending'
+  // A wallet order is not fit to cook until PayMongo says the money arrived,
+  // so it is parked at `awaiting_payment` and the webhook promotes it to
+  // `pending`. Cash on delivery and pay in store are `pending` immediately —
+  // those are collected later by design, not unpaid by accident. Before this
+  // every order was born `pending`, so an abandoned wallet payment went
+  // straight to the kitchen and the rider queue (issue #106).
+  const isWalletOrder = parsed.data.payment_method === "wallet";
+  const initialOrderStatus = isWalletOrder ? "awaiting_payment" : "pending";
+
+  // 1. Create the order, held or live depending on how it is being paid for
   const { data: newOrder, error: orderError } = await supabase
     .from("order")
     .insert({
       customer_id: auth.data.customer_id,
-      order_status: "pending",
+      order_status: initialOrderStatus,
       order_type: parsed.data.order_type,
       special_instructions: parsed.data.special_instructions ?? null,
       delivery_fee: deliveryFee,
@@ -787,7 +801,10 @@ export async function submitCart(
 
   // 2. Transfer cart items and their add-ons
   const orderItemsToInsert = cartItems.map((item) => {
-    const price = (item.product as { product_price: number } | null)?.product_price ?? 0;
+    const product = item.product as
+      | { product_name: string; product_price: number }
+      | null;
+    const price = product?.product_price ?? 0;
     const addOnTotal = (
       (item.cart_item_add_on as { add_on: { price: number } | null }[] | null) ?? []
     ).reduce((sum, row) => sum + (row.add_on?.price ?? 0), 0);
@@ -800,6 +817,11 @@ export async function submitCart(
       // same figure the cart showed the customer.
       subtotal: (price + addOnTotal) * item.quantity,
       special_instructions: item.special_instructions,
+      // What was bought, written down at the moment of buying. Renaming,
+      // repricing or removing the product afterwards no longer rewrites
+      // history or turns the line into "Unknown item" (issue #106).
+      product_name: product?.product_name ?? null,
+      unit_price: price + addOnTotal,
     };
   });
 
@@ -821,10 +843,22 @@ export async function submitCart(
   const subtotal = orderItemsToInsert.reduce((acc, curr) => acc + curr.subtotal, 0)
     + orderAddOnsToInsert.reduce((acc, curr) => acc + curr.price, 0);
 
+  // Record what the customer actually chose. This used to say
+  // "cash_on_delivery" for every order including wallet ones, which made the
+  // receipt mislabel a GCash order until `create-payment-intent` overwrote
+  // the row, and left no way to tell an unpaid wallet order from a cash one.
+  // "paymongo" is the gateway rather than the wallet because the intent
+  // allows either — the same value `create-payment-intent` writes.
+  const transactionMethod = isWalletOrder
+    ? "paymongo"
+    : parsed.data.payment_method === "pay-in-store"
+      ? "pay_in_store"
+      : "cash_on_delivery";
+
   const transactionToInsert = {
     transaction_id: crypto.randomUUID(),
     order_id: newOrder.order_id,
-    payment_method: "cash_on_delivery",
+    payment_method: transactionMethod,
     payment_status: "pending",
     subtotal: subtotal,
     tax_amount: 0,
@@ -833,12 +867,27 @@ export async function submitCart(
     transaction_date: new Date().toISOString(),
   };
 
-  await Promise.all([
+  // `transaction` carries only SELECT policies (000_remote_schema.sql), so a
+  // customer-session insert here matched zero rows and failed silently —
+  // every order was left with no payment row at all, which is why the
+  // receipt could say "Not recorded" and why `create-payment-intent` had
+  // nothing to reuse. The service role is what actually writes it; the row
+  // is pinned to the order just created above.
+  const [, , , transactionResult] = await Promise.all([
     supabase.from("order_item").insert(orderItemsToInsert),
     orderItemAddOnsToInsert.length > 0 ? supabase.from("order_item_add_on").insert(orderItemAddOnsToInsert) : Promise.resolve(),
     orderAddOnsToInsert.length > 0 ? supabase.from("order_add_on").insert(orderAddOnsToInsert) : Promise.resolve(),
-    supabase.from("transaction").insert(transactionToInsert),
+    createAdminClient().from("transaction").insert(transactionToInsert),
   ]);
+
+  // Surfaced rather than discarded: a wallet order with no payment row can
+  // never be paid, and the customer would be told it was placed regardless.
+  if (transactionResult?.error) {
+    console.error(
+      "submitCart: could not record the transaction:",
+      transactionResult.error,
+    );
+  }
 
   // 3. Lock cart immediately
   const now = new Date().toISOString();
@@ -859,9 +908,133 @@ export async function submitCart(
   return {
     data: {
       order_id: newOrder.order_id,
-      order_status: "pending",
+      order_status: initialOrderStatus,
       cart_id: cart.cart_id,
       is_final: true,
+    },
+    error: null,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 5b. Switch a stalled wallet order to cash on delivery
+// ---------------------------------------------------------------------------
+
+/**
+ * Give up on an online payment and pay in cash instead.
+ *
+ * A wallet order waits at `awaiting_payment`, or `payment_failed` once
+ * PayMongo refuses it, and stays out of the kitchen's sight either way. That
+ * would strand the customer whenever the wallet will not co-operate, so the
+ * receipt offers this as the way out: issue #106 asks for the order to go no
+ * further "until payment becomes successful or is switched to CoD".
+ *
+ * Points the transaction at cash and releases the order into the kitchen
+ * queue. An order that has already been paid for is refused — switching it
+ * would send the rider to collect money the customer has handed over once.
+ */
+export async function switchOrderToCashOnDelivery(
+  orderId: string,
+): Promise<ActionResult<{ order_id: string; order_status: string }>> {
+  const auth = await requireCustomer();
+  if (!auth.data) return { data: null, error: auth.error, code: auth.code };
+
+  const supabase = createClient();
+
+  const { data: order, error: orderError } = await supabase
+    .from("order")
+    .select("order_id, customer_id, order_status")
+    .eq("order_id", orderId)
+    .single();
+
+  if (orderError || !order) {
+    return { data: null, error: "Order not found." };
+  }
+
+  // Nothing in the URL stops one customer naming another's order id, so this
+  // is what actually prevents it.
+  if (order.customer_id !== auth.data.customer_id) {
+    return { data: null, error: "Access denied.", code: "FORBIDDEN" };
+  }
+
+  if (!isUnpaidStatus(order.order_status)) {
+    return {
+      data: null,
+      error:
+        "This order isn't waiting on a payment, so it can't be switched to cash on delivery.",
+    };
+  }
+
+  // The status check above can lag a webhook that has just landed, so the
+  // money itself is checked too.
+  const { data: transactions } = await supabase
+    .from("transaction")
+    .select("transaction_id, payment_status")
+    .eq("order_id", orderId);
+
+  if ((transactions ?? []).some((row) => row.payment_status === "paid")) {
+    return { data: null, error: "This order has already been paid for." };
+  }
+
+  // Both writes below need the service role, and neither would work without
+  // it:
+  //
+  //   - `transaction` has only SELECT policies (000_remote_schema.sql), so a
+  //     customer-session update silently matches zero rows.
+  //   - the one customer UPDATE policy on `order` is
+  //     `customer_cancel_own_orders`, which allows `pending` → `cancelled`
+  //     and nothing else. This goes `awaiting_payment` → `pending`, failing
+  //     both its USING and its WITH CHECK.
+  //
+  // Ownership was verified against `auth.uid()` above, and the two updates
+  // are pinned to that one order, so this escalation is scoped the same way
+  // `markDelivered` scopes its own.
+  const admin = createAdminClient();
+
+  // Point the payment at cash. Clearing the provider reference means a late
+  // webhook for the abandoned wallet intent no longer matches this row and
+  // cannot mark a cash order as failed.
+  const { error: paymentError } = await admin
+    .from("transaction")
+    .update({
+      payment_method: "cash_on_delivery",
+      payment_status: "pending",
+      provider_reference_id: null,
+    })
+    .eq("order_id", orderId)
+    .neq("payment_status", "paid");
+
+  if (paymentError) {
+    return {
+      data: null,
+      error: "Couldn't switch this order to cash on delivery.",
+    };
+  }
+
+  // Release it into the kitchen queue. Scoped to the unpaid statuses so two
+  // taps on the button cannot move an order that is already on its way.
+  const { data: updated, error: updateError } = await admin
+    .from("order")
+    .update({ order_status: "pending" })
+    .eq("order_id", orderId)
+    .in("order_status", [...UNPAID_ORDER_STATUSES])
+    .select("order_id, order_status")
+    .single();
+
+  if (updateError || !updated) {
+    return {
+      data: null,
+      error: "Couldn't switch this order to cash on delivery.",
+    };
+  }
+
+  const { revalidatePath } = await import("next/cache");
+  revalidatePath("/", "layout");
+
+  return {
+    data: {
+      order_id: updated.order_id,
+      order_status: updated.order_status ?? "pending",
     },
     error: null,
   };

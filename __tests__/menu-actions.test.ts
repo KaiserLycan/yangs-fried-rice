@@ -83,20 +83,29 @@ describe("US-02: Menu Management Server Actions", () => {
     expect(result.error).toContain("Price cannot exceed 99,999.99");
   });
 
-  it("TC-2.3.I: deleteProduct successfully removes item and refreshes UI", async () => {
-    // Tell fake Supabase that the deletion had no errors
+  it("TC-2.3.I: deleteProduct archives the item rather than destroying it", async () => {
+    // Tell fake Supabase that the write had no errors
     mockEqForDelete.mockResolvedValue({ error: null });
 
     const result = await deleteProduct("test-uuid-123");
 
     expect(result.error).toBeNull();
     expect(result.data).toEqual({ product_id: "test-uuid-123" });
-    
-    // Verify it triggered the delete command on the product table
+
     expect(mockFrom).toHaveBeenCalledWith("product");
-    expect(mockDelete).toHaveBeenCalled();
-    
-    // Verify the UI refreshes after deletion
+
+    // The point of issue #106: a hard DELETE nulls order_item.product_id on
+    // every historical line that referenced this product, so past orders lose
+    // the name of what was bought. It must archive instead.
+    expect(mockDelete).not.toHaveBeenCalled();
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        archived_at: expect.any(String),
+        is_available: false,
+      }),
+    );
+
+    // Verify the UI refreshes after archiving
     expect(revalidatePath).toHaveBeenCalledWith("/manage/menu");
   });
 

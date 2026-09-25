@@ -104,6 +104,18 @@ export function outcomeOf(order: PastOrder): OrderOutcome {
   if (progress.kind === "cancelled") {
     return { label: "Cancelled", tone: "muted" };
   }
+  if (progress.kind === "unpaid") {
+    // The two unpaid statuses read differently to a customer: one is a
+    // payment they never finished, the other one the wallet refused. Both
+    // lead to the same screen, so this is the only place they differ.
+    return {
+      label:
+        progress.orderStatus === "payment_failed"
+          ? "Payment failed"
+          : "Waiting for payment",
+      tone: "muted",
+    };
+  }
   if (progress.kind === "unknown") {
     return { label: "Status unavailable", tone: "muted" };
   }
@@ -139,9 +151,30 @@ export function canRate(order: PastOrder): boolean {
  * has not been rated, otherwise reorder, and reach the receipt through the
  * card's own link to the order.
  */
-export function primaryActionOf(order: PastOrder): "rate" | "reorder" | "track" {
+export function primaryActionOf(
+  order: PastOrder,
+): "rate" | "reorder" | "track" | "pay" {
+  // Checked before the others: an unpaid order is not past, but offering it
+  // a Track link would point at a timeline for food the kitchen has not been
+  // told about. Paying for it is the only move that makes sense.
+  if (progressOf(order).kind === "unpaid") return "pay";
   if (!isPast(order)) return "track";
   return canRate(order) ? "rate" : "reorder";
+}
+
+/**
+ * Where the card sends a customer who still owes money on an order — the
+ * receipt they were shown when they placed it, which is already the screen
+ * that watches the payment settle and offers both ways out of a failed one.
+ * One payment surface, reached from two places.
+ */
+export function payUrlFor(order: PastOrder): string {
+  return `/checkout/confirmation?order=${order.orderId}`;
+}
+
+/** True while an order still needs paying for. */
+export function isUnpaid(order: PastOrder): boolean {
+  return progressOf(order).kind === "unpaid";
 }
 
 /**

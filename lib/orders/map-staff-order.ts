@@ -1,5 +1,6 @@
 import type { OrderData } from "@/lib/mock-orders";
 import { formatOrderType, isDeliveryOrder } from "@/lib/orders/format";
+import { orderItemName } from "@/lib/orders/item-name";
 import { computeOrderTotal } from "@/lib/orders/order-total";
 
 /**
@@ -29,6 +30,9 @@ export type StaffOrderRow = {
     quantity: number;
     subtotal: number | null;
     special_instructions: string | null;
+    /** Snapshot taken when the order was placed — see `orderItemName`. */
+    product_name?: string | null;
+    unit_price?: number | null;
     product: One<{ product_name: string; product_price: number }>;
     order_item_add_on?: {
       add_on: One<{ name: string; price: number }>;
@@ -78,7 +82,7 @@ export function mapStaffOrder(order: StaffOrderRow): OrderData {
 
     return {
       quantity: line.quantity,
-      name: product?.product_name || "Unknown Item",
+      name: orderItemName(line.product_name, product?.product_name),
       // Unit price is only for the modal's per-line display.
       price: line.subtotal ?? (product?.product_price ?? 0) * line.quantity,
       addons: notes.length > 0 ? notes.join(" · ") : undefined,

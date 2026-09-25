@@ -43,6 +43,8 @@ function LoginFormInner() {
   const [showPassword, setShowPassword] = useState(false);
   const [isPending, startTransition] = useTransition();
   const justRegistered = searchParams.get("registered") === "1";
+  /** Arrived from /reset-password, which signs the recovery session out. */
+  const justReset = searchParams.get("reset") === "1";
 
   const live = useLiveValidation({
     schema: loginSchema,
@@ -95,6 +97,12 @@ function LoginFormInner() {
           <Alert tone="success" role="status">
             Account created! Check your inbox and confirm your email address,
             then log in.
+          </Alert>
+        ) : null}
+
+        {justReset && !serverError ? (
+          <Alert tone="success" role="status">
+            Password updated. Log in with your new password.
           </Alert>
         ) : null}
 
@@ -153,7 +161,10 @@ function LoginFormInner() {
             <Checkbox name="remember" defaultChecked />
             Keep me logged in
           </label>
-          <Link href="/login" className="text-[13px] font-bold text-primary">
+          <Link
+            href="/forgot-password"
+            className="text-[13px] font-bold text-primary"
+          >
             <span className="md:hidden">Forgot?</span>
             <span className="hidden md:inline">Forgot password?</span>
           </Link>
@@ -169,6 +180,21 @@ function LoginFormInner() {
         >
           Log in
         </SubmitButton>
+
+        {/* Shown to everyone, always. The login failure above is now the same
+            generic message whether or not the address belongs to staff, so
+            this is what stops an employee who used the wrong door from being
+            stranded — without the error itself having to say which door is
+            right (issue #106). Mirrors "I'm a customer →" on the employee
+            form. */}
+        <div className="flex justify-end">
+          <Link
+            href="/employee/login"
+            className="pb-[2px] text-[13px] font-bold text-primary"
+          >
+            I&apos;m an employee &rarr;
+          </Link>
+        </div>
       </form>
 
     </div>

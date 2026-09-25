@@ -4,6 +4,7 @@ import { ToastProvider } from "@/components/ui/toast";
 import { fulfilmentFromParam } from "@/lib/checkout/fulfilment-param";
 import { formatOrderTime } from "@/lib/checkout/order-time";
 import { readCart } from "@/lib/cart/read-cart";
+import { findAwaitingPaymentOrder } from "@/lib/checkout/find-awaiting-payment-order";
 import { readCustomerProfile } from "@/lib/profile/customer-profile";
 import { validateNcrAddress } from "@/lib/address/validate-ncr";
 
@@ -37,6 +38,17 @@ export default async function CheckoutPage({
   // Middleware already turns signed-out visitors away from /checkout.
   // Guarded anyway, the same defence-in-depth the cart and profile pages use.
   if (!profile) redirect("/login?next=/checkout");
+
+  // A wallet payment that never completed leaves the order at
+  // `awaiting_payment` and the cart locked, so backing out of the wallet's
+  // page lands here on a fresh, empty cart with no way to reach the order
+  // just placed. Send the customer to its receipt instead, where they can
+  // pay again or switch to cash on delivery. Only when the cart is empty —
+  // if they have started a new order, that is what they came for.
+  if (lines.length === 0) {
+    const unpaidOrderId = await findAwaitingPaymentOrder();
+    if (unpaidOrderId) redirect(`/checkout/confirmation?order=${unpaidOrderId}`);
+  }
 
   const fulfilment = fulfilmentFromParam(searchParams.fulfilment);
 

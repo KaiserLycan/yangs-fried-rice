@@ -12,9 +12,10 @@ import {
 
 const push = vi.fn();
 const refresh = vi.fn();
+const replace = vi.fn();
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push, refresh }),
+  useRouter: () => ({ push, refresh, replace }),
 }));
 
 vi.mock("@/lib/actions/cart", () => ({
@@ -293,6 +294,10 @@ describe("Checkout place order", () => {
         order_type: "take_out",
         delivery_fee: 0,
         delivery_address: "21 Mabini St, Malate, Manila",
+        // The picker's default. Tells `submitCart` the order is payable on
+        // collection, so it is `pending` and cookable straight away rather
+        // than held at `awaiting_payment` like a wallet order.
+        payment_method: "cash-on-delivery",
       }),
     );
     await waitFor(() =>
@@ -393,6 +398,14 @@ describe("Checkout online payment", () => {
 
     fireEvent.click(screen.getAllByRole("button", { name: /Place order/ })[0]);
 
+    // The order must be created as a wallet order, which is what holds it at
+    // `awaiting_payment` so the kitchen never sees a payment that is
+    // abandoned or refused (issue #106).
+    await waitFor(() =>
+      expect(submitCart).toHaveBeenCalledWith(
+        expect.objectContaining({ payment_method: "wallet" }),
+      ),
+    );
     await waitFor(() =>
       expect(startWalletPayment).toHaveBeenCalledWith({
         orderId: "order-79",
@@ -407,6 +420,143 @@ describe("Checkout online payment", () => {
     // a cart that is already locked.
     const [button] = screen.getAllByRole("button", { name: /Opening wallet/ });
     expect(button).toBeDisabled();
+  });
+
+  /**
+   * A stand-in for the tab the browser opens. jsdom's own `window.open`
+   * returns null, which is why every other test here exercises the
+   * popup-blocked fallback without asking for it.
+   */
+  function stubWalletTab() {
+    const tab = {
+      closed: false,
+      location: { href: "" },
+      focus: vi.fn(),
+      close: vi.fn(function (this: { closed: boolean }) {
+        this.closed = true;
+      }),
+      document: { write: vi.fn(), close: vi.fn() },
+    };
+    const open = vi.fn(() => tab);
+    // `stubGlobal`, not `defineProperty`: the file's afterEach undoes stubs,
+    // so the stand-in cannot leak into the tests that assert the
+    // popup-blocked fallback, where `window.open` must return null.
+    vi.stubGlobal("open", open);
+    return { tab, open };
+  }
+
+  it("sends the wallet to its own tab and keeps this one on the receipt", async () => {
+    const { tab, open } = stubWalletTab();
+    vi.mocked(submitCart).mockResolvedValue(placedOrder);
+    vi.mocked(startWalletPayment).mockResolvedValue({
+      kind: "redirect",
+      url: "https://gcash.test/pay",
+    });
+    renderCheckout();
+    chooseWallet("Maya");
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Place order/ })[0]);
+
+    await waitFor(() =>
+      expect(tab.location.href).toBe("https://gcash.test/pay"),
+    );
+    // The return URL carries the marker that lets the wallet's tab close
+    // itself once PayMongo answers, rather than leaving the customer with
+    // two copies of the same receipt.
+    expect(startWalletPayment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        returnUrl:
+          "https://yangs.test/checkout/confirmation?order=order-79&pay=paymaya&wallet_tab=1",
+      }),
+    );
+    // This tab stays ours, on the receipt, where the payment is watched and
+    // both ways out live. PayMongo's dead end now costs a tab switch.
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith(
+        "/checkout/confirmation?order=order-79&pay=paymaya",
+      ),
+    );
+    expect(assign).not.toHaveBeenCalled();
+    // Opened empty inside the click — a popup asked for after `submitCart`
+    // resolves is one the browser blocks.
+    expect(open).toHaveBeenCalledWith("", "_blank");
+    expect(open.mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(submitCart).mock.invocationCallOrder[0],
+    );
+  });
+
+  it("closes the empty tab when the order is never created", async () => {
+    const { tab } = stubWalletTab();
+    vi.mocked(submitCart).mockResolvedValue({
+      data: null,
+      error: "Cannot submit an empty cart.",
+    } as never);
+    renderCheckout();
+    chooseWallet();
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Place order/ })[0]);
+
+    await waitFor(() => expect(tab.close).toHaveBeenCalled());
+    expect(startWalletPayment).not.toHaveBeenCalled();
+  });
+
+  it("closes the empty tab when the payment cannot be started", async () => {
+    const { tab } = stubWalletTab();
+    vi.mocked(submitCart).mockResolvedValue(placedOrder);
+    vi.mocked(startWalletPayment).mockRejectedValue(new Error("Gateway down."));
+    renderCheckout();
+    chooseWallet();
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Place order/ })[0]);
+
+    await waitFor(() => expect(tab.close).toHaveBeenCalled());
+    // The receipt explains, since this screen's toast unmounts with it.
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith(
+        expect.stringContaining("pay_error=1"),
+      ),
+    );
+  });
+
+  /**
+   * The wallet's page does not always send the customer back. PayMongo
+   * answers an expired or already-consumed source with its own error page,
+   * which never honours `return_url`, so Back is the only way home — and
+   * Back restores this screen from the back/forward cache, server untouched.
+   *
+   * Issue #106: that left the customer looking at the summary they had
+   * already submitted, with no route to the order or to cash on delivery.
+   */
+  it("sends the customer to the receipt when Back restores this page from the wallet", async () => {
+    vi.mocked(submitCart).mockResolvedValue(placedOrder);
+    vi.mocked(startWalletPayment).mockResolvedValue({
+      kind: "redirect",
+      url: "https://gcash.test/pay",
+    });
+    renderCheckout();
+    chooseWallet("Maya");
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Place order/ })[0]);
+    await waitFor(() => expect(assign).toHaveBeenCalled());
+
+    fireEvent(window, new PageTransitionEvent("pageshow", { persisted: true }));
+
+    // `replace`, not `push`: Back from the receipt must not land here and
+    // bounce them forward again.
+    await waitFor(() =>
+      expect(replace).toHaveBeenCalledWith(
+        "/checkout/confirmation?order=order-79&pay=paymaya",
+      ),
+    );
+  });
+
+  it("only refreshes on a cached restore that did not come from a wallet", async () => {
+    renderCheckout();
+
+    fireEvent(window, new PageTransitionEvent("pageshow", { persisted: true }));
+
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+    expect(replace).not.toHaveBeenCalled();
   });
 
   it("still opens the receipt, with the wallet named and the failure flagged, when the payment cannot start", async () => {

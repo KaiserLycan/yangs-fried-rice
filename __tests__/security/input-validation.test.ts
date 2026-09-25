@@ -11,6 +11,7 @@ import { reviewSubmissionSchema } from "@/lib/validation/reviews";
 import { createEmployeeSchema } from "@/lib/validation/admin";
 import { transactionSchema } from "@/lib/validation/transaction";
 import { orderStatusSchema, isValidTransition } from "@/lib/validation/orders";
+import { toIsoDate } from "@/lib/validation/date-of-birth";
 
 /**
  * Input validation — Phase 4 section A.
@@ -110,7 +111,14 @@ describe("A4. password", () => {
 
 describe("A5. date of birth", () => {
   it("rejects a date in the future", () => {
-    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    // Built as a *local* calendar date. `toISOString()` renders UTC, so
+    // between midnight and 08:00 in Manila (UTC+8) its "tomorrow" is still
+    // today's local date — the schema rightly called that not-in-the-future
+    // and this case failed for eight hours a day.
+    const now = new Date();
+    const tomorrow = toIsoDate(
+      new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1),
+    );
     expect(messageFor(personalDetailsSchema, { firstName: "Liza", lastName: "Reyes", dateOfBirth: tomorrow }, "dateOfBirth"))
       .toMatch(/future/i);
   });

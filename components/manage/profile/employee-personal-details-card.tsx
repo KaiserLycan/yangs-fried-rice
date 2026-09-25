@@ -24,7 +24,11 @@ import {
 import { useCardEditor } from "@/components/profile/use-card-editor";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { lengthProps } from "@/lib/validation/fields";
-import { earliestBirthdate, latestBirthdateForMinAge } from "@/lib/validation/date-of-birth";
+import {
+  EMPLOYEE_MIN_AGE_YEARS,
+  earliestBirthdate,
+  latestBirthdateForMinAge,
+} from "@/lib/validation/date-of-birth";
 import { useToast } from "@/components/ui/toast";
 import { employeePersonalDetailsSchema } from "@/lib/validation/employee-profile";
 import { formatDateOfBirth } from "@/lib/profile/identity";
@@ -121,7 +125,7 @@ export function EmployeePersonalDetailsCard({
                 autoComplete="bday"
                 defaultValue={profile.dateOfBirth ?? ""}
                 min={earliestBirthdate()}
-                max={latestBirthdateForMinAge()}
+                max={latestBirthdateForMinAge(EMPLOYEE_MIN_AGE_YEARS)}
                 invalid={Boolean(errors.dateOfBirth)}
               />
             </CardField>

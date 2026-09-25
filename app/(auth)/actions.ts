@@ -21,6 +21,12 @@ import {
 } from "@/lib/validation/signup";
 import { loginSchema, type LoginValues } from "@/lib/validation/login";
 import {
+  forgotPasswordSchema,
+  resetPasswordSchema,
+  type ForgotPasswordValues,
+  type ResetPasswordValues,
+} from "@/lib/validation/password-reset";
+import {
   employeeLoginSchema,
   EMPLOYEE_SIGN_IN_FAILED,
   type EmployeeLoginValues,
@@ -205,12 +211,21 @@ export async function registerCustomer(
 }
 
 /**
- * Shown when valid credentials belong to an account with no customer record
- * — an administrator, staff member or rider. It names the right door rather
- * than pretending the password was wrong.
+ * Deliberately identical to the wrong-password message.
+ *
+ * It used to say "This account isn't a customer account. Staff and
+ * administrators sign in at the employee login." — which told anyone who
+ * asked two things they should not learn from a login form: that the address
+ * is registered, and that it belongs to staff. That turns this form into a
+ * way to enumerate accounts and then pick out the privileged ones, which is
+ * the opposite of what the generic wrong-password message a few lines down
+ * is for (issue #106).
+ *
+ * Staff who land here by mistake are not left stranded: /login carries a
+ * standing "Employee sign-in" link that is shown to everyone and so reveals
+ * nothing about any particular address.
  */
-const CUSTOMER_ONLY_MESSAGE =
-  "This account isn't a customer account. Staff and administrators sign in at the employee login.";
+const CUSTOMER_ONLY_MESSAGE = "Incorrect email or password.";
 
 /**
  * Cust2: authenticate an existing customer via Supabase.
@@ -262,6 +277,100 @@ export async function loginCustomer(
 
   // A stale employee session cookie from an earlier staff sign-in on this
   // browser must not ride along with a customer session.
+  deleteSession();
+
+  return { success: true };
+}
+
+/**
+ * Send a password-reset link.
+ *
+ * Issue #106: the customer "Forgot password?" link pointed back at /login and
+ * did nothing, and employees had no way back in at all. One action serves
+ * both — Supabase Auth holds a single password per account, so the reset is
+ * identical whether the address belongs to a customer or an employee.
+ *
+ * Always reports success. A "no account with that email" reply here would
+ * turn this form into a way to find out which addresses are registered, and
+ * the redirect lands on /reset-password, which `middleware.ts` has to let
+ * through while signed out.
+ */
+export async function requestPasswordReset(
+  values: ForgotPasswordValues,
+): Promise<ActionResult> {
+  const parsed = forgotPasswordSchema.safeParse(values);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Enter a valid email address.",
+      fieldErrors: fieldErrorsFromIssues(parsed.error.issues),
+    };
+  }
+
+  const origin = headers().get("origin");
+  const supabase = createClient();
+
+  const { error } = await supabase.auth.resetPasswordForEmail(
+    parsed.data.email,
+    origin ? { redirectTo: `${origin}/reset-password` } : undefined,
+  );
+
+  // Logged, not shown: a transport failure is ours, not the customer's, and
+  // saying so would still leak whether the address exists.
+  if (error) {
+    console.error("requestPasswordReset: could not send reset email:", error);
+  }
+
+  return { success: true };
+}
+
+/**
+ * Set a new password from the link in the reset email.
+ *
+ * By the time this runs the recovery token in the URL has already been
+ * exchanged for a session by the Supabase client on the reset page, so this
+ * is an ordinary `updateUser` against that session — the same call the
+ * profile's change-password card makes. Without a session the update fails,
+ * which is what stops this being a way to change a stranger's password.
+ */
+export async function resetPassword(
+  values: ResetPasswordValues,
+): Promise<ActionResult> {
+  const parsed = resetPasswordSchema.safeParse(values);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? "Enter a valid password.",
+      fieldErrors: fieldErrorsFromIssues(parsed.error.issues),
+    };
+  }
+
+  const supabase = createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return {
+      success: false,
+      error:
+        "That reset link has expired or has already been used. Request a new one.",
+    };
+  }
+
+  const { error } = await supabase.auth.updateUser({
+    password: parsed.data.password,
+  });
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  // The recovery session is a way in that was mailed to an inbox. Once the
+  // password is set, end it so the new one has to be typed — and so a shared
+  // or forwarded email does not leave someone signed in.
+  await supabase.auth.signOut();
   deleteSession();
 
   return { success: true };

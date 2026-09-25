@@ -12,6 +12,8 @@ import { z } from "zod";
 // ---------------------------------------------------------------------------
 
 export const ORDER_STATUSES = [
+  "awaiting_payment",
+  "payment_failed",
   "pending",
   "received",
   "preparing",
@@ -22,6 +24,31 @@ export const ORDER_STATUSES = [
 ] as const;
 
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
+
+/**
+ * The two statuses that mean "nobody has paid for this and nobody should be
+ * cooking it".
+ *
+ * A wallet order is written as `awaiting_payment` by `submitCart` and only
+ * becomes `pending` — the live kitchen state — when PayMongo's webhook says
+ * the money arrived, or when the customer gives up and switches to cash on
+ * delivery. A payment that comes back refused lands on `payment_failed`.
+ *
+ * Before this existed every order was born `pending`, so an abandoned or
+ * refused wallet payment went straight to the kitchen and the rider queue
+ * (issue #106). Staff-facing reads filter on this list rather than naming the
+ * two strings themselves, so a third payment state later only has to be added
+ * here.
+ */
+export const UNPAID_ORDER_STATUSES = [
+  "awaiting_payment",
+  "payment_failed",
+] as const;
+
+/** Is this an order nobody has paid for yet? */
+export function isUnpaidStatus(status: string | null | undefined): boolean {
+  return (UNPAID_ORDER_STATUSES as readonly string[]).includes(status ?? "");
+}
 
 export const orderStatusSchema = z.enum(ORDER_STATUSES, {
   errorMap: () => ({
@@ -38,8 +65,16 @@ export const orderStatusSchema = z.enum(ORDER_STATUSES, {
  *
  * `cancelled` is reachable from every non-terminal status.
  * `completed` and `cancelled` are terminal — no further transitions.
+ *
+ * The two payment gates only ever lead to `pending` (the money arrived, or
+ * the customer switched to cash on delivery) or out of the system entirely.
+ * Neither can jump straight to `preparing`: an unpaid order must pass through
+ * `pending` so it enters the kitchen queue by the same door as every other
+ * order.
  */
 export const VALID_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
+  awaiting_payment: ["pending", "payment_failed", "cancelled"],
+  payment_failed: ["pending", "cancelled"],
   pending: ["preparing", "cancelled"],
   received: ["preparing", "cancelled"],
   preparing: ["ready", "out_for_delivery", "cancelled"],

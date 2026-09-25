@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { orderItemName } from "@/lib/orders/item-name";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { computeOrderTotal } from "@/lib/orders/order-total";
 import {
@@ -211,7 +212,7 @@ export async function getDeliveryDetailsBatch(deliveryIds: string[]) {
 
     const { data: iData } = await supabase
       .from("order_item")
-      .select("order_id, quantity, subtotal, product:product_id (product_name)")
+      .select("order_id, quantity, subtotal, product_name, unit_price, product:product_id (product_name)")
       .in("order_id", orderIds);
     if (iData) orderItems = iData;
 
@@ -261,7 +262,7 @@ export async function getDeliveryDetailsBatch(deliveryIds: string[]) {
     };
 
     const items = lines.map((item) => ({
-      productName: item.product?.product_name ?? "Unknown item",
+      productName: orderItemName(item.product_name, item.product?.product_name),
       quantity: item.quantity,
     }));
 
@@ -347,7 +348,7 @@ export async function getDeliveryDetail(deliveryId: string): Promise<{
 
     const { data: orderItems } = await supabase
       .from("order_item")
-      .select("quantity, subtotal, product:product_id (product_name)")
+      .select("quantity, subtotal, product_name, unit_price, product:product_id (product_name)")
       .eq("order_id", delivery.order_id);
 
     const { data: orderAddOns } = await supabase
@@ -356,7 +357,7 @@ export async function getDeliveryDetail(deliveryId: string): Promise<{
       .eq("order_id", delivery.order_id);
 
     items = (orderItems ?? []).map((item) => ({
-      productName: item.product?.product_name ?? "Unknown item",
+      productName: orderItemName(item.product_name, item.product?.product_name),
       quantity: item.quantity,
     }));
 
@@ -432,6 +433,55 @@ export async function markDelivered(
     };
   }
 
+  // A cash-on-delivery run is only finished when the rider actually has the
+  // money. The modal disables "Complete delivery" until the box is ticked,
+  // but that is a convenience, not the rule: this action is callable
+  // directly, and it escalates to the service role further down, so RLS is
+  // no backstop. Until now `isCashCollected` was posted by the modal and then
+  // dropped on the floor here, which made the tick decorative (issue #106).
+  //
+  // Read with the service role: riders have no select grant on `transaction`,
+  // and a filtered-to-zero-rows read would look exactly like "not a cash
+  // order" and wave the delivery through.
+  const admin = createAdminClient();
+  const isCashCollected = formData.get("isCashCollected") === "true";
+
+  const [{ data: paymentRows, error: paymentReadError }, { data: orderRow }] =
+    await Promise.all([
+      admin
+        .from("transaction")
+        .select("transaction_id, payment_method, payment_status, subtotal")
+        .eq("order_id", delivery.order_id ?? ""),
+      admin
+        .from("order")
+        .select("delivery_fee")
+        .eq("order_id", delivery.order_id ?? "")
+        .maybeSingle(),
+    ]);
+
+  if (paymentReadError) {
+    return {
+      success: false,
+      error: "Couldn't check this order's payment. Please try again.",
+    };
+  }
+
+  const orderDeliveryFee = orderRow?.delivery_fee ?? 0;
+
+  // The one row that still owes money in cash. An order already settled
+  // online has nothing to collect, so the tick is neither shown nor required.
+  const cashDue = (paymentRows ?? []).find(
+    (row) =>
+      row.payment_method === "cash_on_delivery" && row.payment_status !== "paid",
+  );
+
+  if (cashDue && !isCashCollected) {
+    return {
+      success: false,
+      error: "Confirm the cash payment before completing this delivery.",
+    };
+  }
+
   const proofFile = getProofFile(formData);
   if (!proofFile) {
     return { success: false, error: "A proof-of-delivery photo is required." };
@@ -484,13 +534,35 @@ export async function markDelivered(
     };
   }
 
+  // The cash is in the rider's hand, so the order is paid. Without this the
+  // books would show every completed cash delivery as still pending, and the
+  // receipt would keep telling the customer nothing had been taken.
+  if (cashDue) {
+    const { error: cashError } = await admin
+      .from("transaction")
+      .update({
+        payment_status: "paid",
+        // `subtotal` is what `submitCart` recorded for the goods. The
+        // delivery fee lives on the order, so it is added back here rather
+        // than recomputed — this must agree with the figure the customer was
+        // shown at checkout.
+        total_paid: (cashDue.subtotal ?? 0) + (orderDeliveryFee ?? 0),
+        transaction_date: new Date().toISOString(),
+      })
+      .eq("transaction_id", cashDue.transaction_id);
+
+    if (cashError) {
+      console.error("markDelivered: could not record cash payment:", cashError);
+    }
+  }
+
   // Reflect the completed status back to the original order record
   // Riders have no UPDATE access to `order` (003_kitchen_queue_rls.sql), so
   // a session-scoped update here is silently filtered to zero rows. The
   // rider's assignment to this delivery was verified above, so the status
   // change is made with the service role, scoped to that one order.
   if (delivery.order_id) {
-    const { error: orderUpdateError } = await createAdminClient()
+    const { error: orderUpdateError } = await admin
       .from("order")
       .update({
         order_status: "completed",

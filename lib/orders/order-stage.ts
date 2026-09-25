@@ -30,6 +30,7 @@
  */
 
 import { isPickupOrder } from "@/lib/orders/format";
+import { isUnpaidStatus } from "@/lib/validation/orders";
 
 export const ORDER_STAGES = [
   "received",
@@ -94,6 +95,8 @@ export const CANCELLED_HEADLINE = "ORDER CANCELLED";
 
 export const UNKNOWN_HEADLINE = "CHECKING THIS ORDER";
 
+export const UNPAID_HEADLINE = "WAITING FOR PAYMENT";
+
 /**
  * Where an order is right now. `cancelled` and `unknown` are siblings of the
  * four stages rather than stages themselves: neither appears on the timeline,
@@ -113,6 +116,16 @@ export type OrderProgress =
       orderStatus: string | null;
     }
   | { kind: "cancelled" }
+  /**
+   * Placed, but nobody has paid for it yet — a wallet order whose payment
+   * was abandoned or refused. Its own kind rather than a stage, because it
+   * is not on the timeline and it is not `unknown`: we know exactly what is
+   * wrong with it and exactly what the customer can do about it.
+   *
+   * `orderStatus` is carried so the card can tell "waiting" from "failed",
+   * the only place that distinction is worth words.
+   */
+  | { kind: "unpaid"; orderStatus: string }
   | { kind: "unknown" };
 
 /** Done, current, or not yet reached. Drawn as "Done" / "Now" / "—". */
@@ -204,6 +217,16 @@ export function resolveOrderProgress(input: OrderStageInput): OrderProgress {
   if (input.cancelledAt !== null) return { kind: "cancelled" };
 
   const orderStatus = normaliseStatus(input.orderStatus);
+
+  // Checked before any stage lookup, and deliberately not in
+  // ORDER_STATUS_STAGES: an unpaid order has no stage. The kitchen has not
+  // seen it, so calling it "received" would be a lie, and letting it fall
+  // through to `unknown` would offer the customer a Track link for food
+  // nobody has paid for (issue #106).
+  if (isUnpaidStatus(orderStatus)) {
+    return { kind: "unpaid", orderStatus: orderStatus as string };
+  }
+
   let fromOrder = ORDER_STATUS_STAGES[orderStatus ?? ""];
   if (fromOrder === "cancelled") return { kind: "cancelled" };
 
@@ -284,6 +307,7 @@ export function headlineFor(
   fulfilment: Fulfilment = "delivery",
 ): string {
   if (progress.kind === "cancelled") return CANCELLED_HEADLINE;
+  if (progress.kind === "unpaid") return UNPAID_HEADLINE;
   if (progress.kind === "unknown") return UNKNOWN_HEADLINE;
   const headlines =
     fulfilment === "pickup" ? PICKUP_STAGE_HEADLINES : STAGE_HEADLINES;

@@ -1,4 +1,6 @@
+import { orderItemName } from "@/lib/orders/item-name";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { validateNcrAddress } from "@/lib/address/validate-ncr";
 
 /**
@@ -89,7 +91,7 @@ export async function readTrackedOrder(
     readRiderName(supabase, delivery?.rider_id ?? null),
     supabase
       .from("order_item")
-      .select("product_id, product(product_name)")
+      .select("product_id, product_name, product(product_name)")
       .eq("order_id", order.order_id)
       .then((res) => res.data),
   ]);
@@ -109,7 +111,12 @@ export async function readTrackedOrder(
     riderName,
     items: (orderItems || []).map((item) => ({
       productId: item.product_id || "",
-      name: Array.isArray(item.product) ? item.product[0]?.product_name || "Unknown Item" : item.product?.product_name || "Unknown Item",
+      name: orderItemName(
+        item.product_name,
+        Array.isArray(item.product)
+          ? item.product[0]?.product_name
+          : item.product?.product_name,
+      ),
     })),
   };
 }
@@ -124,7 +131,22 @@ async function readRiderName(
 ): Promise<string | null> {
   if (!riderId) return null;
 
-  const { data: rider } = await supabase
+  // Read with the service role, not the caller's session.
+  //
+  // This runs on the *customer's* tracking screen, and both rows belong to
+  // somebody else. `employee` and `rider` are RLS-protected so that customers
+  // and anonymous visitors cannot read staff records, which means a
+  // session-scoped read here matches zero rows and the rider's name silently
+  // disappears from tracking.
+  //
+  // Only the name is selected, and only for the rider already assigned to
+  // this delivery, so nothing else about the employee is exposed. The
+  // alternative — a policy letting a customer read staff rows by joining
+  // delivery to order — widens the table's exposure to express a rule that
+  // belongs here.
+  const admin = createAdminClient();
+
+  const { data: rider } = await admin
     .from("rider")
     .select("employee_id")
     .eq("rider_id", riderId)
@@ -132,7 +154,7 @@ async function readRiderName(
 
   if (!rider?.employee_id) return null;
 
-  const { data: employee } = await supabase
+  const { data: employee } = await admin
     .from("employee")
     .select("name")
     .eq("employee_id", rider.employee_id)

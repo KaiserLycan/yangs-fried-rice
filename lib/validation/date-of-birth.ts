@@ -13,12 +13,37 @@ import { z } from "zod";
  * enough to flip a "not in the future" check on the boundary day.
  */
 
+/**
+ * The customer minimum. A customer only has to be old enough to hold an
+ * account.
+ */
 export const MIN_AGE_YEARS = 13;
+
+/**
+ * The employee minimum, which is a different question: this is a job, not an
+ * account, so it is the legal working age rather than an account age.
+ *
+ * Issue #106 reported that a manager could set an employee's birthdate to
+ * make them 13. The date rule was working exactly as written — 13 was simply
+ * the wrong number for staff, and one shared constant could not say two
+ * things at once.
+ */
+export const EMPLOYEE_MIN_AGE_YEARS = 18;
+
 export const MAX_AGE_YEARS = 150;
 
 export const DOB_FUTURE_MESSAGE = "Date of birth can't be in the future.";
-export const DOB_TOO_YOUNG_MESSAGE = `You must be at least ${MIN_AGE_YEARS} years old.`;
 export const DOB_INVALID_MESSAGE = "Please enter a valid birthdate.";
+
+/** "You must be at least N years old." — N depends on who is being saved. */
+export function tooYoungMessage(minAge: number): string {
+  return `You must be at least ${minAge} years old.`;
+}
+
+export const DOB_TOO_YOUNG_MESSAGE = tooYoungMessage(MIN_AGE_YEARS);
+export const EMPLOYEE_DOB_TOO_YOUNG_MESSAGE = tooYoungMessage(
+  EMPLOYEE_MIN_AGE_YEARS,
+);
 
 /** `YYYY-MM-DD` for a local calendar date — what `<input type="date" max>` wants. */
 export function toIsoDate(date: Date): string {
@@ -33,10 +58,21 @@ export function latestBirthdate(now: Date = new Date()): string {
   return toIsoDate(now);
 }
 
-/** Latest birthdate that still satisfies the minimum age. */
-export function latestBirthdateForMinAge(now: Date = new Date()): string {
+/**
+ * Latest birthdate that still satisfies a minimum age — the `max` for a
+ * `<input type="date">`.
+ *
+ * The age comes first because that is what call sites vary; the clock is
+ * only ever passed by tests. Note this takes an **age in years**, not a
+ * date: `latestBirthdateForMinAge(18)` means "18 years old", and passing a
+ * Date here would silently produce a nonsense boundary.
+ */
+export function latestBirthdateForMinAge(
+  minAge: number = MIN_AGE_YEARS,
+  now: Date = new Date(),
+): string {
   return toIsoDate(
-    new Date(now.getFullYear() - MIN_AGE_YEARS, now.getMonth(), now.getDate()),
+    new Date(now.getFullYear() - minAge, now.getMonth(), now.getDate()),
   );
 }
 
@@ -63,7 +99,14 @@ function parseIsoDate(value: string): Date | null {
   return date;
 }
 
-export function dateOfBirthSchemaFor(now: () => Date = () => new Date()) {
+/**
+ * `now` stays first so existing callers and tests are unaffected; `minAge`
+ * is what varies by surface. Prefer the two ready-made schemas below.
+ */
+export function dateOfBirthSchemaFor(
+  now: () => Date = () => new Date(),
+  minAge: number = MIN_AGE_YEARS,
+) {
   return z.string().superRefine((value, ctx) => {
     if (!value) return;
 
@@ -82,12 +125,12 @@ export function dateOfBirthSchemaFor(now: () => Date = () => new Date()) {
     }
 
     const youngest = new Date(
-      today.getFullYear() - MIN_AGE_YEARS,
+      today.getFullYear() - minAge,
       today.getMonth(),
       today.getDate(),
     );
     if (dob.getTime() > youngest.getTime()) {
-      ctx.addIssue({ code: "custom", message: DOB_TOO_YOUNG_MESSAGE });
+      ctx.addIssue({ code: "custom", message: tooYoungMessage(minAge) });
       return;
     }
 
@@ -102,4 +145,11 @@ export function dateOfBirthSchemaFor(now: () => Date = () => new Date()) {
   });
 }
 
+/** Customers: old enough to hold an account. */
 export const dateOfBirthSchema = dateOfBirthSchemaFor();
+
+/** Employees and riders: old enough to be employed. */
+export const employeeDateOfBirthSchema = dateOfBirthSchemaFor(
+  undefined,
+  EMPLOYEE_MIN_AGE_YEARS,
+);

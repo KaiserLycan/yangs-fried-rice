@@ -129,6 +129,19 @@ export function EmployeeLoginForm() {
           />
         </Field>
 
+        {/* Issue #106 asked for employees to get the same way back in that
+            customers have. `?from=employee` only steers the way-back link, so
+            a rider who resets a password lands on /employee/login rather than
+            the customer one. */}
+        <div className="flex justify-end">
+          <Link
+            href="/forgot-password?from=employee"
+            className="text-[13px] font-bold text-primary"
+          >
+            Forgot password?
+          </Link>
+        </div>
+
         <SubmitButton
           pending={isPending}
           invalid={!live.isValid}

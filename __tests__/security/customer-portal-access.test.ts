@@ -47,8 +47,40 @@ describe("customer login refuses accounts that aren't customers", () => {
     const result = await loginCustomer(credentials);
 
     expect(result.success).toBe(false);
-    if (!result.success) expect(result.error).toMatch(/isn't a customer account/i);
     expect(signOut).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * This assertion was inverted on purpose. It used to require the rejection
+   * to say "isn't a customer account", which was the intended behaviour at
+   * the time — name the right door rather than pretend the password was
+   * wrong.
+   *
+   * Issue #106 rejected that: the credentials here are *correct*, so a
+   * message that distinguishes this case from a bad password confirms both
+   * that the address is registered and that it belongs to staff. That is
+   * account enumeration with the privileged accounts helpfully labelled.
+   * The reply must now be indistinguishable from a wrong password.
+   */
+  it("reveals nothing about the account it just refused", async () => {
+    maybeSingle.mockResolvedValue({ data: null, error: null });
+
+    const staffResult = await loginCustomer(credentials);
+
+    // What a genuinely wrong password produces, for comparison.
+    signInWithPassword.mockResolvedValueOnce({
+      data: { user: null },
+      error: { message: "Invalid login credentials" },
+    });
+    const wrongPasswordResult = await loginCustomer(credentials);
+
+    expect(staffResult.success).toBe(false);
+    expect(wrongPasswordResult.success).toBe(false);
+    if (!staffResult.success && !wrongPasswordResult.success) {
+      expect(staffResult.error).toBe(wrongPasswordResult.error);
+      expect(staffResult.error).not.toMatch(/customer account/i);
+      expect(staffResult.error).not.toMatch(/staff|administrator|employee/i);
+    }
   });
 
   it("refuses a disabled customer and signs them out", async () => {

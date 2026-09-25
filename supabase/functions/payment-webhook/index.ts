@@ -123,6 +123,43 @@ Deno.serve(async (req: Request) => {
     console.error("payment-webhook: failed to update transaction:", error);
   }
 
+  // The transaction row is only half the story. `submitCart` now parks a
+  // wallet order at `awaiting_payment` so the kitchen and the rider queue
+  // never see a payment that has not landed, which makes this webhook the
+  // thing that releases it — or marks it refused. Without this half the order
+  // would stay invisible forever (issue #106).
+  //
+  // These strings mirror `ORDER_STATUSES` in `lib/validation/orders.ts`. Edge
+  // functions run on Deno and cannot import from the Next app, so they are
+  // repeated here; change both together.
+  const orderIds = [
+    ...new Set(
+      (updatedRows ?? [])
+        .map((row: { order_id: string | null }) => row.order_id)
+        .filter((id: string | null): id is string => Boolean(id)),
+    ),
+  ];
+
+  if (orderIds.length > 0) {
+    const nextOrderStatus = newStatus === "paid" ? "pending" : "payment_failed";
+
+    const { error: orderError } = await supabase
+      .from("order")
+      .update({ order_status: nextOrderStatus })
+      .in("order_id", orderIds)
+      // Only ever move an order that is still waiting on this payment.
+      // PayMongo can deliver a webhook late or twice, and staff may already
+      // have pushed a paid order on to `preparing` — or the customer may have
+      // given up and switched to cash on delivery. Neither should be dragged
+      // backwards by a stale delivery, so the update is scoped to the two
+      // statuses that genuinely mean "still unpaid".
+      .in("order_status", ["awaiting_payment", "payment_failed"]);
+
+    if (orderError) {
+      console.error("payment-webhook: failed to update order status:", orderError);
+    }
+  }
+
   return new Response("ok", { status: 200 });
 });
 

@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { orderNumberFrom, type PlacedOrder } from "@/lib/checkout/placed-order";
 import { PAYMENT_METHODS } from "@/lib/checkout/payment-methods";
 import { foldPaymentStatus } from "@/lib/checkout/payment-status";
+import { orderItemName, orderItemUnitPrice } from "@/lib/orders/item-name";
 import { formatOrderTime } from "@/lib/checkout/order-time";
 import type { Fulfilment } from "@/lib/menu/cart-totals";
 
@@ -32,7 +33,7 @@ export async function readPlacedOrder(
   // this filter is what actually prevents that.
   const { data: order } = await supabase
     .from("order")
-    .select("order_id, order_type, created_at, delivery_address")
+    .select("order_id, order_type, order_status, created_at, delivery_address")
     .eq("order_id", orderId)
     .eq("customer_id", user.id)
     .maybeSingle();
@@ -42,7 +43,7 @@ export async function readPlacedOrder(
   const [items, transaction, customer] = await Promise.all([
     supabase
       .from("order_item")
-      .select("order_item_id, quantity, subtotal, product(product_name)")
+      .select("order_item_id, quantity, subtotal, product_name, unit_price, product(product_name)")
       .eq("order_id", order.order_id),
     // Every row, not one: a retried online payment leaves a failed row next
     // to a pending one. `foldPaymentStatus` decides what they add up to.
@@ -73,18 +74,41 @@ export async function readPlacedOrder(
     fulfilment,
     lines: (items.data ?? []).map((row) => ({
       id: row.order_item_id,
-      name: productNameOf(row.product) ?? "Item no longer on the menu",
+      name: orderItemName(row.product_name, productNameOf(row.product)),
       // `order_item` stores the line's subtotal, not its unit price, and
       // `CartLine` wants a unit price so `lineTotal` can multiply it back
       // out. Dividing recovers what the customer was charged per item, which
       // is the honest figure — today's `product_price` may have moved since.
-      unitPrice: row.quantity > 0 ? row.subtotal / row.quantity : row.subtotal,
+      unitPrice: orderItemUnitPrice(
+        row.unit_price,
+        row.subtotal,
+        row.quantity,
+        null,
+      ),
       quantity: row.quantity,
       specialInstructions: null,
     })),
     paymentMethodLabel: paymentLabelFor(transaction.data?.[0]?.payment_method),
     paymentStatus: foldPaymentStatus(transaction.data ?? []),
+    isWalletOrder: isWalletMethod(transaction.data?.[0]?.payment_method),
+    orderStatus: order.order_status,
   };
+}
+
+/**
+ * Does this transaction row describe a wallet payment?
+ *
+ * `submitCart` writes "paymongo" for a wallet order and
+ * `create-payment-intent` writes the same, so that is the value in practice.
+ * "gcash" and "paymaya" are accepted too because `payment_method` is free
+ * text and older rows may name the wallet rather than the gateway — reading
+ * one of those as a cash order would hand the customer a Track link for
+ * food nobody has paid for.
+ */
+function isWalletMethod(stored: string | null | undefined): boolean {
+  if (!stored) return false;
+  const folded = stored.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return folded === "paymongo" || folded === "gcash" || folded === "paymaya";
 }
 
 /**
@@ -116,8 +140,9 @@ function fulfilmentFromOrderType(orderType: string | null): Fulfilment {
  * which wallet was used — the intent allows any of them. It is shown as the
  * option the customer picked.
  *
- * TODO (Backend): `submitCart` records no payment method for cash on
- * delivery or pay in store, so those orders read "Not recorded" here.
+ * `submitCart` now records the method the customer actually picked, so cash
+ * on delivery and pay in store label themselves. Rows written before that
+ * change may still read "Not recorded".
  */
 function paymentLabelFor(stored: string | null | undefined): string {
   if (!stored) return "Not recorded";
