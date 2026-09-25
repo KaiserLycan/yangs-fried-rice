@@ -46,7 +46,14 @@ export async function getMenuData(): Promise<
   // Parallel fetches on the server, but only one HTTP request from the client
   const [catsRes, prodsRes] = await Promise.all([
     supabase.from("categories").select("*").order("category_name"),
-    supabase.from("product").select("*, categories ( category_name ), add_on ( * )").order("product_name")
+    // Archived products are off the menu but still in the table, so that
+    // historical orders keep resolving (issue #106). Every menu read has to
+    // filter them out or "delete" looks broken.
+    supabase
+      .from("product")
+      .select("*, categories ( category_name ), add_on ( * )")
+      .is("archived_at", null)
+      .order("product_name")
   ]);
 
   if (catsRes.error) return { data: null, error: catsRes.error.message };
@@ -181,6 +188,7 @@ export async function getProducts(): Promise<
   const { data, error } = await supabase
     .from("product")
     .select("*, categories ( category_name ), add_on ( * )")
+    .is("archived_at", null)
     .order("product_name");
 
   if (error) return { data: null, error: error.message };
@@ -197,6 +205,7 @@ export async function getProductsByCategory(
     .from("product")
     .select("*, categories ( category_name ), add_on ( * )")
     .eq("category_id", categoryId)
+    .is("archived_at", null)
     .order("product_name");
 
   if (error) return { data: null, error: error.message };
@@ -283,7 +292,23 @@ export async function updateProduct(
   return { data, error: null };
 }
 
-// Delete a product permanently.
+/**
+ * Take a product off the menu.
+ *
+ * Archives rather than deletes. A hard DELETE nulled `order_item.product_id`
+ * on every historical line that referenced it — the foreign key is ON DELETE
+ * SET NULL — so past orders lost the name of what was bought and started
+ * rendering as "Unknown item" in KDS and the rider queue (issue #106).
+ *
+ * Orders also carry their own name and price snapshot now, so history would
+ * survive a delete; archiving is the second half, keeping the row itself
+ * around for anything that still joins to it. Menu reads filter on
+ * `archived_at`, so an archived product disappears from the menu exactly as a
+ * deleted one did.
+ *
+ * `is_available` is NOT the same thing: that is a temporary "we've run out"
+ * flag the kitchen flips back.
+ */
 export async function deleteProduct(
   productId: string,
 ): Promise<ActionResult<{ product_id: string }>> {
@@ -291,7 +316,7 @@ export async function deleteProduct(
 
   const { error } = await supabase
     .from("product")
-    .delete()
+    .update({ archived_at: new Date().toISOString(), is_available: false })
     .eq("product_id", productId);
 
   if (error) return { data: null, error: error.message };

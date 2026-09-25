@@ -30,6 +30,9 @@ type OrderWithDetails = Order & {
     quantity: number;
     subtotal: number;
     special_instructions: string | null;
+    /** Snapshot of what was ordered — see `lib/orders/item-name.ts`. */
+    product_name: string | null;
+    unit_price: number | null;
     product: { product_name: string; product_price: number } | null;
     order_item_add_on: { add_on: { name: string; price: number } | null }[] | null;
   }[];
@@ -253,6 +256,8 @@ export async function getDetailedOrders(
         quantity,
         subtotal,
         special_instructions,
+        product_name,
+        unit_price,
         product:product_id ( product_name, product_price ),
         order_item_add_on ( add_on ( name, price ) )
       ),

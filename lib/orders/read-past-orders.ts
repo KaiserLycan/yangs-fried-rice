@@ -1,3 +1,4 @@
+import { orderItemName } from "@/lib/orders/item-name";
 import { createClient } from "@/lib/supabase/server";
 import { orderNumberFrom } from "@/lib/orders/read-tracked-order";
 import { isPast, totalOf, type PastOrder } from "@/lib/orders/past-order";
@@ -55,7 +56,7 @@ export async function readPastOrders(): Promise<PastOrder[]> {
       .in("order_id", orderIds),
     supabase
       .from("order_item")
-      .select("order_id, quantity, subtotal, product_id, product(product_name)")
+      .select("order_id, quantity, subtotal, product_id, product_name, product(product_name)")
       .in("order_id", orderIds),
     supabase
       .from("review")
@@ -94,7 +95,7 @@ export async function readPastOrders(): Promise<PastOrder[]> {
       productId: (row as any).product_id ?? null,
       // A deleted product leaves the line in the order with nothing to name
       // it. Saying so beats rendering "2× " with a hole after it.
-      name: productNameOf(row.product) ?? "Item no longer on the menu",
+      name: orderItemName(row.product_name, productNameOf(row.product)),
     });
     itemsByOrder.set(row.order_id, list);
   }

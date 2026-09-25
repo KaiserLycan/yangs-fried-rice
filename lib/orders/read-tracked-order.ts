@@ -1,3 +1,4 @@
+import { orderItemName } from "@/lib/orders/item-name";
 import { createClient } from "@/lib/supabase/server";
 import { validateNcrAddress } from "@/lib/address/validate-ncr";
 
@@ -89,7 +90,7 @@ export async function readTrackedOrder(
     readRiderName(supabase, delivery?.rider_id ?? null),
     supabase
       .from("order_item")
-      .select("product_id, product(product_name)")
+      .select("product_id, product_name, product(product_name)")
       .eq("order_id", order.order_id)
       .then((res) => res.data),
   ]);
@@ -109,7 +110,12 @@ export async function readTrackedOrder(
     riderName,
     items: (orderItems || []).map((item) => ({
       productId: item.product_id || "",
-      name: Array.isArray(item.product) ? item.product[0]?.product_name || "Unknown Item" : item.product?.product_name || "Unknown Item",
+      name: orderItemName(
+        item.product_name,
+        Array.isArray(item.product)
+          ? item.product[0]?.product_name
+          : item.product?.product_name,
+      ),
     })),
   };
 }

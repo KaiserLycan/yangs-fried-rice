@@ -74,6 +74,9 @@ export async function getProducts(request: Request) {
     // It was also publishing reviewers' names and profile photos on an
     // unauthenticated endpoint, and nothing on the menu screen reads them.
     .select("*, categories(category_name), add_on(*)")
+    // Archived products stay in the table so old orders resolve, but they
+    // are no longer on the menu (issue #106).
+    .is("archived_at", null)
     .order("product_name");
 
   if (categoryIds) {
@@ -300,9 +303,12 @@ export async function deleteProduct(_request: Request, { params }: RouteParams) 
 
   const supabase = createClient();
 
+  // Archived, not deleted — a hard DELETE nulls order_item.product_id on
+  // every historical line (ON DELETE SET NULL) and loses what was bought.
+  // See `deleteProduct` in lib/actions/menu.ts.
   const { data, error } = await supabase
     .from("product")
-    .delete()
+    .update({ archived_at: new Date().toISOString(), is_available: false })
     .eq("product_id", productId)
     .select()
     .single();

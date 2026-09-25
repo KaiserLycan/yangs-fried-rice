@@ -530,25 +530,31 @@ export type Database = {
           order_id: string | null
           order_item_id: string
           product_id: string | null
+          product_name: string | null
           quantity: number
           special_instructions: string | null
           subtotal: number
+          unit_price: number | null
         }
         Insert: {
           order_id?: string | null
           order_item_id?: string
           product_id?: string | null
+          product_name?: string | null
           quantity?: number
           special_instructions?: string | null
           subtotal: number
+          unit_price?: number | null
         }
         Update: {
           order_id?: string | null
           order_item_id?: string
           product_id?: string | null
+          product_name?: string | null
           quantity?: number
           special_instructions?: string | null
           subtotal?: number
+          unit_price?: number | null
         }
         Relationships: [
           {
@@ -602,6 +608,7 @@ export type Database = {
       }
       product: {
         Row: {
+          archived_at: string | null
           category_id: string | null
           image_url: string | null
           is_available: boolean | null
@@ -611,6 +618,7 @@ export type Database = {
           product_price: number
         }
         Insert: {
+          archived_at?: string | null
           category_id?: string | null
           image_url?: string | null
           is_available?: boolean | null
@@ -620,6 +628,7 @@ export type Database = {
           product_price: number
         }
         Update: {
+          archived_at?: string | null
           category_id?: string | null
           image_url?: string | null
           is_available?: boolean | null

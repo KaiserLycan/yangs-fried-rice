@@ -758,7 +758,7 @@ export async function submitCart(
       product_id,
       quantity,
       special_instructions,
-      product ( product_price ),
+      product ( product_name, product_price ),
       cart_item_add_on ( addon_id, add_on ( price ) )
     `)
     .eq("cart_id", cart.cart_id);
@@ -801,7 +801,10 @@ export async function submitCart(
 
   // 2. Transfer cart items and their add-ons
   const orderItemsToInsert = cartItems.map((item) => {
-    const price = (item.product as { product_price: number } | null)?.product_price ?? 0;
+    const product = item.product as
+      | { product_name: string; product_price: number }
+      | null;
+    const price = product?.product_price ?? 0;
     const addOnTotal = (
       (item.cart_item_add_on as { add_on: { price: number } | null }[] | null) ?? []
     ).reduce((sum, row) => sum + (row.add_on?.price ?? 0), 0);
@@ -814,6 +817,11 @@ export async function submitCart(
       // same figure the cart showed the customer.
       subtotal: (price + addOnTotal) * item.quantity,
       special_instructions: item.special_instructions,
+      // What was bought, written down at the moment of buying. Renaming,
+      // repricing or removing the product afterwards no longer rewrites
+      // history or turns the line into "Unknown item" (issue #106).
+      product_name: product?.product_name ?? null,
+      unit_price: price + addOnTotal,
     };
   });
 

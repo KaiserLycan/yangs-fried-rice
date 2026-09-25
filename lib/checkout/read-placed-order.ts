@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { orderNumberFrom, type PlacedOrder } from "@/lib/checkout/placed-order";
 import { PAYMENT_METHODS } from "@/lib/checkout/payment-methods";
 import { foldPaymentStatus } from "@/lib/checkout/payment-status";
+import { orderItemName, orderItemUnitPrice } from "@/lib/orders/item-name";
 import { formatOrderTime } from "@/lib/checkout/order-time";
 import type { Fulfilment } from "@/lib/menu/cart-totals";
 
@@ -42,7 +43,7 @@ export async function readPlacedOrder(
   const [items, transaction, customer] = await Promise.all([
     supabase
       .from("order_item")
-      .select("order_item_id, quantity, subtotal, product(product_name)")
+      .select("order_item_id, quantity, subtotal, product_name, unit_price, product(product_name)")
       .eq("order_id", order.order_id),
     // Every row, not one: a retried online payment leaves a failed row next
     // to a pending one. `foldPaymentStatus` decides what they add up to.
@@ -73,12 +74,17 @@ export async function readPlacedOrder(
     fulfilment,
     lines: (items.data ?? []).map((row) => ({
       id: row.order_item_id,
-      name: productNameOf(row.product) ?? "Item no longer on the menu",
+      name: orderItemName(row.product_name, productNameOf(row.product)),
       // `order_item` stores the line's subtotal, not its unit price, and
       // `CartLine` wants a unit price so `lineTotal` can multiply it back
       // out. Dividing recovers what the customer was charged per item, which
       // is the honest figure — today's `product_price` may have moved since.
-      unitPrice: row.quantity > 0 ? row.subtotal / row.quantity : row.subtotal,
+      unitPrice: orderItemUnitPrice(
+        row.unit_price,
+        row.subtotal,
+        row.quantity,
+        null,
+      ),
       quantity: row.quantity,
       specialInstructions: null,
     })),

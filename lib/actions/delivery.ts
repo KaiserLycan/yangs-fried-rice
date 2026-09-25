@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { orderItemName } from "@/lib/orders/item-name";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { computeOrderTotal } from "@/lib/orders/order-total";
 import {
@@ -211,7 +212,7 @@ export async function getDeliveryDetailsBatch(deliveryIds: string[]) {
 
     const { data: iData } = await supabase
       .from("order_item")
-      .select("order_id, quantity, subtotal, product:product_id (product_name)")
+      .select("order_id, quantity, subtotal, product_name, unit_price, product:product_id (product_name)")
       .in("order_id", orderIds);
     if (iData) orderItems = iData;
 
@@ -261,7 +262,7 @@ export async function getDeliveryDetailsBatch(deliveryIds: string[]) {
     };
 
     const items = lines.map((item) => ({
-      productName: item.product?.product_name ?? "Unknown item",
+      productName: orderItemName(item.product_name, item.product?.product_name),
       quantity: item.quantity,
     }));
 
@@ -347,7 +348,7 @@ export async function getDeliveryDetail(deliveryId: string): Promise<{
 
     const { data: orderItems } = await supabase
       .from("order_item")
-      .select("quantity, subtotal, product:product_id (product_name)")
+      .select("quantity, subtotal, product_name, unit_price, product:product_id (product_name)")
       .eq("order_id", delivery.order_id);
 
     const { data: orderAddOns } = await supabase
@@ -356,7 +357,7 @@ export async function getDeliveryDetail(deliveryId: string): Promise<{
       .eq("order_id", delivery.order_id);
 
     items = (orderItems ?? []).map((item) => ({
-      productName: item.product?.product_name ?? "Unknown item",
+      productName: orderItemName(item.product_name, item.product?.product_name),
       quantity: item.quantity,
     }));
 
