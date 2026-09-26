@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Avatar } from "@/components/ui/avatar";
 import { compressImage } from "@/lib/image/compress";
+import { ALLOWED_IMAGE_TYPES, imageUploadProblem } from "@/lib/storage/stored-image";
 import { uploadProfileImage } from "@/lib/actions/profile";
 import { useToast } from "@/components/ui/toast";
 import { Loader2, Camera } from "lucide-react";
@@ -32,6 +33,15 @@ export function AvatarButton({
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Checked on the original, before compressing (P31): compression shrinks
+    // a 4K photo under the limit, so the server alone would never refuse it.
+    const problem = imageUploadProblem(file);
+    if (problem) {
+      showToast(problem, "error");
+      e.target.value = "";
+      return;
+    }
 
     try {
       setIsUploading(true);
@@ -64,7 +74,7 @@ export function AvatarButton({
     <div className={cn("relative group", wrapperClassName)}>
       <input
         type="file"
-        accept="image/*"
+        accept={ALLOWED_IMAGE_TYPES.join(",")}
         className="hidden"
         ref={fileInputRef}
         onChange={handleFileChange}

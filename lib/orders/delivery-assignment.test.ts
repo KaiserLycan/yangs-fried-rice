@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   canAcceptDelivery,
   canReleaseDelivery,
+  isAtDeliveryCap,
   isDeliveryFinished,
+  MAX_ACTIVE_DELIVERIES,
   releaseRefusalReason,
 } from "./delivery-assignment";
 
@@ -103,4 +105,14 @@ describe("isDeliveryFinished", () => {
       expect(isDeliveryFinished({ assignedRiderId: ME, status })).toBe(false);
     },
   );
+});
+
+describe("isAtDeliveryCap", () => {
+  it("lets a rider below the cap accept another", () => {
+    expect(isAtDeliveryCap(MAX_ACTIVE_DELIVERIES - 1)).toBe(false);
+  });
+
+  it("stops a rider holding the maximum", () => {
+    expect(isAtDeliveryCap(MAX_ACTIVE_DELIVERIES)).toBe(true);
+  });
 });

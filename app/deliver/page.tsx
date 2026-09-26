@@ -1,6 +1,7 @@
 import { Bike } from "lucide-react";
 import Link from "next/link";
-import { getAssignedDeliveries, getDeliveryDetail } from "@/lib/actions/delivery";
+import { getAssignedDeliveries, getDeliveryDetailsBatch } from "@/lib/actions/delivery";
+import { activeCountOf, compareQueue, toDeliveryCard } from "@/lib/orders/rider-queue";
 import { DeliveryOverviewCard } from "@/components/deliver/delivery-overview-card";
 
 export default async function DeliverHomePage() {
@@ -25,39 +26,20 @@ export default async function DeliverHomePage() {
     );
   }
 
-  // 2. Fetch the full details for each delivery so the cards have customer info
-  const detailedPromises = deliveries.map(summary => getDeliveryDetail(summary.deliveryId));
-  const detailedResults = await Promise.all(detailedPromises);
+  // 2. Fetch the full details in one batch — the same read and the same
+  // mapping the sidebar uses, so every rider sees the same queue (P45).
+  // `getDeliveryDetail` refused another rider's delivery, which is why
+  // taken orders used to vanish from this page.
+  const { deliveries: details } = await getDeliveryDetailsBatch(
+    deliveries.map((summary) => summary.deliveryId),
+  );
+  const activeCount = activeCountOf(deliveries);
 
-  // 3. Translate the backend Database schema into the UI's expected DeliveryData shape.
-  //
-  // One pass over the results, keeping the FULL delivery id. This used to
-  // shorten the id for display and hand that shortened string to the card, so
-  // "Accept" called acceptDelivery("A1B2C") — an id that matches nothing — and
-  // filtering one list but indexing the other paired cards with the wrong link.
-  const mappedDeliveries = detailedResults
-    .flatMap((res) => (res.delivery ? [res.delivery] : []))
-    .map((d) => {
-      // Map PostgreSQL delivery statuses to the UI's specific layout states
-      let cardStatus: "ready" | "delivering" | "completed" = "ready";
-      if (d.deliveryStatus === "delivering" || d.deliveryStatus === "out_for_delivery") cardStatus = "delivering";
-      if (d.deliveryStatus === "delivered") cardStatus = "completed";
-
-      return {
-        id: d.deliveryId,
-        customer: d.customer?.name || "Walk-in Customer",
-        address: d.customer?.address || "No address provided",
-        phone: d.customer?.phone || "No phone provided",
-        notes: "",
-        paymentMethod: d.payment?.method ?? "cash_on_delivery",
-        total: d.payment?.total ?? 0,
-        status: cardStatus,
-        createdAt: d.createdAt ?? new Date().toISOString(),
-        items: d.items.map((item) => ({
-          qty: item.quantity,
-          name: item.productName,
-        })),
-      };
+  const mappedDeliveries = [...deliveries]
+    .sort(compareQueue)
+    .flatMap((summary) => {
+      const detail = details.find((d) => d.deliveryId === summary.deliveryId);
+      return detail ? [toDeliveryCard(detail, summary, activeCount)] : [];
     })
     .filter((d) => d.status !== "completed");
 
@@ -81,14 +63,19 @@ export default async function DeliverHomePage() {
         Delivery Queue
       </h2>
       <p className="text-[13px] text-[#7A6A60] mb-6">
-        Orders waiting for a rider, and the ones you&apos;ve accepted.
+        Every order out for delivery. Ones another rider took show who has them.
       </p>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {mappedDeliveries.map((delivery) => (
-          <Link key={delivery.id} href={`/deliver/${delivery.id}`} className="block">
-            <DeliveryOverviewCard delivery={delivery} />
-          </Link>
-        ))}
+        {mappedDeliveries.map((delivery) =>
+          // Another rider's delivery has no detail page this rider may open.
+          delivery.takenBy ? (
+            <DeliveryOverviewCard key={delivery.id} delivery={delivery} />
+          ) : (
+            <Link key={delivery.id} href={`/deliver/${delivery.id}`} className="block">
+              <DeliveryOverviewCard delivery={delivery} />
+            </Link>
+          ),
+        )}
       </div>
     </div>
   );

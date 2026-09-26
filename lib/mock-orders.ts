@@ -13,6 +13,8 @@ export type OrderData = {
     quantity: number;
     name: string;
     addons?: string;
+    /** This line's own special instructions. */
+    instructions?: string;
     price: number;
   }[];
   contactInfo: {

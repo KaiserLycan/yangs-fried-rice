@@ -70,9 +70,17 @@ export function KdsOrderCard({ order, onAction }: KdsOrderCardProps) {
                 {item.name}
               </span>
             </div>
-            {item.addons && (
-              <div className="flex flex-col pl-[28px] mt-1 text-[#c0392b] text-[12px] italic">
-                <span>{item.addons}</span>
+            {/* Add-ons and the line's note on separate rows (P30). */}
+            {(item.addons || item.instructions) && (
+              <div className="flex flex-col pl-[28px] mt-1 gap-[2px] text-[12px]">
+                {item.addons && (
+                  <span className="text-[#c0392b] italic">+ {item.addons}</span>
+                )}
+                {item.instructions && (
+                  <span className="text-[#1a1210]">
+                    <span className="font-bold">Note:</span> {item.instructions}
+                  </span>
+                )}
               </div>
             )}
           </div>

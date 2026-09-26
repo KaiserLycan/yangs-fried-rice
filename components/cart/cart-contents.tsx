@@ -48,10 +48,12 @@ export function CartContents({
   const totals = computeCartTotals({ lines: localLines, fulfilment });
 
   return (
-    <div className="flex flex-1 flex-col gap-[14px]">
+    <div className="flex min-h-0 flex-1 flex-col gap-[14px]">
       <FulfilmentToggle value={fulfilment} onChange={setFulfilment} />
 
-      <div className="flex flex-col gap-[10px]">
+      {/* Scrolls on its own inside the sticky desktop rail (P40), so the
+          totals and Checkout stay in view. On /cart the page scrolls instead. */}
+      <div className="flex min-h-0 flex-col gap-[10px] overflow-y-auto">
         {localLines.map((line) => (
           <CartLineRow 
             key={line.id} 

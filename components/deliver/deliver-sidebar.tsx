@@ -1,19 +1,26 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState, useEffect, useMemo } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { DeliveryOverviewCard, type DeliveryData } from "./delivery-overview-card";
 import { DeliveryOverviewSkeleton } from "./delivery-overview-skeleton";
 import { getAssignedDeliveries, getDeliveryDetailsBatch } from "@/lib/actions/delivery";
-import { Loader2 } from "lucide-react";
+import { activeCountOf, compareQueue, toDeliveryCard } from "@/lib/orders/rider-queue";
+import { orderMatchesSearch } from "@/lib/orders/order-number";
+import { Search } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 import { ManagePagination } from "@/components/manage/manage-pagination";
 
 export function DeliverSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const activeDeliveryId = pathname.split("/").pop();
   
   const [filter, setFilter] = useState<"all" | "queue" | "delivered">("queue");
+  // Order-number search (P52) — the whole queue is already loaded, so this
+  // filters in the browser.
+  const [search, setSearch] = useState("");
   const [allSummaries, setAllSummaries] = useState<any[]>([]);
   const [deliveries, setDeliveries] = useState<DeliveryData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -51,6 +58,31 @@ export function DeliverSidebar() {
     return () => window.removeEventListener("delivery-updated", handleUpdate);
   }, []);
 
+  // Another rider accepting, handing back or finishing a delivery changes
+  // this rider's queue too (P46), so every change to `delivery` re-reads it.
+  // The queue page is a Server Component, so it is refreshed as well.
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
+  const routerRef = useRef(router);
+  routerRef.current = router;
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel("rider-queue")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "delivery" },
+        () => {
+          setRefreshTrigger((prev) => prev + 1);
+          if (pathnameRef.current === "/deliver") routerRef.current.refresh();
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   // Filter and sort the entire pool of summaries
   const filteredSummaries = useMemo(() => {
     return allSummaries
@@ -64,29 +96,16 @@ export function DeliverSidebar() {
         if (filter === "delivered") return cardStatus === "completed";
         return true;
       })
-      .sort((a, b) => {
-        let statusA = "ready";
-        if (a.deliveryStatus === "delivering" || a.deliveryStatus === "out_for_delivery") statusA = "delivering";
-        if (a.deliveryStatus === "delivered") statusA = "completed";
-        
-        let statusB = "ready";
-        if (b.deliveryStatus === "delivering" || b.deliveryStatus === "out_for_delivery") statusB = "delivering";
-        if (b.deliveryStatus === "delivered") statusB = "completed";
-
-        const statusWeight = { delivering: 0, ready: 1, completed: 2 };
-        if (statusWeight[statusA as keyof typeof statusWeight] !== statusWeight[statusB as keyof typeof statusWeight]) {
-          return statusWeight[statusA as keyof typeof statusWeight] - statusWeight[statusB as keyof typeof statusWeight];
-        }
-        
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-      });
-  }, [allSummaries, filter]);
+      .filter((s) => orderMatchesSearch(s.orderId, search))
+      // Same order as the queue page.
+      .sort(compareQueue);
+  }, [allSummaries, filter, search]);
   const totalPages = Math.ceil(filteredSummaries.length / pageSize);
   
-  // Reset to page 1 when filter changes
+  // Reset to page 1 when filter or search changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [filter]);
+  }, [filter, search]);
 
   useEffect(() => {
     async function fetchPageDetails() {
@@ -109,36 +128,21 @@ export function DeliverSidebar() {
         .map(id => detailedResults.find(d => d.deliveryId === id))
         .filter(Boolean);
 
-      const mapped: DeliveryData[] = orderedResults
-        .map(d => {
-          const deliveryData = d!;
-          let cardStatus: "ready" | "delivering" | "completed" = "ready";
-          if (deliveryData.deliveryStatus === "delivering" || deliveryData.deliveryStatus === "out_for_delivery") cardStatus = "delivering";
-          if (deliveryData.deliveryStatus === "delivered") cardStatus = "completed";
-
-          return {
-            id: deliveryData.deliveryId,
-            customer: deliveryData.customer?.name || "Walk-in Customer",
-            address: deliveryData.customer?.address || "Address details protected",
-            phone: deliveryData.customer?.phone || "Contact via details",
-            notes: "",
-            paymentMethod: deliveryData.payment?.method || "Standard",
-            total: deliveryData.payment?.total || 0,
-            status: cardStatus,
-            createdAt: deliveryData.createdAt || new Date().toISOString(),
-            items: deliveryData.items.map(item => ({
-              qty: item.quantity,
-              name: item.productName
-            }))
-          };
-        });
+      const activeCount = activeCountOf(allSummaries);
+      const mapped: DeliveryData[] = orderedResults.map((d) =>
+        toDeliveryCard(
+          d!,
+          allSummaries.find((s) => s.deliveryId === d!.deliveryId),
+          activeCount,
+        ),
+      );
 
       setDeliveries(mapped);
       setIsFetchingPage(false);
     }
 
     fetchPageDetails();
-  }, [allSummaries, filter, currentPage, pageSize]);
+  }, [allSummaries, filter, search, currentPage, pageSize]);
 
 
 
@@ -169,6 +173,18 @@ export function DeliverSidebar() {
             Delivered
           </button>
         </div>
+
+        <div className="relative mt-3">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A2938A]" />
+          <input
+            type="search"
+            aria-label="Search by order number"
+            placeholder="Search order #"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full h-[38px] pl-9 pr-3 rounded-[8px] border border-[#DDCDB8] bg-white text-[13px] focus:outline-none focus:ring-2 focus:ring-[#E8541F] placeholder:text-[#A2938A]"
+          />
+        </div>
       </div>
 
       <div className="flex flex-col px-[23px] py-[24px] gap-[10px] overflow-y-auto h-full">
@@ -182,7 +198,15 @@ export function DeliverSidebar() {
           <>
             {deliveries.map((delivery) => {
               const isActive = activeDeliveryId === delivery.id;
-              
+
+              // Another rider's delivery has no detail page this rider may
+              // open, so it is a plain card rather than a link.
+              if (delivery.takenBy) {
+                return (
+                  <DeliveryOverviewCard key={delivery.id} delivery={delivery} />
+                );
+              }
+
               return (
                 <Link 
                   key={delivery.id} 
@@ -198,7 +222,9 @@ export function DeliverSidebar() {
             })}
             {deliveries.length === 0 && (
               <p className="text-center text-[13px] text-[#7a6a60] mt-4">
-                No deliveries found for this filter.
+                {search.trim()
+                  ? `No orders starting with #${search.trim().replace(/^#/, "")}.`
+                  : "No deliveries found for this filter."}
               </p>
             )}
             

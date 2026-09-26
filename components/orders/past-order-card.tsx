@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
-  canRate,
   formatPlacedAt,
   formatTotal,
   isUnpaid,
@@ -16,7 +15,7 @@ import {
 } from "@/lib/orders/past-order";
 import {
   OrderRatingDisplay,
-  OrderRatingInput,
+  RateOrderButton,
 } from "@/components/orders/order-rating";
 import { useToast } from "@/components/ui/toast";
 import { reorderPastOrder } from "@/lib/actions/cart";
@@ -38,11 +37,9 @@ import { reorderPastOrder } from "@/lib/actions/cart";
 export function PastOrderCard({ order }: { order: PastOrder }) {
   const router = useRouter();
   const showToast = useToast();
-  const firstStarRef = React.useRef<HTMLButtonElement>(null);
   const [isPending, startTransition] = React.useTransition();
 
   const outcome = outcomeOf(order);
-  const rateable = canRate(order);
   const action = primaryActionOf(order);
   // An unpaid order has no receipt worth reading and no timeline to track —
   // every route off this card leads to the one place it can be paid for.
@@ -114,19 +111,14 @@ export function PastOrderCard({ order }: { order: PastOrder }) {
         </span>
       </Link>
 
-      {/* Below the total on mobile, above it on desktop. A cancelled order
-          renders neither: there is nothing to rate and nothing was rated. */}
+      {/* Below the total on mobile, above it on desktop. Only a given
+          rating is drawn: hollow stars on an unrated order looked pressable
+          and wrote a score on the first press (P34) — rating now happens in
+          the dialog "Rate order" opens. */}
       {order.rating !== null ? (
         <OrderRatingDisplay
           rating={order.rating}
           className="order-4 text-[15px] leading-none md:order-3"
-        />
-      ) : rateable ? (
-        <OrderRatingInput
-          orderId={order.orderId}
-          orderNumber={order.orderNumber}
-          firstStarRef={firstStarRef}
-          className="order-4 flex text-[15px] leading-none md:order-3"
         />
       ) : null}
 
@@ -151,16 +143,10 @@ export function PastOrderCard({ order }: { order: PastOrder }) {
             Track order
           </Link>
         ) : action === "rate" ? (
-          // "Rate order" is the instruction for the star row, so it moves the
-          // keyboard there rather than being a second way to rate. Rating
-          // without choosing a score isn't a thing the control can do.
-          <button
-            type="button"
-            onClick={() => firstStarRef.current?.focus()}
-            className="shrink-0 text-[13px] font-bold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-          >
-            Rate order
-          </button>
+          <RateOrderButton
+            orderId={order.orderId}
+            orderNumber={order.orderNumber}
+          />
         ) : (
           <button
             type="button"

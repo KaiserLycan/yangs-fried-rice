@@ -144,6 +144,7 @@ export function CheckoutScreen({
                 customerName={profile.name}
                 placedAtLabel={placedAtLabel}
                 address={profile.deliverToAddress}
+                deliveryNote={profile.deliverToNote}
                 cartId={cartId}
                 fulfilment={fulfilment}
                 lines={lines}

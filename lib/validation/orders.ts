@@ -99,6 +99,8 @@ export const orderFilterSchema = z.object({
     .optional(),
   date_from: z.string().datetime({ offset: true }).optional(),
   date_to: z.string().datetime({ offset: true }).optional(),
+  /** Start of an order id, as printed on the card — "#6940" (P52). */
+  search: z.string().max(40).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),
 });

@@ -11,6 +11,8 @@ import {
   type OrderFilters,
 } from "@/lib/validation/orders";
 import { ensureDeliveryRow } from "@/lib/orders/order-side-effects";
+import { isPickupOrder } from "@/lib/orders/format";
+import { orderIdRangeFor } from "@/lib/orders/order-number";
 import type { Tables, TablesUpdate } from "@/types/database.types";
 
 // ---------------------------------------------------------------------------
@@ -300,6 +302,12 @@ export async function getDetailedOrders(
   if (filters.date_to) {
     query = query.lte("created_at", filters.date_to);
   }
+  if (filters.search?.trim()) {
+    // Text that cannot be part of an order id matches nothing.
+    const range = orderIdRangeFor(filters.search);
+    if (!range) return { data: { data: [], totalCount: 0 }, error: null };
+    query = query.gte("order_id", range.from).lte("order_id", range.to);
+  }
 
   const { data, count, error } = await query;
 
@@ -380,13 +388,17 @@ export async function getOrderDetail(
  *   (cancelled is allowed from any non-terminal status)
  *
  * Sets `completed_at` when transitioning to `completed`.
- * Sets `cancelled_at` when transitioning to `cancelled`.
+ * Sets `cancelled_at` when transitioning to `cancelled`, and
+ * `cancellation_reason` when staff gave one — the customer's tracking screen
+ * shows it (P50). The staff dialog always asked for a reason, but it was
+ * never sent here, so every kitchen cancel reached the customer blank.
  *
  * Requires: admin, manager, or staff.
  */
 export async function updateOrderStatus(
   orderId: string,
   newStatus: string,
+  cancellationReason?: string,
 ): Promise<ActionResult<Order>> {
   const auth = await requireManageAccess();
   if (!auth.data) return { data: null, error: auth.error };
@@ -403,12 +415,22 @@ export async function updateOrderStatus(
   // Fetch current status.
   const { data: order, error: lookupError } = await supabase
     .from("order")
-    .select("order_id, order_status")
+    .select("order_id, order_status, order_type")
     .eq("order_id", orderId)
     .single();
 
   if (lookupError || !order) {
     return { data: null, error: "Order not found." };
+  }
+
+  // A take-out order never goes out with a rider, so no rider queue will
+  // ever show it. Letting it reach out_for_delivery left staff seeing
+  // "delivering" for an order no rider could find (P52).
+  if (validatedNewStatus === "out_for_delivery" && isPickupOrder(order.order_type)) {
+    return {
+      data: null,
+      error: "Take-out orders can't go out for delivery. Mark it ready for pick up instead.",
+    };
   }
 
   const currentStatus = order.order_status as OrderStatus | null;
@@ -434,6 +456,9 @@ export async function updateOrderStatus(
   }
   if (validatedNewStatus === "cancelled") {
     updatePayload.cancelled_at = new Date().toISOString();
+    // Same 300-character limit the customer's own cancel enforces.
+    const reason = cancellationReason?.trim().slice(0, 300);
+    if (reason) updatePayload.cancellation_reason = reason;
   }
 
   const { data: updated, error: updateError } = await supabase

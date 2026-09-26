@@ -111,7 +111,7 @@ export async function getOrderDetail(
 /**
  * PATCH /api/orders/[id]/status
  * Advance or update order status through distinct stages.
- * Body: { new_status: 'received' | 'preparing' | 'out_for_delivery' | 'completed' | 'cancelled' }
+ * Body: { new_status: 'received' | 'preparing' | 'out_for_delivery' | 'completed' | 'cancelled', cancellation_reason?: string }
  * Requires: admin, manager, or staff.
  */
 export async function updateOrderStatus(
@@ -138,7 +138,12 @@ export async function updateOrderStatus(
     );
   }
 
-  const result = await updateOrderStatusAction(params.id, newStatus);
+  const reason = (body as any)?.cancellation_reason;
+  const result = await updateOrderStatusAction(
+    params.id,
+    newStatus,
+    typeof reason === "string" ? reason : undefined,
+  );
   if (result.error || !result.data) {
     return NextResponse.json(
       { error: result.error },

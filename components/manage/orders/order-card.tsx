@@ -81,9 +81,15 @@ export function OrderCard({ order, onClick, onAction }: OrderCardProps) {
             <div className="font-semibold text-sm text-gray-900">
               <span className="font-bold">{item.quantity}x</span> {item.name}
             </div>
+            {/* Add-ons and the line's note on separate rows (P30). */}
             {item.addons && (
               <div className="text-[#C73926] text-xs italic mt-1 pl-5">
-                {item.addons}
+                + {item.addons}
+              </div>
+            )}
+            {item.instructions && (
+              <div className="text-gray-800 text-xs mt-1 pl-5">
+                <span className="font-bold">Note:</span> {item.instructions}
               </div>
             )}
           </div>

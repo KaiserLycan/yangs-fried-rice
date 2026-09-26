@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera } from "lucide-react";
 import { compressImage } from "@/lib/image/compress";
+import { ALLOWED_IMAGE_TYPES, imageUploadProblem } from "@/lib/storage/stored-image";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
@@ -27,6 +28,14 @@ export function EmployeeAvatarCard({
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Checked on the original, before compressing (P31).
+    const problem = imageUploadProblem(file);
+    if (problem) {
+      showToast(problem, "error");
+      e.target.value = "";
+      return;
+    }
 
     const previousPreview = avatarPreview;
     try {
@@ -84,7 +93,7 @@ export function EmployeeAvatarCard({
         type="file"
         ref={fileInputRef}
         onChange={handleFileChange}
-        accept="image/*"
+        accept={ALLOWED_IMAGE_TYPES.join(",")}
         className="hidden"
       />
 

@@ -44,12 +44,35 @@ export type TrackedOrder = {
   destination: string | null;
   /** Geocoded coordinates of the destination */
   destinationCoordinates: { lat: number; lng: number } | null;
-  riderName: string | null;
+  /** Null until a rider accepts the delivery — see `AssignedRider`. */
+  rider: AssignedRider | null;
   items: { productId: string; name: string }[];
+  /**
+   * The order-level `review.rating`, or null when the customer has not rated
+   * the order. Read so a rated order stops asking to be rated (P35, P37).
+   */
+  rating: number | null;
 };
 
 // This file used to carry a second, byte-identical copy of the customer's
 // order-number helper. Both are gone; see `lib/orders/order-number.ts`.
+
+/**
+ * The rider attached to this order's delivery (`CONTEXT.md`: Assigned
+ * rider), narrowed to what a customer is shown. Licence details stay on the
+ * rider table and are never read here. There is no phone column on
+ * `employee`, so there is nothing to call yet — see
+ * `docs/unimplemented_issues.md`.
+ */
+export type AssignedRider = {
+  /** `delivery.rider_id`, so the screen can tell a new rider from a status change. */
+  riderId: string;
+  /** Null when the employee record could not be read — the rider still exists. */
+  name: string | null;
+  photoUrl: string | null;
+  vehicle: string | null;
+  plate: string | null;
+};
 
 export async function readTrackedOrder(
   orderId: string,
@@ -80,12 +103,21 @@ export async function readTrackedOrder(
     .eq("order_id", order.order_id)
     .maybeSingle();
 
-  const [riderName, orderItems] = await Promise.all([
-    readRiderName(supabase, delivery?.rider_id ?? null),
+  const [rider, orderItems, review] = await Promise.all([
+    readAssignedRider(supabase, delivery?.rider_id ?? null),
     supabase
       .from("order_item")
       .select("product_id, product_name, product(product_name)")
       .eq("order_id", order.order_id)
+      .then((res) => res.data),
+    // Order-level only: a per-item row (product_id set) is not a rating of
+    // the order.
+    supabase
+      .from("review")
+      .select("rating")
+      .eq("order_id", order.order_id)
+      .is("product_id", null)
+      .maybeSingle()
       .then((res) => res.data),
   ]);
 
@@ -101,7 +133,7 @@ export async function readTrackedOrder(
     arrivalWindow: null,
     destination: order.delivery_address,
     destinationCoordinates: await geocode(order.delivery_address),
-    riderName,
+    rider,
     items: (orderItems || []).map((item) => ({
       productId: item.product_id || "",
       name: orderItemName(
@@ -111,17 +143,22 @@ export async function readTrackedOrder(
           : item.product?.product_name,
       ),
     })),
+    rating: review?.rating ?? null,
   };
 }
 
 /**
- * A rider's name lives on `employee`, not on `rider` — the `rider` table only
- * carries licence and vehicle details, and points at the employee record.
+ * A rider's name and photo live on `employee`, not on `rider` — the `rider`
+ * table only carries licence and vehicle details, and points at the employee
+ * record. A rider id with nothing readable behind it is still an assigned
+ * rider — saying "not assigned yet" would be false — so the card is kept
+ * and the fields are null. This is also what a customer sees if a read
+ * policy on `rider` or `employee` is missing; see `docs/unimplemented_issues.md`.
  */
-async function readRiderName(
+async function readAssignedRider(
   supabase: ReturnType<typeof createClient>,
   riderId: string | null,
-): Promise<string | null> {
+): Promise<AssignedRider | null> {
   if (!riderId) return null;
 
   // Read with the service role, not the caller's session.
@@ -132,8 +169,8 @@ async function readRiderName(
   // session-scoped read here matches zero rows and the rider's name silently
   // disappears from tracking.
   //
-  // Only the name is selected, and only for the rider already assigned to
-  // this delivery, so nothing else about the employee is exposed. The
+  // Only the name, photo and vehicle are selected, and only for the rider
+  // already assigned to this delivery, so nothing else is exposed. The
   // alternative — a policy letting a customer read staff rows by joining
   // delivery to order — widens the table's exposure to express a rule that
   // belongs here.
@@ -141,19 +178,25 @@ async function readRiderName(
 
   const { data: rider } = await admin
     .from("rider")
-    .select("employee_id")
+    .select("employee_id, vehicle_make_model, vehicle_plate_number")
     .eq("rider_id", riderId)
     .maybeSingle();
 
-  if (!rider?.employee_id) return null;
+  const { data: employee } = rider?.employee_id
+    ? await admin
+        .from("employee")
+        .select("name, profileImage_URL")
+        .eq("employee_id", rider.employee_id)
+        .maybeSingle()
+    : { data: null };
 
-  const { data: employee } = await admin
-    .from("employee")
-    .select("name")
-    .eq("employee_id", rider.employee_id)
-    .maybeSingle();
-
-  return employee?.name ?? null;
+  return {
+    riderId,
+    name: employee?.name ?? null,
+    photoUrl: employee?.profileImage_URL ?? null,
+    vehicle: rider?.vehicle_make_model ?? null,
+    plate: rider?.vehicle_plate_number ?? null,
+  };
 }
 
 async function geocode(address: string | null) {

@@ -49,6 +49,8 @@ export type CustomerProfile = {
    * than one.
    */
   deliverToAddress: string | null;
+  /** That address's delivery note, sent with a delivery order (P33). */
+  deliverToNote: string | null;
   /**
    * The active address ID, either from the session cookie, the default address,
    * or the first available address.
@@ -181,6 +183,7 @@ export async function readCustomerProfile(): Promise<CustomerProfile | null> {
     // see the `addresses` type comment for what "first" does and doesn't
     // mean here.
     deliverToAddress: activeAddress?.addressDetails ?? null,
+    deliverToNote: activeAddress?.deliveryNote?.trim() || null,
     activeAddressId: activeAddress?.id ?? null,
     addresses,
   };
