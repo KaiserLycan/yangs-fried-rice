@@ -278,13 +278,23 @@ export function TrackOrderScreen({
           {/* Shown for every cancellation, not only one with a reason: the
               kitchen's cancel writes none, and the customer was left with a
               bare headline (P28). */}
-          {progress.kind === "cancelled" && (
-            <div className="mt-4">
-              <Alert className="bg-destructive/10 border-destructive/20 text-destructive md:text-destructive md:bg-error-surface md:border-error-border">
-                {cancellationNoticeFor(status.cancellationReason)}
-              </Alert>
-            </div>
-          )}
+          {progress.kind === "cancelled" && (() => {
+            const notice = cancellationNoticeFor(status.cancellationReason);
+            return (
+              <div className="mt-4">
+                <Alert className="bg-destructive/10 border-destructive/20 text-destructive md:text-destructive md:bg-error-surface md:border-error-border">
+                  {notice.message}
+                  {/* Its own line, so it reads as the reason (P54). Spans,
+                      because Alert already wraps its content in a <p>. */}
+                  {notice.reason && (
+                    <span className="mt-1 block">
+                      <span className="font-semibold">Reason:</span> {notice.reason}
+                    </span>
+                  )}
+                </Alert>
+              </div>
+            );
+          })()}
         </header>
 
         {/* Second on mobile, right-hand column on desktop. */}

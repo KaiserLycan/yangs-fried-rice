@@ -3,6 +3,7 @@ import {
   isAtDeliveryCap,
 } from "@/lib/orders/delivery-assignment";
 import { formatMobileNumber } from "@/lib/validation/phone";
+import { formatOrderNumber } from "@/lib/orders/order-number";
 import type { DeliveryData } from "@/components/deliver/delivery-overview-card";
 
 /**
@@ -19,10 +20,13 @@ export type QueueSummary = {
   deliveryStatus: string | null;
   isMine: boolean;
   takenBy: string | null;
+  /** When the order was placed — the tiebreak inside each group. */
+  createdAt?: string | null;
 };
 
 export type QueueDetail = {
   deliveryId: string;
+  orderId: string | null;
   deliveryStatus: string | null;
   createdAt: string | null;
   customer: { name: string; address: string | null; phone: string | null } | null;
@@ -61,6 +65,21 @@ export function queueRank(summary: QueueSummary): number {
   return 1;
 }
 
+/**
+ * The queue's order: grouped by `queueRank`, newest first inside each group
+ * (P53). The page and the sidebar both sort with this so they agree.
+ */
+export function compareQueue(a: QueueSummary, b: QueueSummary): number {
+  const rank = queueRank(a) - queueRank(b);
+  if (rank !== 0) return rank;
+  return timeOf(b.createdAt) - timeOf(a.createdAt);
+}
+
+function timeOf(iso: string | null | undefined): number {
+  const t = iso ? new Date(iso).getTime() : NaN;
+  return Number.isNaN(t) ? 0 : t;
+}
+
 export function toDeliveryCard(
   detail: QueueDetail,
   summary: QueueSummary | undefined,
@@ -73,6 +92,10 @@ export function toDeliveryCard(
   const status = cardStatusOf(detail.deliveryStatus);
   return {
     id: detail.deliveryId,
+    // The order's reference, not the delivery's: staff and customers know the
+    // order as #69403b15, and the card used to print the delivery id, so the
+    // same order read differently here and could not be matched (P52).
+    orderNumber: formatOrderNumber(detail.orderId),
     customer: detail.customer?.name || "Walk-in Customer",
     address: detail.customer?.address || "No address provided",
     phone: formatMobileNumber(detail.customer?.phone) || "No phone provided",

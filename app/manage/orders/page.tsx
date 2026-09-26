@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 import { OrderSidebar, OrderStatus } from "@/components/manage/orders/order-sidebar";
 import { OrderCard } from "@/components/manage/orders/order-card";
 import { OrderData } from "@/lib/mock-orders";
@@ -46,6 +46,18 @@ function ManageOrdersInner() {
   const [cancelReason, setCancelReason] = useState("");
   const [showCancelError, setShowCancelError] = useState(false);
 
+  // Order-id search (P52). The box updates on every key; the query waits
+  // until typing pauses so each keystroke is not a round trip.
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput.trim());
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
   // Fetch Orders on Mount and when Status/Page changes
   // Fetch Orders on Mount and when Status/Page changes
 // Fetch Orders on Mount and when Status/Page changes
@@ -65,6 +77,7 @@ function ManageOrdersInner() {
     // 1. Fetch the summaries using server-side pagination & filtering
     const summaryResult = await getDetailedOrders({
       status: dbStatus as any,
+      search: search || undefined,
       limit: pageSize,
       offset: (currentPage - 1) * pageSize,
     });
@@ -84,29 +97,13 @@ function ManageOrdersInner() {
         .filter((res) => res !== null)
         .map((order) => mapStaffOrder(order as unknown as StaffOrderRow));
 
-      // 4. Custom Sort: Priority based on Type, then First-Come First-Serve
-      mappedOrders.sort((a: any, b: any) => {
-        const priority: Record<string, number> = {
-          "DELIVERY": 1,
-          "PREP": 2,
-          "QUEUE": 3,
-          "COMPLETED": 4,
-          "CANCELED": 4
-        };
-        const pA = priority[a.status] || 99;
-        const pB = priority[b.status] || 99;
-        
-        if (pA !== pB) return pA - pB;
-        
-        const timeA = new Date(a.rawCreatedAt || 0).getTime();
-        const timeB = new Date(b.rawCreatedAt || 0).getTime();
-        return timeA - timeB; // Oldest first
-      });
-        
+      // Newest first, exactly as the server sent it (P53). Re-sorting here
+      // only ever reordered one page, so page 2 could hold newer orders than
+      // the bottom of page 1.
       setOrders(mappedOrders);
     }
     setIsLoading(false);
-  }, [activeStatus, currentPage, pageSize, showToast]);
+  }, [activeStatus, currentPage, pageSize, search, showToast]);
 
   useEffect(() => {
     fetchOrders();
@@ -152,9 +149,22 @@ function ManageOrdersInner() {
         <h1 className="font-display text-[24px] md:text-[30px] leading-normal text-[#1a1210]">
           ORDER MANAGEMENT
         </h1>
-        <Link href="/manage/kds" className="bg-[#CD7D39] hover:bg-orange-600 text-white px-6 py-2.5 rounded-lg font-semibold shadow-sm transition-colors text-center w-full sm:w-auto">
-          View KDS
-        </Link>
+        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+          <div className="relative w-full sm:w-auto">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-[#A2938A]" />
+            <input
+              type="search"
+              aria-label="Search by order number"
+              placeholder="Search order #"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="w-full sm:w-[260px] h-[45px] pl-11 pr-4 rounded-xl border border-[#DDCDB8] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#E8541F] placeholder:text-[#A2938A]"
+            />
+          </div>
+          <Link href="/manage/kds" className="bg-[#CD7D39] hover:bg-orange-600 text-white px-6 py-2.5 rounded-lg font-semibold shadow-sm transition-colors text-center w-full sm:w-auto">
+            View KDS
+          </Link>
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 md:gap-8 flex-1 min-h-0">
@@ -203,7 +213,7 @@ function ManageOrdersInner() {
               </div>
             ) : orders.length === 0 ? (
               <div className="p-8 text-center text-[#7A6A60] bg-white rounded-xl border border-[#F0E6D8]">
-                No orders found for this status.
+                {search ? `No orders starting with #${search.replace(/^#/, "")}.` : "No orders found for this status."}
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">

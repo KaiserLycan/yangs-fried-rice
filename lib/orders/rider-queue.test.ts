@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { queueRank, toDeliveryCard, type QueueDetail } from "./rider-queue";
+import { compareQueue, queueRank, toDeliveryCard, type QueueDetail } from "./rider-queue";
 
 const detail = (deliveryStatus: string | null): QueueDetail => ({
   deliveryId: "d-1",
+  orderId: "69403b15-bec1-43f1-a3ad-47a484655630",
   deliveryStatus,
   createdAt: null,
   customer: null,
@@ -28,6 +29,20 @@ describe("toDeliveryCard", () => {
       0,
     );
     expect(card.takenBy).toBe("Jerome");
+  });
+
+  it("shows the order's number, not the delivery's (P52)", () => {
+    const card = toDeliveryCard(detail("pending"), undefined, 0);
+    expect(card.orderNumber).toBe("69403b15");
+  });
+});
+
+describe("compareQueue", () => {
+  it("keeps the groups and puts the newest first inside one (P53)", () => {
+    const older = { deliveryId: "a", deliveryStatus: "pending", isMine: false, takenBy: null, createdAt: "2026-09-26T01:00:00Z" };
+    const newer = { ...older, deliveryId: "b", createdAt: "2026-09-26T02:00:00Z" };
+    const mine = { ...older, deliveryId: "c", isMine: true, createdAt: "2026-09-25T00:00:00Z" };
+    expect([older, newer, mine].sort(compareQueue).map((s) => s.deliveryId)).toEqual(["c", "b", "a"]);
   });
 });
 

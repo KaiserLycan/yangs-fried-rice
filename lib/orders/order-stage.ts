@@ -315,18 +315,30 @@ export function headlineFor(
 }
 
 /**
- * The line a cancelled order shows its customer (P28, P50). A customer's own
+ * What a cancelled order shows its customer (P28, P50). A customer's own
  * cancel always writes the default reason below; anything else came from
  * staff, who are asked for a reason. Older kitchen cancels have none.
+ *
+ * The reason comes back separately so the screen can put it on its own line
+ * (P54) — run into the sentence, it was hard to tell where it started.
  */
 const CUSTOMER_CANCEL_REASON = "Customer requested cancellation";
 
-export function cancellationNoticeFor(reason: string | null): string {
+export function cancellationNoticeFor(reason: string | null): {
+  message: string;
+  reason: string | null;
+} {
   const trimmed = reason?.trim();
   // The reason `cancelOrderSchema` writes when the customer cancels.
-  if (trimmed === CUSTOMER_CANCEL_REASON) return "You cancelled this order.";
-  if (!trimmed) {
-    return "The restaurant cancelled this order. Sorry about that — you can place a new order from the menu.";
+  if (trimmed === CUSTOMER_CANCEL_REASON) {
+    return { message: "You cancelled this order.", reason: null };
   }
-  return `The restaurant cancelled this order. Reason: ${trimmed}`;
+  if (!trimmed) {
+    return {
+      message:
+        "The restaurant cancelled this order. Sorry about that — you can place a new order from the menu.",
+      reason: null,
+    };
+  }
+  return { message: "The restaurant cancelled this order.", reason: trimmed };
 }

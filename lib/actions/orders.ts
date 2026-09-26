@@ -12,6 +12,7 @@ import {
 } from "@/lib/validation/orders";
 import { ensureDeliveryRow } from "@/lib/orders/order-side-effects";
 import { isPickupOrder } from "@/lib/orders/format";
+import { orderIdRangeFor } from "@/lib/orders/order-number";
 import type { Tables, TablesUpdate } from "@/types/database.types";
 
 // ---------------------------------------------------------------------------
@@ -300,6 +301,12 @@ export async function getDetailedOrders(
   }
   if (filters.date_to) {
     query = query.lte("created_at", filters.date_to);
+  }
+  if (filters.search?.trim()) {
+    // Text that cannot be part of an order id matches nothing.
+    const range = orderIdRangeFor(filters.search);
+    if (!range) return { data: { data: [], totalCount: 0 }, error: null };
+    query = query.gte("order_id", range.from).lte("order_id", range.to);
   }
 
   const { data, count, error } = await query;

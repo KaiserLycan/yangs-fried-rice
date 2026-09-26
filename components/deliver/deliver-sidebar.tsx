@@ -6,7 +6,9 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { DeliveryOverviewCard, type DeliveryData } from "./delivery-overview-card";
 import { DeliveryOverviewSkeleton } from "./delivery-overview-skeleton";
 import { getAssignedDeliveries, getDeliveryDetailsBatch } from "@/lib/actions/delivery";
-import { activeCountOf, queueRank, toDeliveryCard } from "@/lib/orders/rider-queue";
+import { activeCountOf, compareQueue, toDeliveryCard } from "@/lib/orders/rider-queue";
+import { orderMatchesSearch } from "@/lib/orders/order-number";
+import { Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { ManagePagination } from "@/components/manage/manage-pagination";
 
@@ -16,6 +18,9 @@ export function DeliverSidebar() {
   const activeDeliveryId = pathname.split("/").pop();
   
   const [filter, setFilter] = useState<"all" | "queue" | "delivered">("queue");
+  // Order-number search (P52) — the whole queue is already loaded, so this
+  // filters in the browser.
+  const [search, setSearch] = useState("");
   const [allSummaries, setAllSummaries] = useState<any[]>([]);
   const [deliveries, setDeliveries] = useState<DeliveryData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -91,19 +96,16 @@ export function DeliverSidebar() {
         if (filter === "delivered") return cardStatus === "completed";
         return true;
       })
-      .sort((a, b) => {
-        // Same order as the queue page — see `queueRank`.
-        const rank = queueRank(a) - queueRank(b);
-        if (rank !== 0) return rank;
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-      });
-  }, [allSummaries, filter]);
+      .filter((s) => orderMatchesSearch(s.orderId, search))
+      // Same order as the queue page.
+      .sort(compareQueue);
+  }, [allSummaries, filter, search]);
   const totalPages = Math.ceil(filteredSummaries.length / pageSize);
   
-  // Reset to page 1 when filter changes
+  // Reset to page 1 when filter or search changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [filter]);
+  }, [filter, search]);
 
   useEffect(() => {
     async function fetchPageDetails() {
@@ -140,7 +142,7 @@ export function DeliverSidebar() {
     }
 
     fetchPageDetails();
-  }, [allSummaries, filter, currentPage, pageSize]);
+  }, [allSummaries, filter, search, currentPage, pageSize]);
 
 
 
@@ -170,6 +172,18 @@ export function DeliverSidebar() {
           >
             Delivered
           </button>
+        </div>
+
+        <div className="relative mt-3">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A2938A]" />
+          <input
+            type="search"
+            aria-label="Search by order number"
+            placeholder="Search order #"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full h-[38px] pl-9 pr-3 rounded-[8px] border border-[#DDCDB8] bg-white text-[13px] focus:outline-none focus:ring-2 focus:ring-[#E8541F] placeholder:text-[#A2938A]"
+          />
         </div>
       </div>
 
@@ -208,7 +222,9 @@ export function DeliverSidebar() {
             })}
             {deliveries.length === 0 && (
               <p className="text-center text-[13px] text-[#7a6a60] mt-4">
-                No deliveries found for this filter.
+                {search.trim()
+                  ? `No orders starting with #${search.trim().replace(/^#/, "")}.`
+                  : "No deliveries found for this filter."}
               </p>
             )}
             

@@ -147,15 +147,13 @@ export async function getAssignedDeliveries(): Promise<{
   );
   const riderNames = await readRiderNames(otherRiderIds);
 
-  // Soonest estimate first, with un-estimated deliveries last.
-  const sorted = [...rows].sort((a: any, b: any) => {
-    if (!a.estimated_time && !b.estimated_time) return 0;
-    if (!a.estimated_time) return 1;
-    if (!b.estimated_time) return -1;
-    return (
-      new Date(a.estimated_time).getTime() - new Date(b.estimated_time).getTime()
-    );
-  });
+  // Newest order first (P53). The screens group these further with
+  // `compareQueue`, which keeps this order inside each group.
+  const sorted = [...rows].sort(
+    (a: any, b: any) =>
+      new Date(b.order?.created_at ?? 0).getTime() -
+      new Date(a.order?.created_at ?? 0).getTime(),
+  );
 
   return {
     deliveries: sorted.map((d: any) => {
@@ -332,6 +330,7 @@ export async function getDeliveryDetailsBatch(deliveryIds: string[]) {
 
     return {
       deliveryId: delivery.delivery_id,
+      orderId: delivery.order_id,
       deliveryStatus: delivery.delivery_status,
       estimatedTime: delivery.estimated_time,
       proofOfDelivery: delivery.proof_of_delivery,

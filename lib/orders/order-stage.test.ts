@@ -333,22 +333,26 @@ describe("an unpaid order has no stage", () => {
 describe("cancellationNoticeFor (P28, P50)", () => {
   it("says the restaurant cancelled when no reason was written", () => {
     // Kitchen cancels from before P50 wrote no reason.
-    expect(cancellationNoticeFor(null)).toBe(
-      "The restaurant cancelled this order. Sorry about that — you can place a new order from the menu.",
-    );
-    expect(cancellationNoticeFor("   ")).toBe(cancellationNoticeFor(null));
+    expect(cancellationNoticeFor(null)).toEqual({
+      message:
+        "The restaurant cancelled this order. Sorry about that — you can place a new order from the menu.",
+      reason: null,
+    });
+    expect(cancellationNoticeFor("   ")).toEqual(cancellationNoticeFor(null));
   });
 
   it("tells the customer they cancelled it when the default reason was written", () => {
     // `cancelOrderSchema` defaults the reason to this when the customer cancels.
-    expect(cancellationNoticeFor("Customer requested cancellation")).toBe(
-      "You cancelled this order.",
-    );
+    expect(cancellationNoticeFor("Customer requested cancellation")).toEqual({
+      message: "You cancelled this order.",
+      reason: null,
+    });
   });
 
-  it("shows the staff's reason when one was written", () => {
-    expect(cancellationNoticeFor("Out of chicken")).toBe(
-      "The restaurant cancelled this order. Reason: Out of chicken",
-    );
+  it("gives the staff's reason separately, for its own line (P54)", () => {
+    expect(cancellationNoticeFor("  Out of chicken ")).toEqual({
+      message: "The restaurant cancelled this order.",
+      reason: "Out of chicken",
+    });
   });
 });

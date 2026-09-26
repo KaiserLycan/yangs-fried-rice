@@ -12,6 +12,8 @@ import { Tooltip } from "@/components/ui/tooltip";
 
 export type DeliveryData = {
   id: string;
+  /** The order's short reference — what staff and the customer see. */
+  orderNumber: string;
   customer: string;
   address: string;
   phone: string;
@@ -93,7 +95,7 @@ export function DeliveryOverviewCard({ delivery, isActive }: DeliveryOverviewCar
         <div>
           <p className="text-[10px] text-[#7A6A60] font-bold tracking-widest uppercase mb-1">ORDER</p>
           <h3 className="font-display text-[22px] text-[#1A1210] leading-none">
-            #{delivery.id.split('-')[0]}
+            #{delivery.orderNumber}
           </h3>
         </div>
         <div className="text-right">
