@@ -19,7 +19,6 @@ import {
   timelineStages,
 } from "@/lib/orders/order-stage";
 import type { TrackedOrder } from "@/lib/orders/read-tracked-order";
-import { cn } from "@/lib/utils";
 import { Alert } from "@/components/ui/alert";
 import { AssignedRiderCard } from "@/components/orders/assigned-rider-card";
 import { CancelOrderControl } from "@/components/orders/cancel-order-control";
