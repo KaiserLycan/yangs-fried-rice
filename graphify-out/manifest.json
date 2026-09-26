@@ -2826,9 +2826,9 @@
     "semantic_hash": ""
   },
   "docs/feedback-verification.md": {
-    "mtime": 1790436937.577852,
-    "seen": 1790440873.7083614,
-    "ast_hash": "dd098cef7fca7ae5a7748623db448cb1",
+    "mtime": 1790441418.7809808,
+    "seen": 1790442216.7157655,
+    "ast_hash": "d4554a95e2a631fd579642fa43cc862e",
     "semantic_hash": ""
   },
   "docs/issue-106-followups.md": {
@@ -2838,15 +2838,15 @@
     "semantic_hash": ""
   },
   "docs/lacking.md": {
-    "mtime": 1790436937.577852,
-    "seen": 1790440873.7083628,
-    "ast_hash": "94c2684fa928b4573fc62e5679af1343",
+    "mtime": 1790441418.7728045,
+    "seen": 1790442216.7157676,
+    "ast_hash": "b7c31dbd44e209a1aea118a77d41eb66",
     "semantic_hash": ""
   },
   "docs/limitations.md": {
-    "mtime": 1790436937.577852,
-    "seen": 1790440873.7083633,
-    "ast_hash": "45d9f408b4badf4f74a43f99f281ded9",
+    "mtime": 1790441418.7728045,
+    "seen": 1790442216.7157683,
+    "ast_hash": "4dbac0ed378038dd758d02f7116f2703",
     "semantic_hash": ""
   },
   "docs/phase4-security-testing-report.md": {
@@ -2874,9 +2874,9 @@
     "semantic_hash": ""
   },
   "docs/user-simulation.md": {
-    "mtime": 1790436937.577852,
-    "seen": 1790440873.7083662,
-    "ast_hash": "0f6735800e212e3856cc41c67375fd6e",
+    "mtime": 1790441418.7831976,
+    "seen": 1790442216.7157722,
+    "ast_hash": "bea511bf9957369d6b90c50a68baf668",
     "semantic_hash": ""
   },
   "public/sample-report.pdf": {
@@ -3063,6 +3063,12 @@
     "mtime": 1790381263.6124358,
     "seen": 1790440873.7083845,
     "ast_hash": "f35d2bc400577475e2a96b37978c5b7b",
+    "semantic_hash": ""
+  },
+  "scratch/rewrite_docs.py": {
+    "mtime": 1790441399.235268,
+    "seen": 1790442216.7157192,
+    "ast_hash": "91b6c3fe3875653076f08225892efed6",
     "semantic_hash": ""
   }
 }
