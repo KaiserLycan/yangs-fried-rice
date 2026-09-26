@@ -56,7 +56,6 @@ export default async function CartPage({
           <CartContents
             lines={lines}
             ctaLabel="Continue to checkout"
-            showEstimate={false}
             initialFulfilment={fulfilmentFromParam(searchParams.fulfilment)}
           />
         </div>

@@ -14,10 +14,17 @@ import {
 export function DesktopCartRail({
   lines,
   initialFulfilment,
+  arrivalEstimate = null,
 }: {
   lines: CartLine[];
   /** Carried back from checkout — see `CartContents`. */
   initialFulfilment?: Fulfilment;
+  /**
+   * Quoted from the live kitchen queue. Unlike checkout there is no address
+   * geocoded on this screen, so the engine's default transit time stands in
+   * for the distance — the queue is the half that actually moves.
+   */
+  arrivalEstimate?: string | null;
 }) {
   const count = cartItemCount(lines);
 
@@ -35,7 +42,7 @@ export function DesktopCartRail({
       <CartContents
         lines={lines}
         ctaLabel="Checkout"
-        showEstimate
+        arrivalEstimate={arrivalEstimate}
         initialFulfilment={initialFulfilment}
       />
     </aside>

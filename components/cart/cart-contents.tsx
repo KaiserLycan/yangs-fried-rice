@@ -23,12 +23,13 @@ import {
 export function CartContents({
   lines,
   ctaLabel,
-  showEstimate,
+  arrivalEstimate = null,
   initialFulfilment = "delivery",
 }: {
   lines: CartLine[];
   ctaLabel: string;
-  showEstimate: boolean;
+  /** Null on the placements that draw no estimate — see `CartTotalsSummary`. */
+  arrivalEstimate?: string | null;
   initialFulfilment?: Fulfilment;
 }) {
   const [fulfilment, setFulfilment] =
@@ -72,7 +73,7 @@ export function CartContents({
       <CartTotalsSummary
         totals={totals}
         ctaLabel={ctaLabel}
-        showEstimate={showEstimate}
+        arrivalEstimate={arrivalEstimate}
         fulfilment={fulfilment}
       />
     </div>

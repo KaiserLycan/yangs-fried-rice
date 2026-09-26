@@ -2,8 +2,11 @@
 
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { LogOut } from "lucide-react";
+import { LogOutControl } from "@/components/auth/log-out-control";
 import { NavAddressDropdown } from "@/components/nav/nav-address-dropdown";
 import { Avatar } from "@/components/ui/avatar";
+import { Tooltip } from "@/components/ui/tooltip";
 import type { CustomerProfile } from "@/lib/profile/customer-profile";
 import { initialsFrom } from "@/lib/profile/identity";
 import { cn } from "@/lib/utils";
@@ -89,17 +92,33 @@ function ResolvedProfileActions({
         />
       ) : null}
       {profile ? (
-        <Link
-          href="/profile"
-          className="rounded-pill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-          aria-label="Go to your account"
-        >
-          <Avatar
-            initials={initials}
-            imageUrl={profile.profileImageUrl}
-            className="size-[32px] bg-accent text-[12px] font-bold text-white"
-          />
-        </Link>
+        <>
+          <Link
+            href="/profile"
+            className="rounded-pill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            aria-label="Go to your account"
+          >
+            <Avatar
+              initials={initials}
+              imageUrl={profile.profileImageUrl}
+              className="size-[32px] bg-accent text-[12px] font-bold text-white"
+            />
+          </Link>
+          {/* Issue #106 asked for the instant-access sign-out that manage and
+              deliver already have. Icon-only, because the bar is 58px tall
+              and already carries four labelled links — so it is named twice
+              over for anything that cannot see the glyph: `aria-label` for a
+              screen reader, and the tooltip for a mouse or keyboard user who
+              does not recognise it. */}
+          <Tooltip content="Log out">
+            <LogOutControl
+              className="flex size-[32px] items-center justify-center rounded-pill text-white/80 transition-colors hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+              aria-label="Log out"
+            >
+              <LogOut aria-hidden="true" className="size-[17px]" />
+            </LogOutControl>
+          </Tooltip>
+        </>
       ) : (
         <Link
           href="/login"

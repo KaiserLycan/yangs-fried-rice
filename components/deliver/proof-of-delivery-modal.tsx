@@ -7,11 +7,14 @@ import { cn } from "@/lib/utils";
 import { compressImage } from "@/lib/image/compress";
 import { useRouter } from "next/navigation";
 import { markDelivered } from "@/lib/actions/delivery";
+import { formatOrderNumber } from "@/lib/orders/order-number";
 
 interface ProofOfDeliveryModalProps {
   isOpen: boolean;
   onClose: () => void;
   deliveryId: string;
+  /** What to quote to the customer. See `lib/orders/order-number.ts`. */
+  orderId?: string | null;
   customerName: string;
   proofImageUrl?: string | null;
   isReadOnly?: boolean;
@@ -32,6 +35,7 @@ export function ProofOfDeliveryModal({
   isOpen,
   onClose,
   deliveryId,
+  orderId,
   customerName,
   proofImageUrl,
   isReadOnly = false,
@@ -127,8 +131,17 @@ export function ProofOfDeliveryModal({
             <h2 className="font-display text-[24px] text-[#1A1210] leading-none mb-1">
               {isReadOnly ? "DELIVERED" : "PROOF OF DELIVERY"}
             </h2>
+            {/* This said "Order #{deliveryId}" — the delivery's own UUID,
+                which is not the order's and appears on no other screen in
+                the app. A rider reading it out to a customer was quoting a
+                number nobody else could look up (issue #106). */}
             <p className="text-[14px] text-[#7A6A60]">
-              Order #{deliveryId} · {customerName}
+              {orderId
+                ? `Order #${formatOrderNumber(orderId)}`
+                : // No order row to point at. Say which kind of reference
+                  // this is rather than passing it off as the order's.
+                  `Delivery #${formatOrderNumber(deliveryId)}`}{" "}
+              · {customerName}
             </p>
           </div>
 

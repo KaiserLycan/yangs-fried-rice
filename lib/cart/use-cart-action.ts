@@ -58,12 +58,12 @@ export function useCartAction() {
           try {
             result = await action();
           } catch {
-            showToast(NETWORK_FAILED);
+            showToast(NETWORK_FAILED, "error");
             startTransition(() => router.refresh());
             return;
           }
           if (result.error !== null) {
-            showToast(result.error);
+            showToast(result.error, "error");
             startTransition(() => router.refresh());
             return;
           }

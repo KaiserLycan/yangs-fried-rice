@@ -1,6 +1,6 @@
 import { orderItemName } from "@/lib/orders/item-name";
 import { createClient } from "@/lib/supabase/server";
-import { orderNumberFrom } from "@/lib/orders/read-tracked-order";
+import { formatOrderNumber } from "@/lib/orders/order-number";
 import { isPast, totalOf, type PastOrder } from "@/lib/orders/past-order";
 
 /**
@@ -105,7 +105,7 @@ export async function readPastOrders(): Promise<PastOrder[]> {
       const orderItems = itemsByOrder.get(row.order_id) ?? [];
       return {
         orderId: row.order_id,
-        orderNumber: orderNumberFrom(row.order_id),
+        orderNumber: formatOrderNumber(row.order_id),
         placedAt: row.created_at,
         orderStatus: row.order_status,
         cancelledAt: row.cancelled_at,

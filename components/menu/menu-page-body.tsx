@@ -5,6 +5,7 @@ import { getCategories, getProducts } from "@/lib/actions/menu";
 import type { Fulfilment } from "@/lib/menu/cart-totals";
 import { mapProductRow } from "@/lib/menu/product-listing";
 import { readCustomerProfile } from "@/lib/profile/customer-profile";
+import { readArrivalQuote } from "@/lib/checkout/read-arrival-quote";
 
 /**
  * The menu screen and everything it needs to read, as one server component,
@@ -49,6 +50,13 @@ export function MenuPageBody({ fulfilment }: { fulfilment?: Fulfilment }) {
   const productsPromise = getProducts().then(r => (r.data ?? []).map(mapProductRow));
   const categoriesPromise = getCategories().then(r => (r.data ?? []).map(c => ({ id: c.category_id, name: c.category_name })));
   const cartPromise = readCart();
+  // For the desktop cart rail's estimate. Delivery, because that is what the
+  // rail's toggle starts on, and no address is geocoded on this screen — the
+  // kitchen queue is the half of the figure that actually moves (issue #106).
+  const arrivalEstimatePromise = readArrivalQuote({ fulfilment: "delivery" })
+    .then((window): string | null => window)
+    // A rail with no estimate beats a menu that will not render.
+    .catch(() => null);
 
   return (
     <ToastProvider aboveTabBar>
@@ -57,6 +65,7 @@ export function MenuPageBody({ fulfilment }: { fulfilment?: Fulfilment }) {
         productsPromise={productsPromise}
         categoriesPromise={categoriesPromise}
         cartPromise={cartPromise}
+        arrivalEstimatePromise={arrivalEstimatePromise}
         initialFulfilment={fulfilment}
       />
     </ToastProvider>

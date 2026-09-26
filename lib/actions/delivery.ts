@@ -33,6 +33,10 @@ type DeliverySummary = {
 
 type DeliveryDetail = {
   deliveryId: string;
+  /** The order this is a delivery of — what the customer and the kitchen
+   *  both call it. The rider's screens used to show `deliveryId` instead,
+   *  which is a different UUID that nobody else has ever seen (issue #106). */
+  orderId: string | null;
   deliveryStatus: string | null;
   estimatedTime: string | null;
   proofOfDelivery: string | null;
@@ -388,6 +392,7 @@ export async function getDeliveryDetail(deliveryId: string): Promise<{
   return {
     delivery: {
       deliveryId: delivery.delivery_id,
+      orderId: delivery.order_id,
       deliveryStatus: delivery.delivery_status,
       estimatedTime: delivery.estimated_time,
       proofOfDelivery: delivery.proof_of_delivery,

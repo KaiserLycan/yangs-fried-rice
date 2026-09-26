@@ -95,6 +95,9 @@ function renderCheckout(
         lines={lines}
         fulfilment="delivery"
         placedAtLabel="Aug 30, 6:40 PM"
+        // Read on the server from the live kitchen queue and this order's
+        // distance (issue #106). It was the fixed string "35–45 min".
+        arrivalEstimate="30–40 min"
         {...overrides}
       />
     </ToastProvider>,
@@ -217,13 +220,33 @@ describe("Checkout payment method", () => {
     const cash = screen.getAllByRole("radio", { name: /Cash on delivery/ });
     expect(cash[0]).toHaveAttribute("aria-checked", "true");
 
-    for (const label of [
-      "GCash / Maya wallet",
-      "Pay in store",
-    ]) {
-      const [option] = screen.getAllByRole("radio", { name: label });
-      expect(option).toHaveAttribute("aria-checked", "false");
-    }
+    const [wallet] = screen.getAllByRole("radio", {
+      name: "GCash / Maya wallet",
+    });
+    expect(wallet).toHaveAttribute("aria-checked", "false");
+  });
+
+  /**
+   * Issue #106. Two of the methods name the moment money changes hands, and
+   * that moment only exists for one kind of order — nobody pays at the
+   * counter for food being delivered to them.
+   */
+  it("does not offer paying in store for a delivery", () => {
+    renderCheckout({ fulfilment: "delivery" });
+    expect(screen.queryByRole("radio", { name: "Pay in store" })).toBeNull();
+  });
+
+  it("does not offer cash on delivery for a pickup", () => {
+    renderCheckout({ fulfilment: "pickup" });
+    expect(
+      screen.queryByRole("radio", { name: /Cash on delivery/ }),
+    ).toBeNull();
+  });
+
+  it("starts a pickup order on paying in store, not on the global default", () => {
+    renderCheckout({ fulfilment: "pickup" });
+    const [store] = screen.getAllByRole("radio", { name: "Pay in store" });
+    expect(store).toHaveAttribute("aria-checked", "true");
   });
 
   it("moves the selection and leaves exactly one chosen", () => {
@@ -248,12 +271,13 @@ describe("Checkout payment method", () => {
   // Pay-on-collection options are ordinary choices, not a fallback — issue
   // #22's third criterion asks for this by name.
   it("treats cash on delivery and pay in store as ordinary options", () => {
-    renderCheckout();
-
+    const delivery = renderCheckout({ fulfilment: "delivery" });
     const [cash] = screen.getAllByRole("radio", { name: /Cash on delivery/ });
-    const [store] = screen.getAllByRole("radio", { name: "Pay in store" });
-
     expect(cash).toBeEnabled();
+    delivery.unmount();
+
+    renderCheckout({ fulfilment: "pickup" });
+    const [store] = screen.getAllByRole("radio", { name: "Pay in store" });
     expect(store).toBeEnabled();
   });
 
@@ -295,10 +319,12 @@ describe("Checkout place order", () => {
         order_type: "take_out",
         delivery_fee: 0,
         delivery_address: "21 Mabini St, Malate, Manila",
-        // The picker's default. Tells `submitCart` the order is payable on
-        // collection, so it is `pending` and cookable straight away rather
-        // than held at `awaiting_payment` like a wallet order.
-        payment_method: "cash-on-delivery",
+        // The picker's default *for a pickup*. Tells `submitCart` the order
+        // is payable on collection, so it is `pending` and cookable straight
+        // away rather than held at `awaiting_payment` like a wallet order.
+        // It used to send cash on delivery here — on an order nobody was
+        // delivering (issue #106).
+        payment_method: "pay-in-store",
       }),
     );
     await waitFor(() =>
@@ -754,6 +780,7 @@ describe("Checkout layout", () => {
       1,
     );
     expect(screen.getAllByRole("radiogroup")).toHaveLength(1);
-    expect(screen.getAllByRole("radio")).toHaveLength(3);
+    // Two payment methods apply to a delivery; the third is pickup-only.
+    expect(screen.getAllByRole("radio")).toHaveLength(2);
   });
 });

@@ -12,7 +12,7 @@ import type { CartLine, Fulfilment } from "@/lib/menu/cart-totals";
  */
 export type PlacedOrder = {
   orderId: string;
-  /** Human-facing reference, drawn as "#1042" — see `orderNumberFrom`. */
+  /** The order's reference — see `lib/orders/order-number.ts`. */
   orderNumber: string;
   customerName: string;
   /** Already formatted — see `formatOrderTime` on why not a Date. */
@@ -41,18 +41,6 @@ export type PlacedOrder = {
   paymentStatus: PaymentStatus | null;
 };
 
-/**
- * `order_id` is a UUID and no human-facing order number column exists, so the
- * screen shows the last four characters of the id. The frames draw "#1042", a
- * four-digit sequence, which a UUID cannot produce.
- *
- * TODO (Backend): an `order_number` column — a short sequence customers can
- * read out over the phone.
- *
- * NOTE: the order tracking screen carries an identical helper on its own
- * branch. Whichever of the two merges second should delete its copy rather
- * than leave two definitions of what a customer's order number looks like.
- */
-export function orderNumberFrom(orderId: string): string {
-  return orderId.replace(/-/g, "").slice(-4).toUpperCase();
-}
+// The helper that used to live here is now `formatOrderNumber` in
+// `lib/orders/order-number.ts` — one definition for the customer, the
+// kitchen, manage and the rider (issue #106).

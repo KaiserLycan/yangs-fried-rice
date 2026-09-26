@@ -50,17 +50,22 @@ describe("real-time validation", () => {
     expect(screen.getByText("Password must be at least 8 characters.")).toBeInTheDocument();
   });
 
-  it("clears the error as soon as the value becomes valid", () => {
+  // "As soon as" now means "once typing pauses": re-parsing the whole schema
+  // per keystroke was the complaint in issue #106. Appearing is still
+  // immediate — only clearing waits for the pause.
+  it("clears the error once the value becomes valid", async () => {
     render(<CustomerLoginForm />);
     const email = screen.getByLabelText(/email/i);
 
     fireEvent.change(email, { target: { value: "liza@" } });
     fireEvent.change(email, { target: { value: "liza@example.com" } });
 
-    expect(screen.queryByText("Enter a valid email address.")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByText("Enter a valid email address.")).not.toBeInTheDocument(),
+    );
   });
 
-  it("keeps Log in disabled until every rule passes, not just until fields are non-empty", () => {
+  it("keeps Log in disabled until every rule passes, not just until fields are non-empty", async () => {
     render(<CustomerLoginForm />);
     const button = screen.getByRole("button", { name: /log in/i });
 
@@ -69,7 +74,7 @@ describe("real-time validation", () => {
     expect(button).toBeDisabled();
 
     fireEvent.change(screen.getByLabelText(/^password/i), { target: { value: "long-enough-password" } });
-    expect(button).toBeEnabled();
+    await waitFor(() => expect(button).toBeEnabled());
   });
 });
 
@@ -111,14 +116,14 @@ describe("sign-up", () => {
     expect(phone).toHaveValue("962 693 9019");
   });
 
-  it("stays disabled until the Terms box is ticked", () => {
+  it("stays disabled until the Terms box is ticked", async () => {
     render(<CustomerSignupForm />);
     fillValidSignup();
     const button = screen.getByRole("button", { name: /create account/i });
-    expect(button).toBeEnabled();
+    await waitFor(() => expect(button).toBeEnabled());
 
     fireEvent.click(screen.getByRole("checkbox"));
-    expect(button).toBeDisabled();
+    await waitFor(() => expect(button).toBeDisabled());
   });
 
   it("puts a server rejection under the field it names and in the summary", async () => {
@@ -130,6 +135,9 @@ describe("sign-up", () => {
 
     render(<CustomerSignupForm />);
     fillValidSignup();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /create account/i })).toBeEnabled(),
+    );
     fireEvent.click(screen.getByRole("button", { name: /create account/i }));
 
     await waitFor(() => {
@@ -148,6 +156,9 @@ describe("sign-up", () => {
 
     render(<CustomerSignupForm />);
     fillValidSignup();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /create account/i })).toBeEnabled(),
+    );
     fireEvent.click(screen.getByRole("button", { name: /create account/i }));
 
     await waitFor(() => expect(registerCustomer).toHaveBeenCalled());
