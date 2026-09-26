@@ -5,6 +5,8 @@ import { PaymentStatusCard } from "@/components/checkout/payment-status-card";
 import { SwitchToCodButton } from "@/components/checkout/switch-to-cod-button";
 import { ARRIVAL_ESTIMATE } from "@/lib/checkout/arrival-estimate";
 import { isUnpaidStatus } from "@/lib/validation/orders";
+import { ORDER_NUMBER_CLASS } from "@/lib/orders/order-number";
+import { cn } from "@/lib/utils";
 import type { WalletProvider } from "@/lib/checkout/payment-methods";
 import type { PlacedOrder } from "@/lib/checkout/placed-order";
 import { computeCartTotals } from "@/lib/menu/cart-totals";
@@ -87,8 +89,14 @@ export function OrderPlacedScreen({
           <h1 className="font-display text-[30px] text-foreground md:text-[38px] md:leading-[1.05]">
             ORDER PLACED
           </h1>
-          <p className="text-[12px] uppercase tracking-[1.92px] text-muted-foreground">
-            Order #{order.orderNumber}
+          {/* The whole id since issue #106. The wide letter-spacing that
+              suited a four-character code would run 36 characters off the
+              side of a phone, so the reference itself is set plainly. */}
+          <p className="text-[12px] text-muted-foreground">
+            <span className="uppercase tracking-[1.92px]">Order </span>
+            <span className={cn(ORDER_NUMBER_CLASS, "text-[11px]")}>
+              #{order.orderNumber}
+            </span>
           </p>
           {/* One sentence, and which sentence depends entirely on whether
               anybody is delivering anything. A pickup customer told their

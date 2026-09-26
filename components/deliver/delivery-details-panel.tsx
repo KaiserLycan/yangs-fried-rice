@@ -165,6 +165,7 @@ export function DeliveryDetailsPanel({ delivery }: { delivery: any }) {
         isOpen={isProofModalOpen}
         onClose={() => setIsProofModalOpen(false)}
         deliveryId={delivery.id}
+        orderId={delivery.orderId}
         customerName={delivery.customer}
         proofImageUrl={delivery.proofOfDelivery || null}
         isReadOnly={isDelivered}

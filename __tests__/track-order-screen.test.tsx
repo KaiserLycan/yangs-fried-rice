@@ -124,7 +124,10 @@ describe("TrackOrderScreen", () => {
   it("renders the order number, the stage headline and the arrival line", () => {
     renderScreen(trackedOrder());
 
-    expect(screen.getByText("Order #0AE7")).toBeInTheDocument();
+    // "Order" and the reference are separate spans since issue #106: the
+    // whole order id is shown now, and it is set monospaced and breakable
+    // while the word before it keeps the label's letter-spacing.
+    expect(screen.getByText("#0AE7")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "WAITING FOR THE KITCHEN" }),
     ).toBeInTheDocument();

@@ -1,5 +1,6 @@
 import { orderItemName } from "@/lib/orders/item-name";
 import { createClient } from "@/lib/supabase/server";
+import { formatOrderNumber } from "@/lib/orders/order-number";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateNcrAddress } from "@/lib/address/validate-ncr";
 
@@ -22,7 +23,7 @@ import { validateNcrAddress } from "@/lib/address/validate-ncr";
  */
 export type TrackedOrder = {
   orderId: string;
-  /** Human-facing order reference — see `orderNumberFrom` on why. */
+  /** The order's reference — see `lib/orders/order-number.ts`. */
   orderNumber: string;
   /** Fed to `resolveOrderProgress`; never read directly by a component. */
   orderStatus: string | null;
@@ -47,16 +48,8 @@ export type TrackedOrder = {
   items: { productId: string; name: string }[];
 };
 
-/**
- * `order_id` is a UUID and no human-facing order number column exists, so the
- * screen shows the last four characters of the id. The frames draw "#1042",
- * a four-digit sequence, which a UUID cannot produce.
- *
- * The current implementation takes the last 4 chars of the UUID.it is not what the design asks for.
- */
-export function orderNumberFrom(orderId: string): string {
-  return orderId.replace(/-/g, "").slice(-4).toUpperCase();
-}
+// This file used to carry a second, byte-identical copy of the customer's
+// order-number helper. Both are gone; see `lib/orders/order-number.ts`.
 
 export async function readTrackedOrder(
   orderId: string,
@@ -98,7 +91,7 @@ export async function readTrackedOrder(
 
   return {
     orderId: order.order_id,
-    orderNumber: orderNumberFrom(order.order_id),
+    orderNumber: formatOrderNumber(order.order_id),
     orderStatus: order.order_status,
     cancelledAt: order.cancelled_at,
     cancellationReason: order.cancellation_reason,
