@@ -39,7 +39,13 @@ describe("US-01: CustomerLoginForm Validations", () => {
     
     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
     fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "password123" } });
-    
+
+    // Validation is debounced (issue #106), so the button is briefly still
+    // disabled after the last keystroke — and a click on a disabled button
+    // does nothing at all.
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /log in/i })).toBeEnabled(),
+    );
     fireEvent.click(screen.getByRole("button", { name: /log in/i }));
 
     await waitFor(() => {
@@ -68,6 +74,9 @@ describe("US-01: CustomerLoginForm Validations", () => {
     fireEvent.change(screen.getByLabelText(/password/i), {
       target: { value: "password123" },
     });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /log in/i })).toBeEnabled(),
+    );
     fireEvent.click(screen.getByRole("button", { name: /log in/i }));
 
     const alert = await screen.findByRole("alert");

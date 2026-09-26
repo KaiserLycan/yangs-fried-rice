@@ -25,7 +25,6 @@ import { addressForGeocoding } from "@/lib/address/geocoding-query";
 import { useLiveValidation } from "@/lib/forms/use-live-validation";
 import { useSubmitShortcut } from "@/lib/hooks/use-shortcut";
 import { toInternationalMobile } from "@/lib/profile/mobile-number";
-import { PH_MOBILE_EXAMPLE } from "@/lib/validation/phone";
 import { lengthProps } from "@/lib/validation/fields";
 import type { FieldErrors } from "@/lib/validation/field-errors";
 import { earliestBirthdate, latestBirthdateForMinAge } from "@/lib/validation/date-of-birth";
@@ -152,12 +151,19 @@ function SignupFormInner() {
       >
         <AuthTabs active="register" />
 
-        <div className="hidden flex-col gap-[5px] md:flex">
-          <h1 className="font-display text-[30px] leading-[33px] text-foreground">
+        {/* The heading stays desktop-only: on a phone this card opens with
+            the Log in / Sign up tabs, and "Create your account" directly
+            under a selected "Sign up" tab says nothing the tab didn't. The
+            sentence below it does say something — what to fill in and which
+            fields are optional — so that half is shown at every width
+            (issue #106). */}
+        <div className="flex flex-col gap-[5px]">
+          <h1 className="hidden font-display text-[30px] leading-[33px] text-foreground md:block">
             Create your account
           </h1>
           <p className="text-[13px] text-muted-foreground">
-            Save your address once and reorder in two taps.
+            Fill in your details and the address we deliver to. Fields marked
+            * are required.
           </p>
         </div>
 
@@ -223,13 +229,14 @@ function SignupFormInner() {
               prefixClassName="pl-[14px] text-[15px] text-muted-foreground"
               inputClassName="px-[6px] py-[13px] text-[15px] text-foreground placeholder:text-placeholder md:py-[14px]"
             />
-            {!errors.phone ? (
-              <p className="text-[12px] text-muted-foreground">e.g. {PH_MOBILE_EXAMPLE}</p>
-            ) : null}
           </Field>
         </div>
 
-        <Field label="Date of birth" htmlFor={`${ID_PREFIX}dateOfBirth`} error={errors.dateOfBirth}>
+        <Field
+          label="Date of birth (optional, 13+)"
+          htmlFor={`${ID_PREFIX}dateOfBirth`}
+          error={errors.dateOfBirth}
+        >
           <Input
             id={`${ID_PREFIX}dateOfBirth`}
             name="dateOfBirth"
@@ -239,11 +246,6 @@ function SignupFormInner() {
             max={latestBirthdateForMinAge()}
             invalid={Boolean(errors.dateOfBirth)}
           />
-          {!errors.dateOfBirth ? (
-            <p className="text-[12px] text-muted-foreground">
-              Optional. Must be a past date — you need to be 13 or older.
-            </p>
-          ) : null}
         </Field>
 
         <Field
