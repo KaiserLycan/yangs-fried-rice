@@ -4,6 +4,7 @@ import { TrackOrderScreen } from "@/components/orders/track-order-screen";
 import { ToastProvider } from "@/components/ui/toast";
 import { getOrderEtaAction } from "@/lib/actions/eta";
 import { arrivalWindowFrom } from "@/lib/orders/arrival-window";
+import { resolveOrderProgress } from "@/lib/orders/order-stage";
 import { readTrackedOrder } from "@/lib/orders/read-tracked-order";
 import { readCustomerProfile } from "@/lib/profile/customer-profile";
 
@@ -37,6 +38,20 @@ export default async function OrderDetailPage({
 
   if (!profile) redirect(`/login?next=/orders/${params.orderId}`);
   if (!order) notFound();
+
+  // Nobody has paid for this yet, so there is no timeline to draw: the
+  // kitchen has not been told about it and no rider will be. Send the
+  // customer to the one screen that can do something about that — the same
+  // receipt the order history links to (issue #106).
+  const progress = resolveOrderProgress({
+    orderStatus: order.orderStatus,
+    cancelledAt: order.cancelledAt,
+    deliveryStatus: order.deliveryStatus,
+    orderType: order.orderType,
+  });
+  if (progress.kind === "unpaid") {
+    redirect(`/checkout/confirmation?order=${params.orderId}`);
+  }
 
   return (
     <ToastProvider>

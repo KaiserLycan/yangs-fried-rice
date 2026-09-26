@@ -24,6 +24,7 @@ export const metadata: Metadata = {
 };
 
 import { ToastProvider } from "@/components/ui/toast";
+import { ShortcutsHelp } from "@/components/ui/shortcuts-help";
 
 export default function RootLayout({
   children,
@@ -33,7 +34,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${anton.variable} ${dmSans.variable}`}>
       <body>
-        <ToastProvider>{children}</ToastProvider>
+        <ToastProvider>
+          {children}
+          <ShortcutsHelp />
+        </ToastProvider>
       </body>
     </html>
   );

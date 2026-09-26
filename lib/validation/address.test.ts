@@ -23,7 +23,7 @@ describe("addressSchema", () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error.errors[0].message).toBe(
-        "Address must be at least 5 characters"
+        "Add more of the address — at least a street and a city."
       );
     }
   });
@@ -49,7 +49,7 @@ describe("addressSchema", () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error.errors[0].message).toBe(
-        "Address must be 500 characters or fewer"
+        "This address is too long. Shorten it to 500 characters or fewer."
       );
     }
   });

@@ -4,18 +4,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Alert } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
+import { SubmitButton } from "@/components/ui/submit-button";
+import { useLiveValidation } from "@/lib/forms/use-live-validation";
+import { useSubmitShortcut } from "@/lib/hooks/use-shortcut";
+import { lengthProps } from "@/lib/validation/fields";
 import { Input } from "@/components/ui/input";
 import { ShowHideToggle } from "@/components/ui/show-hide-toggle";
 import {
   employeeLoginSchema,
-  EMPLOYEE_SIGN_IN_FAILED,
-  type EmployeeLoginField,
 } from "@/lib/validation/employee-login";
 import { loginEmployee } from "@/app/(auth)/actions";
-
-type FieldErrors = Partial<Record<EmployeeLoginField, string>>;
 
 /**
  * COPY: "created by an admin" names a role that does not exist — the confirmed
@@ -40,44 +39,28 @@ const FOOTER_NOTE =
  */
 export function EmployeeLoginForm() {
   const router = useRouter();
-  const [errors, setErrors] = useState<FieldErrors>({});
   const [serverError, setServerError] = useState<string | null>(null);
-  const [submitted, setSubmitted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const [isFormValid, setIsFormValid] = useState(false);
 
-  function handleFormChange(event: React.FormEvent<HTMLFormElement>) {
-    setIsFormValid(event.currentTarget.checkValidity());
-  }
-
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const result = employeeLoginSchema.safeParse({
+  const live = useLiveValidation({
+    schema: employeeLoginSchema,
+    read: (data) => ({
       identifier: String(data.get("identifier") ?? ""),
       password: String(data.get("password") ?? ""),
-    });
+    }),
+  });
+  const { errors } = live;
+  useSubmitShortcut(live.formRef);
 
-    setSubmitted(true);
-    if (!result.success) {
-      const next: FieldErrors = {};
-      for (const issue of result.error.issues) {
-        const key = issue.path[0] as keyof FieldErrors;
-        next[key] ??= issue.message;
-      }
-      setErrors(next);
-      return;
-    }
-
-    setErrors({});
+  const handleSubmit = live.handleSubmit(async (values) => {
     setServerError(null);
 
     // Route on Employee.role: Staff and Business Owner to /manage, Rider
     // to /deliver. Role values are placeholders pending PM confirmation
     // — see the comment above EMPLOYEE_ROLE_REDIRECTS in actions.ts.
     startTransition(async () => {
-      const outcome = await loginEmployee(result.data);
+      const outcome = await loginEmployee(values);
       if (!outcome.success) {
         setServerError(outcome.error);
         return;
@@ -85,15 +68,12 @@ export function EmployeeLoginForm() {
       router.push(outcome.redirectTo);
       router.refresh();
     });
-  }
-
-  const hasErrors = Object.keys(errors).length > 0;
+  });
 
   return (
     <div className="relative flex flex-1 flex-col px-6 pb-[28px] pt-[22px] md:justify-center md:gap-[18px] md:bg-background md:px-[52px] md:pb-[46px] md:pt-[46px]">
       <form
-        noValidate
-        onChange={handleFormChange}
+        {...live.formProps}
         onSubmit={handleSubmit}
         className="flex flex-col gap-[14px] rounded-[20px] bg-background p-5 md:gap-[18px] md:rounded-none md:bg-transparent md:p-0"
       >
@@ -106,11 +86,7 @@ export function EmployeeLoginForm() {
           </p>
         </div>
 
-        {serverError ? (
-          <Alert>{serverError}</Alert>
-        ) : submitted && hasErrors ? (
-          <Alert>{EMPLOYEE_SIGN_IN_FAILED}</Alert>
-        ) : null}
+        {serverError ? <Alert>{serverError}</Alert> : null}
 
         <Field
           label="Work email"
@@ -125,6 +101,7 @@ export function EmployeeLoginForm() {
             autoComplete="username"
             placeholder="name@yangs.ph"
             required
+            {...lengthProps("email")}
             invalid={Boolean(errors.identifier)}
           />
         </Field>
@@ -147,13 +124,34 @@ export function EmployeeLoginForm() {
             autoComplete="current-password"
             placeholder="At least 8 characters"
             required
+            {...lengthProps("password")}
             invalid={Boolean(errors.password)}
           />
         </Field>
 
-        <Button type="submit" disabled={isPending || !isFormValid}>
-          {isPending ? "Signing in…" : "Sign in"}
-        </Button>
+        {/* Issue #106 asked for employees to get the same way back in that
+            customers have. `?from=employee` only steers the way-back link, so
+            a rider who resets a password lands on /employee/login rather than
+            the customer one. */}
+        <div className="flex justify-end">
+          <Link
+            href="/forgot-password?from=employee"
+            className="text-[13px] font-bold text-primary"
+          >
+            Forgot password?
+          </Link>
+        </div>
+
+        <SubmitButton
+          pending={isPending}
+          invalid={!live.isValid}
+          pendingLabel="Signing in…"
+          hint="Sign in to the back office or delivery app"
+          blockedHint="Enter your work email and a password of at least 8 characters."
+          wrapperClassName="w-full"
+        >
+          Sign in
+        </SubmitButton>
 
         <div className="flex justify-end">
           <Link

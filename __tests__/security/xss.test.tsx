@@ -177,6 +177,12 @@ describe("E5. no unsafe rendering escape hatch exists", () => {
       ["components/manage/sidebar.tsx", "href={item.href} — from the NAV_ITEMS constant"],
       ["components/nav/site-nav-bar.tsx", "href={href} — from the NAV_LINKS constant"],
       ["components/nav/bottom-tab-bar.tsx", "href={href} — from the TABS constant"],
+      // All four of this file's bindings read from `lib/site/site-info.ts`:
+      // the FOOTER_LINKS constant, and the support address and phone number.
+      // Nothing there is reachable from the database or a form, and the two
+      // external ones are prefixed with a fixed `mailto:` / `tel:` scheme
+      // that a value cannot change.
+      ["components/layout/site-footer.tsx", "href={href} and mailto:/tel: — from lib/site/site-info.ts"],
     ]);
 
     const offenders: string[] = [];
@@ -190,7 +196,8 @@ describe("E5. no unsafe rendering escape hatch exists", () => {
         // path or fragment — the scheme cannot be changed by the value.
         const fixedStart = /^[`"']\s*[/#]/.test(value) || /["'`]\s*[/#]/.test(value);
         if (fixedStart) continue;
-        if (ALLOWED.has(file)) continue;
+        // `join` builds backslash paths on Windows; the list uses forward slashes.
+        if (ALLOWED.has(file.replace(/\\/g, "/"))) continue;
 
         offenders.push(`${file}: ${match}`);
       }

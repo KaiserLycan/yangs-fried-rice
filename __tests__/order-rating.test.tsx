@@ -61,10 +61,13 @@ describe("OrderRatingInput", () => {
       await screen.findByText("You have already reviewed this order."),
     ).toBeInTheDocument();
     expect(refresh).toHaveBeenCalledTimes(1);
-    // The row must not stay filled to the score that failed to save.
-    expect(
-      screen.getByRole("button", { name: "1 out of 5" }),
-    ).toHaveTextContent("☆");
+    // The row must not stay filled to the score that failed to save. The
+    // rollback can render a tick after the message, so wait for it.
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "1 out of 5" }),
+      ).toHaveTextContent("☆"),
+    );
   });
 
   it("disables the stars while the write is in flight", async () => {

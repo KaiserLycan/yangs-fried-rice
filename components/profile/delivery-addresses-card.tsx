@@ -7,8 +7,18 @@ import {
   CardInput,
   CardValue,
 } from "@/components/profile/profile-card";
-import { fieldErrorsFrom } from "@/components/profile/use-card-editor";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
+import { Tooltip } from "@/components/ui/tooltip";
+import {
+  AddressFields,
+  ADDRESS_FIELD_LABELS,
+} from "@/components/forms/address-fields";
+import { FormErrorSummary } from "@/components/forms/form-error-summary";
+import { useLiveValidation } from "@/lib/forms/use-live-validation";
+import { useSubmitShortcut } from "@/lib/hooks/use-shortcut";
+import { lengthProps } from "@/lib/validation/fields";
+import type { FieldErrors } from "@/lib/validation/field-errors";
 import { Dialog } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import {
@@ -19,9 +29,14 @@ import { addressForGeocoding } from "@/lib/address/geocoding-query";
 import type { CustomerAddress } from "@/lib/profile/customer-profile";
 import {
   deliveryAddressSchema,
-  type DeliveryAddressField,
   type DeliveryAddressValues,
 } from "@/lib/validation/profile";
+
+const ADDRESS_FORM_LABELS: Record<string, string> = {
+  label: "Label",
+  deliveryNote: "Delivery note",
+  ...ADDRESS_FIELD_LABELS,
+};
 
 const NOTE_EMPTY_STATE = "No delivery note added yet.";
 
@@ -53,10 +68,12 @@ export function DeliveryAddressesCard({
   const [dialog, setDialog] = React.useState<DialogState>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [formError, setFormError] = React.useState<string | null>(null);
+  const [formFieldErrors, setFormFieldErrors] = React.useState<FieldErrors | null>(null);
 
   const closeDialog = () => {
     setDialog(null);
     setFormError(null);
+    setFormFieldErrors(null);
   };
 
   async function handleSave(values: DeliveryAddressValues) {
@@ -66,6 +83,7 @@ export function DeliveryAddressesCard({
       : "/api/profile/addresses";
 
     setFormError(null);
+    setFormFieldErrors(null);
     setIsSubmitting(true);
     try {
       const res = await fetch(url, {
@@ -77,6 +95,7 @@ export function DeliveryAddressesCard({
 
       if (!res.ok) {
         setFormError(json.error ?? "Could not save address.");
+        setFormFieldErrors(json.fieldErrors ?? null);
         return;
       }
 
@@ -151,13 +170,15 @@ export function DeliveryAddressesCard({
         </span>
 
         <div className="ml-auto">
-          <button
-            type="button"
-            onClick={() => setDialog({ mode: "add" })}
-            className="rounded-sm border border-rule bg-card px-[15px] py-[11px] text-[13px] font-bold text-foreground hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 md:py-[8px]"
-          >
-            Add address
-          </button>
+          <Tooltip content="Save another delivery address">
+            <button
+              type="button"
+              onClick={() => setDialog({ mode: "add" })}
+              className="rounded-sm border border-rule bg-card px-[15px] py-[11px] text-[13px] font-bold text-foreground hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 md:py-[8px]"
+            >
+              Add address
+            </button>
+          </Tooltip>
         </div>
       </div>
 
@@ -192,6 +213,7 @@ export function DeliveryAddressesCard({
         address={dialog?.mode === "edit" ? dialog.address : undefined}
         isSubmitting={isSubmitting}
         error={formError}
+        fieldErrors={formFieldErrors}
         onClose={closeDialog}
         onSave={handleSave}
       />
@@ -276,49 +298,12 @@ function AddressRow({
   );
 }
 
-function parseAddress(fullAddress: string = "") {
-  if (!fullAddress) {
-    return { buildingNo: "", street: "", barangay: "", city: "", zip: "" };
-  }
-  // Best effort parsing of: "Unit 123 Tower A Ayala Ave, Bel-Air, Makati 1209"
-  // Assuming format: "{buildingNo} {street}, {barangay}, {city} {zip}"
-  const parts = fullAddress.split(",").map((p) => p.trim());
-  let buildingNo = "";
-  let street = "";
-  let barangay = "";
-  let city = "";
-  let zip = "";
-
-  if (parts.length >= 3) {
-    // If it has at least 3 parts, assume: [building+street, barangay, city+zip]
-    const bldStreet = parts[0];
-    // Split building and street (heuristically take first word if it has numbers, or just put all in street)
-    // For simplicity, we just put the whole first part in street since splitting it reliably is hard.
-    street = bldStreet;
-    
-    barangay = parts[1];
-    
-    const cityZip = parts[parts.length - 1];
-    const match = cityZip.match(/^(.*?)\s+(\d+)$/);
-    if (match) {
-      city = match[1];
-      zip = match[2];
-    } else {
-      city = cityZip;
-    }
-  } else {
-    // Fallback: put everything in street
-    street = fullAddress;
-  }
-
-  return { buildingNo, street, barangay, city, zip };
-}
-
 function AddressFormDialog({
   open,
   address,
   isSubmitting,
   error: formError,
+  fieldErrors: serverFieldErrors,
   onClose,
   onSave,
 }: {
@@ -326,44 +311,17 @@ function AddressFormDialog({
   address?: CustomerAddress;
   isSubmitting: boolean;
   error?: string | null;
+  fieldErrors?: FieldErrors | null;
   onClose: () => void;
   onSave: (values: DeliveryAddressValues) => void;
 }) {
-  const [errors, setErrors] = React.useState<
-    Partial<Record<DeliveryAddressField, string>>
-  >({});
   const [draftAddressStr, setDraftAddressStr] = React.useState("");
   const [addressStatus, setAddressStatus] =
     React.useState<AddressValidationStatus>("checking");
 
-  React.useEffect(() => {
-    if (!open) {
-      setErrors({});
-    } else if (address?.addressDetails) {
-      setDraftAddressStr(address.addressDetails);
-    } else {
-      setDraftAddressStr("");
-    }
-  }, [open, address]);
-
-  function handleFormChange(event: React.FormEvent<HTMLFormElement>) {
-    const form = event.currentTarget;
-    const b = (form.elements.namedItem("buildingNo") as HTMLInputElement)?.value;
-    const s = (form.elements.namedItem("street") as HTMLInputElement)?.value;
-    const br = (form.elements.namedItem("barangay") as HTMLInputElement)?.value;
-    const c = (form.elements.namedItem("city") as HTMLInputElement)?.value;
-    const z = (form.elements.namedItem("zip") as HTMLInputElement)?.value;
-
-    // Street, barangay, city and ZIP only. The house/building number is left
-    // out on purpose: "B10 L10 Camella Homes" is a lot inside a subdivision
-    // that no map lists, and including it stops the street from matching.
-    setDraftAddressStr(addressForGeocoding({ street: s, barangay: br, city: c, zip: z }));
-  }
-
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const result = deliveryAddressSchema.safeParse({
+  const live = useLiveValidation({
+    schema: deliveryAddressSchema,
+    read: (form) => ({
       label: String(form.get("label") ?? ""),
       buildingNo: String(form.get("buildingNo") ?? ""),
       street: String(form.get("street") ?? ""),
@@ -371,18 +329,43 @@ function AddressFormDialog({
       city: String(form.get("city") ?? ""),
       zip: String(form.get("zip") ?? ""),
       deliveryNote: String(form.get("deliveryNote") ?? ""),
-    });
+    }),
+  });
+  const { reset, setServerErrors } = live;
+  useSubmitShortcut(live.formRef, { enabled: open });
 
-    if (!result.success) {
-      setErrors(fieldErrorsFrom<DeliveryAddressValues>(result.error.issues));
+  React.useEffect(() => {
+    if (!open) {
+      reset();
       return;
     }
+    setDraftAddressStr(address ? addressForGeocoding(address) : "");
+  }, [open, address, reset]);
 
-    onSave(result.data);
+  // A server rejection lands under the field it names.
+  React.useEffect(() => {
+    setServerErrors(serverFieldErrors);
+  }, [serverFieldErrors, setServerErrors]);
+
+  function handleFormChange(event: React.FormEvent<HTMLFormElement>) {
+    live.formProps.onChange(event);
+    const form = new FormData(event.currentTarget);
+    // Street, barangay, city and ZIP only. The house/building number is left
+    // out on purpose: "B10 L10 Camella Homes" is a lot inside a subdivision
+    // that no map lists, and including it stops the street from matching.
+    setDraftAddressStr(
+      addressForGeocoding({
+        street: String(form.get("street") ?? ""),
+        barangay: String(form.get("barangay") ?? ""),
+        city: String(form.get("city") ?? ""),
+        zip: String(form.get("zip") ?? ""),
+      }),
+    );
   }
 
   const formId = React.useId();
-  const parsed = parseAddress(address?.addressDetails);
+  const { errors } = live;
+  const addressBlocked = addressStatus === "invalid";
 
   return (
     <Dialog
@@ -394,17 +377,24 @@ function AddressFormDialog({
           <Button variant="outline" className="flex-1 p-[14px]" onClick={onClose}>
             Cancel
           </Button>
-          <Button
+          <SubmitButton
             variant="confirm"
-            className="flex-1"
-            type="submit"
             form={formId}
+            pending={isSubmitting}
+            invalid={!live.isValid || addressBlocked}
+            pendingLabel="Saving…"
+            hint={address ? "Save changes to this address" : "Save this address"}
             // An address the map rejects — including one beyond the delivery
             // radius — can't be saved at all. The note under the form says why.
-            disabled={isSubmitting || addressStatus === "invalid"}
+            blockedHint={
+              addressBlocked
+                ? "We can't deliver to this address — see the note in the form."
+                : "Complete the highlighted fields to continue."
+            }
+            wrapperClassName="flex-1"
           >
-            {isSubmitting ? "Saving…" : "Save"}
-          </Button>
+            Save
+          </SubmitButton>
         </>
       }
     >
@@ -412,108 +402,62 @@ function AddressFormDialog({
         <form
           key={address?.id ?? "add"}
           id={formId}
-          noValidate
+          {...live.formProps}
           onChange={handleFormChange}
-          onSubmit={handleSubmit}
+          onSubmit={live.handleSubmit(onSave)}
           className="flex flex-col gap-[12px]"
         >
+          <FormErrorSummary
+            message={formError}
+            fieldErrors={serverFieldErrors}
+            labels={ADDRESS_FORM_LABELS}
+            idPrefix="address-"
+          />
+
           <CardField
             label="Label"
             htmlFor="address-label"
             hint="Optional. e.g. Home or Work."
+            error={errors.label}
           >
             <CardInput
               id="address-label"
               name="label"
               defaultValue={address?.label ?? ""}
-              maxLength={50}
+              {...lengthProps("addressLabel")}
+              invalid={Boolean(errors.label)}
             />
           </CardField>
 
-          <div className="flex flex-col gap-[12px] md:flex-row md:gap-[16px]">
-            <CardField className="flex-1" label="Building / House No. *" htmlFor="address-buildingNo" error={errors.buildingNo}>
-              <CardInput
-                id="address-buildingNo"
-                name="buildingNo"
-                defaultValue={parsed.buildingNo}
-                minLength={1}
-                maxLength={100}
-                invalid={Boolean(errors.buildingNo)}
-              />
-            </CardField>
-
-            <CardField className="flex-1" label="Street *" htmlFor="address-street" error={errors.street}>
-              <CardInput
-                id="address-street"
-                name="street"
-                defaultValue={parsed.street}
-                minLength={2}
-                maxLength={100}
-                invalid={Boolean(errors.street)}
-              />
-            </CardField>
-          </div>
-
-          <CardField label="Barangay *" htmlFor="address-barangay" error={errors.barangay}>
-            <CardInput
-              id="address-barangay"
-              name="barangay"
-              defaultValue={parsed.barangay}
-              minLength={2}
-              maxLength={100}
-              invalid={Boolean(errors.barangay)}
-            />
-          </CardField>
-
-          <div className="flex flex-col gap-[12px] md:flex-row md:gap-[16px]">
-            <CardField className="flex-1" label="City *" htmlFor="address-city" error={errors.city}>
-              <CardInput
-                id="address-city"
-                name="city"
-                defaultValue={parsed.city}
-                minLength={2}
-                maxLength={50}
-                invalid={Boolean(errors.city)}
-              />
-            </CardField>
-
-            <CardField className="flex-1" label="ZIP Code *" htmlFor="address-zip" error={errors.zip}>
-              <CardInput
-                id="address-zip"
-                name="zip"
-                defaultValue={parsed.zip}
-                minLength={4}
-                maxLength={4}
-                invalid={Boolean(errors.zip)}
-              />
-            </CardField>
-          </div>
+          <AddressFields
+            idPrefix="address"
+            variant="card"
+            defaults={address}
+            errors={errors}
+            gapClassName="gap-[12px] md:gap-[16px]"
+          />
 
           <CardField
             label="Delivery note"
-            htmlFor="address-note"
+            htmlFor="address-deliveryNote"
             hint="Optional. e.g. Beside the blue gate."
+            error={errors.deliveryNote}
           >
             <CardInput
-              id="address-note"
+              id="address-deliveryNote"
               name="deliveryNote"
               defaultValue={address?.deliveryNote ?? ""}
-              maxLength={255}
+              {...lengthProps("deliveryNote")}
+              invalid={Boolean(errors.deliveryNote)}
             />
           </CardField>
-          
+
           <div className="pt-2">
             <AddressValidationNote
               address={draftAddressStr}
               onStatusChange={setAddressStatus}
             />
           </div>
-
-          {formError && (
-            <div className="rounded-[4px] bg-destructive/10 p-[12px] text-[13px] font-medium text-destructive">
-              {formError}
-            </div>
-          )}
         </form>
       ) : null}
     </Dialog>

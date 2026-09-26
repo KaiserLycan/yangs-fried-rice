@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { orderItemName } from "@/lib/orders/item-name";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { computeOrderTotal } from "@/lib/orders/order-total";
 import {
@@ -8,6 +9,8 @@ import {
   releaseRefusalReason,
 } from "@/lib/orders/delivery-assignment";
 import { revalidatePath } from "next/cache";
+import { IMAGE_BUCKETS, imageExtensionFor } from "@/lib/storage/stored-image";
+import { removeStoredImage } from "@/lib/storage/remove-stored-image";
 
 /**
  * Storage bucket for proof-of-delivery photos. Must be created manually
@@ -16,7 +19,7 @@ import { revalidatePath } from "next/cache";
  * for itself; Storage buckets are a dashboard/infra step, not a schema
  * migration.
  */
-const PROOF_BUCKET = "proof-of-delivery";
+const PROOF_BUCKET = IMAGE_BUCKETS.proofOfDelivery;
 const MAX_PROOF_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 const ALLOWED_PROOF_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
@@ -30,6 +33,10 @@ type DeliverySummary = {
 
 type DeliveryDetail = {
   deliveryId: string;
+  /** The order this is a delivery of — what the customer and the kitchen
+   *  both call it. The rider's screens used to show `deliveryId` instead,
+   *  which is a different UUID that nobody else has ever seen (issue #106). */
+  orderId: string | null;
   deliveryStatus: string | null;
   estimatedTime: string | null;
   proofOfDelivery: string | null;
@@ -211,7 +218,7 @@ export async function getDeliveryDetailsBatch(deliveryIds: string[]) {
 
     const { data: iData } = await supabase
       .from("order_item")
-      .select("order_id, quantity, subtotal, product:product_id (product_name)")
+      .select("order_id, quantity, subtotal, product_name, unit_price, product:product_id (product_name)")
       .in("order_id", orderIds);
     if (iData) orderItems = iData;
 
@@ -261,7 +268,7 @@ export async function getDeliveryDetailsBatch(deliveryIds: string[]) {
     };
 
     const items = lines.map((item) => ({
-      productName: item.product?.product_name ?? "Unknown item",
+      productName: orderItemName(item.product_name, item.product?.product_name),
       quantity: item.quantity,
     }));
 
@@ -347,7 +354,7 @@ export async function getDeliveryDetail(deliveryId: string): Promise<{
 
     const { data: orderItems } = await supabase
       .from("order_item")
-      .select("quantity, subtotal, product:product_id (product_name)")
+      .select("quantity, subtotal, product_name, unit_price, product:product_id (product_name)")
       .eq("order_id", delivery.order_id);
 
     const { data: orderAddOns } = await supabase
@@ -356,7 +363,7 @@ export async function getDeliveryDetail(deliveryId: string): Promise<{
       .eq("order_id", delivery.order_id);
 
     items = (orderItems ?? []).map((item) => ({
-      productName: item.product?.product_name ?? "Unknown item",
+      productName: orderItemName(item.product_name, item.product?.product_name),
       quantity: item.quantity,
     }));
 
@@ -378,6 +385,7 @@ export async function getDeliveryDetail(deliveryId: string): Promise<{
   return {
     delivery: {
       deliveryId: delivery.delivery_id,
+      orderId: delivery.order_id,
       deliveryStatus: delivery.delivery_status,
       estimatedTime: delivery.estimated_time,
       proofOfDelivery: delivery.proof_of_delivery,
@@ -432,6 +440,55 @@ export async function markDelivered(
     };
   }
 
+  // A cash-on-delivery run is only finished when the rider actually has the
+  // money. The modal disables "Complete delivery" until the box is ticked,
+  // but that is a convenience, not the rule: this action is callable
+  // directly, and it escalates to the service role further down, so RLS is
+  // no backstop. Until now `isCashCollected` was posted by the modal and then
+  // dropped on the floor here, which made the tick decorative (issue #106).
+  //
+  // Read with the service role: riders have no select grant on `transaction`,
+  // and a filtered-to-zero-rows read would look exactly like "not a cash
+  // order" and wave the delivery through.
+  const admin = createAdminClient();
+  const isCashCollected = formData.get("isCashCollected") === "true";
+
+  const [{ data: paymentRows, error: paymentReadError }, { data: orderRow }] =
+    await Promise.all([
+      admin
+        .from("transaction")
+        .select("transaction_id, payment_method, payment_status, subtotal")
+        .eq("order_id", delivery.order_id ?? ""),
+      admin
+        .from("order")
+        .select("delivery_fee")
+        .eq("order_id", delivery.order_id ?? "")
+        .maybeSingle(),
+    ]);
+
+  if (paymentReadError) {
+    return {
+      success: false,
+      error: "Couldn't check this order's payment. Please try again.",
+    };
+  }
+
+  const orderDeliveryFee = orderRow?.delivery_fee ?? 0;
+
+  // The one row that still owes money in cash. An order already settled
+  // online has nothing to collect, so the tick is neither shown nor required.
+  const cashDue = (paymentRows ?? []).find(
+    (row) =>
+      row.payment_method === "cash_on_delivery" && row.payment_status !== "paid",
+  );
+
+  if (cashDue && !isCashCollected) {
+    return {
+      success: false,
+      error: "Confirm the cash payment before completing this delivery.",
+    };
+  }
+
   const proofFile = getProofFile(formData);
   if (!proofFile) {
     return { success: false, error: "A proof-of-delivery photo is required." };
@@ -449,8 +506,9 @@ export async function markDelivered(
     };
   }
 
-  const fileExt = proofFile.name.split(".").pop() ?? "jpg";
-  const filePath = `${deliveryId}-${Date.now()}.${fileExt}`;
+  // The modal compresses to WebP, so the original filename's extension is
+  // usually wrong about what is inside.
+  const filePath = `${deliveryId}-${Date.now()}.${imageExtensionFor(proofFile)}`;
 
   const { error: uploadError } = await supabase.storage
     .from(PROOF_BUCKET)
@@ -477,11 +535,35 @@ export async function markDelivered(
     .eq("delivery_id", deliveryId);
 
   if (updateError) {
+    // Nothing points at the photo, and a retry uploads a fresh one.
+    await removeStoredImage(PROOF_BUCKET, publicUrl);
     return {
       success: false,
       error:
         "Proof was uploaded, but we couldn't update the delivery. Please try again.",
     };
+  }
+
+  // The cash is in the rider's hand, so the order is paid. Without this the
+  // books would show every completed cash delivery as still pending, and the
+  // receipt would keep telling the customer nothing had been taken.
+  if (cashDue) {
+    const { error: cashError } = await admin
+      .from("transaction")
+      .update({
+        payment_status: "paid",
+        // `subtotal` is what `submitCart` recorded for the goods. The
+        // delivery fee lives on the order, so it is added back here rather
+        // than recomputed — this must agree with the figure the customer was
+        // shown at checkout.
+        total_paid: (cashDue.subtotal ?? 0) + (orderDeliveryFee ?? 0),
+        transaction_date: new Date().toISOString(),
+      })
+      .eq("transaction_id", cashDue.transaction_id);
+
+    if (cashError) {
+      console.error("markDelivered: could not record cash payment:", cashError);
+    }
   }
 
   // Reflect the completed status back to the original order record
@@ -490,7 +572,7 @@ export async function markDelivered(
   // rider's assignment to this delivery was verified above, so the status
   // change is made with the service role, scoped to that one order.
   if (delivery.order_id) {
-    const { error: orderUpdateError } = await createAdminClient()
+    const { error: orderUpdateError } = await admin
       .from("order")
       .update({
         order_status: "completed",

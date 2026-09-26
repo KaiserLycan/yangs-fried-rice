@@ -4,6 +4,7 @@ import { formatMobileNumber } from "@/lib/validation/phone";
 import { useState, useEffect } from "react";
 import { Search, ChevronDown, ChevronUp, ChevronsUpDown, Loader2 } from "lucide-react";
 import { ManagePagination } from "@/components/manage/manage-pagination";
+import { SortableHeader } from "@/components/manage/sortable-header";
 import { CustomerModal, CustomerData } from "@/components/manage/customers/customer-modal";
 import { useDebounce } from "@/lib/hooks/use-debounce";
 import { Dialog } from "@/components/ui/dialog";
@@ -45,12 +46,15 @@ function ManageCustomersInner() {
       const result = await getAllCustomers();
       
       if (result.error) {
-        showToast(`Failed to load customers: ${result.error}`);
+        showToast(`Failed to load customers: ${result.error}`, "error");
       } else if (result.data) {
         // Safely map backend data to our UI schema
         const mappedData: CustomerData[] = result.data.map((c: any) => ({
           id: c.customer_id,
           name: c.name || "Unknown User",
+          firstName: c.first_name || "",
+          lastName: c.last_name || "",
+          dateOfBirth: c.date_of_birth ?? null,
           email: c.email || "No email",
           // Grouped for reading: stored numbers are a dense +639171234567.
           contact: formatMobileNumber(c.phone_number) || "No contact",
@@ -74,9 +78,9 @@ function ManageCustomersInner() {
     const result = await deleteCustomer(customerToDelete.id);
     
     if (result.error) {
-      showToast(`Failed to delete customer: ${result.error}`);
+      showToast(`Failed to delete customer: ${result.error}`, "error");
     } else {
-      showToast("Customer account deleted successfully.");
+      showToast("Customer account deleted successfully.", "success");
       // Remove from local state instantly to update the UI
       setCustomers(prev => prev.filter(c => c.id !== customerToDelete.id));
       setCustomerToDelete(null);
@@ -141,13 +145,11 @@ function ManageCustomersInner() {
         <div className="bg-white rounded-[12px] overflow-hidden flex flex-col min-h-0 border border-[#F0E6D8] shadow-[0_2px_10px_rgba(26,18,16,0.02)]">
           {/* Table Head - Hidden on Mobile */}
           <div className="hidden md:grid grid-cols-[1.5fr_1.5fr_1fr_1fr] px-8 py-5 border-b border-[#F0E6D8] bg-[#EAE0D5] text-[12px] font-bold text-[#7A6A60] uppercase tracking-[1px]">
-            <button
-              className="flex items-center gap-2 hover:text-[#4A3D36] transition-colors focus:outline-none w-fit"
-              onClick={() => setNameSort(prev => prev === 'none' ? 'asc' : prev === 'asc' ? 'desc' : 'none')}
-            >
-              Name
-              {nameSort === 'asc' ? <ChevronUp className="h-[14px] w-[14px]" /> : nameSort === 'desc' ? <ChevronDown className="h-[14px] w-[14px]" /> : <ChevronsUpDown className="h-[14px] w-[14px]" />}
-            </button>
+            <SortableHeader 
+              label="Name" 
+              currentSort={nameSort} 
+              onSortChange={setNameSort} 
+            />
             <div className="flex items-center">Email</div>
             <div className="flex items-center">Contact</div>
             <div className="flex items-center">Customer Since</div>

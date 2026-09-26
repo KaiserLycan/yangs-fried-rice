@@ -23,7 +23,7 @@ export const PH_MOBILE_PREFIX = "+63";
 export const PH_MOBILE_DIGITS = 10;
 
 /** How the number is shown as an example, in hints and placeholders. */
-export const PH_MOBILE_EXAMPLE = "+63 9171234567";
+export const PH_MOBILE_EXAMPLE = "+63 917 123 4567";
 
 /** Spaces, dots, dashes and brackets are how people write a number, not part of it. */
 export const PHONE_SEPARATORS = /[\s().-]/g;
@@ -57,6 +57,22 @@ export function phoneDigitsOf(raw: string | null | undefined): string {
 
   return digits.slice(0, PH_MOBILE_DIGITS);
 }
+
+/**
+ * The input mask: up to ten subscriber digits grouped the way they are
+ * displayed everywhere else — `962 693 9019` — so what someone types beside
+ * the fixed `+63` looks exactly like the number on their profile afterwards.
+ * Groups appear as the digits arrive ("962", "962 6", "962 693 9").
+ */
+export function maskPhoneDigits(raw: string | null | undefined): string {
+  const digits = phoneDigitsOf(raw);
+  return [digits.slice(0, 3), digits.slice(3, 6), digits.slice(6)]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/** Length of the masked value: ten digits and two spaces. */
+export const PH_MOBILE_MASKED_LENGTH = PH_MOBILE_DIGITS + 2;
 
 /** Is this a valid Philippine mobile number, however it was written? */
 export function isValidPhMobile(raw: string | null | undefined): boolean {

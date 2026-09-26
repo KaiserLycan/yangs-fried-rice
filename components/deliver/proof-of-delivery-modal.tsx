@@ -7,11 +7,14 @@ import { cn } from "@/lib/utils";
 import { compressImage } from "@/lib/image/compress";
 import { useRouter } from "next/navigation";
 import { markDelivered } from "@/lib/actions/delivery";
+import { formatOrderNumber } from "@/lib/orders/order-number";
 
 interface ProofOfDeliveryModalProps {
   isOpen: boolean;
   onClose: () => void;
   deliveryId: string;
+  /** What to quote to the customer. See `lib/orders/order-number.ts`. */
+  orderId?: string | null;
   customerName: string;
   proofImageUrl?: string | null;
   isReadOnly?: boolean;
@@ -30,6 +33,7 @@ export function ProofOfDeliveryModal({
   isOpen,
   onClose,
   deliveryId,
+  orderId,
   customerName,
   proofImageUrl,
   isReadOnly = false,
@@ -105,6 +109,14 @@ export function ProofOfDeliveryModal({
 
   const displayItems = deliverySummary?.items ?? [];
 
+  // A cash-on-delivery run is not finished until the rider has the money.
+  // "Complete delivery" used to be clickable with the box unticked, so an
+  // order could be marked delivered without anyone confirming the cash was
+  // handed over (issue #106). The server enforces the same rule — this only
+  // saves the rider a round trip.
+  const isCOD = deliverySummary?.paymentMethod === "cash_on_delivery";
+  const cashOutstanding = isCOD && !isCashCollected;
+
   return (
     <dialog
       ref={dialogRef}
@@ -117,8 +129,17 @@ export function ProofOfDeliveryModal({
             <h2 className="font-display text-[24px] text-[#1A1210] leading-none mb-1">
               {isReadOnly ? "DELIVERED" : "PROOF OF DELIVERY"}
             </h2>
+            {/* This said "Order #{deliveryId}" — the delivery's own UUID,
+                which is not the order's and appears on no other screen in
+                the app. A rider reading it out to a customer was quoting a
+                number nobody else could look up (issue #106). */}
             <p className="text-[14px] text-[#7A6A60]">
-              Order #{deliveryId} · {customerName}
+              {orderId
+                ? `Order #${formatOrderNumber(orderId)}`
+                : // No order row to point at. Say which kind of reference
+                  // this is rather than passing it off as the order's.
+                  `Delivery #${formatOrderNumber(deliveryId)}`}{" "}
+              · {customerName}
             </p>
           </div>
 
@@ -183,7 +204,7 @@ export function ProofOfDeliveryModal({
                 />
               </div>
 
-              {deliverySummary?.paymentMethod === "cash_on_delivery" && (
+              {isCOD && (
                 <label className="flex items-center gap-3 cursor-pointer group">
                   <div className={`w-6 h-6 rounded-[6px] border-2 flex items-center justify-center transition-colors ${isCashCollected ? 'bg-[#E8541F] border-[#E8541F]' : 'border-[#DDCDB8] bg-white group-hover:border-[#E8541F]'}`}>
                     {isCashCollected && <Check className="w-4 h-4 text-white" strokeWidth={3} />}
@@ -207,7 +228,7 @@ export function ProofOfDeliveryModal({
                 <Button
                   className="w-full py-6 text-[16px] bg-[#1A1210] hover:bg-[#2c1f1c] text-white"
                   onClick={handleComplete}
-                  disabled={!proofPreview || isSubmitting}
+                  disabled={!proofPreview || isSubmitting || cashOutstanding}
                 >
                   {isSubmitting ? (
                     <>
@@ -217,6 +238,11 @@ export function ProofOfDeliveryModal({
                     "Complete delivery"
                   )}
                 </Button>
+                {cashOutstanding && (
+                  <p className="pt-2 text-center text-[13px] text-[#7A6A60]">
+                    Confirm the cash payment before completing this delivery.
+                  </p>
+                )}
               </div>
             </>
           )}

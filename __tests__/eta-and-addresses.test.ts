@@ -38,7 +38,11 @@ describe("Customer Addresses API", () => {
       method: "POST",
       body: JSON.stringify({
         label: "Beach House",
-        address_details: "Barangay Uno, Cebu City, Philippines",
+        buildingNo: "12",
+        street: "Osmena Blvd",
+        barangay: "Barangay Uno",
+        city: "Cebu City",
+        zip: "6000",
       }),
     });
 
@@ -78,8 +82,12 @@ describe("Customer Addresses API", () => {
       method: "POST",
       body: JSON.stringify({
         label: "Home",
-        address_details: "Unit 201, Taft Avenue, Malate, Manila",
-        delivery_note: "Ring doorbell",
+        buildingNo: "Unit 201",
+        street: "Taft Avenue",
+        barangay: "Malate",
+        city: "Manila",
+        zip: "1004",
+        deliveryNote: "Ring doorbell",
       }),
     });
 
@@ -88,6 +96,33 @@ describe("Customer Addresses API", () => {
     const body = await res.json();
     expect(body.message).toBe("Address successfully added.");
     expect(body.address.address_id).toBe("addr-123");
+    expect(mockInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        building_no: "Unit 201",
+        street: "Taft Avenue",
+        barangay: "Malate",
+        city: "Manila",
+        zip_code: "1004",
+      }),
+    );
+  });
+
+  it("TC-ADDR-4: Names every invalid address part in fieldErrors", async () => {
+    (createClient as any).mockReturnValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({ data: { user: { id: "cust-1" } } }),
+      },
+    });
+
+    const request = new Request("http://localhost:3000/api/customer/addresses", {
+      method: "POST",
+      body: JSON.stringify({ buildingNo: "", street: "Ta", barangay: "Malate", city: "Manila", zip: "10" }),
+    });
+
+    const res = await postAddress(request);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(Object.keys(body.fieldErrors).sort()).toEqual(["buildingNo", "street", "zip"]);
   });
 });
 

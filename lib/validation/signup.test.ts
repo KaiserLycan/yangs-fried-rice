@@ -28,11 +28,11 @@ describe("signupSchema", () => {
 
   describe("name", () => {
     it("rejects an empty first name", () => {
-      expect(errorFor({ firstName: "" }, "firstName")).toBe("Enter your name.");
+      expect(errorFor({ firstName: "" }, "firstName")).toBe("Enter your first name.");
     });
 
     it("rejects whitespace only in last name", () => {
-      expect(errorFor({ lastName: "   " }, "lastName")).toBe("Enter your name.");
+      expect(errorFor({ lastName: "   " }, "lastName")).toBe("Enter your last name.");
     });
 
     it("accepts a single-word first name", () => {

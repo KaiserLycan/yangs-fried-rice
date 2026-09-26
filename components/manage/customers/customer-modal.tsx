@@ -1,10 +1,14 @@
 import * as React from "react";
 import { DialogRoot } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { formatDateOfBirth } from "@/lib/profile/identity";
 
 export interface CustomerData {
   id: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
+  dateOfBirth?: string | null;
   email: string;
   contact: string;
   customerSince: string;
@@ -71,9 +75,14 @@ export function CustomerModal({ customer, isOpen, onClose, onAction }: CustomerM
 
         {/* Form Fields */}
         <div className="flex flex-col gap-[14px] px-[26px] pb-[26px] flex-1 overflow-y-auto">
-          <DisplayField label="Customer Name" value={customer.name} />
-          {/* Hardcoding Date of Birth placeholder to match design */}
-          <DisplayField label="Date of Birth" value={"Sep 9, 2006"} />
+          <div className="flex flex-col gap-[14px] md:flex-row">
+            <DisplayField label="First Name" value={customer.firstName || "—"} />
+            <DisplayField label="Last Name" value={customer.lastName || "—"} />
+          </div>
+          <DisplayField
+            label="Date of Birth"
+            value={formatDateOfBirth(customer.dateOfBirth) || "Not provided"}
+          />
           <DisplayField label="Mobile Number" value={customer.contact} />
           <DisplayField label="Email Address" value={customer.email} />
           <DisplayField label="Member Since" value={customer.customerSince} />

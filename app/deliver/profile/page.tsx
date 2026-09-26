@@ -27,6 +27,8 @@ export default async function RiderProfilePage() {
   }
 
   const profile = {
+    firstName: result.data.firstName,
+    lastName: result.data.lastName,
     name: result.data.name,
     dateOfBirth: result.data.dateOfBirth ?? null,
     mobile: result.data.phoneNumber ?? "",

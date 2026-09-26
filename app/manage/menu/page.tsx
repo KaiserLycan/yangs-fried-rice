@@ -1,5 +1,7 @@
 "use client";
 
+import { Tooltip } from "@/components/ui/tooltip";
+import { SHORTCUTS, useShortcut } from "@/lib/hooks/use-shortcut";
 import { useState, useCallback, useEffect } from "react";
 import { Search } from "lucide-react";
 import { MenuSidebar } from "@/components/manage/menu/menu-sidebar";
@@ -11,11 +13,39 @@ import { useToast, ToastProvider } from "@/components/ui/toast";
 import type { MenuItem } from "@/components/manage/menu/mock-menu";
 
 // Import real backend Server Actions and Supabase client
-import { 
+import {
   getMenuData, createCategory, updateCategory, deleteCategory,
-  createProduct, updateProduct, deleteProduct, createAddOn
+  createProduct, updateProduct, deleteProduct, createAddOn,
+  discardUnsavedMenuImage,
 } from "@/lib/actions/menu";
 import { createClient } from "@/lib/supabase/client"; // Added for Storage uploads
+import { IMAGE_BUCKETS, imageExtensionFor } from "@/lib/storage/stored-image";
+
+/**
+ * Put a menu photo in the bucket and return its public URL.
+ *
+ * The extension follows the file's real type — the modals hand over
+ * `compressImage` output, which is always WebP whatever the original was
+ * called. The name is still unique per upload, so replacing a photo never
+ * overwrites one a cached page may still be showing; `updateProduct` removes
+ * the previous file once the new URL is saved.
+ */
+async function uploadMenuImage(
+  imageFile: File,
+): Promise<{ url: string; error: null } | { url: null; error: string }> {
+  const supabase = createClient();
+  const fileName = `${Date.now()}.${imageExtensionFor(imageFile)}`;
+
+  const { error } = await supabase.storage
+    .from(IMAGE_BUCKETS.menu)
+    .upload(fileName, imageFile, { contentType: imageFile.type || undefined });
+  if (error) return { url: null, error: error.message };
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from(IMAGE_BUCKETS.menu).getPublicUrl(fileName);
+  return { url: publicUrl, error: null };
+}
 
 export default function ManageMenuPage() {
   return (
@@ -42,6 +72,11 @@ function ManageMenuInner() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
 
+  // Shift+N opens "Add item" (listed in the ? shortcuts overlay).
+  useShortcut(SHORTCUTS.newItem.combo, () => setIsAddModalOpen(true), {
+    enabled: !isAddModalOpen && !isDetailModalOpen && !isProcessing,
+  });
+
   // Derived Category Strings for UI
   const categoryStrings = ["All", ...dbCategories.map(c => c.category_name)];
 
@@ -51,10 +86,10 @@ function ManageMenuInner() {
     const res = await getMenuData();
 
     if (res.error) {
-      showToast(`Error loading menu data: ${res.error}`);
+      showToast(`Error loading menu data: ${res.error}`, "error");
     } else if (res.data) {
       setDbCategories(res.data.categories);
-      
+
       // Map database schema to UI schema
       const mapped: MenuItem[] = res.data.products.map((p: any) => {
         const mappedReviews = (p.review || []).map((r: any) => ({
@@ -64,12 +99,12 @@ function ManageMenuInner() {
           customerName: r.customer?.name || "Unknown Customer",
           createdAt: r.created_at || new Date().toISOString(),
         }));
-        
+
         const validRatings = mappedReviews.filter((r: any) => r.rating > 0);
-        const avgRating = validRatings.length > 0 
-          ? validRatings.reduce((sum: number, r: any) => sum + r.rating, 0) / validRatings.length 
+        const avgRating = validRatings.length > 0
+          ? validRatings.reduce((sum: number, r: any) => sum + r.rating, 0) / validRatings.length
           : 0;
-          
+
         return {
           id: p.product_id,
           name: p.product_name,
@@ -101,11 +136,11 @@ function ManageMenuInner() {
     while (dbCategories.some(c => c.category_name === name)) {
       name = `New Category ${counter++}`;
     }
-    
+
     const res = await createCategory({ category_name: name });
-    if (res.error) showToast(`Failed: ${res.error}`);
+    if (res.error) showToast(`Failed: ${res.error}`, "error");
     else {
-      showToast("Category created.");
+      showToast("Category created.", "success");
       await loadData();
       setSelectedCategory(name);
     }
@@ -119,7 +154,7 @@ function ManageMenuInner() {
 
     setIsProcessing(true);
     const res = await updateCategory(cat.category_id, { category_name: newName });
-    if (res.error) showToast(`Failed: ${res.error}`);
+    if (res.error) showToast(`Failed: ${res.error}`, "error");
     else {
       await loadData();
       if (selectedCategory === oldName) setSelectedCategory(newName);
@@ -133,47 +168,36 @@ function ManageMenuInner() {
 
     setIsProcessing(true);
     const res = await deleteCategory(cat.category_id);
-    if (res.error) showToast(`Failed: ${res.error}`);
-    else {
-      showToast("Category deleted.");
+    setIsProcessing(false);
+    
+    if (res.error) {
+      return res.error;
+    } else {
+      showToast("Category deleted.", "success");
       await loadData();
       if (selectedCategory === categoryName) setSelectedCategory("All");
     }
-    setIsProcessing(false);
   };
 
   // --- Product CRUD ---
   const handleSaveProduct = async (item: Partial<MenuItem>, addOns: { name: string; price: number }[], imageFile?: File) => {
     setIsProcessing(true);
-    let uploadedUrl = null;
-    const supabase = createClient();
+    let uploadedUrl: string | null = null;
 
     // 1. Image Upload Pipeline
     if (imageFile) {
-      const fileExt = imageFile.name.split('.').pop();
-      const fileName = `${Date.now()}.${fileExt}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('menu-images')
-        .upload(fileName, imageFile);
-
-      if (uploadError) {
-        showToast(`Image upload failed: ${uploadError.message}`);
+      const upload = await uploadMenuImage(imageFile);
+      if (upload.error !== null) {
+        showToast(`Image upload failed: ${upload.error}`, "error");
         setIsProcessing(false);
         return;
       }
-
-      // Grab the public URL for the newly uploaded file
-      const { data: { publicUrl } } = supabase.storage
-        .from('menu-images')
-        .getPublicUrl(fileName);
-        
-      uploadedUrl = publicUrl;
+      uploadedUrl = upload.url;
     }
 
     // 2. Database Insertion
     const targetCat = dbCategories.find(c => c.category_name === item.category);
-    
+
     const res = await createProduct({
       product_name: item.name || "Untitled",
       product_price: item.price || 0,
@@ -184,14 +208,16 @@ function ManageMenuInner() {
     });
 
     if (res.error) {
-      showToast(`Failed to create item: ${res.error}`);
+      // The photo is already in the bucket, but no product points at it.
+      if (uploadedUrl) void discardUnsavedMenuImage(uploadedUrl);
+      showToast(`Failed to create item: ${res.error}`, "error");
     } else {
       // 3. Insert Add-ons if provided
       if (res.data?.product_id && addOns.length > 0) {
         await Promise.all(addOns.map(addon => createAddOn(res.data.product_id, addon.name, addon.price)));
       }
-      
-      showToast("Item created successfully.");
+
+      showToast("Item created successfully.", "success");
       await loadData();
       setIsAddModalOpen(false);
     }
@@ -200,34 +226,22 @@ function ManageMenuInner() {
 
   const handleEditProduct = async (updatedItem: MenuItem, imageFile?: File) => {
     setIsProcessing(true);
-    let uploadedUrl = null;
-    const supabase = createClient();
+    let uploadedUrl: string | null = null;
 
     // 1. Image Upload Pipeline (Only triggers if a NEW image was selected)
     if (imageFile) {
-      const fileExt = imageFile.name.split('.').pop();
-      const fileName = `${Date.now()}.${fileExt}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('menu-images')
-        .upload(fileName, imageFile);
-
-      if (uploadError) {
-        showToast(`Image upload failed: ${uploadError.message}`);
+      const upload = await uploadMenuImage(imageFile);
+      if (upload.error !== null) {
+        showToast(`Image upload failed: ${upload.error}`, "error");
         setIsProcessing(false);
         return;
       }
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('menu-images')
-        .getPublicUrl(fileName);
-        
-      uploadedUrl = publicUrl;
+      uploadedUrl = upload.url;
     }
 
     // 2. Database Update
     const targetCat = dbCategories.find(c => c.category_name === updatedItem.category);
-    
+
     const updatePayload: Record<string, any> = {
       product_name: updatedItem.name,
       product_price: updatedItem.price,
@@ -243,9 +257,11 @@ function ManageMenuInner() {
 
     const res = await updateProduct(updatedItem.id, updatePayload);
 
-    if (res.error) showToast(`Failed to update item: ${res.error}`);
-    else {
-      showToast("Item updated successfully.");
+    if (res.error) {
+      if (uploadedUrl) void discardUnsavedMenuImage(uploadedUrl);
+      showToast(`Failed to update item: ${res.error}`, "error");
+    } else {
+      showToast("Item updated successfully.", "success");
       await loadData();
       setIsDetailModalOpen(false);
       setSelectedItem(null);
@@ -256,10 +272,10 @@ function ManageMenuInner() {
   const handleDeleteProduct = async (itemId: string) => {
     setIsProcessing(true);
     const res = await deleteProduct(itemId);
-    
-    if (res.error) showToast(`Failed to delete item: ${res.error}`);
+
+    if (res.error) showToast(`Failed to delete item: ${res.error}`, "error");
     else {
-      showToast("Item deleted.");
+      showToast("Item deleted.", "success");
       await loadData();
       setIsDetailModalOpen(false);
       setSelectedItem(null);
@@ -274,7 +290,7 @@ function ManageMenuInner() {
         <h1 className="font-display text-[24px] md:text-[30px] leading-normal text-[#1a1210]">
           MENU MANAGEMENT
         </h1>
-        
+
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 md:gap-[20px]">
           <div className="flex w-full md:w-[442px] items-center gap-[10px] rounded-[10px] border border-[#ddcdb8] bg-white px-[14px] py-[10px]">
             <Search className="h-4 w-4 text-[#7a6a60]" />
@@ -286,22 +302,29 @@ function ManageMenuInner() {
               className="w-full bg-transparent text-[13px] md:text-[15px] text-[#7a6a60] outline-none placeholder:text-[#7a6a60]"
             />
           </div>
-          
-          <button 
-            onClick={() => setIsAddModalOpen(true)}
-            disabled={isProcessing}
-            className="flex items-center justify-center rounded-[10px] bg-[#e8541f] px-[18px] py-[11px] transition-opacity hover:opacity-90 disabled:opacity-50"
+
+          <Tooltip
+            content="Add a new dish to the menu"
+            shortcut={SHORTCUTS.newItem.combo}
+            side="bottom"
           >
-            <span className="text-[13px] md:text-[15px] font-bold text-white whitespace-nowrap">
-              + Add item
-            </span>
-          </button>
+            <button
+              type="button"
+              onClick={() => setIsAddModalOpen(true)}
+              disabled={isProcessing}
+              className="flex items-center justify-center rounded-[10px] bg-[#e8541f] px-[18px] py-[11px] transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              <span className="text-[13px] md:text-[15px] font-bold text-white whitespace-nowrap">
+                + Add item
+              </span>
+            </button>
+          </Tooltip>
         </div>
       </div>
 
       {/* Main Content: Sidebar + Grid */}
       <div className="flex flex-col md:flex-row flex-1 gap-4 md:gap-[10px] overflow-hidden pt-[10px]">
-        <MenuSidebar 
+        <MenuSidebar
           categories={categoryStrings}
           selectedCategory={selectedCategory}
           onSelectCategory={setSelectedCategory}
@@ -310,7 +333,7 @@ function ManageMenuInner() {
           onDeleteCategory={handleDeleteCategory}
         />
 
-        <MenuGrid 
+        <MenuGrid
           searchText={debouncedSearchText}
           selectedCategory={selectedCategory}
           items={menuItems}
@@ -323,11 +346,12 @@ function ManageMenuInner() {
       </div>
 
       {/* Modals */}
-      <MenuItemModal 
+      <MenuItemModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSave={handleSaveProduct}
         categories={categoryStrings}
+        isProcessing={isProcessing}
       />
 
       {selectedItem && (

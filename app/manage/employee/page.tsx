@@ -3,22 +3,30 @@
 import { useState, useEffect, useCallback } from "react";
 import { Search, ChevronDown, ChevronUp, ChevronsUpDown, Filter, Loader2 } from "lucide-react";
 import { ManagePagination } from "@/components/manage/manage-pagination";
+import { SortableHeader } from "@/components/manage/sortable-header";
 import { EmployeeModal } from "@/components/manage/employee/employee-modal";
 import { useDebounce } from "@/lib/hooks/use-debounce";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useToast, ToastProvider } from "@/components/ui/toast";
+import { useToast } from "@/components/ui/toast";
+import { Tooltip } from "@/components/ui/tooltip";
+import { SHORTCUTS, useShortcut } from "@/lib/hooks/use-shortcut";
+import { DROPDOWN_FOCUS_RING, useDropdown } from "@/lib/hooks/use-dropdown";
+import type { FieldErrors } from "@/lib/validation/field-errors";
 import { 
   getAllEmployees, 
   createEmployee, 
   deleteEmployee, 
-  updateEmployeeDetails 
+  updateEmployeeDetails,
+  setEmployeePhoto,
 } from "@/lib/actions/admin";
 import { normalizeEmployeeRoleLabel, resolveEmployeeRole, roleDisplayLabel, type EmployeeRole } from "@/lib/auth/roles";
 
 export type EmployeeData = {
   id: string;
   name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   contact: string;
   role: string;
@@ -37,11 +45,11 @@ const ROLES = ["All Roles", "Manager", "Staff", "Delivery"];
 
 // 1. Wrapper component to provide the Toast context
 export default function ManageEmployeePage() {
-  return (
-    <ToastProvider>
-      <ManageEmployeeInner />
-    </ToastProvider>
-  );
+  // No ToastProvider here: the root layout already mounts one. A second,
+  // nested provider gives this page its own toast list and its own live
+  // region, so toasts raised here stack in a different place from every
+  // other screen's.
+  return <ManageEmployeeInner />;
 }
 
 // 2. The inner component that handles data logic
@@ -60,6 +68,7 @@ function ManageEmployeeInner() {
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [roleFilter, setRoleFilter] = useState("All Roles");
   const [roleFilterOpen, setRoleFilterOpen] = useState(false);
+  const roleFilterMenu = useDropdown({ open: roleFilterOpen, onOpenChange: setRoleFilterOpen });
   const [nameSort, setNameSort] = useState<"asc" | "desc" | "none">("none");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   
@@ -67,6 +76,14 @@ function ManageEmployeeInner() {
   const [employeeToDelete, setEmployeeToDelete] = useState<EmployeeData | null>(null);
   const [employeeToAdd, setEmployeeToAdd] = useState<any | null>(null);
   const [employeeToEdit, setEmployeeToEdit] = useState<any | null>(null);
+  // Field errors from the last failed add/edit, shown inside the dialog.
+  const [modalFieldErrors, setModalFieldErrors] = useState<FieldErrors | null>(null);
+
+  // Shift+N opens "Add Employee" (listed in the ? shortcuts overlay).
+  useShortcut(SHORTCUTS.newItem.combo, () => {
+    setModalFieldErrors(null);
+    setIsAddModalOpen(true);
+  }, { enabled: !isAddModalOpen && selectedEmployee === null });
 
   // Fetch Employees on Mount
   const loadEmployees = useCallback(async () => {
@@ -74,13 +91,15 @@ function ManageEmployeeInner() {
     const result = await getAllEmployees();
     
     if (result.error) {
-      showToast(`Failed to load employees: ${result.error}`);
+      showToast(`Failed to load employees: ${result.error}`, "error");
     } else if (result.data) {
       // Safely map backend data to our UI schema
       // Safely map backend data to our UI schema
       const mappedData: EmployeeData[] = result.data.map((e: any) => ({
         id: e.employee_id,
         name: e.name || "Unknown User",
+        firstName: e.first_name || "",
+        lastName: e.last_name || "",
         email: e.email || "No email",
         contact: e["phone-num"] || "N/A",
         role: roleDisplayLabel(e.role),
@@ -104,6 +123,24 @@ function ManageEmployeeInner() {
     loadEmployees();
   }, [loadEmployees]);
 
+  /**
+   * Upload the photo picked in the modal, after the employee row is saved —
+   * a new hire has no id to attach it to before then. A failure here is
+   * reported but does not undo the save: the details are in, and the photo
+   * can be picked again.
+   */
+  const uploadPickedPhoto = async (employeeId: string, photoFile: File | null | undefined) => {
+    if (!photoFile) return true;
+    const formData = new FormData();
+    formData.append("file", photoFile);
+    const result = await setEmployeePhoto(employeeId, formData);
+    if (result.error !== null) {
+      showToast(`Saved, but the photo didn't upload: ${result.error}`, "error");
+      return false;
+    }
+    return true;
+  };
+
   // Execute Backend Mutations
   const handleAddConfirm = async () => {
     if (!employeeToAdd) return;
@@ -112,9 +149,10 @@ function ManageEmployeeInner() {
     const dbRole = normalizeEmployeeRoleLabel(employeeToAdd.role ?? "Staff") ?? "STAFF";
 
     const result = await createEmployee({
-      name: employeeToAdd.name,
+      firstName: employeeToAdd.firstName,
+      lastName: employeeToAdd.lastName,
       email: employeeToAdd.email,
-      password: employeeToAdd.password || "Yangstemp123!",
+      password: employeeToAdd.password,
       role: dbRole as any,
       scheduleShift: employeeToAdd.shift ?? null,
       phone: employeeToAdd.phone ?? "",
@@ -130,9 +168,16 @@ function ManageEmployeeInner() {
     });
 
     if (result.error) {
-      showToast(`Failed to add employee: ${result.error}`);
+      showToast(`Failed to add employee: ${result.error}`, "error");
+      // Back to the form, with each rejected field marked.
+      setModalFieldErrors(result.fieldErrors ?? null);
+      setEmployeeToAdd(null);
     } else {
-      showToast("Employee added successfully.");
+      setModalFieldErrors(null);
+      const photoSaved = result.data
+        ? await uploadPickedPhoto(result.data.employee_id, employeeToAdd.photoFile)
+        : true;
+      if (photoSaved) showToast("Employee added successfully.", "success");
       await loadEmployees(); // Refresh the list from the DB
       setEmployeeToAdd(null);
       setIsAddModalOpen(false);
@@ -147,7 +192,8 @@ function ManageEmployeeInner() {
     const dbRole = normalizeEmployeeRoleLabel(employeeToEdit.role ?? "Staff") ?? "STAFF";
 
     const result = await updateEmployeeDetails(selectedEmployee.id, {
-      name: employeeToEdit.name,
+      firstName: employeeToEdit.firstName,
+      lastName: employeeToEdit.lastName,
       email: employeeToEdit.email,
       role: dbRole,
       shift: employeeToEdit.shift,
@@ -159,9 +205,13 @@ function ManageEmployeeInner() {
     });
 
     if (result.error) {
-      showToast(`Failed to update employee: ${result.error}`);
+      showToast(`Failed to update employee: ${result.error}`, "error");
+      setModalFieldErrors(result.fieldErrors ?? null);
+      setEmployeeToEdit(null);
     } else {
-      showToast("Employee details updated successfully.");
+      setModalFieldErrors(null);
+      const photoSaved = await uploadPickedPhoto(selectedEmployee.id, employeeToEdit.photoFile);
+      if (photoSaved) showToast("Employee details updated successfully.", "success");
       await loadEmployees();
       setEmployeeToEdit(null);
       setSelectedEmployee(null);
@@ -177,9 +227,9 @@ function ManageEmployeeInner() {
     const result = await deleteEmployee(employeeToDelete.id);
     
     if (result.error) {
-      showToast(`Failed to delete employee: ${result.error}`);
+      showToast(`Failed to delete employee: ${result.error}`, "error");
     } else {
-      showToast("Employee account deleted successfully.");
+      showToast("Employee account deleted successfully.", "success");
       setEmployees(prev => prev.filter(e => e.id !== employeeToDelete.id));
       setEmployeeToDelete(null);
       setSelectedEmployee(null);
@@ -245,45 +295,57 @@ function ManageEmployeeInner() {
           
           {/* Role Filter */}
           <div className="relative w-full sm:w-auto">
+            <span {...roleFilterMenu.labelProps} className="sr-only">
+              Filter by role
+            </span>
             <button
-              onClick={() => setRoleFilterOpen(!roleFilterOpen)}
+              {...roleFilterMenu.triggerProps}
               className="w-full sm:w-auto h-[45px] px-4 rounded-xl border border-[#DDCDB8] bg-white text-sm flex items-center justify-between sm:justify-start gap-2 hover:bg-[#FAF5EB] transition-colors focus:outline-none focus:ring-2 focus:ring-[#E8541F]"
             >
               <div className="flex items-center gap-2">
-                <Filter className="w-[16px] h-[16px] text-[#A2938A]" />
+                <Filter aria-hidden="true" className="w-[16px] h-[16px] text-[#A2938A]" />
                 <span className="text-[#1A1210] font-medium min-w-[70px] text-left">{roleFilter}</span>
               </div>
-              <ChevronDown className="w-4 h-4 text-[#A2938A]" />
+              <ChevronDown aria-hidden="true" className="w-4 h-4 text-[#A2938A]" />
             </button>
-            
+
             {roleFilterOpen && (
-              <>
-                <div className="fixed inset-0 z-10" onClick={() => setRoleFilterOpen(false)} />
-                <div className="absolute left-0 sm:left-auto sm:right-0 top-[calc(100%+8px)] z-20 w-full sm:w-[160px] bg-white border border-[#DDCDB8] rounded-xl p-1 shadow-[0_8px_20px_rgba(26,18,16,0.08)]">
-                  {ROLES.map(role => (
-                    <button
-                      key={role}
-                      onClick={() => {
-                        setRoleFilter(role);
-                        setRoleFilterOpen(false);
-                      }}
-                      className={`w-full text-left px-3 py-2.5 rounded-lg text-[13px] transition-colors ${
-                        roleFilter === role ? "bg-[#F6E9D9] font-bold text-[#8C1C13]" : "text-[#1A1210] hover:bg-[#FAF5EB]"
-                      }`}
-                    >
-                      {role}
-                    </button>
-                  ))}
-                </div>
-              </>
+              <div {...roleFilterMenu.listProps} className="absolute left-0 sm:left-auto sm:right-0 top-[calc(100%+8px)] z-20 w-full sm:w-[160px] bg-white border border-[#DDCDB8] rounded-xl p-1 shadow-[0_8px_20px_rgba(26,18,16,0.08)]">
+                {ROLES.map(role => (
+                  <button
+                    key={role}
+                    {...roleFilterMenu.optionProps(roleFilter === role)}
+                    onClick={() => {
+                      setRoleFilter(role);
+                      roleFilterMenu.close();
+                    }}
+                    className={`w-full text-left px-3 py-2.5 rounded-lg text-[13px] transition-colors ${DROPDOWN_FOCUS_RING} ${
+                      roleFilter === role ? "bg-[#F6E9D9] font-bold text-[#8C1C13]" : "text-[#1A1210] hover:bg-[#FAF5EB]"
+                    }`}
+                  >
+                    {role}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
-          <button 
+          <Tooltip
+            content="Create a new staff, manager or rider account"
+            shortcut={SHORTCUTS.newItem.combo}
+            side="bottom"
+            className="w-full sm:w-auto"
+          >
+          <button
+            type="button"
             className="w-full sm:w-auto bg-[#E8541F] text-white font-bold text-[13px] px-[18px] py-[11px] rounded-[10px] hover:bg-[#E8541F]/90 transition-colors whitespace-nowrap"
-            onClick={() => setIsAddModalOpen(true)}
+            onClick={() => {
+              setModalFieldErrors(null);
+              setIsAddModalOpen(true);
+            }}
           >
             + Add Employee
           </button>
+          </Tooltip>
         </div>
       </div>
 
@@ -292,13 +354,11 @@ function ManageEmployeeInner() {
         <div className="bg-white rounded-[12px] overflow-hidden flex flex-col min-h-0 border border-[#F0E6D8] shadow-[0_2px_10px_rgba(26,18,16,0.02)]">
           {/* Table Head - Hidden on Mobile */}
           <div className="hidden md:grid grid-cols-[1.5fr_1.5fr_1fr] px-8 py-5 border-b border-[#F0E6D8] bg-[#EAE0D5] text-[12px] font-bold text-[#7A6A60] uppercase tracking-[1px]">
-            <button 
-              className="flex items-center gap-2 hover:text-[#4A3D36] transition-colors focus:outline-none w-fit"
-              onClick={() => setNameSort(prev => prev === 'none' ? 'asc' : prev === 'asc' ? 'desc' : 'none')}
-            >
-              Name
-              {nameSort === 'asc' ? <ChevronUp className="h-[14px] w-[14px]" /> : nameSort === 'desc' ? <ChevronDown className="h-[14px] w-[14px]" /> : <ChevronsUpDown className="h-[14px] w-[14px]" />}
-            </button>
+            <SortableHeader 
+              label="Name" 
+              currentSort={nameSort} 
+              onSortChange={setNameSort} 
+            />
             <div className="flex items-center">Email</div>
             <div className="flex items-center">Role</div>
           </div>
@@ -360,8 +420,10 @@ function ManageEmployeeInner() {
         onClose={() => {
           setIsAddModalOpen(false);
           setSelectedEmployee(null);
-        }} 
+          setModalFieldErrors(null);
+        }}
         employee={selectedEmployee}
+        serverErrors={modalFieldErrors}
         onSave={(data) => {
           if (selectedEmployee) {
             setEmployeeToEdit(data);

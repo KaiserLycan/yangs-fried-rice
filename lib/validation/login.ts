@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { emailSchema, passwordSchema } from "./fields";
 
 /**
  * Customer login (Cust2): email and password only.
@@ -16,15 +17,9 @@ import { z } from "zod";
  * the same ones. Sharing the schema rather than re-typing the rules is what
  * as either screen changes.
  */
-export const customerEmailSchema = z
-  .string()
-  .trim()
-  .email("Enter a valid email address.")
-  .regex(/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i, "Enter a valid email address.");
+export const customerEmailSchema = emailSchema;
 
-export const customerPasswordSchema = z
-  .string()
-  .min(8, "Password must be at least 8 characters.");
+export const customerPasswordSchema = passwordSchema;
 
 export const loginSchema = z.object({
   email: customerEmailSchema,

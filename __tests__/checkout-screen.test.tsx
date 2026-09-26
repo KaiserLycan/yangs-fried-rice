@@ -12,9 +12,10 @@ import {
 
 const push = vi.fn();
 const refresh = vi.fn();
+const replace = vi.fn();
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push, refresh }),
+  useRouter: () => ({ push, refresh, replace }),
 }));
 
 vi.mock("@/lib/actions/cart", () => ({
@@ -37,6 +38,8 @@ vi.mock("@/lib/checkout/paymongo", () => ({
  */
 
 const profile: CustomerProfile = {
+  firstName: "Liza",
+  lastName: "Reyes",
   name: "Liza Reyes",
   dateOfBirth: null,
   mobile: "09175550123",
@@ -51,6 +54,11 @@ const profile: CustomerProfile = {
     {
       id: "addr-1",
       addressDetails: "21 Mabini St, Malate, Manila",
+      buildingNo: "21",
+      street: "Mabini St",
+      barangay: "Malate",
+      city: "Manila",
+      zip: "",
       label: "Home",
       deliveryNote: "",
       isDefault: true,
@@ -86,6 +94,9 @@ function renderCheckout(
         lines={lines}
         fulfilment="delivery"
         placedAtLabel="Aug 30, 6:40 PM"
+        // Read on the server from the live kitchen queue and this order's
+        // distance (issue #106). It was the fixed string "35–45 min".
+        arrivalEstimate="30–40 min"
         {...overrides}
       />
     </ToastProvider>,
@@ -164,6 +175,11 @@ describe("Checkout order summary", () => {
           {
             id: "addr-2",
             addressDetails: "Blk 12 Lot 4 Barangay San Isidro, Quezon City",
+            buildingNo: "Blk",
+            street: "12 Lot 4 Barangay San Isidro",
+            barangay: "",
+            city: "Quezon City",
+            zip: "",
             label: "Home",
             deliveryNote: "",
             isDefault: true,
@@ -203,13 +219,33 @@ describe("Checkout payment method", () => {
     const cash = screen.getAllByRole("radio", { name: /Cash on delivery/ });
     expect(cash[0]).toHaveAttribute("aria-checked", "true");
 
-    for (const label of [
-      "GCash / Maya wallet",
-      "Pay in store",
-    ]) {
-      const [option] = screen.getAllByRole("radio", { name: label });
-      expect(option).toHaveAttribute("aria-checked", "false");
-    }
+    const [wallet] = screen.getAllByRole("radio", {
+      name: "GCash / Maya wallet",
+    });
+    expect(wallet).toHaveAttribute("aria-checked", "false");
+  });
+
+  /**
+   * Issue #106. Two of the methods name the moment money changes hands, and
+   * that moment only exists for one kind of order — nobody pays at the
+   * counter for food being delivered to them.
+   */
+  it("does not offer paying in store for a delivery", () => {
+    renderCheckout({ fulfilment: "delivery" });
+    expect(screen.queryByRole("radio", { name: "Pay in store" })).toBeNull();
+  });
+
+  it("does not offer cash on delivery for a pickup", () => {
+    renderCheckout({ fulfilment: "pickup" });
+    expect(
+      screen.queryByRole("radio", { name: /Cash on delivery/ }),
+    ).toBeNull();
+  });
+
+  it("starts a pickup order on paying in store, not on the global default", () => {
+    renderCheckout({ fulfilment: "pickup" });
+    const [store] = screen.getAllByRole("radio", { name: "Pay in store" });
+    expect(store).toHaveAttribute("aria-checked", "true");
   });
 
   it("moves the selection and leaves exactly one chosen", () => {
@@ -234,12 +270,13 @@ describe("Checkout payment method", () => {
   // Pay-on-collection options are ordinary choices, not a fallback — issue
   // #22's third criterion asks for this by name.
   it("treats cash on delivery and pay in store as ordinary options", () => {
-    renderCheckout();
-
+    const delivery = renderCheckout({ fulfilment: "delivery" });
     const [cash] = screen.getAllByRole("radio", { name: /Cash on delivery/ });
-    const [store] = screen.getAllByRole("radio", { name: "Pay in store" });
-
     expect(cash).toBeEnabled();
+    delivery.unmount();
+
+    renderCheckout({ fulfilment: "pickup" });
+    const [store] = screen.getAllByRole("radio", { name: "Pay in store" });
     expect(store).toBeEnabled();
   });
 
@@ -281,6 +318,12 @@ describe("Checkout place order", () => {
         order_type: "take_out",
         delivery_fee: 0,
         delivery_address: "21 Mabini St, Malate, Manila",
+        // The picker's default *for a pickup*. Tells `submitCart` the order
+        // is payable on collection, so it is `pending` and cookable straight
+        // away rather than held at `awaiting_payment` like a wallet order.
+        // It used to send cash on delivery here — on an order nobody was
+        // delivering (issue #106).
+        payment_method: "pay-in-store",
       }),
     );
     await waitFor(() =>
@@ -381,6 +424,14 @@ describe("Checkout online payment", () => {
 
     fireEvent.click(screen.getAllByRole("button", { name: /Place order/ })[0]);
 
+    // The order must be created as a wallet order, which is what holds it at
+    // `awaiting_payment` so the kitchen never sees a payment that is
+    // abandoned or refused (issue #106).
+    await waitFor(() =>
+      expect(submitCart).toHaveBeenCalledWith(
+        expect.objectContaining({ payment_method: "wallet" }),
+      ),
+    );
     await waitFor(() =>
       expect(startWalletPayment).toHaveBeenCalledWith({
         orderId: "order-79",
@@ -395,6 +446,143 @@ describe("Checkout online payment", () => {
     // a cart that is already locked.
     const [button] = screen.getAllByRole("button", { name: /Opening wallet/ });
     expect(button).toBeDisabled();
+  });
+
+  /**
+   * A stand-in for the tab the browser opens. jsdom's own `window.open`
+   * returns null, which is why every other test here exercises the
+   * popup-blocked fallback without asking for it.
+   */
+  function stubWalletTab() {
+    const tab = {
+      closed: false,
+      location: { href: "" },
+      focus: vi.fn(),
+      close: vi.fn(function (this: { closed: boolean }) {
+        this.closed = true;
+      }),
+      document: { write: vi.fn(), close: vi.fn() },
+    };
+    const open = vi.fn(() => tab);
+    // `stubGlobal`, not `defineProperty`: the file's afterEach undoes stubs,
+    // so the stand-in cannot leak into the tests that assert the
+    // popup-blocked fallback, where `window.open` must return null.
+    vi.stubGlobal("open", open);
+    return { tab, open };
+  }
+
+  it("sends the wallet to its own tab and keeps this one on the receipt", async () => {
+    const { tab, open } = stubWalletTab();
+    vi.mocked(submitCart).mockResolvedValue(placedOrder);
+    vi.mocked(startWalletPayment).mockResolvedValue({
+      kind: "redirect",
+      url: "https://gcash.test/pay",
+    });
+    renderCheckout();
+    chooseWallet("Maya");
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Place order/ })[0]);
+
+    await waitFor(() =>
+      expect(tab.location.href).toBe("https://gcash.test/pay"),
+    );
+    // The return URL carries the marker that lets the wallet's tab close
+    // itself once PayMongo answers, rather than leaving the customer with
+    // two copies of the same receipt.
+    expect(startWalletPayment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        returnUrl:
+          "https://yangs.test/checkout/confirmation?order=order-79&pay=paymaya&wallet_tab=1",
+      }),
+    );
+    // This tab stays ours, on the receipt, where the payment is watched and
+    // both ways out live. PayMongo's dead end now costs a tab switch.
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith(
+        "/checkout/confirmation?order=order-79&pay=paymaya",
+      ),
+    );
+    expect(assign).not.toHaveBeenCalled();
+    // Opened empty inside the click — a popup asked for after `submitCart`
+    // resolves is one the browser blocks.
+    expect(open).toHaveBeenCalledWith("", "_blank");
+    expect(open.mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(submitCart).mock.invocationCallOrder[0],
+    );
+  });
+
+  it("closes the empty tab when the order is never created", async () => {
+    const { tab } = stubWalletTab();
+    vi.mocked(submitCart).mockResolvedValue({
+      data: null,
+      error: "Cannot submit an empty cart.",
+    } as never);
+    renderCheckout();
+    chooseWallet();
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Place order/ })[0]);
+
+    await waitFor(() => expect(tab.close).toHaveBeenCalled());
+    expect(startWalletPayment).not.toHaveBeenCalled();
+  });
+
+  it("closes the empty tab when the payment cannot be started", async () => {
+    const { tab } = stubWalletTab();
+    vi.mocked(submitCart).mockResolvedValue(placedOrder);
+    vi.mocked(startWalletPayment).mockRejectedValue(new Error("Gateway down."));
+    renderCheckout();
+    chooseWallet();
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Place order/ })[0]);
+
+    await waitFor(() => expect(tab.close).toHaveBeenCalled());
+    // The receipt explains, since this screen's toast unmounts with it.
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith(
+        expect.stringContaining("pay_error=1"),
+      ),
+    );
+  });
+
+  /**
+   * The wallet's page does not always send the customer back. PayMongo
+   * answers an expired or already-consumed source with its own error page,
+   * which never honours `return_url`, so Back is the only way home — and
+   * Back restores this screen from the back/forward cache, server untouched.
+   *
+   * Issue #106: that left the customer looking at the summary they had
+   * already submitted, with no route to the order or to cash on delivery.
+   */
+  it("sends the customer to the receipt when Back restores this page from the wallet", async () => {
+    vi.mocked(submitCart).mockResolvedValue(placedOrder);
+    vi.mocked(startWalletPayment).mockResolvedValue({
+      kind: "redirect",
+      url: "https://gcash.test/pay",
+    });
+    renderCheckout();
+    chooseWallet("Maya");
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Place order/ })[0]);
+    await waitFor(() => expect(assign).toHaveBeenCalled());
+
+    fireEvent(window, new PageTransitionEvent("pageshow", { persisted: true }));
+
+    // `replace`, not `push`: Back from the receipt must not land here and
+    // bounce them forward again.
+    await waitFor(() =>
+      expect(replace).toHaveBeenCalledWith(
+        "/checkout/confirmation?order=order-79&pay=paymaya",
+      ),
+    );
+  });
+
+  it("only refreshes on a cached restore that did not come from a wallet", async () => {
+    renderCheckout();
+
+    fireEvent(window, new PageTransitionEvent("pageshow", { persisted: true }));
+
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+    expect(replace).not.toHaveBeenCalled();
   });
 
   it("still opens the receipt, with the wallet named and the failure flagged, when the payment cannot start", async () => {
@@ -564,6 +752,7 @@ describe("Checkout layout", () => {
       1,
     );
     expect(screen.getAllByRole("radiogroup")).toHaveLength(1);
-    expect(screen.getAllByRole("radio")).toHaveLength(3);
+    // Two payment methods apply to a delivery; the third is pickup-only.
+    expect(screen.getAllByRole("radio")).toHaveLength(2);
   });
 });

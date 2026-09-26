@@ -3,6 +3,8 @@
 import type { TablesUpdate } from "@/types/database.types";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { IMAGE_BUCKETS } from "@/lib/storage/stored-image";
+import { removeStoredImage } from "@/lib/storage/remove-stored-image";
 import { isManager, resolveEmployeeRole, type EmployeeRole } from "@/lib/auth/roles";
 import { toInternationalMobile } from "@/lib/validation/phone";
 import {
@@ -11,10 +13,15 @@ import {
   type EmployeeProfileUpdateInput,
   type RiderDetailsUpdateInput,
 } from "@/lib/validation/employee-profile";
+import {
+  fieldErrorFromDbError,
+  fieldErrorsFromIssues,
+  type FieldErrors,
+} from "@/lib/validation/field-errors";
 
 type ActionResult<T = undefined> =
   | { success: true; data: T }
-  | { success: false; error: string };
+  | { success: false; error: string; fieldErrors?: FieldErrors };
 
 /**
  * Every function below starts from the signed-in employee's own id — none
@@ -51,6 +58,8 @@ async function requireEmployee(
 
 export async function getMyEmployeeProfile(): Promise<
   ActionResult<{
+    firstName: string;
+    lastName: string;
     name: string;
     email: string;
     phoneNumber: string | null;
@@ -77,7 +86,7 @@ export async function getMyEmployeeProfile(): Promise<
   const { data: employee, error: employeeError } = await supabase
     .from("employee")
     .select(
-      'name, email, role, schedule_shift, profileImage_URL, date_of_birth, "phone-num", password_last_updated, is_account_disabled',
+      'first_name, last_name, name, email, role, schedule_shift, profileImage_URL, date_of_birth, "phone-num", password_last_updated, is_account_disabled',
     )
     .eq("employee_id", caller.employeeId)
     .single();
@@ -97,6 +106,8 @@ export async function getMyEmployeeProfile(): Promise<
   return {
     success: true,
     data: {
+      firstName: employee.first_name,
+      lastName: employee.last_name,
       name: employee.name,
       email: employee.email,
       phoneNumber: (employee as any)["phone-num"] ?? null,
@@ -147,9 +158,10 @@ export async function updateMyEmployeeProfile(
     return {
       success: false,
       error: parsed.error.issues[0]?.message ?? "Some fields need fixing.",
+      fieldErrors: fieldErrorsFromIssues(parsed.error.issues),
     };
   }
-  const { name, mobile, dateOfBirth, scheduleShift, role } = parsed.data;
+  const { firstName, lastName, mobile, dateOfBirth, scheduleShift, role } = parsed.data;
 
   if (role !== undefined && !isManager(caller.role)) {
     return {
@@ -169,7 +181,18 @@ export async function updateMyEmployeeProfile(
   }
 
   const updatePayload: TablesUpdate<"employee"> = {} as TablesUpdate<"employee">;
-  if (name !== undefined) updatePayload.name = name;
+  // Names are one pair — the card always sends both.
+  if ((firstName === undefined) !== (lastName === undefined)) {
+    return {
+      success: false,
+      error: "Send both first and last name.",
+      fieldErrors: firstName === undefined
+        ? { firstName: "Enter first name." }
+        : { lastName: "Enter last name." },
+    };
+  }
+  if (firstName !== undefined) updatePayload.first_name = firstName;
+  if (lastName !== undefined) updatePayload.last_name = lastName;
   if (scheduleShift !== undefined) updatePayload.schedule_shift = scheduleShift;
   if (role !== undefined) updatePayload.role = role;
   if (dateOfBirth !== undefined) {
@@ -196,7 +219,11 @@ export async function updateMyEmployeeProfile(
 
   if (error) {
     console.error("updateMyEmployeeProfile failed:", error);
-    return { success: false, error: describeProfileUpdateError(error) };
+    return {
+      success: false,
+      error: describeProfileUpdateError(error),
+      fieldErrors: fieldErrorFromDbError(error) ?? undefined,
+    };
   }
   if (!updatedRows || updatedRows.length === 0) {
     return {
@@ -255,6 +282,7 @@ export async function updateMyRiderDetails(
     return {
       success: false,
       error: parsed.error.issues[0]?.message ?? "Some fields need fixing.",
+      fieldErrors: fieldErrorsFromIssues(parsed.error.issues),
     };
   }
   const { vehicleMakeModel, vehiclePlateNumber, driverLicenseNumber, licenseExpiryDate } =
@@ -279,7 +307,15 @@ export async function updateMyRiderDetails(
     .eq("employee_id", caller.employeeId);
 
   if (error) {
-    return { success: false, error: "Could not update your driver details." };
+    const constraint = `${error.message ?? ""} ${error.details ?? ""}`;
+    const fieldErrors: FieldErrors | undefined = /plate/.test(constraint)
+      ? { vehiclePlateNumber: "Plate number was rejected. Use e.g. ABC 1234." }
+      : /license/.test(constraint)
+        ? { driverLicenseNumber: "Licence number was rejected. Use e.g. N01-12-345678." }
+        : /make_model/.test(constraint)
+          ? { vehicleMakeModel: "Vehicle must be 2–50 characters." }
+          : undefined;
+    return { success: false, error: "Could not update your driver details.", fieldErrors };
   }
   if (count === 0) {
     return {
@@ -371,6 +407,13 @@ export async function deleteMyEmployeeAccount(): Promise<
     };
   }
 
+  // Read before the row goes: the photo is only reachable through it.
+  const { data: photoRow } = await supabase
+    .from("employee")
+    .select("profileImage_URL")
+    .eq("employee_id", caller.employeeId)
+    .maybeSingle();
+
   const { error: riderError } = await supabase
     .from("rider")
     .delete()
@@ -399,6 +442,7 @@ export async function deleteMyEmployeeAccount(): Promise<
     };
   }
 
+  await removeStoredImage(IMAGE_BUCKETS.employeeAvatar, photoRow?.profileImage_URL);
   await supabase.auth.signOut();
   return { success: true, data: undefined };
 }

@@ -1,10 +1,52 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
+import { Switch } from "@/components/ui/switch";
+import { z } from "zod";
 import { MenuItem, MenuCategory, MOCK_CATEGORIES } from "@/components/manage/menu/mock-menu";
 import { cn } from "@/lib/utils";
-import { Camera, ChevronDown, ChevronRight, Trash2, Plus } from "lucide-react";
+import { Camera, ChevronDown, ChevronRight, Trash2, Plus, Loader2 } from "lucide-react";
 import { compressImage } from "@/lib/image/compress";
-import { Dialog, DialogRoot } from "@/components/ui/dialog";
+import { Dialog, DialogDismiss, DialogRoot } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Tooltip } from "@/components/ui/tooltip";
+import { useValidatedValues } from "@/lib/forms/use-live-validation";
+import { SHORTCUTS, useShortcut } from "@/lib/hooks/use-shortcut";
+import { DROPDOWN_FOCUS_RING, useDropdown } from "@/lib/hooks/use-dropdown";
+import { FIELD_LIMITS, lengthProps } from "@/lib/validation/fields";
+
+/**
+ * The menu item form's rules — the same bounds as `productSchema` and the
+ * product CHECK constraints: name 2–80, details up to 300, price above ₱0
+ * and at most ₱99,999.99.
+ */
+export const menuItemFormSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, "Enter the product name.")
+    .min(FIELD_LIMITS.productName.min, `Product name must be at least ${FIELD_LIMITS.productName.min} characters.`)
+    .max(FIELD_LIMITS.productName.max, `Product name must be ${FIELD_LIMITS.productName.max} characters or fewer.`),
+  price: z
+    .string()
+    .min(1, "Enter the price.")
+    .refine((value) => Number(value) > 0, "Price must be more than ₱0.")
+    .refine((value) => Number(value) <= 99999.99, "Price can't exceed ₱99,999.99."),
+  description: z
+    .string()
+    .max(FIELD_LIMITS.productDetails.max, `Details must be ${FIELD_LIMITS.productDetails.max} characters or fewer.`),
+});
+
+/** A new add-on row: name 2–60, price ₱0–₱9,999.99 (₱0 is a free add-on). */
+export const addOnFormSchema = z.object({
+  addonName: z
+    .string()
+    .trim()
+    .min(FIELD_LIMITS.addonName.min, `Add-on name must be at least ${FIELD_LIMITS.addonName.min} characters.`)
+    .max(FIELD_LIMITS.addonName.max, `Add-on name must be ${FIELD_LIMITS.addonName.max} characters or fewer.`),
+  addonPrice: z
+    .string()
+    .min(1, "Enter the add-on price.")
+    .refine((value) => Number(value) >= 0 && Number(value) <= 9999.99, "Price must be ₱0 to ₱9,999.99."),
+});
 
 // 1. Update Confirmation Modal
 interface ConfirmationModalProps {
@@ -29,8 +71,8 @@ export function ConfirmationModal({
       footer={
         <>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button 
-            variant="primary" 
+          <Button
+            variant="primary"
             onClick={() => {
               onConfirm();
               onClose();
@@ -50,6 +92,7 @@ interface MenuItemModalProps {
   onClose: () => void;
   onSave: (item: Partial<MenuItem>, addOns: { name: string; price: number }[], file?: File) => void;
   categories?: string[];
+  isProcessing?: boolean;
 }
 
 export function MenuItemModal({
@@ -57,6 +100,7 @@ export function MenuItemModal({
   onClose,
   onSave,
   categories,
+  isProcessing,
 }: MenuItemModalProps) {
   // Redesigned the modal to match the Figma design (node 2102-5225).
   // Needed image upload, custom category dropdown, and availability toggle for new items.
@@ -68,10 +112,42 @@ export function MenuItemModal({
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [categoryOpen, setCategoryOpen] = useState(false);
+  const categoryMenu = useDropdown({ open: categoryOpen, onOpenChange: setCategoryOpen });
   const [newAddOns, setNewAddOns] = useState<{ name: string; price: number }[]>([]);
   const [tempAddonName, setTempAddonName] = useState("");
   const [tempAddonPrice, setTempAddonPrice] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const itemValues = useMemo(() => ({ name, price, description }), [name, price, description]);
+  const itemForm = useValidatedValues(menuItemFormSchema, itemValues);
+  const addOnValues = useMemo(
+    () => ({ addonName: tempAddonName, addonPrice: tempAddonPrice }),
+    [tempAddonName, tempAddonPrice],
+  );
+  const addOnForm = useValidatedValues(addOnFormSchema, addOnValues);
+  const itemErrors = itemForm.errors;
+
+  useEffect(() => {
+    if (!isOpen) {
+      setName("");
+      setPrice("");
+      setCategory("");
+      setDescription("");
+      setAvailable(false);
+      setImagePreview(null);
+      setSelectedFile(null);
+      setCategoryOpen(false);
+      setNewAddOns([]);
+      setTempAddonName("");
+      setTempAddonPrice("");
+    }
+  }, [isOpen]);
+
+  // Ctrl/⌘+Enter adds the item, exactly as the Add button would.
+  useShortcut(SHORTCUTS.submitForm.combo, () => {
+    if (itemForm.isValid) submitItem();
+    else itemForm.attemptSubmit();
+  }, { enabled: isOpen });
 
   // Derive the list of selectable categories (exclude "All").
   const selectableCategories = (categories ?? MOCK_CATEGORIES).filter(
@@ -101,7 +177,12 @@ export function MenuItemModal({
 
   const handleSave = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    
+    submitItem();
+  };
+
+  function submitItem() {
+    itemForm.attemptSubmit();
+    if (!itemForm.isValid) return;
     onSave({
       name,
       price: parseFloat(price) || 0,
@@ -110,22 +191,37 @@ export function MenuItemModal({
       description,
       available,
     }, newAddOns, selectedFile || undefined);
-  };
+  }
 
   const handleAddAddOn = () => {
-    if (!tempAddonName || !tempAddonPrice) return;
-    setNewAddOns([...newAddOns, { name: tempAddonName, price: parseFloat(tempAddonPrice) }]);
+    addOnForm.attemptSubmit();
+    if (!addOnForm.isValid) return;
+    setNewAddOns([...newAddOns, { name: tempAddonName.trim(), price: parseFloat(tempAddonPrice) }]);
     setTempAddonName("");
     setTempAddonPrice("");
+    addOnForm.reset();
   };
 
   // Safe fallback for the display label as well
   const displayCategory = category || selectableCategories[0] || "Select";
 
+  // Anything typed or picked counts: closing would throw it away.
+  const isDirty =
+    name !== "" ||
+    price !== "" ||
+    category !== "" ||
+    description !== "" ||
+    available ||
+    selectedFile !== null ||
+    newAddOns.length > 0 ||
+    tempAddonName !== "" ||
+    tempAddonPrice !== "";
+
   return (
     <DialogRoot
       open={isOpen}
       onClose={onClose}
+      dirty={isDirty && !isProcessing}
       className="w-full max-w-[440px] md:max-w-3xl overflow-hidden rounded-[20px] bg-[#fbf6ec] shadow-[0px_30px_35px_rgba(26,18,16,0.26)]"
     >
       <div className="flex flex-col md:flex-row w-full md:h-[650px] max-h-[90vh] overflow-y-auto md:overflow-hidden">
@@ -183,84 +279,108 @@ export function MenuItemModal({
         <div className="flex flex-col gap-[18px] p-[26px]">
           {/* Product Name */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
-              Product Name <span className="text-[#bf4342]">*</span>
-            </label>
+            <div className="flex justify-between items-end">
+              <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
+                Product Name <span className="text-[#bf4342]">*</span>
+              </label>
+              <span className="text-[11px] text-[#a2938a]">{name.length}/{FIELD_LIMITS.productName.max}</span>
+            </div>
             <input
               value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Product Name"
-              className="w-full rounded-[12px] border border-[#ddcdb8] bg-white px-4 py-3 text-[15px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
+              onChange={(e) => {
+                setName(e.target.value);
+                itemForm.touch("name");
+              }}
+              onBlur={() => itemForm.touch("name")}
+              placeholder="e.g. Yang Chow Fried Rice"
+              {...lengthProps("productName")}
+              aria-invalid={itemErrors.name ? true : undefined}
+              className={cn(
+                "w-full rounded-[12px] border bg-white px-4 py-3 text-[15px] text-[#1a1210] outline-none placeholder:text-[#a2938a]",
+                itemErrors.name ? "border-[#bf4342]" : "border-[#ddcdb8]",
+              )}
             />
+            {itemErrors.name ? <p className="text-[12px] text-[#bf4342]">{itemErrors.name}</p> : null}
           </div>
 
           {/* Category — custom dropdown */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
+            <label {...categoryMenu.labelProps} className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
               Category <span className="text-[#bf4342]">*</span>
             </label>
             <div className="relative">
               <button
-                type="button"
-                onClick={() => setCategoryOpen((prev) => !prev)}
-                className="flex w-full items-center justify-between rounded-[12px] border border-[#ddcdb8] bg-white px-4 py-3 text-[15px] text-[#1a1210] outline-none transition-colors hover:bg-[#faf5eb]"
+                {...categoryMenu.triggerProps}
+                className={cn(
+                  "flex w-full items-center justify-between rounded-[12px] border border-[#ddcdb8] bg-white px-4 py-3 text-[15px] text-[#1a1210] transition-colors hover:bg-[#faf5eb]",
+                  DROPDOWN_FOCUS_RING,
+                )}
               >
                 <span>{displayCategory}</span>
                 {categoryOpen ? (
-                  <ChevronDown className="h-4 w-4 text-[#7a6a60] transition-transform" />
+                  <ChevronDown aria-hidden="true" className="h-4 w-4 text-[#7a6a60] transition-transform" />
                 ) : (
-                  <ChevronRight className="h-4 w-4 text-[#7a6a60] transition-transform" />
+                  <ChevronRight aria-hidden="true" className="h-4 w-4 text-[#7a6a60] transition-transform" />
                 )}
               </button>
 
               {categoryOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-10"
-                    onClick={() => setCategoryOpen(false)}
-                  />
-                  <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 rounded-[12px] border border-[#ddcdb8] bg-white p-[5px] shadow-[0px_8px_20px_rgba(26,18,16,0.12)]">
-                    {selectableCategories.map((cat) => (
-                      <button
-                        key={cat}
-                        type="button"
-                        onClick={() => {
-                          setCategory(cat);
-                          setCategoryOpen(false);
-                        }}
-                        className={cn(
-                          "flex w-full items-center rounded-[8px] px-3 py-2.5 text-left text-[14px] transition-colors",
-                          displayCategory === cat
-                            ? "bg-[#f6e9d9] font-bold text-[#8c1c13]"
-                            : "text-[#1a1210] hover:bg-[#faf5eb]"
-                        )}
-                      >
-                        {cat}
-                      </button>
-                    ))}
-                  </div>
-                </>
+                <div {...categoryMenu.listProps} className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 rounded-[12px] border border-[#ddcdb8] bg-white p-[5px] shadow-[0px_8px_20px_rgba(26,18,16,0.12)]">
+                  {selectableCategories.map((cat) => (
+                    <button
+                      key={cat}
+                      {...categoryMenu.optionProps(displayCategory === cat)}
+                      onClick={() => {
+                        setCategory(cat);
+                        categoryMenu.close();
+                      }}
+                      className={cn(
+                        "flex w-full items-center rounded-[8px] px-3 py-2.5 text-left text-[14px] transition-colors",
+                        DROPDOWN_FOCUS_RING,
+                        displayCategory === cat
+                          ? "bg-[#f6e9d9] font-bold text-[#8c1c13]"
+                          : "text-[#1a1210] hover:bg-[#faf5eb]"
+                      )}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
           </div>
 
           {/* Product Details */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
-              Product Details
-            </label>
+            <div className="flex justify-between items-end">
+              <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
+                Product Details
+              </label>
+              <span className="text-[11px] text-[#a2938a]">{description.length}/{FIELD_LIMITS.productDetails.max}</span>
+            </div>
             <textarea
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="placeholder"
+              onChange={(e) => {
+                setDescription(e.target.value);
+                itemForm.touch("description");
+              }}
+              placeholder="What's in it, how spicy, how big"
               rows={4}
-              className="w-full resize-none rounded-[12px] border border-[#ddcdb8] bg-white px-4 py-3 text-[15px] leading-[22px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
+              maxLength={FIELD_LIMITS.productDetails.max}
+              aria-invalid={itemErrors.description ? true : undefined}
+              className={cn(
+                "w-full resize-none rounded-[12px] border bg-white px-4 py-3 text-[15px] leading-[22px] text-[#1a1210] outline-none placeholder:text-[#a2938a]",
+                itemErrors.description ? "border-[#bf4342]" : "border-[#ddcdb8]",
+              )}
             />
+            <p className={cn("text-[12px]", itemErrors.description ? "text-[#bf4342]" : "text-[#a2938a]")}>
+              {itemErrors.description ?? `Optional. ${description.length}/${FIELD_LIMITS.productDetails.max} characters.`}
+            </p>
           </div>
 
           </div>
         </div>
-        
+
         {/* RIGHT COLUMN */}
         <div className="flex w-full md:w-1/2 flex-col gap-[18px] p-[26px] md:overflow-y-auto border-t md:border-t-0 border-[#ddcdb8]">
           {/* Price */}
@@ -275,24 +395,34 @@ export function MenuItemModal({
               onChange={(e) => {
                 const val = e.target.value;
                 // Only allow numbers and a single decimal point with up to 2 decimal places
-                if (val === "" || /^\d*\.?\d{0,2}$/.test(val)) {
+                if (val === "" || /^\d{0,5}(\.\d{0,2})?$/.test(val)) {
                   setPrice(val);
+                  itemForm.touch("price");
                 }
               }}
+              onBlur={() => itemForm.touch("price")}
               placeholder="0.00"
-              className="w-full rounded-[12px] border border-[#ddcdb8] bg-white px-4 py-3 text-[15px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
+              aria-invalid={itemErrors.price ? true : undefined}
+              className={cn(
+                "w-full rounded-[12px] border bg-white px-4 py-3 text-[15px] text-[#1a1210] outline-none placeholder:text-[#a2938a]",
+                itemErrors.price ? "border-[#bf4342]" : "border-[#ddcdb8]",
+              )}
             />
+            {itemErrors.price ? <p className="text-[12px] text-[#bf4342]">{itemErrors.price}</p> : null}
           </div>
 
           {/* Add-ons Configuration */}
           <div className="flex flex-col gap-2 rounded-[12px] border border-[#ddcdb8] bg-[#fbf6ec] p-[16px]">
-            <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
-              Add-ons
-            </label>
+            <div className="flex justify-between items-end">
+              <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
+                Add-ons
+              </label>
+              <span className="text-[11px] text-[#a2938a]">{tempAddonName.length}/100</span>
+            </div>
             <p className="text-[12px] text-[#7a6a60] leading-snug">
               Define add-ons available specifically for this item (e.g. Extra Egg).
             </p>
-            
+
             <div className="flex flex-col gap-2 mt-2">
               <div className="flex flex-col gap-2 h-[150px] overflow-y-auto pr-1">
                 {newAddOns.map((addon, index) => (
@@ -300,8 +430,8 @@ export function MenuItemModal({
                   <span className="text-[14px] font-medium text-[#1a1210]">{addon.name}</span>
                   <div className="flex items-center gap-3">
                     <span className="text-[14px] text-[#7a6a60]">+₱{addon.price.toFixed(2)}</span>
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={() => setNewAddOns(newAddOns.filter((_, i) => i !== index))}
                       className="text-[#bf4342] hover:bg-[#fceeed] p-1 rounded transition-colors"
                       aria-label="Remove add-on"
@@ -312,13 +442,21 @@ export function MenuItemModal({
                 </div>
               ))}
               </div>
-              
+
               <div className="flex items-center gap-2 mt-1">
                 <input
                   placeholder="New add-on name..."
                   value={tempAddonName}
-                  onChange={(e) => setTempAddonName(e.target.value)}
-                  className="flex-1 min-w-0 rounded-[10px] border border-[#ddcdb8] bg-white px-3 py-2 text-[14px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
+                  onChange={(e) => {
+                    setTempAddonName(e.target.value);
+                    addOnForm.touch("addonName");
+                  }}
+                  {...lengthProps("addonName")}
+                  aria-invalid={addOnForm.errors.addonName ? true : undefined}
+                  className={cn(
+                    "flex-1 min-w-0 rounded-[10px] border bg-white px-3 py-2 text-[14px] text-[#1a1210] outline-none placeholder:text-[#a2938a]",
+                    addOnForm.errors.addonName ? "border-[#bf4342]" : "border-[#ddcdb8]",
+                  )}
                 />
                 <input
                   placeholder="₱ 0.00"
@@ -327,21 +465,34 @@ export function MenuItemModal({
                   value={tempAddonPrice}
                   onChange={(e) => {
                     const val = e.target.value;
-                    if (val === "" || /^\d*\.?\d{0,2}$/.test(val)) {
+                    if (val === "" || /^\d{0,4}(\.\d{0,2})?$/.test(val)) {
                       setTempAddonPrice(val);
+                      addOnForm.touch("addonPrice");
                     }
                   }}
-                  className="w-[70px] shrink-0 rounded-[10px] border border-[#ddcdb8] bg-white px-3 py-2 text-[14px] text-[#1a1210] outline-none placeholder:text-[#a2938a]"
+                  aria-invalid={addOnForm.errors.addonPrice ? true : undefined}
+                  className={cn(
+                    "w-[70px] shrink-0 rounded-[10px] border bg-white px-3 py-2 text-[14px] text-[#1a1210] outline-none placeholder:text-[#a2938a]",
+                    addOnForm.errors.addonPrice ? "border-[#bf4342]" : "border-[#ddcdb8]",
+                  )}
                 />
-                <button
-                  type="button"
-                  onClick={handleAddAddOn}
-                  disabled={!tempAddonName.trim() || !tempAddonPrice || parseFloat(tempAddonPrice) < 0}
-                  className="flex shrink-0 items-center justify-center rounded-[10px] bg-[#3f6b4a] px-3 py-2 transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Plus className="h-5 w-5 text-white" />
-                </button>
+                <Tooltip content={addOnForm.isValid ? "Add this add-on to the item" : "Enter an add-on name and price first"}>
+                  <button
+                    type="button"
+                    onClick={handleAddAddOn}
+                    disabled={!addOnForm.isValid}
+                    aria-label="Add add-on"
+                    className="flex shrink-0 items-center justify-center rounded-[10px] bg-[#3f6b4a] px-3 py-2 transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Plus className="h-5 w-5 text-white" />
+                  </button>
+                </Tooltip>
               </div>
+              {addOnForm.errors.addonName || addOnForm.errors.addonPrice ? (
+                <p className="text-[12px] text-[#bf4342]">
+                  {addOnForm.errors.addonName ?? addOnForm.errors.addonPrice}
+                </p>
+              ) : null}
             </div>
           </div>
 
@@ -350,45 +501,50 @@ export function MenuItemModal({
             <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
               Available?
             </label>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={available}
-              onClick={() => setAvailable(!available)}
-              className="relative inline-flex h-[26px] w-[48px] shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200"
-              style={{ backgroundColor: available ? "#3f6b4a" : "#ddcdb8" }}
-            >
-              <span
-                className="pointer-events-none inline-block h-[20px] w-[20px] rounded-full bg-white shadow-sm transition-transform duration-200"
-                style={{
-                  transform: available
-                    ? "translateX(24px)"
-                    : "translateX(4px)",
-                }}
-              />
-            </button>
+            <Switch
+              checked={available}
+              onChange={setAvailable}
+              label="Available?"
+            />
           </div>
 
           {/* ──────────────────────────────────── Action buttons */}
           <div className="flex gap-[10px] pt-[6px]">
-            <button
-              onClick={onClose}
-              className="flex flex-1 items-center justify-center rounded-[12px] border border-[#ddcdb8] bg-transparent p-[14px] transition-colors hover:bg-black/5"
+            {/* The form resets itself in the `isOpen` effect above once the
+                dialog is closed, so Cancel only has to ask to close. */}
+            <DialogDismiss fallback={onClose}>
+              {(requestClose) => (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!isProcessing) requestClose();
+                  }}
+                  disabled={isProcessing}
+                  className="flex flex-1 items-center justify-center rounded-[12px] border border-[#ddcdb8] bg-transparent p-[14px] transition-colors hover:bg-black/5 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span className="text-[14px] font-bold leading-none text-[#1a1210]">
+                    Cancel
+                  </span>
+                </button>
+              )}
+            </DialogDismiss>
+            <Tooltip
+              content={itemForm.isValid ? "Add this item to the menu" : "Complete the highlighted fields to continue."}
+              shortcut={itemForm.isValid ? SHORTCUTS.submitForm.combo : undefined}
+              className="flex-1"
             >
-              <span className="text-[14px] font-bold leading-none text-[#1a1210]">
-                Cancel
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={!name.trim() || !price || parseFloat(price) <= 0}
-              className="flex flex-1 items-center justify-center rounded-[12px] bg-[#e8541f] px-[14px] py-[15px] transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <span className="text-[14px] font-bold leading-none text-white">
-                Add
-              </span>
-            </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={isProcessing || !itemForm.isValid}
+                className="flex w-full flex-1 items-center justify-center gap-2 rounded-[12px] bg-[#e8541f] px-[14px] py-[15px] transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isProcessing && <Loader2 className="h-4 w-4 animate-spin text-white" />}
+                <span className="text-[14px] font-bold leading-none text-white">
+                  {isProcessing ? "Saving..." : "Add"}
+                </span>
+              </button>
+            </Tooltip>
           </div>
         </div>
       </div>

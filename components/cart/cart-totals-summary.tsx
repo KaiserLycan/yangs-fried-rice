@@ -23,12 +23,18 @@ import { isRestaurantOpen } from "@/lib/store-hours";
 export function CartTotalsSummary({
   totals,
   ctaLabel,
-  showEstimate,
+  arrivalEstimate,
   fulfilment,
 }: {
   totals: CartTotals;
   ctaLabel: string;
-  showEstimate: boolean;
+  /**
+   * The window to quote, or null on the placements that draw no estimate
+   * (mobile's `/cart`, per frame `132:368`). This replaced a `showEstimate`
+   * boolean over a hardcoded "Estimated 35–45 min" — a figure nothing
+   * computed, on a screen one step from a real ETA engine (issue #106).
+   */
+  arrivalEstimate: string | null;
   fulfilment: Fulfilment;
 }) {
   const [isClicked, setIsClicked] = React.useState(false);
@@ -52,11 +58,14 @@ export function CartTotalsSummary({
         </span>
       </div>
 
-      {showEstimate ? (
-        <p className="text-[11px] text-muted-foreground">Estimated 35–45 min</p>
+      {arrivalEstimate ? (
+        <p className="text-[11px] text-muted-foreground">
+          Estimated {arrivalEstimate}
+        </p>
       ) : null}
 
       <Link
+        title={!isOpen ? "We're closed right now — ordering opens with the store." : "Review your order and pay"}
         href={!isOpen || isClicked ? "#" : `/checkout?fulfilment=${fulfilment}`}
         onClick={(e) => {
           if (!isOpen || isClicked) {

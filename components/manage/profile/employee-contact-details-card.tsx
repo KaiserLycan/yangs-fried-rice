@@ -22,7 +22,7 @@ import {
   ProfileCard,
 } from "@/components/profile/profile-card";
 import { useCardEditor } from "@/components/profile/use-card-editor";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { useToast } from "@/components/ui/toast";
 import { contactDetailsSchema } from "@/lib/validation/profile";
 import { PhoneInput } from "@/components/ui/phone-input";
@@ -42,7 +42,7 @@ export function EmployeeContactDetailsCard({
 }) {
   const showToast = useToast();
   const router = useRouter();
-  const { isEditing, edit, cancel, errors, handleSubmit } = useCardEditor({
+  const { isEditing, isSubmitting, isValid, edit, cancel, errors, formProps, handleSubmit } = useCardEditor({
     schema: contactDetailsSchema,
     read: (form) => ({
       mobile: toInternationalMobile(String(form.get("mobile") ?? "")),
@@ -69,14 +69,15 @@ export function EmployeeContactDetailsCard({
         const json = await res.json();
 
         if (!res.ok) {
-          showToast(json.error ?? "Could not save your contact details.");
-          return;
+          showToast(json.error ?? "Could not save your contact details.", "error");
+          return json.fieldErrors ? { fieldErrors: json.fieldErrors } : false;
         }
 
-        showToast("Contact details saved.");
+        showToast("Contact details saved.", "success");
         router.refresh();
       } catch {
-        showToast("Could not save your contact details. Check your connection.");
+        showToast("Could not save your contact details. Check your connection.", "error");
+        return false;
       }
     },
   });
@@ -90,7 +91,7 @@ export function EmployeeContactDetailsCard({
     >
       {isEditing ? (
         <form
-          noValidate
+          {...formProps}
           onSubmit={handleSubmit}
           className="flex flex-col gap-[12px] md:gap-[16px]"
         >
@@ -129,9 +130,15 @@ export function EmployeeContactDetailsCard({
             </CardField>
           </div>
 
-          <Button type="submit" variant="save" className="w-full md:w-auto self-start">
+          <SubmitButton
+            variant="save"
+            pending={isSubmitting}
+            invalid={!isValid}
+            pendingLabel="Saving..."
+            hint="Save your mobile number"
+          >
             Save changes
-          </Button>
+          </SubmitButton>
         </form>
       ) : (
         <div className="grid gap-[12px] md:grid-cols-2 md:gap-[36px]">

@@ -2,7 +2,10 @@ import Link from "next/link";
 import { SiteNavBar } from "@/components/nav/site-nav-bar";
 import { OrderSummaryRows } from "@/components/checkout/order-summary-rows";
 import { PaymentStatusCard } from "@/components/checkout/payment-status-card";
-import { ARRIVAL_ESTIMATE } from "@/lib/checkout/arrival-estimate";
+import { SwitchToCodButton } from "@/components/checkout/switch-to-cod-button";
+import { ARRIVAL_UNKNOWN } from "@/lib/orders/arrival-window";
+import { isUnpaidStatus } from "@/lib/validation/orders";
+import { cn } from "@/lib/utils";
 import type { WalletProvider } from "@/lib/checkout/payment-methods";
 import type { PlacedOrder } from "@/lib/checkout/placed-order";
 import { computeCartTotals } from "@/lib/menu/cart-totals";
@@ -33,13 +36,17 @@ import type { CustomerProfile } from "@/lib/profile/customer-profile";
  *     the first, and the two would disagree about whether a customer may
  *     still pull out.
  *
- * So the only control is the link onward to tracking.
+ * So the only controls are the link onward to tracking and, when an online
+ * payment has not gone through, the two ways out of that: pay again (in
+ * `PaymentStatusCard`) or switch to cash on delivery. The tracking link is
+ * withheld in that state — see `canTrack` below.
  */
 export function OrderPlacedScreen({
   profile,
   order,
   wallet = null,
   startFailed = false,
+  arrivalWindow = null,
 }: {
   profile: CustomerProfile;
   order: PlacedOrder;
@@ -47,6 +54,16 @@ export function OrderPlacedScreen({
   wallet?: WalletProvider | null;
   /** From `?pay_error=1` — checkout could not open the wallet page. */
   startFailed?: boolean;
+  /**
+   * The order's real arrival window, from the same ETA engine the tracking
+   * screen reads. Null when the engine has nothing to say — an order it
+   * could not estimate, or one already finished.
+   *
+   * This used to be the fixed string "35–45 min", printed on a receipt for
+   * an order that existed and could therefore be estimated properly (issue
+   * #106).
+   */
+  arrivalWindow?: string | null;
 }) {
   // The same module the cart and checkout use. Checkout must not compute
   // money one way and its own receipt another.
@@ -57,6 +74,22 @@ export function OrderPlacedScreen({
 
   const isDelivery = order.fulfilment === "delivery";
 
+  // Whether the onward link to tracking is offered at all.
+  //
+  // Decided by the order's own status and nothing else. `isUnpaidStatus` is
+  // the same test the kitchen and rider queues filter on, so the receipt
+  // cannot disagree with them about whether an order is real: if the link is
+  // offered, somebody is cooking it.
+  //
+  // Deliberately NOT keyed on payment status or `isWalletOrder`. Both are
+  // read from the `transaction` row, and customers have no insert policy on
+  // that table, so the row may be missing entirely — which would read as
+  // "not a wallet order" and hand out a Track link for food nobody has paid
+  // for. A pay-later order (cash on delivery, pay in store) is `pending` and
+  // tracks immediately, which is correct: the money is collected at the door
+  // by design, not missing.
+  const canTrack = !isUnpaidStatus(order.orderStatus);
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <SiteNavBar profile={profile} currentSection="track-order" />
@@ -66,8 +99,14 @@ export function OrderPlacedScreen({
           <h1 className="font-display text-[30px] text-foreground md:text-[38px] md:leading-[1.05]">
             ORDER PLACED
           </h1>
+          {/* `normal-case` on the reference alone: the label keeps the
+              frame's uppercase treatment, but the id must render in the case
+              it is stored in, so that the string here is the one staff can
+              paste into a search and the one the kitchen is looking at
+              (issue #106). */}
           <p className="text-[12px] uppercase tracking-[1.92px] text-muted-foreground">
-            Order #{order.orderNumber}
+            Order{" "}
+            <span className="normal-case">#{order.orderNumber}</span>
           </p>
           {/* One sentence, and which sentence depends entirely on whether
               anybody is delivering anything. A pickup customer told their
@@ -77,9 +116,15 @@ export function OrderPlacedScreen({
             data-testid="fulfilment-line"
             className="pt-[2px] text-[14px] text-muted-strong"
           >
-            {isDelivery
-              ? `Arriving in about ${ARRIVAL_ESTIMATE} · to ${order.address ?? "your saved address"}`
-              : `Ready for collection in about ${ARRIVAL_ESTIMATE} · collect in store`}
+            {!canTrack
+              ? // No arrival to promise: nobody starts this one until the
+                // payment lands, so a time here would be a straight lie.
+                isDelivery
+                ? `Waiting for payment · to ${order.address ?? "your saved address"}`
+                : "Waiting for payment · collect in store"
+              : isDelivery
+                ? `${arrivalWindow ? `Arriving in about ${arrivalWindow}` : ARRIVAL_UNKNOWN} · to ${order.address ?? "your saved address"}`
+                : `${arrivalWindow ? `Ready for collection in about ${arrivalWindow}` : ARRIVAL_UNKNOWN} · collect in store`}
           </p>
         </header>
 
@@ -105,12 +150,27 @@ export function OrderPlacedScreen({
           startFailed={startFailed}
         />
 
-        <Link
-          href={`/orders/${order.orderId}`}
-          className="rounded-[13px] bg-accent p-[16px] text-center text-[15px] font-bold text-accent-foreground"
-        >
-          Track this order
-        </Link>
+        {canTrack ? (
+          <Link
+            href={`/orders/${order.orderId}`}
+            className="rounded-[13px] bg-accent p-[16px] text-center text-[15px] font-bold text-accent-foreground"
+          >
+            Track this order
+          </Link>
+        ) : (
+          <div className="flex flex-col gap-[10px]">
+            <p
+              data-testid="tracking-blocked"
+              className="text-center text-[13px] leading-[18px] text-muted-strong"
+            >
+              Complete payment to track your order. Nothing has been taken yet,
+              and the kitchen hasn’t started it.
+            </p>
+            {/* "Try again with Maya" lives in the payment card above, so this
+                is only the other half of the choice issue #106 asks for. */}
+            <SwitchToCodButton orderId={order.orderId} />
+          </div>
+        )}
       </div>
     </div>
   );

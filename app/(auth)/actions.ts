@@ -1,10 +1,25 @@
 "use server";
 
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createSession, deleteSession } from "@/lib/auth/session";
+import {
+  checkLoginAllowed,
+  clearLoginFailures,
+  clientIpFrom,
+  lockedOutMessage,
+  recordLoginFailure,
+} from "@/lib/auth/login-rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { homePathForRole, resolveEmployeeRole } from "@/lib/auth/roles";
 import { addressForGeocoding, validateNcrAddress } from "@/lib/address/validate-ncr";
+import { addressRowFromParts } from "@/lib/address/format";
+import { joinFullName } from "@/lib/validation/fields";
+import {
+  fieldErrorFromDbError,
+  fieldErrorsFromIssues,
+  type FieldErrors,
+} from "@/lib/validation/field-errors";
 import { toInternationalMobile } from "@/lib/validation/phone";
 import {
   signupSchema,
@@ -13,12 +28,24 @@ import {
 } from "@/lib/validation/signup";
 import { loginSchema, type LoginValues } from "@/lib/validation/login";
 import {
+  forgotPasswordSchema,
+  resetPasswordSchema,
+  type ForgotPasswordValues,
+  type ResetPasswordValues,
+} from "@/lib/validation/password-reset";
+import {
   employeeLoginSchema,
   EMPLOYEE_SIGN_IN_FAILED,
   type EmployeeLoginValues,
 } from "@/lib/validation/employee-login";
 
-type ActionResult = { success: true } | { success: false; error: string };
+/**
+ * `fieldErrors` names the field a rejection is about, so the form can show
+ * it under that input rather than only in the banner.
+ */
+type ActionResult =
+  | { success: true }
+  | { success: false; error: string; fieldErrors?: FieldErrors };
 
 /**
  * `signedIn: false` means the account exists but has no session yet — the
@@ -28,7 +55,7 @@ type ActionResult = { success: true } | { success: false; error: string };
  */
 type RegisterResult =
   | { success: true; signedIn?: boolean }
-  | { success: false; error: string };
+  | { success: false; error: string; fieldErrors?: FieldErrors };
 
 /**
  * Cust1: register a new customer account.
@@ -50,14 +77,14 @@ export async function registerCustomer(
     return {
       success: false,
       error: "Some fields need fixing before we can create your account.",
+      fieldErrors: fieldErrorsFromIssues(parsed.error.issues),
     };
   }
   const { firstName, lastName, email, phone, dateOfBirth, password, buildingNo, street, barangay, city, zip } = parsed.data;
 
-  const name = `${firstName} ${lastName}`.trim();
-
-  // Combine for database storage
-  const fullAddress = `${buildingNo} ${street}, ${barangay}, ${city} ${zip}`;
+  // Kept in the auth user's metadata as a display fallback only; the
+  // customer row stores the two parts.
+  const name = joinFullName(firstName, lastName);
   // What the map can actually find: street, barangay, city, ZIP. The building
   // number is a lot/unit inside a subdivision and only makes the lookup miss.
   const essentialAddress = addressForGeocoding({ street, barangay, city, zip });
@@ -65,24 +92,43 @@ export async function registerCustomer(
   // Enforce delivery boundary: customer address must be within NCR
   const ncrCheck = await validateNcrAddress(essentialAddress);
   if (!ncrCheck.valid) {
-    return {
-      success: false,
-      error:
-        ncrCheck.message ??
-        "Delivery is currently restricted to Metro Manila (NCR). Please provide an address within NCR.",
-    };
+    const message =
+      ncrCheck.message ??
+      "Delivery is currently restricted to Metro Manila (NCR). Please provide an address within NCR.";
+    return { success: false, error: message, fieldErrors: { street: message } };
   }
 
   const supabase = createClient();
 
+  // Send the confirmation link back to the site the person signed up on
+  // (localhost or Vercel) instead of the dashboard's Site URL. Supabase only
+  // honours it if it matches Authentication → URL Configuration → Redirect URLs.
+  const requestHeaders = headers();
+  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
+  const protocol = requestHeaders.get("x-forwarded-proto") ?? "https";
+  const origin = requestHeaders.get("origin") ?? (host ? `${protocol}://${host}` : undefined);
+
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { name } },
+    options: {
+      data: { name },
+      ...(origin && { emailRedirectTo: `${origin}/login` }),
+    },
   });
 
   if (authError) {
-    return { success: false, error: authError.message };
+    const isEmail = /email/i.test(authError.message);
+    const isPassword = /password/i.test(authError.message);
+    return {
+      success: false,
+      error: authError.message,
+      fieldErrors: isEmail
+        ? { email: authError.message }
+        : isPassword
+          ? { password: authError.message }
+          : undefined,
+    };
   }
   if (!authData.user) {
     return {
@@ -97,6 +143,7 @@ export async function registerCustomer(
     return {
       success: false,
       error: "An account with this email already exists. Please log in instead.",
+      fieldErrors: { email: "An account with this email already exists." },
     };
   }
 
@@ -119,16 +166,24 @@ export async function registerCustomer(
   // customer.customer_id is the Supabase Auth user id (FK to auth.users).
   const { error: customerError } = await writer.from("customer").insert({
     customer_id: customerId,
-    name,
+    first_name: firstName,
+    last_name: lastName,
     email,
     phone_number: toInternationalMobile(phone),
     date_of_birth: dateOfBirth ? dateOfBirth : null,
   });
   if (customerError) {
+    // Without a customer row the account can't sign in to the customer
+    // portal at all (loginCustomer refuses it), so don't leave it half-made.
+    try {
+      await createAdminClient().auth.admin.deleteUser(customerId);
+    } catch {
+      // no service key — nothing more we can undo from here
+    }
     return {
       success: false,
-      error:
-        "Your account was created, but we couldn't save your profile. Please try updating it from your profile page.",
+      error: "We couldn't save your details. Check the highlighted fields and try again.",
+      fieldErrors: fieldErrorFromDbError(customerError) ?? undefined,
     };
   }
 
@@ -137,13 +192,14 @@ export async function registerCustomer(
     .insert({
       customer_id: customerId,
       label: DEFAULT_ADDRESS_LABEL,
-      address_details: fullAddress,
+      ...addressRowFromParts({ buildingNo, street, barangay, city, zip }),
     });
   if (addressError) {
     return {
       success: false,
       error:
         "Your account was created, but we couldn't save your address. Please add it from your profile page.",
+      fieldErrors: fieldErrorFromDbError(addressError) ?? undefined,
     };
   }
 
@@ -162,6 +218,23 @@ export async function registerCustomer(
 }
 
 /**
+ * Deliberately identical to the wrong-password message.
+ *
+ * It used to say "This account isn't a customer account. Staff and
+ * administrators sign in at the employee login." — which told anyone who
+ * asked two things they should not learn from a login form: that the address
+ * is registered, and that it belongs to staff. That turns this form into a
+ * way to enumerate accounts and then pick out the privileged ones, which is
+ * the opposite of what the generic wrong-password message a few lines down
+ * is for (issue #106).
+ *
+ * Staff who land here by mistake are not left stranded: /login carries a
+ * standing "Employee sign-in" link that is shown to everyone and so reveals
+ * nothing about any particular address.
+ */
+const CUSTOMER_ONLY_MESSAGE = "Incorrect email or password.";
+
+/**
  * Cust2: authenticate an existing customer via Supabase.
  */
 export async function loginCustomer(
@@ -173,17 +246,154 @@ export async function loginCustomer(
   }
   const { email, password } = parsed.data;
 
+  // Checked before the password is tried, so a locked email gets no answer
+  // about whether this guess was right.
+  const ip = clientIpFrom(headers().get("x-forwarded-for"));
+  const gate = await checkLoginAllowed(email, ip);
+  if (!gate.allowed) {
+    return { success: false, error: lockedOutMessage(gate) };
+  }
+
   const supabase = createClient();
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
 
-  if (error) {
+  if (error || !data.user) {
+    await recordLoginFailure(email, ip);
     // Same generic message either way — don't reveal whether the email
     // exists.
     return { success: false, error: "Incorrect email or password." };
   }
+  // The password was right, whatever happens next.
+  await clearLoginFailures(email);
+
+  // A valid Supabase login is not enough: the customer portal is for
+  // accounts with a `customer` row. Admins, staff and riders have auth
+  // accounts too, and without this check they could sign in here and act as
+  // a customer with no customer record behind them. Sign the session back
+  // out so no half-authenticated cookie is left behind.
+  const { data: customer } = await supabase
+    .from("customer")
+    .select("customer_id, is_account_disabled")
+    .eq("customer_id", data.user.id)
+    .maybeSingle();
+
+  if (!customer) {
+    await supabase.auth.signOut();
+    return { success: false, error: CUSTOMER_ONLY_MESSAGE };
+  }
+
+  if (customer.is_account_disabled) {
+    await supabase.auth.signOut();
+    return {
+      success: false,
+      error: "Your account has been disabled. Please contact support.",
+    };
+  }
+
+  // A stale employee session cookie from an earlier staff sign-in on this
+  // browser must not ride along with a customer session.
+  deleteSession();
+
+  return { success: true };
+}
+
+/**
+ * Send a password-reset link.
+ *
+ * Issue #106: the customer "Forgot password?" link pointed back at /login and
+ * did nothing, and employees had no way back in at all. One action serves
+ * both — Supabase Auth holds a single password per account, so the reset is
+ * identical whether the address belongs to a customer or an employee.
+ *
+ * Always reports success. A "no account with that email" reply here would
+ * turn this form into a way to find out which addresses are registered, and
+ * the redirect lands on /reset-password, which `middleware.ts` has to let
+ * through while signed out.
+ */
+export async function requestPasswordReset(
+  values: ForgotPasswordValues,
+): Promise<ActionResult> {
+  const parsed = forgotPasswordSchema.safeParse(values);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Enter a valid email address.",
+      fieldErrors: fieldErrorsFromIssues(parsed.error.issues),
+    };
+  }
+
+  const origin = headers().get("origin");
+  const supabase = createClient();
+
+  const { error } = await supabase.auth.resetPasswordForEmail(
+    parsed.data.email,
+    origin ? { redirectTo: `${origin}/reset-password` } : undefined,
+  );
+
+  // Logged, not shown: a transport failure is ours, not the customer's, and
+  // saying so would still leak whether the address exists.
+  if (error) {
+    console.error("requestPasswordReset: could not send reset email:", error);
+  }
+
+  return { success: true };
+}
+
+/**
+ * Set a new password from the link in the reset email.
+ *
+ * By the time this runs the recovery token in the URL has already been
+ * exchanged for a session by the Supabase client on the reset page, so this
+ * is an ordinary `updateUser` against that session — the same call the
+ * profile's change-password card makes. Without a session the update fails,
+ * which is what stops this being a way to change a stranger's password.
+ */
+export async function resetPassword(
+  values: ResetPasswordValues,
+): Promise<ActionResult> {
+  const parsed = resetPasswordSchema.safeParse(values);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? "Enter a valid password.",
+      fieldErrors: fieldErrorsFromIssues(parsed.error.issues),
+    };
+  }
+
+  const supabase = createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return {
+      success: false,
+      error:
+        "That reset link has expired or has already been used. Request a new one.",
+    };
+  }
+
+  const { error } = await supabase.auth.updateUser({
+    password: parsed.data.password,
+  });
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  // Resetting is the documented way out of a sign-in lockout, so the new
+  // password works straight away instead of after the window expires.
+  if (user.email) await clearLoginFailures(user.email);
+
+  // The recovery session is a way in that was mailed to an inbox. Once the
+  // password is set, end it so the new one has to be typed — and so a shared
+  // or forwarded email does not leave someone signed in.
+  await supabase.auth.signOut();
+  deleteSession();
 
   return { success: true };
 }
@@ -257,14 +467,22 @@ export async function loginEmployee(
   }
   const { identifier, password } = parsed.data;
 
+  const ip = clientIpFrom(headers().get("x-forwarded-for"));
+  const gate = await checkLoginAllowed(identifier, ip);
+  if (!gate.allowed) {
+    return { success: false, error: lockedOutMessage(gate) };
+  }
+
   const supabase = createClient();
 
   const { data: authData, error: authError } =
     await supabase.auth.signInWithPassword({ email: identifier, password });
 
   if (authError || !authData.user) {
+    await recordLoginFailure(identifier, ip);
     return { success: false, error: EMPLOYEE_SIGN_IN_FAILED };
   }
+  await clearLoginFailures(identifier);
 
   const { data: employee, error: employeeError } = await supabase
     .from("employee")

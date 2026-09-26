@@ -135,7 +135,8 @@ describe("every role is held to the same rule", () => {
 
   it("rejects it when a manager creates an employee", () => {
     const base = {
-      name: "Alice Smith",
+      firstName: "Alice",
+      lastName: "Smith",
       email: "alice@example.com",
       password: "securepassword123",
       role: "STAFF" as const,

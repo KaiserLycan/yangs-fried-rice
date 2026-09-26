@@ -16,10 +16,23 @@ const mockInsert = vi.fn(() => ({ select: mockSelect }));
 const mockUpdate = vi.fn(() => ({ eq: mockEqForUpdate }));
 const mockDelete = vi.fn(() => ({ eq: mockEqForDelete }));
 
+// Reads of the row being changed — deleteProduct and updateProduct look up the
+// current image first so they can remove it from Storage afterwards.
+const mockMaybeSingle = vi.fn();
+const mockReadSelect = vi.fn(() => ({
+  eq: vi.fn(() => ({ maybeSingle: mockMaybeSingle })),
+}));
+
 const mockFrom = vi.fn(() => ({
   insert: mockInsert,
   update: mockUpdate,
   delete: mockDelete,
+  select: mockReadSelect,
+}));
+
+const mockRemoveStoredImage = vi.fn();
+vi.mock("@/lib/storage/remove-stored-image", () => ({
+  removeStoredImage: (...args: unknown[]) => mockRemoveStoredImage(...args),
 }));
 
 // 3. Inject the Mock into the createClient function
@@ -83,20 +96,42 @@ describe("US-02: Menu Management Server Actions", () => {
     expect(result.error).toContain("Price cannot exceed 99,999.99");
   });
 
-  it("TC-2.3.I: deleteProduct successfully removes item and refreshes UI", async () => {
-    // Tell fake Supabase that the deletion had no errors
+  it("TC-2.3.I: deleteProduct archives the item rather than destroying it", async () => {
+    // Tell fake Supabase that the write had no errors
     mockEqForDelete.mockResolvedValue({ error: null });
+    mockMaybeSingle.mockResolvedValue({
+      data: { image_url: "https://x.supabase.co/storage/v1/object/public/menu-images/1.webp" },
+      error: null,
+    });
 
     const result = await deleteProduct("test-uuid-123");
 
     expect(result.error).toBeNull();
     expect(result.data).toEqual({ product_id: "test-uuid-123" });
-    
-    // Verify it triggered the delete command on the product table
+
     expect(mockFrom).toHaveBeenCalledWith("product");
-    expect(mockDelete).toHaveBeenCalled();
-    
-    // Verify the UI refreshes after deletion
+
+    // The point of issue #106: a hard DELETE nulls order_item.product_id on
+    // every historical line that referenced this product, so past orders lose
+    // the name of what was bought. It must archive instead.
+    expect(mockDelete).not.toHaveBeenCalled();
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        archived_at: expect.any(String),
+        is_available: false,
+        // Nothing may point at the photo once it is deleted.
+        image_url: null,
+      }),
+    );
+
+    // Only the menu listing reads the photo, and it skips archived rows, so
+    // the file is removed rather than left in the bucket forever.
+    expect(mockRemoveStoredImage).toHaveBeenCalledWith(
+      "menu-images",
+      "https://x.supabase.co/storage/v1/object/public/menu-images/1.webp",
+    );
+
+    // Verify the UI refreshes after archiving
     expect(revalidatePath).toHaveBeenCalledWith("/manage/menu");
   });
 

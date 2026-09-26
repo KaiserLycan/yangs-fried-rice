@@ -22,24 +22,29 @@ import {
   ProfileCard,
 } from "@/components/profile/profile-card";
 import { useCardEditor } from "@/components/profile/use-card-editor";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
+import { lengthProps } from "@/lib/validation/fields";
+import {
+  EMPLOYEE_MIN_AGE_YEARS,
+  earliestBirthdate,
+  latestBirthdateForMinAge,
+} from "@/lib/validation/date-of-birth";
 import { useToast } from "@/components/ui/toast";
-import { personalDetailsSchema } from "@/lib/validation/profile";
-
-const SAVE_TOAST =
-  "Saving your personal details isn’t available yet. We’re still building it.";
+import { employeePersonalDetailsSchema } from "@/lib/validation/employee-profile";
+import { formatDateOfBirth } from "@/lib/profile/identity";
 
 export function EmployeePersonalDetailsCard({
   profile,
 }: {
-  profile: { name: string; dateOfBirth: string | null };
+  profile: { firstName: string; lastName: string; dateOfBirth: string | null };
 }) {
   const showToast = useToast();
   const router = useRouter();
-  const { isEditing, edit, cancel, errors, handleSubmit } = useCardEditor({
-    schema: personalDetailsSchema,
+  const { isEditing, isSubmitting, isValid, edit, cancel, errors, formProps, handleSubmit } = useCardEditor({
+    schema: employeePersonalDetailsSchema,
     read: (form) => ({
-      name: String(form.get("name") ?? ""),
+      firstName: String(form.get("firstName") ?? ""),
+      lastName: String(form.get("lastName") ?? ""),
       dateOfBirth: String(form.get("dateOfBirth") ?? ""),
     }),
     onValid: async (values) => {
@@ -48,21 +53,23 @@ export function EmployeePersonalDetailsCard({
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            name: values.name,
-            dateOfBirth: values.dateOfBirth || null,
+            firstName: values.firstName,
+            lastName: values.lastName,
+            dateOfBirth: values.dateOfBirth,
           }),
         });
         const json = await res.json();
 
         if (!res.ok) {
-          showToast(json.error ?? "Could not save your personal details.");
-          return;
+          showToast(json.error ?? "Could not save your personal details.", "error");
+          return json.fieldErrors ? { fieldErrors: json.fieldErrors } : false;
         }
 
-        showToast("Personal details saved.");
+        showToast("Personal details saved.", "success");
         router.refresh();
       } catch {
-        showToast("Could not save your personal details. Check your connection.");
+        showToast("Could not save your personal details. Check your connection.", "error");
+        return false;
       }
     },
   });
@@ -76,19 +83,32 @@ export function EmployeePersonalDetailsCard({
     >
       {isEditing ? (
         <form
-          noValidate
+          {...formProps}
           onSubmit={handleSubmit}
           className="flex flex-col gap-[12px] md:gap-[16px]"
         >
-          <div className="grid gap-[12px] md:grid-cols-2 md:gap-[36px]">
-            <CardField label="Full name" htmlFor="name" error={errors.name}>
+          <div className="grid gap-[12px] md:grid-cols-3 md:gap-[24px]">
+            <CardField label="First name" htmlFor="firstName" error={errors.firstName}>
               <CardInput
-                id="name"
-                name="name"
+                id="firstName"
+                name="firstName"
                 type="text"
-                autoComplete="name"
-                defaultValue={profile.name}
-                invalid={Boolean(errors.name)}
+                autoComplete="given-name"
+                defaultValue={profile.firstName}
+                {...lengthProps("firstName")}
+                invalid={Boolean(errors.firstName)}
+              />
+            </CardField>
+
+            <CardField label="Last name" htmlFor="lastName" error={errors.lastName}>
+              <CardInput
+                id="lastName"
+                name="lastName"
+                type="text"
+                autoComplete="family-name"
+                defaultValue={profile.lastName}
+                {...lengthProps("lastName")}
+                invalid={Boolean(errors.lastName)}
               />
             </CardField>
 
@@ -104,23 +124,34 @@ export function EmployeePersonalDetailsCard({
                 type="date"
                 autoComplete="bday"
                 defaultValue={profile.dateOfBirth ?? ""}
+                min={earliestBirthdate()}
+                max={latestBirthdateForMinAge(EMPLOYEE_MIN_AGE_YEARS)}
                 invalid={Boolean(errors.dateOfBirth)}
               />
             </CardField>
           </div>
 
-          <Button type="submit" variant="save" className="w-full md:w-auto self-start">
+          <SubmitButton
+            variant="save"
+            pending={isSubmitting}
+            invalid={!isValid}
+            pendingLabel="Saving..."
+            hint="Save your personal details"
+          >
             Save changes
-          </Button>
+          </SubmitButton>
         </form>
       ) : (
-        <div className="grid gap-[12px] md:grid-cols-2 md:gap-[36px]">
-          <CardField label="Full name">
-            <CardValue value={profile.name} emptyState="Not added yet" />
+        <div className="grid gap-[12px] md:grid-cols-3 md:gap-[24px]">
+          <CardField label="First name">
+            <CardValue value={profile.firstName} emptyState="Not added yet" />
+          </CardField>
+          <CardField label="Last name">
+            <CardValue value={profile.lastName} emptyState="Not added yet" />
           </CardField>
           <CardField label="Date of birth">
             <CardValue
-              value={profile.dateOfBirth || ""}
+              value={profile.dateOfBirth ? formatDateOfBirth(profile.dateOfBirth) : ""}
               emptyState="Not added yet"
             />
           </CardField>

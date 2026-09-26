@@ -1,6 +1,9 @@
 "use client";
 
+import * as React from "react";
 import { cn } from "@/lib/utils";
+import { Kbd } from "@/components/ui/tooltip";
+import { SHORTCUTS, useShortcut } from "@/lib/hooks/use-shortcut";
 
 /**
  * The search box, in the two places it renders: a 300px field inside
@@ -22,6 +25,16 @@ export function SearchField({
   onChange: (value: string) => void;
   variant: "nav" | "mobile";
 }) {
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  // "/" jumps to the search box from anywhere on the menu. Only the visible
+  // field takes it — the nav and mobile copies are both mounted.
+  useShortcut(SHORTCUTS.focusSearch.combo, () => {
+    const input = inputRef.current;
+    if (!input || input.offsetParent === null) return;
+    input.focus();
+    input.select();
+  });
+
   return (
     <label
       className={cn(
@@ -33,7 +46,10 @@ export function SearchField({
         ⌕
       </span>
       <input
+        ref={inputRef}
         type="search"
+        maxLength={100}
+        title="Search the menu (press / to jump here)"
         role="searchbox"
         aria-label="Search menu items"
         placeholder="Search menu items"
@@ -41,6 +57,9 @@ export function SearchField({
         onChange={(event) => onChange(event.target.value)}
         className="w-full bg-transparent text-[13px] text-foreground placeholder:text-muted-foreground focus-visible:outline-none"
       />
+      {variant === "nav" && !value ? (
+        <Kbd className="border-field-border bg-transparent text-muted-foreground">/</Kbd>
+      ) : null}
     </label>
   );
 }

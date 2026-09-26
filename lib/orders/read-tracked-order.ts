@@ -1,4 +1,7 @@
+import { orderItemName } from "@/lib/orders/item-name";
 import { createClient } from "@/lib/supabase/server";
+import { formatOrderNumber } from "@/lib/orders/order-number";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { validateNcrAddress } from "@/lib/address/validate-ncr";
 
 /**
@@ -20,7 +23,7 @@ import { validateNcrAddress } from "@/lib/address/validate-ncr";
  */
 export type TrackedOrder = {
   orderId: string;
-  /** Human-facing order reference — see `orderNumberFrom` on why. */
+  /** The order's reference — see `lib/orders/order-number.ts`. */
   orderNumber: string;
   /** Fed to `resolveOrderProgress`; never read directly by a component. */
   orderStatus: string | null;
@@ -45,16 +48,8 @@ export type TrackedOrder = {
   items: { productId: string; name: string }[];
 };
 
-/**
- * `order_id` is a UUID and no human-facing order number column exists, so the
- * screen shows the last four characters of the id. The frames draw "#1042",
- * a four-digit sequence, which a UUID cannot produce.
- *
- * The current implementation takes the last 4 chars of the UUID.it is not what the design asks for.
- */
-export function orderNumberFrom(orderId: string): string {
-  return orderId.replace(/-/g, "").slice(-4).toUpperCase();
-}
+// This file used to carry a second, byte-identical copy of the customer's
+// order-number helper. Both are gone; see `lib/orders/order-number.ts`.
 
 export async function readTrackedOrder(
   orderId: string,
@@ -89,14 +84,14 @@ export async function readTrackedOrder(
     readRiderName(supabase, delivery?.rider_id ?? null),
     supabase
       .from("order_item")
-      .select("product_id, product(product_name)")
+      .select("product_id, product_name, product(product_name)")
       .eq("order_id", order.order_id)
       .then((res) => res.data),
   ]);
 
   return {
     orderId: order.order_id,
-    orderNumber: orderNumberFrom(order.order_id),
+    orderNumber: formatOrderNumber(order.order_id),
     orderStatus: order.order_status,
     cancelledAt: order.cancelled_at,
     cancellationReason: order.cancellation_reason,
@@ -109,7 +104,12 @@ export async function readTrackedOrder(
     riderName,
     items: (orderItems || []).map((item) => ({
       productId: item.product_id || "",
-      name: Array.isArray(item.product) ? item.product[0]?.product_name || "Unknown Item" : item.product?.product_name || "Unknown Item",
+      name: orderItemName(
+        item.product_name,
+        Array.isArray(item.product)
+          ? item.product[0]?.product_name
+          : item.product?.product_name,
+      ),
     })),
   };
 }
@@ -124,7 +124,22 @@ async function readRiderName(
 ): Promise<string | null> {
   if (!riderId) return null;
 
-  const { data: rider } = await supabase
+  // Read with the service role, not the caller's session.
+  //
+  // This runs on the *customer's* tracking screen, and both rows belong to
+  // somebody else. `employee` and `rider` are RLS-protected so that customers
+  // and anonymous visitors cannot read staff records, which means a
+  // session-scoped read here matches zero rows and the rider's name silently
+  // disappears from tracking.
+  //
+  // Only the name is selected, and only for the rider already assigned to
+  // this delivery, so nothing else about the employee is exposed. The
+  // alternative — a policy letting a customer read staff rows by joining
+  // delivery to order — widens the table's exposure to express a rule that
+  // belongs here.
+  const admin = createAdminClient();
+
+  const { data: rider } = await admin
     .from("rider")
     .select("employee_id")
     .eq("rider_id", riderId)
@@ -132,7 +147,7 @@ async function readRiderName(
 
   if (!rider?.employee_id) return null;
 
-  const { data: employee } = await supabase
+  const { data: employee } = await admin
     .from("employee")
     .select("name")
     .eq("employee_id", rider.employee_id)

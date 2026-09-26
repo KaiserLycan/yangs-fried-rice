@@ -9,7 +9,12 @@ import {
   ProfileCard,
 } from "@/components/profile/profile-card";
 import { useCardEditor } from "@/components/profile/use-card-editor";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
+import {
+  lengthProps,
+  vehicleMakeModelSchema,
+  vehiclePlateNumberSchema,
+} from "@/lib/validation/fields";
 import { useToast } from "@/components/ui/toast";
 
 /**
@@ -46,8 +51,8 @@ export function EmployeeDetailsCard({
 }
 
 const driverDetailsSchema = z.object({
-  vehicleMakeModel: z.string().min(1, "Enter vehicle make/model."),
-  vehiclePlateNumber: z.string().min(1, "Enter plate number."),
+  vehicleMakeModel: vehicleMakeModelSchema,
+  vehiclePlateNumber: vehiclePlateNumberSchema,
 });
 
 export function DriverDetailsCard({
@@ -59,7 +64,7 @@ export function DriverDetailsCard({
 }) {
   const router = useRouter();
   const showToast = useToast();
-  const { isEditing, edit, cancel, errors, handleSubmit } = useCardEditor({
+  const { isEditing, isSubmitting, isValid, edit, cancel, errors, formProps, handleSubmit } = useCardEditor({
     schema: driverDetailsSchema,
     read: (form) => ({
       vehicleMakeModel: String(form.get("vehicleMakeModel") ?? ""),
@@ -90,13 +95,14 @@ export function DriverDetailsCard({
 
         if (!res.ok) {
           showToast(json.error ?? "Could not save your driver details.");
-          return;
+          return json.fieldErrors ? { fieldErrors: json.fieldErrors } : false;
         }
 
         showToast("Driver details saved.");
         router.refresh();
       } catch {
         showToast("Could not save your driver details. Check your connection.");
+        return false;
       }
     },
   });
@@ -110,7 +116,7 @@ export function DriverDetailsCard({
     >
       {isEditing ? (
         <form
-          noValidate
+          {...formProps}
           onSubmit={handleSubmit}
           className="flex flex-col gap-[12px] md:gap-[16px]"
         >
@@ -125,6 +131,8 @@ export function DriverDetailsCard({
                 name="vehicleMakeModel"
                 type="text"
                 defaultValue={vehicleMakeModel}
+                placeholder="e.g. Honda Click 125i"
+                {...lengthProps("vehicleMakeModel")}
                 invalid={Boolean(errors.vehicleMakeModel)}
               />
             </CardField>
@@ -139,13 +147,21 @@ export function DriverDetailsCard({
                 name="vehiclePlateNumber"
                 type="text"
                 defaultValue={vehiclePlateNumber}
+                placeholder="e.g. ABC 1234"
+                {...lengthProps("vehiclePlateNumber")}
                 invalid={Boolean(errors.vehiclePlateNumber)}
               />
             </CardField>
           </div>
-          <Button type="submit" variant="save">
+          <SubmitButton
+            variant="save"
+            pending={isSubmitting}
+            invalid={!isValid}
+            pendingLabel="Saving..."
+            hint="Save your vehicle details"
+          >
             Save changes
-          </Button>
+          </SubmitButton>
         </form>
       ) : (
         <div className="grid gap-[12px] md:grid-cols-2 md:gap-[36px]">

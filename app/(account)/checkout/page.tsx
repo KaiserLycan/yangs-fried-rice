@@ -4,8 +4,10 @@ import { ToastProvider } from "@/components/ui/toast";
 import { fulfilmentFromParam } from "@/lib/checkout/fulfilment-param";
 import { formatOrderTime } from "@/lib/checkout/order-time";
 import { readCart } from "@/lib/cart/read-cart";
+import { findAwaitingPaymentOrder } from "@/lib/checkout/find-awaiting-payment-order";
 import { readCustomerProfile } from "@/lib/profile/customer-profile";
 import { validateNcrAddress } from "@/lib/address/validate-ncr";
+import { readArrivalQuote } from "@/lib/checkout/read-arrival-quote";
 
 /**
  * Checkout (Browsing8-10, TPI1; GitHub issue #22) — order review and payment
@@ -38,6 +40,17 @@ export default async function CheckoutPage({
   // Guarded anyway, the same defence-in-depth the cart and profile pages use.
   if (!profile) redirect("/login?next=/checkout");
 
+  // A wallet payment that never completed leaves the order at
+  // `awaiting_payment` and the cart locked, so backing out of the wallet's
+  // page lands here on a fresh, empty cart with no way to reach the order
+  // just placed. Send the customer to its receipt instead, where they can
+  // pay again or switch to cash on delivery. Only when the cart is empty —
+  // if they have started a new order, that is what they came for.
+  if (lines.length === 0) {
+    const unpaidOrderId = await findAwaitingPaymentOrder();
+    if (unpaidOrderId) redirect(`/checkout/confirmation?order=${unpaidOrderId}`);
+  }
+
   const fulfilment = fulfilmentFromParam(searchParams.fulfilment);
 
   // Distance to the delivery address drives the fee, so the total shown here
@@ -54,6 +67,11 @@ export default async function CheckoutPage({
     }
   }
 
+  // Quoted from the live kitchen queue and the distance just geocoded, so
+  // the figure the customer agrees to here is produced by the same engine
+  // that will tell them where their order is a minute later (issue #106).
+  const arrivalEstimate = await readArrivalQuote({ fulfilment, distanceKm });
+
   return (
     <ToastProvider>
       <CheckoutScreen
@@ -63,6 +81,7 @@ export default async function CheckoutPage({
         fulfilment={fulfilment}
         distanceKm={distanceKm}
         placedAtLabel={formatOrderTime(new Date())}
+        arrivalEstimate={arrivalEstimate}
       />
     </ToastProvider>
   );

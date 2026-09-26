@@ -27,7 +27,7 @@ export function KdsOrderCard({ order, onAction }: KdsOrderCardProps) {
   };
 
   return (
-    <div className="bg-[#fbf6ec] border border-[#3a2e2c] flex flex-col overflow-hidden rounded-[14px] w-full h-full min-h-[320px] shadow-sm">
+    <div className="bg-[#fbf6ec] border border-field-border flex flex-col overflow-hidden rounded-[14px] w-full h-full min-h-[320px] shadow-sm">
       
       {/* Header Area */}
       <div className={`flex flex-col p-[12px] shrink-0 w-full ${isConfirmed ? "bg-[#ca762d]" : "bg-[#c0392b]"}`}>
@@ -35,6 +35,9 @@ export function KdsOrderCard({ order, onAction }: KdsOrderCardProps) {
         {/* Order Number & Time */}
         <div className="flex justify-between items-start">
           <div className="flex flex-col items-start gap-1">
+            {/* The same eight characters the customer and the rider see
+                since issue #106 — this used to be the id's *first* four
+                while the customer was shown its *last* four. */}
             <span className="font-display text-[#fbf6ec] text-[22px] leading-none mb-1">
               #{order.orderNumber}
             </span>

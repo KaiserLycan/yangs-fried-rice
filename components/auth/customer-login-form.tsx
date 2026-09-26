@@ -3,26 +3,24 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useTransition, useRef, useEffect } from "react";
+import { useState, useTransition } from "react";
 import { Alert } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ShowHideToggle } from "@/components/ui/show-hide-toggle";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { AuthTabs } from "@/components/auth/auth-tabs";
-import { loginSchema, type LoginField } from "@/lib/validation/login";
+import { useLiveValidation } from "@/lib/forms/use-live-validation";
+import { useSubmitShortcut } from "@/lib/hooks/use-shortcut";
+import { lengthProps } from "@/lib/validation/fields";
+import { loginSchema } from "@/lib/validation/login";
 import { loginCustomer } from "@/app/(auth)/actions";
 
-type FieldErrors = Partial<Record<LoginField, string>>;
-
 /**
- * Exported wrapper — keeps the same name/interface the page imports, so
- * page.tsx needs no changes. useSearchParams() (used inside
- * LoginFormInner) requires a Suspense boundary during static
- * prerendering, or `next build` fails with "should be wrapped in a
- * suspense boundary" — dev mode doesn't surface this, production builds
- * do.
+ * Exported wrapper — keeps the same name/interface the page imports.
+ * useSearchParams() (used inside LoginFormInner) requires a Suspense
+ * boundary during static prerendering, or `next build` fails.
  */
 export function CustomerLoginForm() {
   return (
@@ -32,91 +30,53 @@ export function CustomerLoginForm() {
   );
 }
 
+/** Set by middleware when a signed-in account has no customer record. */
+const NOT_CUSTOMER_NOTICE =
+  "That account isn't a customer account, so it can't use the customer pages. Staff and administrators sign in at the employee login.";
+
 function LoginFormInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [errors, setErrors] = useState<FieldErrors>({});
-  const [serverError, setServerError] = useState<string | null>(null);
-  const [submitted, setSubmitted] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(
+    searchParams.get("error") === "not-customer" ? NOT_CUSTOMER_NOTICE : null,
+  );
   const [showPassword, setShowPassword] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const [hasEmptyRequired, setHasEmptyRequired] = useState(true);
   const justRegistered = searchParams.get("registered") === "1";
-  const formRef = useRef<HTMLFormElement>(null);
+  /** Arrived from /reset-password, which signs the recovery session out. */
+  const justReset = searchParams.get("reset") === "1";
 
-  function checkFormEmpty(form: HTMLFormElement) {
-    let empty = false;
-    const elements = form.elements;
-    for (let i = 0; i < elements.length; i++) {
-      const el = elements[i] as HTMLInputElement;
-      if (el.hasAttribute('required')) {
-        if (el.type === 'checkbox' && !el.checked) {
-          empty = true;
-          break;
-        } else if (el.type !== 'checkbox' && !el.value.trim()) {
-          empty = true;
-          break;
-        }
-      }
-    }
-    setHasEmptyRequired(empty);
-  }
-
-  useEffect(() => {
-    if (formRef.current) {
-      checkFormEmpty(formRef.current);
-    }
-    // Set a timeout to catch delayed autofill
-    const timer = setTimeout(() => {
-      if (formRef.current) checkFormEmpty(formRef.current);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
-
-  function handleFormChange(event: React.FormEvent<HTMLFormElement>) {
-    checkFormEmpty(event.currentTarget);
-  }
-
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const result = loginSchema.safeParse({
+  const live = useLiveValidation({
+    schema: loginSchema,
+    read: (data) => ({
       email: String(data.get("email") ?? ""),
       password: String(data.get("password") ?? ""),
-    });
+    }),
+  });
+  const { errors } = live;
+  useSubmitShortcut(live.formRef);
 
-    setSubmitted(true);
-    if (!result.success) {
-      const next: FieldErrors = {};
-      for (const issue of result.error.issues) {
-        const key = issue.path[0] as keyof FieldErrors;
-        next[key] ??= issue.message;
-      }
-      setErrors(next);
-      return;
-    }
-
-    setErrors({});
+  const handleSubmit = live.handleSubmit(async (values) => {
     setServerError(null);
-
     startTransition(async () => {
-      const outcome = await loginCustomer(result.data);
+      const outcome = await loginCustomer(values);
       if (!outcome.success) {
         setServerError(outcome.error);
+        live.setServerErrors(outcome.fieldErrors);
         return;
       }
       const next = searchParams.get("next") ?? "/";
       router.push(next);
       router.refresh();
     });
-  }
+  });
+
+  const isStaffAccount = serverError?.includes("employee login");
 
   return (
     <div className="relative flex flex-col px-6 pb-[30px] md:justify-center md:bg-background md:px-[52px] md:py-[48px]">
       <form
-        ref={formRef}
-        noValidate
-        onChange={handleFormChange}
+        {...live.formProps}
         onSubmit={handleSubmit}
         className="flex flex-col gap-[14px] rounded-[22px] bg-background p-5 md:gap-[18px] md:rounded-none md:bg-transparent md:p-0"
       >
@@ -140,8 +100,24 @@ function LoginFormInner() {
           </Alert>
         ) : null}
 
+        {justReset && !serverError ? (
+          <Alert tone="success" role="status">
+            Password updated. Log in with your new password.
+          </Alert>
+        ) : null}
+
         {serverError ? (
-          <Alert>{serverError}</Alert>
+          <Alert>
+            {serverError}
+            {isStaffAccount ? (
+              <>
+                {" "}
+                <Link href="/employee/login" className="font-bold underline">
+                  Go to employee login
+                </Link>
+              </>
+            ) : null}
+          </Alert>
         ) : null}
 
         <Field label="Email" htmlFor="email" error={errors.email}>
@@ -152,6 +128,7 @@ function LoginFormInner() {
             autoComplete="email"
             placeholder="you@example.com"
             required
+            {...lengthProps("email")}
             invalid={Boolean(errors.email)}
           />
         </Field>
@@ -174,6 +151,7 @@ function LoginFormInner() {
             autoComplete="current-password"
             placeholder="At least 8 characters"
             required
+            {...lengthProps("password")}
             invalid={Boolean(errors.password)}
           />
         </Field>
@@ -183,15 +161,40 @@ function LoginFormInner() {
             <Checkbox name="remember" defaultChecked />
             Keep me logged in
           </label>
-          <Link href="/login" className="text-[13px] font-bold text-primary">
+          <Link
+            href="/forgot-password"
+            className="text-[13px] font-bold text-primary"
+          >
             <span className="md:hidden">Forgot?</span>
             <span className="hidden md:inline">Forgot password?</span>
           </Link>
         </div>
 
-        <Button type="submit" disabled={isPending || hasEmptyRequired}>
-          {isPending ? "Logging in…" : "Log in"}
-        </Button>
+        <SubmitButton
+          pending={isPending}
+          invalid={!live.isValid}
+          pendingLabel="Logging in…"
+          hint="Log in to your customer account"
+          blockedHint="Enter a valid email and a password of at least 8 characters."
+          wrapperClassName="w-full"
+        >
+          Log in
+        </SubmitButton>
+
+        {/* Shown to everyone, always. The login failure above is now the same
+            generic message whether or not the address belongs to staff, so
+            this is what stops an employee who used the wrong door from being
+            stranded — without the error itself having to say which door is
+            right (issue #106). Mirrors "I'm a customer →" on the employee
+            form. */}
+        <div className="flex justify-end">
+          <Link
+            href="/employee/login"
+            className="pb-[2px] text-[13px] font-bold text-primary"
+          >
+            I&apos;m an employee &rarr;
+          </Link>
+        </div>
       </form>
 
     </div>

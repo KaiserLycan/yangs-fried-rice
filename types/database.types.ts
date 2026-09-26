@@ -213,6 +213,9 @@ export type Database = {
           customer_id: string
           email: string | null
           is_account_disabled: boolean
+          first_name: string
+          last_name: string
+          /** Generated: first_name + " " + last_name. Read-only. */
           name: string
           password_last_updated: string | null
           phone_number: string | null
@@ -223,7 +226,8 @@ export type Database = {
           customer_id?: string
           email?: string | null
           is_account_disabled?: boolean
-          name: string
+          first_name: string
+          last_name: string
           password_last_updated?: string | null
           phone_number?: string | null
           date_of_birth?: string | null
@@ -233,7 +237,8 @@ export type Database = {
           customer_id?: string
           email?: string | null
           is_account_disabled?: boolean
-          name?: string
+          first_name?: string
+          last_name?: string
           password_last_updated?: string | null
           phone_number?: string | null
           date_of_birth?: string | null
@@ -243,7 +248,13 @@ export type Database = {
       }
       customer_address: {
         Row: {
+          /** Generated from the parts below. Read-only. */
           address_details: string
+          barangay: string
+          building_no: string
+          city: string
+          street: string
+          zip_code: string
           address_id: string
           address_note: string | null
           customer_id: string | null
@@ -251,7 +262,11 @@ export type Database = {
           label: string | null
         }
         Insert: {
-          address_details: string
+          barangay: string
+          building_no: string
+          city: string
+          street: string
+          zip_code: string
           address_id?: string
           address_note?: string | null
           customer_id?: string | null
@@ -259,7 +274,11 @@ export type Database = {
           label?: string | null
         }
         Update: {
-          address_details?: string
+          barangay?: string
+          building_no?: string
+          city?: string
+          street?: string
+          zip_code?: string
           address_id?: string
           address_note?: string | null
           customer_id?: string | null
@@ -338,6 +357,9 @@ export type Database = {
           employee_id: string
           is_account_disabled: boolean
           last_access_log: string | null
+          first_name: string
+          last_name: string
+          /** Generated: first_name + " " + last_name. Read-only. */
           name: string
           password_last_updated: string | null
           "phone-num": string | null
@@ -351,7 +373,8 @@ export type Database = {
           employee_id?: string
           is_account_disabled?: boolean
           last_access_log?: string | null
-          name: string
+          first_name: string
+          last_name: string
           password_last_updated?: string | null
           "phone-num"?: string | null
           profileImage_URL?: string | null
@@ -364,12 +387,34 @@ export type Database = {
           employee_id?: string
           is_account_disabled?: boolean
           last_access_log?: string | null
-          name?: string
+          first_name?: string
+          last_name?: string
           password_last_updated?: string | null
           "phone-num"?: string | null
           profileImage_URL?: string | null
           role?: string | null
           schedule_shift?: string | null
+        }
+        Relationships: []
+      }
+      login_attempt: {
+        Row: {
+          attempted_at: string
+          email_hash: string
+          ip: string | null
+          login_attempt_id: number
+        }
+        Insert: {
+          attempted_at?: string
+          email_hash: string
+          ip?: string | null
+          login_attempt_id?: never
+        }
+        Update: {
+          attempted_at?: string
+          email_hash?: string
+          ip?: string | null
+          login_attempt_id?: never
         }
         Relationships: []
       }
@@ -506,25 +551,31 @@ export type Database = {
           order_id: string | null
           order_item_id: string
           product_id: string | null
+          product_name: string | null
           quantity: number
           special_instructions: string | null
           subtotal: number
+          unit_price: number | null
         }
         Insert: {
           order_id?: string | null
           order_item_id?: string
           product_id?: string | null
+          product_name?: string | null
           quantity?: number
           special_instructions?: string | null
           subtotal: number
+          unit_price?: number | null
         }
         Update: {
           order_id?: string | null
           order_item_id?: string
           product_id?: string | null
+          product_name?: string | null
           quantity?: number
           special_instructions?: string | null
           subtotal?: number
+          unit_price?: number | null
         }
         Relationships: [
           {
@@ -578,6 +629,7 @@ export type Database = {
       }
       product: {
         Row: {
+          archived_at: string | null
           category_id: string | null
           image_url: string | null
           is_available: boolean | null
@@ -587,6 +639,7 @@ export type Database = {
           product_price: number
         }
         Insert: {
+          archived_at?: string | null
           category_id?: string | null
           image_url?: string | null
           is_available?: boolean | null
@@ -596,6 +649,7 @@ export type Database = {
           product_price: number
         }
         Update: {
+          archived_at?: string | null
           category_id?: string | null
           image_url?: string | null
           is_available?: boolean | null
@@ -809,10 +863,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      current_employee_role: { Args: never; Returns: string }
       get_customer_order_history: {
         Args: { p_customer_id: string }
         Returns: Json
       }
+      is_menu_manager: { Args: never; Returns: boolean }
       submit_direct_product_review: {
         Args: { p_comment?: string; p_product_id: string; p_rating: number }
         Returns: Json

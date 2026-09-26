@@ -289,3 +289,42 @@ describe("take-out orders", () => {
     ).toBe("OUT FOR DELIVERY");
   });
 });
+
+describe("an unpaid order has no stage", () => {
+  it("resolves both unpaid statuses to their own kind", () => {
+    expect(resolveOrderProgress(input({ orderStatus: "awaiting_payment" }))).toEqual({
+      kind: "unpaid",
+      orderStatus: "awaiting_payment",
+    });
+    expect(resolveOrderProgress(input({ orderStatus: "payment_failed" }))).toEqual({
+      kind: "unpaid",
+      orderStatus: "payment_failed",
+    });
+  });
+
+  it("is not folded into `unknown`, which would offer a Track link", () => {
+    expect(
+      resolveOrderProgress(input({ orderStatus: "awaiting_payment" })).kind,
+    ).not.toBe("unknown");
+  });
+
+  it("is outranked by a cancellation, which is a fact rather than a status", () => {
+    expect(
+      resolveOrderProgress(
+        input({ orderStatus: "awaiting_payment", cancelledAt: "2026-09-26T00:00:00Z" }),
+      ),
+    ).toEqual({ kind: "cancelled" });
+  });
+
+  it("cannot be cancelled through the tracking screen's control", () => {
+    expect(
+      isCancellable(resolveOrderProgress(input({ orderStatus: "payment_failed" }))),
+    ).toBe(false);
+  });
+
+  it("says so in the headline", () => {
+    expect(
+      headlineFor(resolveOrderProgress(input({ orderStatus: "awaiting_payment" }))),
+    ).toBe("WAITING FOR PAYMENT");
+  });
+});

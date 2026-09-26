@@ -40,6 +40,8 @@ export default async function ProfilePage() {
   }
 
   const profile = {
+    firstName: result.data.firstName,
+    lastName: result.data.lastName,
     name: result.data.name,
     dateOfBirth: result.data.dateOfBirth ?? null,
     role: result.data.role,

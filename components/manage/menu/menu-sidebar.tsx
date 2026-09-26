@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Plus, X, Check } from "lucide-react";
+import { Alert } from "@/components/ui/alert";
 
 interface MenuSidebarProps {
   categories: string[];
@@ -10,7 +11,7 @@ interface MenuSidebarProps {
   onSelectCategory: (category: string) => void;
   onAddCategory: () => void;
   onRenameCategory: (oldName: string, newName: string) => void;
-  onDeleteCategory: (category: string) => void;
+  onDeleteCategory: (category: string) => Promise<string | void> | void;
 }
 
 export function MenuSidebar({
@@ -26,6 +27,7 @@ export function MenuSidebar({
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [justAdded, setJustAdded] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const prevCategoriesRef = useRef(categories);
 
@@ -46,6 +48,7 @@ export function MenuSidebar({
 
   const handleAddClick = () => {
     setJustAdded(true);
+    setDeleteError(null);
     onAddCategory();
   };
 
@@ -61,6 +64,7 @@ export function MenuSidebar({
     if (category === "All") return;
     setEditingCategory(category);
     setEditValue(category);
+    setDeleteError(null);
   };
 
   const commitRename = () => {
@@ -94,6 +98,12 @@ export function MenuSidebar({
           Categories
         </span>
       </div>
+
+      {deleteError && (
+        <Alert tone="error" className="mb-2 w-full max-w-[200px]">
+          {deleteError}
+        </Alert>
+      )}
 
       {/* Categories List */}
       <div className="flex flex-row md:flex-col shrink-0 gap-2 md:gap-[6px]">
@@ -138,7 +148,10 @@ export function MenuSidebar({
               )}
             >
               <button
-                onClick={() => onSelectCategory(category)}
+                onClick={() => {
+                  setDeleteError(null);
+                  onSelectCategory(category);
+                }}
                 onDoubleClick={() => startEditing(category)}
                 className="flex flex-1 items-start justify-start py-[8px] md:py-[10px] px-3 md:pl-[12px] md:pr-[4px] whitespace-nowrap"
               >
@@ -148,9 +161,11 @@ export function MenuSidebar({
               {!isAll && (
                 <button
                   type="button"
-                  onClick={(e) => {
+                  onClick={async (e) => {
                     e.stopPropagation();
-                    onDeleteCategory(category);
+                    setDeleteError(null);
+                    const err = await onDeleteCategory(category);
+                    if (err) setDeleteError(err);
                   }}
                   className="mr-[8px] hidden md:flex h-5 w-5 shrink-0 items-center justify-center rounded opacity-0 transition-opacity group-hover:opacity-100 text-[#7a6a60] hover:text-[#bf4342] hover:bg-[#bf4342]/10"
                 >

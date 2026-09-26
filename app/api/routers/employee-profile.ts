@@ -31,7 +31,7 @@ export async function getMyEmployeeProfile() {
   const result = await getMyEmployeeProfileAction();
   if (!result.success) {
     return NextResponse.json(
-      { error: result.error },
+      { error: result.error, fieldErrors: "fieldErrors" in result ? result.fieldErrors : undefined },
       { status: errorToStatus(result.error) },
     );
   }
@@ -59,7 +59,7 @@ export async function updateMyEmployeeProfile(request: Request) {
   const result = await updateMyEmployeeProfileAction(body as any);
   if (!result.success) {
     return NextResponse.json(
-      { error: result.error },
+      { error: result.error, fieldErrors: "fieldErrors" in result ? result.fieldErrors : undefined },
       { status: errorToStatus(result.error) },
     );
   }
@@ -78,7 +78,7 @@ export async function deleteMyEmployeeAccount() {
   const result = await deleteMyEmployeeAccountAction();
   if (!result.success) {
     return NextResponse.json(
-      { error: result.error },
+      { error: result.error, fieldErrors: "fieldErrors" in result ? result.fieldErrors : undefined },
       { status: errorToStatus(result.error) },
     );
   }
@@ -94,7 +94,7 @@ export async function deactivateMyEmployeeAccount() {
   const result = await deactivateMyEmployeeAccountAction();
   if (!result.success) {
     return NextResponse.json(
-      { error: result.error },
+      { error: result.error, fieldErrors: "fieldErrors" in result ? result.fieldErrors : undefined },
       { status: errorToStatus(result.error) },
     );
   }
@@ -120,7 +120,7 @@ export async function updateMyRiderDetails(request: Request) {
   const result = await updateMyRiderDetailsAction(body as any);
   if (!result.success) {
     return NextResponse.json(
-      { error: result.error },
+      { error: result.error, fieldErrors: "fieldErrors" in result ? result.fieldErrors : undefined },
       { status: errorToStatus(result.error) },
     );
   }
