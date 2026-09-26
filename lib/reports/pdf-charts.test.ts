@@ -62,6 +62,25 @@ describe("drawBarChart", () => {
     expect(axisLabels.length).toBeLessThanOrEqual(12);
     expect(axisLabels.length).toBeGreaterThan(0);
   });
+
+  // P38: a 30-day report used to drop every value label.
+  it("prints a value on every bar, rotated when the bars are thin", () => {
+    const { doc, text } = spyDoc();
+    const bars = Array.from({ length: 30 }, (_, i) => ({ label: `D${i}`, value: i + 1, valueLabel: `V${i}` }));
+    drawBarChart(doc, { x: 0, y: 0, width: 182, height: 50, title: "T", bars });
+    const valueLabels = text.mock.calls.filter((call) => /^V\d+$/.test(String(call[0])));
+    expect(valueLabels).toHaveLength(30);
+    for (const call of valueLabels) expect(call[3]).toMatchObject({ angle: 90 });
+  });
+
+  it("keeps value labels upright when the bars are wide", () => {
+    const { doc, text } = spyDoc();
+    const bars = Array.from({ length: 7 }, (_, i) => ({ label: `D${i}`, value: i + 1, valueLabel: `V${i}` }));
+    drawBarChart(doc, { x: 0, y: 0, width: 182, height: 50, title: "T", bars });
+    const valueLabels = text.mock.calls.filter((call) => /^V\d+$/.test(String(call[0])));
+    expect(valueLabels).toHaveLength(7);
+    for (const call of valueLabels) expect(call[3]).not.toHaveProperty("angle");
+  });
 });
 
 describe("drawHorizontalBarChart", () => {

@@ -1,58 +1,27 @@
 import { z } from "zod";
+import { emailSchema } from "./fields";
 
 /**
- * Employee login (SAS1). One schema shared by Staff, Business Owner and
- * Rider.
+ * Employee login (SAS1). One schema shared by Manager, Staff and Rider.
  *
- * Separate from `login.ts` because the identifier genuinely accepts two
- * shapes here — a staff ID or a work email. Customer login narrowed to email
- * alone on 2026-09-02; that narrowing is specific to customers and does not
- * apply to this screen.
- *
- * DESIGNER: the frames show exactly one staff ID, "YFR-0142", and build their
- * error state from "YFR-9". The prefix and the four-digit body below are
- * inferred from that single example. Confirm the real format before this
- * reaches an employee — a rider with a five-digit ID would be locked out.
+ * Email only. The design once showed a "YFR-0142" style ID, but there is no
+ * column to look it up, so it was dropped (issue #106, P39).
  */
-const staffIdPattern = /^YFR-\d{4}$/i;
-
 export const employeeLoginSchema = z.object({
-  identifier: z.string().trim().superRefine((value, ctx) => {
-    const trimmed = value.trim();
-
-    if (!trimmed) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Enter your staff ID or work email.",
-      });
-      return;
-    }
-
-    if (trimmed.includes("@")) {
-      if (!z.string().email().safeParse(trimmed).success) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Enter a valid email address.",
-        });
+  identifier: z
+    .string()
+    .trim()
+    .superRefine((value, ctx) => {
+      if (!value.includes("@")) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Enter your work email." });
+        return;
       }
-      return;
-    }
 
-    if (/^YFR-/i.test(trimmed)) {
-      if (!staffIdPattern.test(trimmed)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Enter your full staff ID.",
-        });
+      const email = emailSchema.safeParse(value);
+      if (!email.success) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: email.error.issues[0].message });
       }
-      return;
-    }
-
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Enter your staff ID or work email.",
-    });
-  }),
+    }),
   password: z.string().min(8, "Password must be at least 8 characters."),
 });
 

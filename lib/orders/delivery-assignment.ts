@@ -1,8 +1,9 @@
 /**
  * Who may take a delivery, and who may hand it back.
  *
- * A rider can carry as many deliveries as they accept — nothing here limits
- * the count — and can release any one of them again until it is delivered, so
+ * A rider can carry up to `MAX_ACTIVE_DELIVERIES` at once (P48 — so one
+ * rider cannot hoard the queue), and can release any one of them again until
+ * it is delivered, so
  * an accidental tap is undone rather than stranding an order with a rider who
  * isn't going to take it. A released delivery becomes unassigned, which puts
  * it straight back in front of every other rider.
@@ -41,7 +42,8 @@ export function isAssignedTo(assignment: DeliveryAssignment, riderId: string): b
 
 /**
  * Free to accept: still unassigned and not finished. A rider already carrying
- * other deliveries is not blocked — taking several at once is the point.
+ * other deliveries is not blocked — taking several at once is the point —
+ * until they reach the cap below.
  */
 export function canAcceptDelivery(assignment: DeliveryAssignment): boolean {
   return isDeliveryUnassigned(assignment) && !isDeliveryFinished(assignment);
@@ -76,3 +78,16 @@ export function releaseRefusalReason(
 
 /** What a released delivery goes back to: unassigned and waiting. */
 export const RELEASED_DELIVERY_STATUS = "pending";
+
+/**
+ * How many unfinished deliveries one rider may hold at once (P48). Stops one
+ * rider accepting the whole queue and leaving the others with nothing.
+ */
+export const MAX_ACTIVE_DELIVERIES = 10;
+
+/** Already holding the maximum, so Accept is refused until one is finished. */
+export function isAtDeliveryCap(activeCount: number): boolean {
+  return activeCount >= MAX_ACTIVE_DELIVERIES;
+}
+
+export const DELIVERY_CAP_MESSAGE = `You already have ${MAX_ACTIVE_DELIVERIES} active deliveries. Finish or hand one back before accepting another.`;

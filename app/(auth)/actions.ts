@@ -228,9 +228,9 @@ export async function registerCustomer(
  * the opposite of what the generic wrong-password message a few lines down
  * is for (issue #106).
  *
- * Staff who land here by mistake are not left stranded: /login carries a
- * standing "Employee sign-in" link that is shown to everyone and so reveals
- * nothing about any particular address.
+ * /login carries no link to /employee/login either (P29): a customer should
+ * not learn that a separate staff door exists. Employees are given that URL
+ * directly.
  */
 const CUSTOMER_ONLY_MESSAGE = "Incorrect email or password.";
 
@@ -439,7 +439,7 @@ const EMPLOYEE_ROLE_REDIRECTS: Record<string, string> = {
 const DEFAULT_EMPLOYEE_REDIRECT = "/manage/dashboard";
 
 /**
- * SAS1: authenticate an employee (Staff, Business Owner, or Rider).
+ * SAS1: authenticate an employee (Manager, Staff or Rider).
  *
  * Mirrors the customer login pattern per PM direction — employees get
  * their own Supabase Auth accounts, linked via employee.employee_id =
@@ -450,13 +450,6 @@ const DEFAULT_EMPLOYEE_REDIRECT = "/manage/dashboard";
  * AND `npm run supabase:types` is re-run, this will show real TypeScript
  * errors on the .from("employee") calls below. That's expected this
  * time — not the earlier never[] bug.
- *
- * Staff-ID sign-in (e.g. "YFR-0142") is validated client-side by
- * employeeLoginSchema but not wired here — there's no staff_id column on
- * employee, and unlike email, the PM hasn't confirmed one's coming.
- * Guessing at that lookup would either error or, worse, silently match
- * the wrong person, so staff-ID attempts get turned away with a clear
- * message instead.
  */
 export async function loginEmployee(
   values: EmployeeLoginValues

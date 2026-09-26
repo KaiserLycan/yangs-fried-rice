@@ -147,6 +147,9 @@ export function OrderPlacedScreen({
           methodLabel={order.paymentMethodLabel}
           initialStatus={order.paymentStatus}
           wallet={wallet}
+          // An order held at `awaiting_payment` is a wallet order even when
+          // its transaction row could not be read.
+          isWalletOrder={order.isWalletOrder || !canTrack}
           startFailed={startFailed}
         />
 

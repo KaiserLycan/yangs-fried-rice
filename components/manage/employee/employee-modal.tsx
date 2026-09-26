@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { Camera, ChevronDown, ChevronRight, Eye, EyeOff } from "lucide-react";
 import { compressImage } from "@/lib/image/compress";
+import { ALLOWED_IMAGE_TYPES, imageUploadProblem } from "@/lib/storage/stored-image";
 import { roleDisplayLabel } from "@/lib/auth/roles";
 import { getEmployeeForEdit } from "@/lib/actions/admin";
 import {
@@ -265,6 +266,12 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    // Checked on the original, before compressing (P31).
+    const problem = imageUploadProblem(file);
+    if (problem) {
+      setPhotoError(problem);
+      return;
+    }
     try {
       const compressed = await compressImage(file, 400);
       setPhotoFile(compressed);

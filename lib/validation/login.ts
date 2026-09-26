@@ -6,8 +6,7 @@ import { emailSchema, passwordSchema } from "./fields";
  *
  * Mobile was dropped as an accepted identifier on 2026-09-02 — the business
  * has no mobile login, so the field narrowed from "email or mobile" to
- * "email" in the design. Employee login is unaffected; it genuinely accepts
- * either a staff ID or a work email.
+ * "email" in the design.
  *
  * Messages are taken verbatim from the error frames rather than written
  * fresh, so the rendered errors match the design exactly.

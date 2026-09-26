@@ -119,7 +119,7 @@ export function OrderDetailModal({ order, isOpen, onClose, onAction }: OrderDeta
               </div>
               {order.orderInfo.specialInstructions && (
                 <div className="flex flex-col gap-1 mt-1">
-                  <span className="font-bold text-gray-900">Special Instructions:</span>
+                  <span className="font-bold text-gray-900">Order note:</span>
                   <span className="text-gray-800 leading-relaxed">
                     {order.orderInfo.specialInstructions}
                   </span>
@@ -136,11 +136,23 @@ export function OrderDetailModal({ order, isOpen, onClose, onAction }: OrderDeta
               Order Items
             </h4>
             <div className="flex flex-col gap-3 text-[15px]">
+              {/* Every line's own add-ons and note, under that line — the
+                  modal used to show one line's note as the order's (P30). */}
               {order.items.map((item, index) => (
-                <div key={index} className="flex justify-between items-start gap-4">
-                  <span className="font-bold text-gray-900 shrink-0">{item.quantity}x</span>
-                  <span className="flex-1 font-semibold text-gray-900">{item.name}</span>
-                  <span className="shrink-0 text-gray-800">₱{item.price.toFixed(2)}</span>
+                <div key={index} className="flex flex-col gap-1">
+                  <div className="flex justify-between items-start gap-4">
+                    <span className="font-bold text-gray-900 shrink-0">{item.quantity}x</span>
+                    <span className="flex-1 font-semibold text-gray-900">{item.name}</span>
+                    <span className="shrink-0 text-gray-800">₱{item.price.toFixed(2)}</span>
+                  </div>
+                  {item.addons && (
+                    <span className="pl-7 text-[13px] italic text-[#C73926]">+ {item.addons}</span>
+                  )}
+                  {item.instructions && (
+                    <span className="pl-7 text-[13px] text-gray-800">
+                      <span className="font-bold">Note:</span> {item.instructions}
+                    </span>
+                  )}
                 </div>
               ))}
               

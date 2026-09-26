@@ -41,6 +41,7 @@ const profile: CustomerProfile = {
   memberSince: null,
   orderCount: 0,
   deliverToAddress: "21 Mabini St, Malolos, Bulacan",
+  deliverToNote: null,
   addresses: [
     {
       id: "addr-1",

@@ -71,8 +71,13 @@ export function AcceptDeliveryModal({ isOpen, onClose, onDecline, delivery }: Ac
         {/* Address & Contact */}
         <div className="flex flex-col gap-2 mb-[20px]">
           <p className="text-[14px] text-[#1A1210] leading-snug">
-            {delivery.address} {delivery.notes ? `, ${delivery.notes}` : ""}
+            {delivery.address}
           </p>
+          {delivery.notes && (
+            <p className="text-[14px] text-[#1A1210]">
+              <span className="font-bold">Delivery note:</span> {delivery.notes}
+            </p>
+          )}
           <p className="text-[14px] text-[#1A1210]">
             {delivery.phone}
           </p>

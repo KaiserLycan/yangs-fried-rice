@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { TrackOrderScreen } from "@/components/orders/track-order-screen";
 import { ToastProvider } from "@/components/ui/toast";
-import type { TrackedOrder } from "@/lib/orders/read-tracked-order";
+import type {
+  AssignedRider,
+  TrackedOrder,
+} from "@/lib/orders/read-tracked-order";
 
 /**
  * `TrackOrderScreen`'s populated state has no honest way to reach a real
@@ -25,10 +28,21 @@ type Handler = (payload: { new?: Record<string, unknown> }) => void;
 let handlers: { table: string; handler: Handler }[] = [];
 let channelsRemoved = 0;
 
-// The cancel control reaches for the router and the write; neither is
-// exercised here — `cancel-order-control.test.tsx` covers the press.
+// The cancel control reaches for the router and the write; the press itself
+// is covered in `cancel-order-control.test.tsx`. `refresh` is shared so the
+// rider cases below can see the screen ask the page to re-read.
+const routerRefresh = vi.fn();
+const router = { push: vi.fn(), refresh: routerRefresh };
+// One object, as Next's real `useRouter` returns — a fresh one per render
+// would reopen the screen's channel on every render.
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => router,
+}));
+
+// The live map is Leaflet, which needs a real browser (ResizeObserver, a
+// laid-out container). Nothing here is about the map, so it is stubbed.
+vi.mock("@/components/deliver/delivery-map", () => ({
+  DeliveryMap: () => <div data-testid="delivery-map" />,
 }));
 
 vi.mock("@/lib/actions/cart", () => ({
@@ -91,11 +105,20 @@ function trackedOrder(over: Partial<TrackedOrder> = {}): TrackedOrder {
     arrivalWindow: "35–45 min",
     destination: "21 Mabini St",
     destinationCoordinates: null,
-    riderName: null,
+    rider: null,
     items: [],
+    rating: null,
     ...over,
   };
 }
+
+const leo: AssignedRider = {
+  riderId: "rider-1",
+  name: "Leo Torres",
+  photoUrl: null,
+  vehicle: "Honda Click 125",
+  plate: "ABC 1234",
+};
 
 /**
  * The screen renders the cancel control, whose toast throws rather than
@@ -118,6 +141,7 @@ beforeEach(() => {
   channelsRemoved = 0;
   getOrderEtaAction.mockReset();
   getOrderEtaAction.mockResolvedValue(etaOf("20–30 mins"));
+  routerRefresh.mockReset();
 });
 
 describe("TrackOrderScreen", () => {
@@ -192,6 +216,40 @@ describe("TrackOrderScreen", () => {
     });
 
     expect(stageStates()).toEqual(["—", "—", "—", "—"]);
+  });
+
+  it("tells the customer when the kitchen cancels, even with no reason (P28)", () => {
+    renderScreen(trackedOrder());
+
+    // The kitchen's cancel writes a timestamp and no reason.
+    emit("order", {
+      order_status: "cancelled",
+      cancelled_at: "2026-09-13T02:00:00Z",
+      cancellation_reason: null,
+    });
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "The restaurant cancelled this order.",
+    );
+    // A cancelled order is not arriving, so no arrival line either.
+    expect(screen.queryByText(/Arriving/)).not.toBeInTheDocument();
+  });
+
+  it("offers one order rating once delivered, and none once rated (P35, P37)", () => {
+    const delivered = trackedOrder({
+      orderStatus: "completed",
+      deliveryStatus: "delivered",
+    });
+    const { rerender } = renderScreen(delivered);
+    expect(
+      screen.getByRole("button", { name: /Rate order/ }),
+    ).toBeInTheDocument();
+
+    rerender(<TrackOrderScreen order={{ ...delivered, rating: 4 }} />);
+    expect(
+      screen.queryByRole("button", { name: /Rate order/ }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Rated 4 out of 5")).toBeInTheDocument();
   });
 
   it("offers the cancel control only while the kitchen has not confirmed", () => {
@@ -316,5 +374,110 @@ describe("TrackOrderScreen", () => {
     unmount();
 
     expect(channelsRemoved).toBe(1);
+  });
+
+  describe("assigned rider", () => {
+    it("shows the rider's name, vehicle and plate once one has accepted", () => {
+      renderScreen(trackedOrder({ orderStatus: "preparing", rider: leo }));
+
+      const card = screen.getByRole("region", { name: "Your rider" });
+      expect(card).toHaveTextContent("Leo Torres");
+      expect(card).toHaveTextContent("Honda Click 125 · ABC 1234");
+    });
+
+    it("says no rider is assigned yet before one accepts", () => {
+      renderScreen(trackedOrder());
+
+      expect(
+        screen.getByRole("region", { name: "Your rider" }),
+      ).toHaveTextContent("Rider not assigned yet");
+    });
+
+    it("draws initials when the rider has no photo, and the photo when they do", () => {
+      const { rerender } = renderScreen(
+        trackedOrder({ rider: leo }),
+      );
+      const card = screen.getByRole("region", { name: "Your rider" });
+      expect(card).toHaveTextContent("LT");
+      expect(card.querySelector("img")).toBeNull();
+
+      rerender(
+        <TrackOrderScreen
+          order={trackedOrder({
+            rider: { ...leo, photoUrl: "https://x.supabase.co/leo.jpg" },
+          })}
+        />,
+      );
+      expect(
+        screen.getByRole("region", { name: "Your rider" }).querySelector("img"),
+      ).toHaveAttribute("src", "https://x.supabase.co/leo.jpg");
+    });
+
+    it("leaves the vehicle line out when nothing is known about the vehicle", () => {
+      renderScreen(
+        trackedOrder({ rider: { ...leo, vehicle: null, plate: null } }),
+      );
+
+      const card = screen.getByRole("region", { name: "Your rider" });
+      expect(card).toHaveTextContent("Leo Torres");
+      expect(card).not.toHaveTextContent("·");
+    });
+
+    it("does not show the card for an order nobody will deliver", () => {
+      const { rerender } = renderScreen(trackedOrder({ orderType: "take_out" }));
+      expect(
+        screen.queryByRole("region", { name: "Your rider" }),
+      ).not.toBeInTheDocument();
+
+      rerender(<TrackOrderScreen order={trackedOrder({ orderType: "dine_in" })} />);
+      expect(
+        screen.queryByRole("region", { name: "Your rider" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("still shows an assigned rider whose details could not be read", () => {
+      // rider_id is set but the employee row was unreadable: the delivery is
+      // assigned, so "not assigned yet" would be false.
+      renderScreen(
+        trackedOrder({
+          rider: { ...leo, name: null, vehicle: null, plate: null },
+        }),
+      );
+
+      const card = screen.getByRole("region", { name: "Your rider" });
+      expect(card).not.toHaveTextContent("Rider not assigned yet");
+      expect(card).toHaveTextContent("Your rider");
+    });
+
+    it("hides the empty card once the order is cancelled", () => {
+      renderScreen(
+        trackedOrder({
+          orderStatus: "cancelled",
+          cancelledAt: "2026-09-13T02:00:00Z",
+        }),
+      );
+
+      expect(
+        screen.queryByRole("region", { name: "Your rider" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("asks the page to re-read when a rider accepts over the subscription", () => {
+      renderScreen(trackedOrder({ orderStatus: "preparing" }));
+
+      // The rider's name, photo and vehicle live on other tables, so the
+      // delivery event alone cannot fill the card — the page re-reads.
+      emit("delivery", { delivery_status: "delivering", rider_id: "rider-1" });
+
+      expect(routerRefresh).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not re-read on a delivery event that changes nothing about the rider", () => {
+      renderScreen(trackedOrder({ orderStatus: "preparing", rider: leo }));
+
+      emit("delivery", { delivery_status: "delivered", rider_id: "rider-1" });
+
+      expect(routerRefresh).not.toHaveBeenCalled();
+    });
   });
 });

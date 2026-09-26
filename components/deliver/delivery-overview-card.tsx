@@ -8,9 +8,12 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
+import { Tooltip } from "@/components/ui/tooltip";
 
 export type DeliveryData = {
   id: string;
+  /** The order's short reference — what staff and the customer see. */
+  orderNumber: string;
   customer: string;
   address: string;
   phone: string;
@@ -20,6 +23,11 @@ export type DeliveryData = {
   status: "ready" | "delivering" | "completed";
   items: { qty: number; name: string }[];
   createdAt: string;
+  /** Another rider holds this one — their name. The card then shows who
+   *  took it and offers no actions (P46). */
+  takenBy?: string | null;
+  /** Why Accept is unavailable, e.g. the rider is at the cap (P48). */
+  acceptBlockedReason?: string | null;
 };
 
 interface DeliveryOverviewCardProps {
@@ -33,8 +41,9 @@ export function DeliveryOverviewCard({ delivery, isActive }: DeliveryOverviewCar
   const [isPending, startTransition] = useTransition();
   const [confirmRelease, setConfirmRelease] = useState(false);
 
-  const isReady = delivery.status === "ready";
-  const isDelivering = delivery.status === "delivering";
+  const isTakenByOther = Boolean(delivery.takenBy);
+  const isReady = delivery.status === "ready" && !isTakenByOther;
+  const isDelivering = delivery.status === "delivering" && !isTakenByOther;
   const isCompleted = delivery.status === "completed";
 
   const itemCount = delivery.items.reduce((sum, item) => sum + item.qty, 0);
@@ -79,14 +88,14 @@ export function DeliveryOverviewCard({ delivery, isActive }: DeliveryOverviewCar
     <div className={cn(
       "w-full bg-[#FFFCF6] rounded-[16px] p-[20px] transition-colors border",
       isActive ? "border-[#1A1210]" : "border-[#1A1210]/20 hover:border-[#1A1210]/50",
-      delivery.status === "completed" && "opacity-60"
+      (isCompleted || isTakenByOther) && "opacity-60"
     )}>
       {/* Header */}
       <div className="flex items-start justify-between mb-[16px]">
         <div>
           <p className="text-[10px] text-[#7A6A60] font-bold tracking-widest uppercase mb-1">ORDER</p>
           <h3 className="font-display text-[22px] text-[#1A1210] leading-none">
-            #{delivery.id.split('-')[0]}
+            #{delivery.orderNumber}
           </h3>
         </div>
         <div className="text-right">
@@ -100,11 +109,19 @@ export function DeliveryOverviewCard({ delivery, isActive }: DeliveryOverviewCar
       {/* Details */}
       <div className="mb-[16px] flex flex-col gap-2">
         <p className="text-[14px] text-[#1A1210] leading-snug">
-          {delivery.address} {delivery.notes}
+          {delivery.address}
         </p>
-        <p className="text-[14px] text-[#1A1210]">
-          {delivery.phone}
-        </p>
+        {delivery.notes && (
+          <p className="text-[13px] text-[#1A1210]">
+            <span className="font-bold">Delivery note:</span> {delivery.notes}
+          </p>
+        )}
+        {/* A colleague's customer: no reason to show their number. */}
+        {!isTakenByOther && (
+          <p className="text-[14px] text-[#1A1210]">
+            {delivery.phone}
+          </p>
+        )}
         <p className="text-[12px] text-[#7A6A60] mt-1">
           {itemCount} items · {delivery.paymentMethod === "cash_on_delivery" ? "COD" : delivery.paymentMethod === "paymongo" ? "Paid Online" : delivery.paymentMethod} · {delivery.total ? `₱${Number(delivery.total).toFixed(2)}` : "Paid"}
         </p>
@@ -113,18 +130,32 @@ export function DeliveryOverviewCard({ delivery, isActive }: DeliveryOverviewCar
             ● Accepted by you
           </p>
         )}
+        {isTakenByOther && (
+          <p className="text-[12px] text-[#7A6A60] mt-1 font-bold">
+            ● Taken by {delivery.takenBy}
+          </p>
+        )}
       </div>
 
       {/* Footer Actions */}
       <div className="pt-2">
-        {isReady ? (
-          <Button 
-            className="w-full py-5 rounded-[12px] bg-[#E8541F] hover:bg-[#d44919] text-white"
-            onClick={handleAcceptClick}
-            disabled={isPending}
-          >
-            {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : "Accept"}
+        {isTakenByOther ? (
+          <Button className="w-full py-5 rounded-[12px] bg-[#E3E8E1] text-[#7A6A60]" disabled>
+            Taken
           </Button>
+        ) : isReady ? (
+          <Tooltip
+            content={delivery.acceptBlockedReason ?? "Take this delivery"}
+            className="w-full"
+          >
+            <Button 
+              className="w-full py-5 rounded-[12px] bg-[#E8541F] hover:bg-[#d44919] text-white"
+              onClick={handleAcceptClick}
+              disabled={isPending || Boolean(delivery.acceptBlockedReason)}
+            >
+              {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : "Accept"}
+            </Button>
+          </Tooltip>
         ) : isDelivering ? (
           <div className="flex flex-col gap-2">
             <Button 

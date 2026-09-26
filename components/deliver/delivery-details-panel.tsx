@@ -97,7 +97,7 @@ export function DeliveryDetailsPanel({ delivery }: { delivery: any }) {
               {delivery.notes && (
                 <div className="bg-[#FAF5EB] p-4 rounded-[12px]">
                   <p className="text-[12px] font-bold text-[#7A6A60] uppercase tracking-widest mb-1">
-                    Instructions
+                    Delivery note
                   </p>
                   <p className="text-[14px] text-[#1A1210] italic">
                     &quot;{delivery.notes}&quot;

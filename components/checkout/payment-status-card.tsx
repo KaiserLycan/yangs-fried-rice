@@ -54,11 +54,16 @@ export function PaymentStatusCard({
   methodLabel,
   initialStatus,
   wallet,
+  isWalletOrder,
   startFailed = false,
 }: {
   orderId: string;
   methodLabel: string;
   initialStatus: PaymentStatus | null;
+  /** Decided on the server from the order and its transaction row. A cash
+   * on delivery or pay in store order also has a `pending` row, so the
+   * row's status alone cannot say whether this is a wallet order (P41). */
+  isWalletOrder: boolean;
   /** The wallet named in the URL, when the customer came here from one. */
   wallet: WalletProvider | null;
   /** Checkout could not open the wallet page — the toast it raised is gone
@@ -224,8 +229,9 @@ export function PaymentStatusCard({
   // while a pending payment is still fresh enough to be settling. Known
   // from the URL: just that one. A pending or failed row with no wallet in
   // the URL (the customer reopened the receipt later): offer both, since
-  // the row does not say which.
-  const isOnlineOrder = wallet !== null || status !== null;
+  // the row does not say which. A cash order's row is `pending` too, so the
+  // row existing is not evidence of a wallet payment (P41).
+  const isOnlineOrder = wallet !== null || isWalletOrder;
   const canPay =
     isOnlineOrder &&
     (status === null ||
@@ -296,6 +302,9 @@ function note(
     case "refunded":
       return "This payment was refunded.";
     case "pending":
+      if (!isOnlineOrder) {
+        return "Nothing has been taken yet — settle up when your order reaches you.";
+      }
       return stalePending
         ? "Still waiting for your wallet to confirm. If you closed the wallet page, pay now to finish."
         : "Waiting for your wallet to confirm the payment…";

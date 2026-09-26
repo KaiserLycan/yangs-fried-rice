@@ -11,7 +11,6 @@ import { PasswordCard } from "@/components/profile/password-card";
 import { PersonalDetailsCard } from "@/components/profile/personal-details-card";
 import { ProfileAvatarCard } from "@/components/profile/profile-avatar-card";
 import { ProfileHeader } from "@/components/profile/profile-header";
-import { ProfileSidebar } from "@/components/profile/profile-sidebar";
 import { ProfileSummaryCard } from "@/components/profile/profile-summary-card";
 import { ToastProvider } from "@/components/ui/toast";
 import { readCustomerProfile } from "@/lib/profile/customer-profile";
@@ -50,7 +49,9 @@ export default async function ProfilePage() {
         <ProfileHeader profile={profile} />
 
         <div className="flex flex-1">
-          <ProfileSidebar profile={profile} />
+          {/* No left rail (P32): the team agreed it added nothing — the page
+              is short enough to scroll, and the summary card already says
+              who is signed in. */}
 
           <main
             id="profile"

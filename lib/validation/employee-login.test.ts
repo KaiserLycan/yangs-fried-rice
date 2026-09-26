@@ -14,24 +14,6 @@ function errorFor(
 }
 
 describe("employeeLoginSchema", () => {
-  it("accepts the staff ID shown in the design", () => {
-    const result = employeeLoginSchema.safeParse({
-      identifier: "YFR-0142",
-      password: VALID_PASSWORD,
-    });
-
-    expect(result.success).toBe(true);
-  });
-
-  it("accepts a lower-case staff ID", () => {
-    const result = employeeLoginSchema.safeParse({
-      identifier: "yfr-0142",
-      password: VALID_PASSWORD,
-    });
-
-    expect(result.success).toBe(true);
-  });
-
   it("accepts a work email", () => {
     const result = employeeLoginSchema.safeParse({
       identifier: "rosa@yangs.ph",
@@ -43,29 +25,18 @@ describe("employeeLoginSchema", () => {
 
   it("trims surrounding whitespace before deciding", () => {
     const result = employeeLoginSchema.safeParse({
-      identifier: "  YFR-0142  ",
+      identifier: "  rosa@yangs.ph  ",
       password: VALID_PASSWORD,
     });
 
     expect(result.success).toBe(true);
   });
 
-  // The exact value the error frame illustrates: a staff ID cut short.
-  it("rejects the truncated staff ID shown in the error frame", () => {
+  // The old "YFR-0142" style ID was never wired to a lookup (P39).
+  it("rejects an old YFR-style ID with the email message", () => {
     expect(
-      errorFor({ identifier: "YFR-9", password: VALID_PASSWORD }, "identifier"),
-    ).toBe("Enter your full staff ID.");
-  });
-
-  // Anything opening with the prefix is read as a staff ID attempt, so it
-  // gets the staff ID message rather than the generic one.
-  it("treats too many digits as an incomplete staff ID, not an unknown shape", () => {
-    expect(
-      errorFor(
-        { identifier: "YFR-01423", password: VALID_PASSWORD },
-        "identifier",
-      ),
-    ).toBe("Enter your full staff ID.");
+      errorFor({ identifier: "YFR-0142", password: VALID_PASSWORD }, "identifier"),
+    ).toBe("Enter your work email.");
   });
 
   it("rejects a malformed work email with the email message", () => {
@@ -77,38 +48,27 @@ describe("employeeLoginSchema", () => {
     ).toBe("Enter a valid email address.");
   });
 
-  it("rejects an identifier resembling neither shape", () => {
+  it("rejects an identifier that is not an email", () => {
     expect(
       errorFor({ identifier: "rosa", password: VALID_PASSWORD }, "identifier"),
-    ).toBe("Enter your staff ID or work email.");
+    ).toBe("Enter your work email.");
   });
 
   it("rejects an empty identifier", () => {
     expect(
       errorFor({ identifier: "", password: VALID_PASSWORD }, "identifier"),
-    ).toBe("Enter your staff ID or work email.");
-  });
-
-  // The customer screen narrowed to email on 2026-09-02. This screen did not,
-  // and this test is what stops that narrowing leaking across.
-  it("still accepts a staff ID, which customer login would reject", () => {
-    const result = employeeLoginSchema.safeParse({
-      identifier: "YFR-0142",
-      password: VALID_PASSWORD,
-    });
-
-    expect(result.success).toBe(true);
+    ).toBe("Enter your work email.");
   });
 
   it("rejects a password shorter than eight characters", () => {
     expect(
-      errorFor({ identifier: "YFR-0142", password: "short" }, "password"),
+      errorFor({ identifier: "rosa@yangs.ph", password: "short" }, "password"),
     ).toBe("Password must be at least 8 characters.");
   });
 
   it("reports both fields when both are wrong", () => {
     const result = employeeLoginSchema.safeParse({
-      identifier: "YFR-9",
+      identifier: "rosa",
       password: "x",
     });
 
