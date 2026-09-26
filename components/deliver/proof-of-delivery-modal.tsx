@@ -8,6 +8,7 @@ import { compressImage } from "@/lib/image/compress";
 import { useRouter } from "next/navigation";
 import { markDelivered } from "@/lib/actions/delivery";
 import { formatOrderNumber } from "@/lib/orders/order-number";
+import { ALLOWED_IMAGE_TYPES, imageUploadProblem } from "@/lib/storage/stored-image";
 
 interface ProofOfDeliveryModalProps {
   isOpen: boolean;
@@ -66,6 +67,15 @@ export function ProofOfDeliveryModal({
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Checked on the original, before compressing (P51, same as P31):
+      // compression shrinks a large photo under the limit, so the server's
+      // 5MB check alone would never refuse it.
+      const problem = imageUploadProblem(file);
+      if (problem) {
+        setError(problem);
+        e.target.value = "";
+        return;
+      }
       try {
         const compressed = await compressImage(file, 800);
         setProofPreview(URL.createObjectURL(compressed));
@@ -179,7 +189,7 @@ export function ProofOfDeliveryModal({
                     type="file"
                     ref={fileInputRef}
                     onChange={handleFileChange}
-                    accept="image/*"
+                    accept={ALLOWED_IMAGE_TYPES.join(",")}
                     capture="environment"
                     className="hidden"
                   />
@@ -190,6 +200,7 @@ export function ProofOfDeliveryModal({
                     <div className="flex flex-col items-center text-[#A2938A] group-hover:text-[#E8541F] transition-colors">
                       <Camera className="w-10 h-10 mb-3" />
                       <span className="font-bold tracking-widest text-[13px] uppercase">Take Photo</span>
+                      <span className="mt-1 text-[12px]">JPEG, PNG or WebP · under 5MB</span>
                     </div>
                   )}
                 </div>
