@@ -42,6 +42,7 @@ export function OrderSummaryCard({
   customerName,
   placedAtLabel,
   address,
+  deliveryNote,
   cartId,
   fulfilment,
   lines,
@@ -52,6 +53,8 @@ export function OrderSummaryCard({
   customerName: string;
   placedAtLabel: string;
   address: string | null;
+  /** The saved address's note for the rider — stored on the order (P33). */
+  deliveryNote?: string | null;
   cartId: string;
   fulfilment: Fulfilment;
   lines: CartLine[];
@@ -168,6 +171,8 @@ export function OrderSummaryCard({
             order_type: orderTypeFor(fulfilment),
             delivery_fee: totals.deliveryFee,
             delivery_address: address ?? undefined,
+            special_instructions:
+              fulfilment === "delivery" && deliveryNote ? deliveryNote : undefined,
             // Decides whether the order is cookable on arrival. A wallet
             // order is held at `awaiting_payment` until PayMongo confirms,
             // so the kitchen never sees a payment that was abandoned or

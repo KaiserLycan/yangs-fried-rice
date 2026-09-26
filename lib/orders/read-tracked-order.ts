@@ -45,6 +45,11 @@ export type TrackedOrder = {
   destinationCoordinates: { lat: number; lng: number } | null;
   riderName: string | null;
   items: { productId: string; name: string }[];
+  /**
+   * The order-level `review.rating`, or null when the customer has not rated
+   * the order. Read so a rated order stops asking to be rated (P35, P37).
+   */
+  rating: number | null;
 };
 
 /**
@@ -87,12 +92,21 @@ export async function readTrackedOrder(
     .eq("order_id", order.order_id)
     .maybeSingle();
 
-  const [riderName, orderItems] = await Promise.all([
+  const [riderName, orderItems, review] = await Promise.all([
     readRiderName(supabase, delivery?.rider_id ?? null),
     supabase
       .from("order_item")
       .select("product_id, product_name, product(product_name)")
       .eq("order_id", order.order_id)
+      .then((res) => res.data),
+    // Order-level only: a per-item row (product_id set) is not a rating of
+    // the order.
+    supabase
+      .from("review")
+      .select("rating")
+      .eq("order_id", order.order_id)
+      .is("product_id", null)
+      .maybeSingle()
       .then((res) => res.data),
   ]);
 
@@ -118,6 +132,7 @@ export async function readTrackedOrder(
           : item.product?.product_name,
       ),
     })),
+    rating: review?.rating ?? null,
   };
 }
 

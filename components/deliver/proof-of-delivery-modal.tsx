@@ -20,6 +20,8 @@ interface ProofOfDeliveryModalProps {
     customer?: string;
     address?: string;
     phone?: string;
+    /** The customer's delivery note (P33). */
+    notes?: string;
     paymentMethod?: string;
     total?: number | string;
     items?: { qty: number; name: string }[];
@@ -249,6 +251,11 @@ export function ProofOfDeliveryModal({
                   Delivery Address
                 </p>
                 <p className="text-[15px] text-[#1A1210] leading-snug">{deliverySummary?.address || "Address unavailable"}</p>
+                {deliverySummary?.notes && (
+                  <p className="text-[14px] text-[#1A1210] mt-2">
+                    <span className="font-bold">Delivery note:</span> {deliverySummary.notes}
+                  </p>
+                )}
               </div>
 
               {displayItems.length > 0 && (

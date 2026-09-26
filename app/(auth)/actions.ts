@@ -228,9 +228,9 @@ export async function registerCustomer(
  * the opposite of what the generic wrong-password message a few lines down
  * is for (issue #106).
  *
- * Staff who land here by mistake are not left stranded: /login carries a
- * standing "Employee sign-in" link that is shown to everyone and so reveals
- * nothing about any particular address.
+ * /login carries no link to /employee/login either (P29): a customer should
+ * not learn that a separate staff door exists. Employees are given that URL
+ * directly.
  */
 const CUSTOMER_ONLY_MESSAGE = "Incorrect email or password.";
 

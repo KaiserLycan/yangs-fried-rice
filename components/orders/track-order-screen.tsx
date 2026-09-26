@@ -10,6 +10,7 @@ import {
   arrivalWindowFrom,
 } from "@/lib/orders/arrival-window";
 import {
+  cancellationNoticeFor,
   fulfilmentOf,
   headlineFor,
   resolveOrderProgress,
@@ -20,7 +21,10 @@ import { Alert } from "@/components/ui/alert";
 import { CancelOrderControl } from "@/components/orders/cancel-order-control";
 import { LiveMapPanel } from "@/components/orders/live-map-panel";
 import { OrderTimeline } from "@/components/orders/order-timeline";
-import { ProductReviewControl } from "@/components/orders/product-review-control";
+import {
+  OrderRatingDisplay,
+  RateOrderButton,
+} from "@/components/orders/order-rating";
 
 /**
  * The tracking screen. Desktop (`133:1164`) is two columns — header, timeline
@@ -195,8 +199,11 @@ export function TrackOrderScreen({
 
   // While a fresh estimate is on its way the old one stays up rather than
   // flashing the fallback; only a screen with nothing yet says it is working.
+  // A cancelled order is not arriving at all (P28).
   const arrival =
-    etaPending && arrivalWindow === null
+    progress.kind === "cancelled"
+      ? null
+      : etaPending && arrivalWindow === null
       ? "Updating arrival time…"
       : arrivalLineFor(arrivalWindow);
   const destination = order.destination
@@ -235,10 +242,13 @@ export function TrackOrderScreen({
             {subline}
           </p>
 
-          {progress.kind === "cancelled" && status.cancellationReason && (
+          {/* Shown for every cancellation, not only one with a reason: the
+              kitchen's cancel writes none, and the customer was left with a
+              bare headline (P28). */}
+          {progress.kind === "cancelled" && (
             <div className="mt-4">
               <Alert className="bg-destructive/10 border-destructive/20 text-destructive md:text-destructive md:bg-error-surface md:border-error-border">
-                {status.cancellationReason}
+                {cancellationNoticeFor(status.cancellationReason)}
               </Alert>
             </div>
           )}
@@ -267,9 +277,32 @@ export function TrackOrderScreen({
               progress={progress}
             />
           </div>
+          {/* One rating for the whole order, and none offered once given
+              (P35, P37). The per-item modal that was here asked again after
+              every rating and had a Submit per dish. */}
           {progress.kind === "stage" && progress.stage === "delivered" && (
-            <div className="w-full pt-[6px] md:pt-4 border-t border-rule mt-4">
-              <ProductReviewControl order={order} />
+            <div className="mt-4 flex w-full items-center justify-between gap-[12px] border-t border-rule pt-[14px]">
+              {order.rating !== null ? (
+                <>
+                  <span className="text-[13px] font-bold text-muted-strong">
+                    You rated this order
+                  </span>
+                  <OrderRatingDisplay
+                    rating={order.rating}
+                    className="text-[18px] leading-none"
+                  />
+                </>
+              ) : (
+                <>
+                  <span className="text-[13px] font-bold text-muted-strong">
+                    How was your order?
+                  </span>
+                  <RateOrderButton
+                    orderId={orderId}
+                    orderNumber={order.orderNumber}
+                  />
+                </>
+              )}
             </div>
           )}
         </div>

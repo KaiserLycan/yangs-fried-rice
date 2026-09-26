@@ -45,6 +45,8 @@ type DeliveryDetail = {
     deliveryFee: number;
   } | null;
   items: { productName: string; quantity: number }[];
+  /** `order.special_instructions` — the delivery note from checkout (P33). */
+  deliveryNote: string | null;
 };
 
 function getProofFile(formData: FormData): File | null {
@@ -183,6 +185,7 @@ export async function getDeliveryDetailsBatch(deliveryIds: string[]) {
         created_at,
         delivery_address,
         delivery_fee,
+        special_instructions,
         customer:customer_id (
           name,
           phone_number
@@ -277,6 +280,7 @@ export async function getDeliveryDetailsBatch(deliveryIds: string[]) {
       customer,
       payment,
       items,
+      deliveryNote: orderRow?.special_instructions ?? null,
     };
   });
 
@@ -313,13 +317,16 @@ export async function getDeliveryDetail(deliveryId: string): Promise<{
   let payment: DeliveryDetail["payment"] = null;
   let items: { productName: string; quantity: number }[] = [];
   let createdAt: string | null = null;
+  let deliveryNote: string | null = null;
 
   if (delivery.order_id) {
     const { data: order } = await supabase
       .from("order")
-      .select("customer_id, delivery_address, created_at, delivery_fee")
+      .select("customer_id, delivery_address, created_at, delivery_fee, special_instructions")
       .eq("order_id", delivery.order_id)
       .single();
+
+    deliveryNote = order?.special_instructions ?? null;
 
     if (order?.created_at) {
       createdAt = order.created_at;
@@ -388,6 +395,7 @@ export async function getDeliveryDetail(deliveryId: string): Promise<{
       customer,
       payment,
       items,
+      deliveryNote,
     },
     error: null,
   };

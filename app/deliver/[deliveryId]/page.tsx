@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getDeliveryDetail } from "@/lib/actions/delivery";
+import { formatMobileNumber } from "@/lib/validation/phone";
 import { DeliveryDetailsClient } from "@/components/deliver/delivery-details-client";
 import { validateNcrAddress } from "@/lib/address/validate-ncr";
 
@@ -35,8 +36,8 @@ export default async function DeliveryDetailsPage({
     id: d.deliveryId,
     customer: d.customer?.name || "Walk-in Customer",
     address: d.customer?.address || "No address provided",
-    phone: d.customer?.phone || "No phone provided",
-    notes: "",
+    phone: formatMobileNumber(d.customer?.phone) || "No phone provided",
+    notes: d.deliveryNote ?? "",
     paymentMethod: d.payment?.method || "Standard",
     total: d.payment?.total || 0,
     status: cardStatus,

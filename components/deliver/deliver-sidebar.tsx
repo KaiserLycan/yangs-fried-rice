@@ -6,6 +6,7 @@ import { useState, useEffect, useMemo } from "react";
 import { DeliveryOverviewCard, type DeliveryData } from "./delivery-overview-card";
 import { DeliveryOverviewSkeleton } from "./delivery-overview-skeleton";
 import { getAssignedDeliveries, getDeliveryDetailsBatch } from "@/lib/actions/delivery";
+import { formatMobileNumber } from "@/lib/validation/phone";
 import { Loader2 } from "lucide-react";
 import { ManagePagination } from "@/components/manage/manage-pagination";
 
@@ -120,8 +121,8 @@ export function DeliverSidebar() {
             id: deliveryData.deliveryId,
             customer: deliveryData.customer?.name || "Walk-in Customer",
             address: deliveryData.customer?.address || "Address details protected",
-            phone: deliveryData.customer?.phone || "Contact via details",
-            notes: "",
+            phone: formatMobileNumber(deliveryData.customer?.phone) || "Contact via details",
+            notes: deliveryData.deliveryNote ?? "",
             paymentMethod: deliveryData.payment?.method || "Standard",
             total: deliveryData.payment?.total || 0,
             status: cardStatus,

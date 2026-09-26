@@ -50,6 +50,7 @@ const profile: CustomerProfile = {
   memberSince: null,
   orderCount: 0,
   deliverToAddress: "21 Mabini St, Malate, Manila",
+  deliverToNote: null,
   addresses: [
     {
       id: "addr-1",
@@ -302,6 +303,33 @@ describe("Checkout place order", () => {
     );
     await waitFor(() =>
       expect(push).toHaveBeenCalledWith("/checkout/confirmation?order=order-77"),
+    );
+  });
+
+  it("sends the saved address's delivery note with a delivery order (P33)", async () => {
+    vi.mocked(submitCart).mockResolvedValue({
+      data: {
+        order_id: "order-79",
+        order_status: "pending",
+        cart_id: "cart-1",
+        is_final: true,
+      },
+      error: null,
+    });
+    renderCheckout({
+      fulfilment: "delivery",
+      profile: { ...profile, deliverToNote: "Gate on the left, ring thrice" },
+    });
+
+    fireEvent.click(screen.getAllByRole("button", { name: /Place order/ })[0]);
+
+    await waitFor(() =>
+      expect(submitCart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          order_type: "delivery",
+          special_instructions: "Gate on the left, ring thrice",
+        }),
+      ),
     );
   });
 

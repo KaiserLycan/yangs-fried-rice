@@ -313,3 +313,20 @@ export function headlineFor(
     fulfilment === "pickup" ? PICKUP_STAGE_HEADLINES : STAGE_HEADLINES;
   return headlines[progress.stage];
 }
+
+/**
+ * The line a cancelled order shows its customer (P28). The kitchen's cancel
+ * writes no reason, so an empty reason means the restaurant did it — without
+ * this the customer saw only "ORDER CANCELLED" and no word on why.
+ */
+const CUSTOMER_CANCEL_REASON = "Customer requested cancellation";
+
+export function cancellationNoticeFor(reason: string | null): string {
+  const trimmed = reason?.trim();
+  // The reason `cancelOrderSchema` writes when the customer cancels.
+  if (trimmed === CUSTOMER_CANCEL_REASON) return "You cancelled this order.";
+  if (!trimmed) {
+    return "The restaurant cancelled this order. Sorry about that — you can place a new order from the menu.";
+  }
+  return `This order was cancelled. Reason: ${trimmed}`;
+}

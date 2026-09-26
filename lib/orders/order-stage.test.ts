@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   CANCELLED_HEADLINE,
   UNKNOWN_HEADLINE,
+  cancellationNoticeFor,
   headlineFor,
   fulfilmentOf,
   isCancellable,
@@ -326,5 +327,28 @@ describe("an unpaid order has no stage", () => {
     expect(
       headlineFor(resolveOrderProgress(input({ orderStatus: "awaiting_payment" }))),
     ).toBe("WAITING FOR PAYMENT");
+  });
+});
+
+describe("cancellationNoticeFor (P28)", () => {
+  it("says the restaurant cancelled when no reason was written", () => {
+    // The kitchen's cancel (`updateOrderStatus`) writes no reason.
+    expect(cancellationNoticeFor(null)).toBe(
+      "The restaurant cancelled this order. Sorry about that — you can place a new order from the menu.",
+    );
+    expect(cancellationNoticeFor("   ")).toBe(cancellationNoticeFor(null));
+  });
+
+  it("tells the customer they cancelled it when the default reason was written", () => {
+    // `cancelOrderSchema` defaults the reason to this when the customer cancels.
+    expect(cancellationNoticeFor("Customer requested cancellation")).toBe(
+      "You cancelled this order.",
+    );
+  });
+
+  it("shows the reason when one was written", () => {
+    expect(cancellationNoticeFor("Changed my mind")).toBe(
+      "This order was cancelled. Reason: Changed my mind",
+    );
   });
 });

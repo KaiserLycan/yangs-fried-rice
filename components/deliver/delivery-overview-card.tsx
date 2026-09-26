@@ -100,8 +100,13 @@ export function DeliveryOverviewCard({ delivery, isActive }: DeliveryOverviewCar
       {/* Details */}
       <div className="mb-[16px] flex flex-col gap-2">
         <p className="text-[14px] text-[#1A1210] leading-snug">
-          {delivery.address} {delivery.notes}
+          {delivery.address}
         </p>
+        {delivery.notes && (
+          <p className="text-[13px] text-[#1A1210]">
+            <span className="font-bold">Delivery note:</span> {delivery.notes}
+          </p>
+        )}
         <p className="text-[14px] text-[#1A1210]">
           {delivery.phone}
         </p>

@@ -6,6 +6,7 @@ import { ManagePagination } from "@/components/manage/manage-pagination";
 import { SortableHeader } from "@/components/manage/sortable-header";
 import { EmployeeModal } from "@/components/manage/employee/employee-modal";
 import { useDebounce } from "@/lib/hooks/use-debounce";
+import { formatMobileNumber } from "@/lib/validation/phone";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
@@ -101,7 +102,7 @@ function ManageEmployeeInner() {
         firstName: e.first_name || "",
         lastName: e.last_name || "",
         email: e.email || "No email",
-        contact: e["phone-num"] || "N/A",
+        contact: formatMobileNumber(e["phone-num"]) || "N/A",
         role: roleDisplayLabel(e.role),
         roleKey: resolveEmployeeRole(e.role) ?? "STAFF",
         // Map the new columns exactly as they are spelled in the database image

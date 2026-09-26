@@ -1,6 +1,7 @@
 import { Bike } from "lucide-react";
 import Link from "next/link";
 import { getAssignedDeliveries, getDeliveryDetail } from "@/lib/actions/delivery";
+import { formatMobileNumber } from "@/lib/validation/phone";
 import { DeliveryOverviewCard } from "@/components/deliver/delivery-overview-card";
 
 export default async function DeliverHomePage() {
@@ -47,8 +48,8 @@ export default async function DeliverHomePage() {
         id: d.deliveryId,
         customer: d.customer?.name || "Walk-in Customer",
         address: d.customer?.address || "No address provided",
-        phone: d.customer?.phone || "No phone provided",
-        notes: "",
+        phone: formatMobileNumber(d.customer?.phone) || "No phone provided",
+        notes: d.deliveryNote ?? "",
         paymentMethod: d.payment?.method ?? "cash_on_delivery",
         total: d.payment?.total ?? 0,
         status: cardStatus,

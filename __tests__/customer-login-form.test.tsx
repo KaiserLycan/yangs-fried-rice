@@ -82,12 +82,11 @@ describe("US-01: CustomerLoginForm Validations", () => {
     ).toBeNull();
   });
 
-  it("offers a standing employee link so staff are not stranded", async () => {
-    // Shown to everyone regardless of input, so it reveals nothing about any
-    // particular address — unlike the old error-conditional link.
+  it("does not point customers at the employee login (P29)", () => {
+    // A customer should not learn that a separate staff door exists.
     render(<CustomerLoginForm />);
     expect(
-      screen.getByRole("link", { name: /i'm an employee/i }),
-    ).toHaveAttribute("href", "/employee/login");
+      screen.queryByRole("link", { name: /employee/i }),
+    ).not.toBeInTheDocument();
   });
 });

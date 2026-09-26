@@ -81,6 +81,7 @@ const profile: CustomerProfile = {
   memberSince: null,
   orderCount: 0,
   deliverToAddress: "21 Mabini St, Malate, Manila",
+  deliverToNote: null,
   addresses: [],
 };
 

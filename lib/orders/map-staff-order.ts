@@ -2,6 +2,7 @@ import type { OrderData } from "@/lib/mock-orders";
 import { formatOrderType, isDeliveryOrder } from "@/lib/orders/format";
 import { orderItemName } from "@/lib/orders/item-name";
 import { computeOrderTotal } from "@/lib/orders/order-total";
+import { formatMobileNumber } from "@/lib/validation/phone";
 
 /**
  * One `getDetailedOrders` row → the card/modal shape the staff screens draw.
@@ -21,6 +22,8 @@ export type StaffOrderRow = {
   order_type: string | null;
   delivery_fee: number | null;
   delivery_address: string | null;
+  /** The order-wide note from checkout, not any one line's. */
+  special_instructions?: string | null;
   customer: One<{
     name: string | null;
     email: string | null;
@@ -75,17 +78,15 @@ export function mapStaffOrder(order: StaffOrderRow): OrderData {
       .filter((addOn): addOn is { name: string; price: number } => addOn !== null)
       .map((addOn) => addOn.name);
 
-    const notes = [
-      addOnNames.length > 0 ? `Add-ons: ${addOnNames.join(", ")}` : null,
-      line.special_instructions,
-    ].filter(Boolean);
-
     return {
       quantity: line.quantity,
       name: orderItemName(line.product_name, product?.product_name),
       // Unit price is only for the modal's per-line display.
       price: line.subtotal ?? (product?.product_price ?? 0) * line.quantity,
-      addons: notes.length > 0 ? notes.join(" · ") : undefined,
+      // Kept apart (P30): an instruction is a request to the cook, an
+      // add-on is something paid for, and joining them hid which was which.
+      addons: addOnNames.length > 0 ? addOnNames.join(", ") : undefined,
+      instructions: line.special_instructions?.trim() || undefined,
     };
   });
 
@@ -115,11 +116,17 @@ export function mapStaffOrder(order: StaffOrderRow): OrderData {
       address:
         order.delivery_address ||
         (delivery ? "No delivery address on file" : "Not applicable (no delivery)"),
-      phone: customer?.phone_number || customer?.email || "No contact",
+      // Same "+63 917 123 4567" grouping as every other screen (P27).
+      phone:
+        formatMobileNumber(customer?.phone_number) ||
+        customer?.email ||
+        "No contact",
     },
     orderInfo: {
       type: formatOrderType(order.order_type),
-      specialInstructions: order.order_item?.[0]?.special_instructions || "",
+      // Was the first line's note, shown as if it covered the whole order
+      // while every other line's note was dropped (P30).
+      specialInstructions: order.special_instructions?.trim() || "",
     },
     deliveryFee: order.delivery_fee ?? 0,
     total,

@@ -93,6 +93,7 @@ function trackedOrder(over: Partial<TrackedOrder> = {}): TrackedOrder {
     destinationCoordinates: null,
     riderName: null,
     items: [],
+    rating: null,
     ...over,
   };
 }
@@ -189,6 +190,40 @@ describe("TrackOrderScreen", () => {
     });
 
     expect(stageStates()).toEqual(["—", "—", "—", "—"]);
+  });
+
+  it("tells the customer when the kitchen cancels, even with no reason (P28)", () => {
+    renderScreen(trackedOrder());
+
+    // The kitchen's cancel writes a timestamp and no reason.
+    emit("order", {
+      order_status: "cancelled",
+      cancelled_at: "2026-09-13T02:00:00Z",
+      cancellation_reason: null,
+    });
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "The restaurant cancelled this order.",
+    );
+    // A cancelled order is not arriving, so no arrival line either.
+    expect(screen.queryByText(/Arriving/)).not.toBeInTheDocument();
+  });
+
+  it("offers one order rating once delivered, and none once rated (P35, P37)", () => {
+    const delivered = trackedOrder({
+      orderStatus: "completed",
+      deliveryStatus: "delivered",
+    });
+    const { rerender } = renderScreen(delivered);
+    expect(
+      screen.getByRole("button", { name: /Rate order/ }),
+    ).toBeInTheDocument();
+
+    rerender(<TrackOrderScreen order={{ ...delivered, rating: 4 }} />);
+    expect(
+      screen.queryByRole("button", { name: /Rate order/ }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Rated 4 out of 5")).toBeInTheDocument();
   });
 
   it("offers the cancel control only while the kitchen has not confirmed", () => {
