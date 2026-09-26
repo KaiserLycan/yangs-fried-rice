@@ -43,13 +43,13 @@ export function AvatarButton({
       const result = await uploadProfileImage(formData);
 
       if (result.error) {
-        showToast(result.error);
+        showToast(result.error, "error");
       } else {
-        showToast("Photo updated successfully!");
+        showToast("Photo updated.", "success");
         router.refresh();
       }
     } catch (error) {
-      showToast("Error processing photo.");
+      showToast("Could not process that photo. Try a JPEG, PNG, or WebP image.", "error");
       console.error(error);
     } finally {
       setIsUploading(false);

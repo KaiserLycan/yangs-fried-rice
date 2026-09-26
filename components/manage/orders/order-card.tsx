@@ -50,7 +50,7 @@ export function OrderCard({ order, onClick, onAction }: OrderCardProps) {
           onClick?.();
         }
       }}
-      className="flex flex-col text-left w-full rounded-xl overflow-hidden shadow-sm bg-[#FAF7F0] border border-gray-200/50 h-full transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CD7D39]"
+      className="flex flex-col text-left w-full rounded-xl overflow-hidden shadow-sm bg-[#FAF7F0] border border-field-border h-full transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CD7D39]"
     >
       {/* Header */}
       <div className={cn("flex justify-between items-start p-4 text-white", config.headerBg)}>

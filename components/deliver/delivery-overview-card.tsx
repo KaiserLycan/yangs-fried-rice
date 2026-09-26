@@ -53,10 +53,10 @@ export function DeliveryOverviewCard({ delivery, isActive }: DeliveryOverviewCar
       setConfirmRelease(false);
       if (result.success) {
         window.dispatchEvent(new CustomEvent("delivery-updated"));
-        showToast("Delivery handed back. Another rider can take it now.");
+        showToast("Delivery handed back. Another rider can take it now.", "success");
         router.refresh();
       } else {
-        showToast(result.error || "Couldn't hand this delivery back.");
+        showToast(result.error || "Couldn't hand this delivery back.", "error");
       }
     });
   };
@@ -70,7 +70,7 @@ export function DeliveryOverviewCard({ delivery, isActive }: DeliveryOverviewCar
         window.dispatchEvent(new CustomEvent("delivery-updated"));
         router.push(`/deliver/${delivery.id}`);
       } else {
-        showToast(result.error || "Failed to accept delivery");
+        showToast(result.error || "Failed to accept delivery", "error");
       }
     });
   };

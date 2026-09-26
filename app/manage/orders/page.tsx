@@ -70,7 +70,7 @@ function ManageOrdersInner() {
     });
 
     if (summaryResult.error) {
-      showToast(`Failed to load orders: ${summaryResult.error}`);
+      showToast(`Failed to load orders: ${summaryResult.error}`, "error");
     }
 
     if (summaryResult.data) {
@@ -128,9 +128,9 @@ function ManageOrdersInner() {
     const result = await updateOrderStatus(confirmAction.order.id, newDbStatus);
 
     if (result.error) {
-      showToast(`Failed to update order: ${result.error}`);
+      showToast(`Failed to update order: ${result.error}`, "error");
     } else {
-      showToast(actionCopy(confirmAction.type, confirmAction.order.orderNumber).done);
+      showToast(actionCopy(confirmAction.type, confirmAction.order.orderNumber).done, "success");
       await fetchOrders(); // Refresh the active list
       setConfirmAction(null);
       setSelectedOrder(null);

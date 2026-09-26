@@ -205,7 +205,12 @@ describe("CancelOrderControl", () => {
 
     settle({ data: {} as never, error: null });
     await waitFor(() => expect(refresh).toHaveBeenCalled());
-    expect(screen.getByRole("button", { name: "Cancel order" })).toBeEnabled();
+    // `pending` clears in a `finally` and a transition that both settle
+    // after `refresh()` is called, so this has to wait too — asserting it
+    // synchronously failed intermittently under a loaded full-suite run.
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Cancel order" })).toBeEnabled(),
+    );
   });
 
   it("withholds the control once staff have accepted, even at the received stage", () => {

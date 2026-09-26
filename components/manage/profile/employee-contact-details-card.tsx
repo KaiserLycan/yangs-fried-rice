@@ -69,14 +69,14 @@ export function EmployeeContactDetailsCard({
         const json = await res.json();
 
         if (!res.ok) {
-          showToast(json.error ?? "Could not save your contact details.");
+          showToast(json.error ?? "Could not save your contact details.", "error");
           return json.fieldErrors ? { fieldErrors: json.fieldErrors } : false;
         }
 
-        showToast("Contact details saved.");
+        showToast("Contact details saved.", "success");
         router.refresh();
       } catch {
-        showToast("Could not save your contact details. Check your connection.");
+        showToast("Could not save your contact details. Check your connection.", "error");
         return false;
       }
     },

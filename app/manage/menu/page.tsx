@@ -15,9 +15,37 @@ import type { MenuItem } from "@/components/manage/menu/mock-menu";
 // Import real backend Server Actions and Supabase client
 import {
   getMenuData, createCategory, updateCategory, deleteCategory,
-  createProduct, updateProduct, deleteProduct, createAddOn
+  createProduct, updateProduct, deleteProduct, createAddOn,
+  discardUnsavedMenuImage,
 } from "@/lib/actions/menu";
 import { createClient } from "@/lib/supabase/client"; // Added for Storage uploads
+import { IMAGE_BUCKETS, imageExtensionFor } from "@/lib/storage/stored-image";
+
+/**
+ * Put a menu photo in the bucket and return its public URL.
+ *
+ * The extension follows the file's real type — the modals hand over
+ * `compressImage` output, which is always WebP whatever the original was
+ * called. The name is still unique per upload, so replacing a photo never
+ * overwrites one a cached page may still be showing; `updateProduct` removes
+ * the previous file once the new URL is saved.
+ */
+async function uploadMenuImage(
+  imageFile: File,
+): Promise<{ url: string; error: null } | { url: null; error: string }> {
+  const supabase = createClient();
+  const fileName = `${Date.now()}.${imageExtensionFor(imageFile)}`;
+
+  const { error } = await supabase.storage
+    .from(IMAGE_BUCKETS.menu)
+    .upload(fileName, imageFile, { contentType: imageFile.type || undefined });
+  if (error) return { url: null, error: error.message };
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from(IMAGE_BUCKETS.menu).getPublicUrl(fileName);
+  return { url: publicUrl, error: null };
+}
 
 export default function ManageMenuPage() {
   return (
@@ -58,7 +86,7 @@ function ManageMenuInner() {
     const res = await getMenuData();
 
     if (res.error) {
-      showToast(`Error loading menu data: ${res.error}`);
+      showToast(`Error loading menu data: ${res.error}`, "error");
     } else if (res.data) {
       setDbCategories(res.data.categories);
 
@@ -110,9 +138,9 @@ function ManageMenuInner() {
     }
 
     const res = await createCategory({ category_name: name });
-    if (res.error) showToast(`Failed: ${res.error}`);
+    if (res.error) showToast(`Failed: ${res.error}`, "error");
     else {
-      showToast("Category created.");
+      showToast("Category created.", "success");
       await loadData();
       setSelectedCategory(name);
     }
@@ -126,7 +154,7 @@ function ManageMenuInner() {
 
     setIsProcessing(true);
     const res = await updateCategory(cat.category_id, { category_name: newName });
-    if (res.error) showToast(`Failed: ${res.error}`);
+    if (res.error) showToast(`Failed: ${res.error}`, "error");
     else {
       await loadData();
       if (selectedCategory === oldName) setSelectedCategory(newName);
@@ -145,7 +173,7 @@ function ManageMenuInner() {
     if (res.error) {
       return res.error;
     } else {
-      showToast("Category deleted.");
+      showToast("Category deleted.", "success");
       await loadData();
       if (selectedCategory === categoryName) setSelectedCategory("All");
     }
@@ -154,30 +182,17 @@ function ManageMenuInner() {
   // --- Product CRUD ---
   const handleSaveProduct = async (item: Partial<MenuItem>, addOns: { name: string; price: number }[], imageFile?: File) => {
     setIsProcessing(true);
-    let uploadedUrl = null;
-    const supabase = createClient();
+    let uploadedUrl: string | null = null;
 
     // 1. Image Upload Pipeline
     if (imageFile) {
-      const fileExt = imageFile.name.split('.').pop();
-      const fileName = `${Date.now()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('menu-images')
-        .upload(fileName, imageFile);
-
-      if (uploadError) {
-        showToast(`Image upload failed: ${uploadError.message}`);
+      const upload = await uploadMenuImage(imageFile);
+      if (upload.error !== null) {
+        showToast(`Image upload failed: ${upload.error}`, "error");
         setIsProcessing(false);
         return;
       }
-
-      // Grab the public URL for the newly uploaded file
-      const { data: { publicUrl } } = supabase.storage
-        .from('menu-images')
-        .getPublicUrl(fileName);
-
-      uploadedUrl = publicUrl;
+      uploadedUrl = upload.url;
     }
 
     // 2. Database Insertion
@@ -193,14 +208,16 @@ function ManageMenuInner() {
     });
 
     if (res.error) {
-      showToast(`Failed to create item: ${res.error}`);
+      // The photo is already in the bucket, but no product points at it.
+      if (uploadedUrl) void discardUnsavedMenuImage(uploadedUrl);
+      showToast(`Failed to create item: ${res.error}`, "error");
     } else {
       // 3. Insert Add-ons if provided
       if (res.data?.product_id && addOns.length > 0) {
         await Promise.all(addOns.map(addon => createAddOn(res.data.product_id, addon.name, addon.price)));
       }
 
-      showToast("Item created successfully.");
+      showToast("Item created successfully.", "success");
       await loadData();
       setIsAddModalOpen(false);
     }
@@ -209,29 +226,17 @@ function ManageMenuInner() {
 
   const handleEditProduct = async (updatedItem: MenuItem, imageFile?: File) => {
     setIsProcessing(true);
-    let uploadedUrl = null;
-    const supabase = createClient();
+    let uploadedUrl: string | null = null;
 
     // 1. Image Upload Pipeline (Only triggers if a NEW image was selected)
     if (imageFile) {
-      const fileExt = imageFile.name.split('.').pop();
-      const fileName = `${Date.now()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('menu-images')
-        .upload(fileName, imageFile);
-
-      if (uploadError) {
-        showToast(`Image upload failed: ${uploadError.message}`);
+      const upload = await uploadMenuImage(imageFile);
+      if (upload.error !== null) {
+        showToast(`Image upload failed: ${upload.error}`, "error");
         setIsProcessing(false);
         return;
       }
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('menu-images')
-        .getPublicUrl(fileName);
-
-      uploadedUrl = publicUrl;
+      uploadedUrl = upload.url;
     }
 
     // 2. Database Update
@@ -252,9 +257,11 @@ function ManageMenuInner() {
 
     const res = await updateProduct(updatedItem.id, updatePayload);
 
-    if (res.error) showToast(`Failed to update item: ${res.error}`);
-    else {
-      showToast("Item updated successfully.");
+    if (res.error) {
+      if (uploadedUrl) void discardUnsavedMenuImage(uploadedUrl);
+      showToast(`Failed to update item: ${res.error}`, "error");
+    } else {
+      showToast("Item updated successfully.", "success");
       await loadData();
       setIsDetailModalOpen(false);
       setSelectedItem(null);
@@ -266,9 +273,9 @@ function ManageMenuInner() {
     setIsProcessing(true);
     const res = await deleteProduct(itemId);
 
-    if (res.error) showToast(`Failed to delete item: ${res.error}`);
+    if (res.error) showToast(`Failed to delete item: ${res.error}`, "error");
     else {
-      showToast("Item deleted.");
+      showToast("Item deleted.", "success");
       await loadData();
       setIsDetailModalOpen(false);
       setSelectedItem(null);

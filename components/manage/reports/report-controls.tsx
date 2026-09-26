@@ -1,10 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown, Download, Loader2 } from "lucide-react";
 import { generateSalesPDF, generatePerformancePDF } from "@/lib/actions/reports";
-import { REPORT_TYPES, SALES_REPORT, normalizeReportType } from "@/lib/reports/report-types";
+import {
+  REPORT_TYPES,
+  SALES_REPORT,
+  normalizeReportType,
+  reportPdfFileName,
+} from "@/lib/reports/report-types";
+import { useToast } from "@/components/ui/toast";
+import { DROPDOWN_FOCUS_RING, useDropdown } from "@/lib/hooks/use-dropdown";
+import { cn } from "@/lib/utils";
 
 interface DateInputProps {
   label: string;
@@ -14,13 +22,17 @@ interface DateInputProps {
 }
 
 function DateInput({ label, max, value, onChange }: DateInputProps) {
+  const id = useId();
   return (
     <div className="flex w-full md:w-auto md:min-w-[160px] flex-col gap-[6px]">
-      <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
+      <label htmlFor={id} className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
         {label}
       </label>
-      <div className="flex rounded-[12px] border border-[#ddcdb8] bg-white p-3 md:p-[14px]">
+      {/* The input drops its own outline to sit flush in this box, so the box
+          shows the focus ring instead. */}
+      <div className="flex rounded-[12px] border border-[#ddcdb8] bg-white p-3 md:p-[14px] focus-within:ring-2 focus-within:ring-[#E8541F]">
         <input
+          id={id}
           type="date"
           max={max}
           value={value}
@@ -36,6 +48,7 @@ export function ReportTypeSelect() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isOpen, setIsOpen] = useState(false);
+  const menu = useDropdown({ open: isOpen, onOpenChange: setIsOpen });
 
   const selected = normalizeReportType(searchParams.get("type"));
   const options = REPORT_TYPES;
@@ -45,30 +58,38 @@ export function ReportTypeSelect() {
     // so the box is the same size whichever report is selected.
     <div className="relative w-full md:w-[320px]">
       <div className="flex flex-col gap-[6px]">
-        <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
+        <label {...menu.labelProps} className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
           Report Type
         </label>
         <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="flex h-[50px] w-full items-center justify-between gap-[10px] rounded-[12px] border border-[#ddcdb8] bg-white px-[14px] outline-none"
+          {...menu.triggerProps}
+          className={cn(
+            "flex h-[50px] w-full items-center justify-between gap-[10px] rounded-[12px] border border-[#ddcdb8] bg-white px-[14px]",
+            DROPDOWN_FOCUS_RING,
+          )}
         >
           <span className="truncate text-[15px] text-[#1a1210]">{selected}</span>
-          <ChevronDown className="h-5 w-5 shrink-0 text-[#1a1210]" />
+          <ChevronDown aria-hidden="true" className="h-5 w-5 shrink-0 text-[#1a1210]" />
         </button>
       </div>
 
       {isOpen && (
-        <div className="absolute top-full z-10 mt-2 w-full min-w-[200px] overflow-hidden rounded-[12px] border border-[#ddcdb8] bg-white shadow-lg">
+        <div {...menu.listProps} className="absolute top-full z-10 mt-2 w-full min-w-[200px] overflow-hidden rounded-[12px] border border-[#ddcdb8] bg-white p-1 shadow-lg">
           {options.map((option) => (
             <button
               key={option}
+              {...menu.optionProps(option === selected)}
               onClick={() => {
                 const params = new URLSearchParams(searchParams.toString());
                 params.set("type", option);
                 router.push(`?${params.toString()}`);
-                setIsOpen(false);
+                menu.close();
               }}
-              className="w-full px-[14px] py-[10px] text-left text-[15px] text-[#1a1210] hover:bg-[#fbf6ec]"
+              className={cn(
+                "w-full rounded-[8px] px-[14px] py-[10px] text-left text-[15px] text-[#1a1210] hover:bg-[#fbf6ec]",
+                DROPDOWN_FOCUS_RING,
+                option === selected && "bg-[#f6e9d9] font-bold text-[#8c1c13]",
+              )}
             >
               {option}
             </button>
@@ -95,6 +116,7 @@ export function ReportDateFilters({
   reportType,
 }: ReportDateFiltersProps) {
   const [isExporting, setIsExporting] = useState(false);
+  const showToast = useToast();
 
   // Get current date in YYYY-MM-DD format for the max attribute
   const today = new Date().toISOString().split("T")[0];
@@ -102,10 +124,11 @@ export function ReportDateFilters({
   const handleExport = async () => {
     setIsExporting(true);
 
+    const type = normalizeReportType(reportType);
     try {
       let result;
 
-      if (normalizeReportType(reportType) !== SALES_REPORT) {
+      if (type !== SALES_REPORT) {
         // The merged menu + customer-satisfaction view exports the performance report
         result = await generatePerformancePDF({
           start_date: startDate,
@@ -122,7 +145,9 @@ export function ReportDateFilters({
       }
 
       if (result.error) {
-        console.error(`Export failed: ${result.error}`);
+        // Used to go to the console only, so a failed export looked like a
+        // button that did nothing.
+        showToast(`Couldn't export the report: ${result.error}`, "error");
         return;
       }
 
@@ -130,13 +155,13 @@ export function ReportDateFilters({
         // The server returns a base64 data URI — open it in a new tab so the user can download
         const link = document.createElement("a");
         link.href = result.data;
-        link.download = `yangs-report-${startDate}-to-${endDate}.pdf`;
+        link.download = reportPdfFileName(type, startDate, endDate);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
       }
-    } catch (err) {
-      console.error("Export failed. Please try again.");
+    } catch {
+      showToast("Couldn't export the report. Please try again.", "error");
     } finally {
       setIsExporting(false);
     }

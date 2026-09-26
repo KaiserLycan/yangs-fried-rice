@@ -8,8 +8,10 @@ import { cn } from "@/lib/utils";
  *
  * DESIGNER: there is no Figma frame for this. It is derived from the error
  * banner (`components/ui/alert.tsx`) — same radius, same padding, same text
- * size and leading — recoloured to the neutral raised surface, because the
- * things it announces are not errors.
+ * size and leading, same leading glyph. It used to sit on `bg-card`, which is
+ * #FFFCF6 on a #FBF6EC page: the two differ by about 1% lightness, so the
+ * toast was all but invisible. Every tone is now a solid fill with light
+ * text, so it reads against cream, white and the dark console alike.
  *
  * It exists because most of the profile screen's controls are deliberately
  * not wired: server-side work belongs to the backend developer, so a control
@@ -17,11 +19,23 @@ import { cn } from "@/lib/utils";
  * saved. See `.scratch/profile-page/issues/05-backend-handoff.md`.
  */
 
-type Toast = { id: number; message: string };
+/**
+ * `info` is the default, so the two-dozen callers written before tones
+ * existed keep working unchanged — they just become readable.
+ */
+export type ToastTone = "info" | "success" | "error";
 
-const ToastContext = React.createContext<((message: string) => void) | null>(
-  null,
-);
+type Toast = { id: number; message: string; tone: ToastTone };
+
+type ShowToast = (message: string, tone?: ToastTone) => void;
+
+const ToastContext = React.createContext<ShowToast | null>(null);
+
+const TONE_STYLES: Record<ToastTone, { surface: string; glyph: string }> = {
+  info: { surface: "bg-foreground text-background", glyph: "i" },
+  success: { surface: "bg-success text-white", glyph: "✓" },
+  error: { surface: "bg-error-border text-white", glyph: "!" },
+};
 
 /** How long a message stays up before removing itself. */
 const DISMISS_AFTER_MS = 4000;
@@ -47,10 +61,10 @@ export function ToastProvider({
     setToasts((current) => current.filter((toast) => toast.id !== id));
   }, []);
 
-  const showToast = React.useCallback(
-    (message: string) => {
+  const showToast = React.useCallback<ShowToast>(
+    (message, tone = "info") => {
       const id = nextId.current++;
-      setToasts((current) => [...current, { id, message }]);
+      setToasts((current) => [...current, { id, message, tone }]);
       setTimeout(() => dismiss(id), DISMISS_AFTER_MS);
     },
     [dismiss],
@@ -78,13 +92,21 @@ export function ToastProvider({
         {toasts.map((toast) => (
           <div
             key={toast.id}
+            data-tone={toast.tone}
             className={cn(
-              "pointer-events-auto w-full max-w-[380px] rounded-md border border-rule bg-card px-[14px] py-[11px]",
-              "text-[13px] leading-[18.2px] text-foreground shadow-[0_10px_20px_rgba(26,18,16,0.12)]",
+              "pointer-events-auto flex w-full max-w-[380px] items-start gap-[10px] rounded-md px-[14px] py-[11px]",
+              "text-[13px] leading-[18.2px] shadow-[0_10px_24px_rgba(26,18,16,0.28)]",
               "animate-in fade-in slide-in-from-bottom-2",
+              TONE_STYLES[toast.tone].surface,
             )}
           >
-            {toast.message}
+            <span
+              aria-hidden="true"
+              className="flex size-[18px] shrink-0 items-center justify-center rounded-full bg-white/20 text-[11px] font-bold leading-none"
+            >
+              {TONE_STYLES[toast.tone].glyph}
+            </span>
+            <p>{toast.message}</p>
           </div>
         ))}
       </div>
@@ -98,8 +120,11 @@ export function ToastProvider({
  * Throws rather than no-oping when the provider is missing: a control whose
  * only feedback is a toast would otherwise look wired while doing nothing at
  * all, which is the exact failure this component exists to prevent.
+ *
+ * `showToast(message)` is neutral; pass `"success"` or `"error"` as the second
+ * argument when the message reports an outcome.
  */
-export function useToast() {
+export function useToast(): ShowToast {
   const showToast = React.useContext(ToastContext);
   if (!showToast) {
     throw new Error("useToast must be used inside a ToastProvider.");

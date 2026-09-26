@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { z } from "zod";
-import { DialogRoot } from "@/components/ui/dialog";
+import { DialogDismiss, DialogRoot } from "@/components/ui/dialog";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
-import { ChevronDown, ChevronRight, Eye, EyeOff } from "lucide-react";
+import { Camera, ChevronDown, ChevronRight, Eye, EyeOff } from "lucide-react";
+import { compressImage } from "@/lib/image/compress";
 import { roleDisplayLabel } from "@/lib/auth/roles";
 import { getEmployeeForEdit } from "@/lib/actions/admin";
 import {
@@ -16,6 +17,7 @@ import {
 import { PhoneInput } from "@/components/ui/phone-input";
 import { useValidatedValues } from "@/lib/forms/use-live-validation";
 import { SHORTCUTS, useShortcut } from "@/lib/hooks/use-shortcut";
+import { DROPDOWN_FOCUS_RING, useDropdown } from "@/lib/hooks/use-dropdown";
 import {
   emailSchema,
   firstNameSchema,
@@ -42,6 +44,10 @@ import {
  * shows under the field, and "Add Employee" / "Save Changes" stays disabled
  * until the whole form is valid. A rejection from the server comes back in
  * `serverErrors` and is shown under the field it names. Ctrl/⌘+Enter saves.
+ *
+ * The avatar is a photo picker. The chosen file is compressed here and handed
+ * to `onSave` as `photoFile`; the page uploads it with `setEmployeePhoto`
+ * once the employee row exists, which for a new hire is only after the save.
  */
 
 interface EmployeeModalProps {
@@ -104,6 +110,43 @@ function employeeFormSchema(isEditMode: boolean) {
     });
 }
 
+/** Every value the dialog can edit, for the unsaved-changes comparison. */
+type FormSnapshot = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: string;
+  shift: string;
+  password: string;
+  phone: string;
+  dateOfBirth: string;
+  isDisabled: boolean;
+  riderDetails: typeof EMPTY_RIDER;
+};
+
+/** A blank new-employee form, overlaid with whatever is known. */
+function snapshotFields(values: Partial<FormSnapshot>): FormSnapshot {
+  return {
+    firstName: "",
+    lastName: "",
+    email: "",
+    role: DEFAULT_ROLE,
+    shift: SHIFTS[0],
+    password: "",
+    phone: "",
+    dateOfBirth: "",
+    isDisabled: false,
+    riderDetails: EMPTY_RIDER,
+    ...values,
+  };
+}
+
+/** Key order is fixed by `snapshotFields`, so equal forms serialise equally. */
+function snapshotOf(values: Partial<FormSnapshot>): string {
+  const full = snapshotFields(values);
+  return JSON.stringify({ ...full, riderDetails: { ...EMPTY_RIDER, ...full.riderDetails } });
+}
+
 const inputClass = (invalid: boolean) =>
   cn(
     "bg-white border rounded-[12px] p-[14px] text-[15px] text-[#1A1210] focus:outline-none focus:ring-2 focus:ring-[#E8541F] placeholder:text-[#A2938A]",
@@ -127,7 +170,16 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
 
   const [roleOpen, setRoleOpen] = useState(false);
   const [shiftOpen, setShiftOpen] = useState(false);
+  const roleMenu = useDropdown({ open: roleOpen, onOpenChange: setRoleOpen });
+  const shiftMenu = useDropdown({ open: shiftOpen, onOpenChange: setShiftOpen });
   const [showPassword, setShowPassword] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  // What the form held when it opened (and once the stored rider details
+  // arrived), serialised, so "has anything changed?" is one comparison.
+  const [baseline, setBaseline] = useState("");
 
   const isRiderRole = roleDisplayLabel(role) === "Delivery";
 
@@ -180,9 +232,48 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
         setLastAccessLog("");
       }
       setRiderDetails(EMPTY_RIDER);
+      setBaseline(
+        snapshotOf(
+          employee
+            ? {
+                firstName: employee.firstName ?? splitFullName(employee.name).firstName,
+                lastName: employee.lastName ?? splitFullName(employee.name).lastName,
+                email: employee.email,
+                role: roleDisplayLabel(employee.role),
+                shift: employee.shift || SHIFTS[0],
+                phone: phoneDigitsOf(employee.phone),
+                dateOfBirth: employee.dateOfBirth ?? "",
+                isDisabled: Boolean(employee.isDisabled),
+              }
+            : {},
+        ),
+      );
+      setPhotoFile(null);
+      setPhotoPreview(null);
+      setPhotoError(null);
       resetValidation();
     }
   }, [isOpen, employee, resetValidation]);
+
+  // Release the preview's object URL when it is replaced or the modal closes.
+  useEffect(() => {
+    if (!photoPreview) return;
+    return () => URL.revokeObjectURL(photoPreview);
+  }, [photoPreview]);
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      const compressed = await compressImage(file, 400);
+      setPhotoFile(compressed);
+      setPhotoPreview(URL.createObjectURL(compressed));
+      setPhotoError(null);
+    } catch {
+      setPhotoError("Could not read that photo. Try a JPEG, PNG, or WebP image.");
+    }
+  };
 
   // Editing an existing rider: load their vehicle / licence row so the form
   // shows (and can change) what is actually stored, instead of empty boxes.
@@ -197,14 +288,25 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
         if (row.first_name) setFirstName(row.first_name);
         if (row.last_name) setLastName(row.last_name);
         const rider = result.data.rider;
-        if (rider) {
-          setRiderDetails({
-            vehicle_make_model: rider.vehicle_make_model ?? "",
-            vehicle_plate_number: rider.vehicle_plate_number ?? "",
-            driver_license_number: rider.driver_license_number ?? "",
-            license_expiry_date: rider.license_expiry_date ?? "",
+        const storedRider = rider
+          ? {
+              vehicle_make_model: rider.vehicle_make_model ?? "",
+              vehicle_plate_number: rider.vehicle_plate_number ?? "",
+              driver_license_number: rider.driver_license_number ?? "",
+              license_expiry_date: rider.license_expiry_date ?? "",
+            }
+          : null;
+        if (storedRider) setRiderDetails(storedRider);
+        // The stored values are the starting point, not an edit.
+        setBaseline((prev) => {
+          const base = prev ? (JSON.parse(prev) as FormSnapshot) : snapshotFields({});
+          return snapshotOf({
+            ...base,
+            ...(row.first_name ? { firstName: row.first_name } : {}),
+            ...(row.last_name ? { lastName: row.last_name } : {}),
+            ...(storedRider ? { riderDetails: storedRider } : {}),
           });
-        }
+        });
       })
       .finally(() => {
         if (!cancelled) setLoadingRider(false);
@@ -215,6 +317,23 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
   }, [isOpen, employee?.id]);
 
   const canSave = form.isValid && !loadingRider;
+
+  const isDirty =
+    photoFile !== null ||
+    (baseline !== "" &&
+      baseline !==
+        snapshotOf({
+          firstName,
+          lastName,
+          email,
+          role,
+          shift,
+          password,
+          phone,
+          dateOfBirth,
+          isDisabled,
+          riderDetails,
+        }));
 
   // Validate BEFORE handing off to the confirm dialog, and never clear the
   // form here: a validation error, a cancelled confirmation or a failed save
@@ -237,6 +356,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
       isAccountDisabled: isDisabled,
       lastAccessLog,
       riderDetails: isRiderRole ? riderDetails : null,
+      photoFile,
     });
   };
 
@@ -248,6 +368,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
   const initials = displayName
     ? displayName.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase()
     : "LR";
+  const shownPhoto = photoPreview ?? employee?.imageUrl ?? null;
 
   /** A labelled text input that validates as it is typed and when it is left. */
   const textField = (
@@ -316,26 +437,53 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
     <DialogRoot
       open={isOpen}
       onClose={onClose}
+      dirty={isDirty}
       className="m-auto max-w-[480px] w-[calc(100%-2rem)] md:w-full overflow-hidden rounded-[20px] bg-[#FBF6EC] shadow-[0_30px_70px_rgba(26,18,16,0.26)] border-0 p-0"
     >
       <div className="flex flex-col w-full max-h-[90vh]">
 
-        {/* Avatar Section */}
-        <div className="flex justify-center pt-[30px] shrink-0">
-          {employee?.imageUrl ? (
-            <div className="size-[140px] rounded-full overflow-hidden border-4 border-[#8C1C13]">
+        {/* Avatar Section — doubles as the photo picker. */}
+        <div className="flex flex-col items-center gap-2 pt-[30px] shrink-0">
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={handlePhotoChange}
+            className="hidden"
+            tabIndex={-1}
+            aria-hidden="true"
+          />
+          <button
+            type="button"
+            onClick={() => photoInputRef.current?.click()}
+            aria-label={shownPhoto ? "Change photo" : "Add photo"}
+            className="group relative size-[140px] shrink-0 overflow-hidden rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-[#E8541F] focus-visible:ring-offset-2 focus-visible:ring-offset-[#FBF6EC]"
+          >
+            {shownPhoto ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
               <img
-                src={employee.imageUrl}
+                src={shownPhoto}
                 alt={displayName}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover rounded-full border-4 border-[#8C1C13]"
               />
-            </div>
-          ) : (
-            <div className="bg-[#8C1C13] flex items-center justify-center rounded-full size-[140px]">
-              <span className="font-display text-[#FBF6EC] text-[60px] leading-none mt-2">
-                {initials}
+            ) : (
+              <span className="bg-[#8C1C13] flex size-full items-center justify-center rounded-full">
+                <span className="font-display text-[#FBF6EC] text-[60px] leading-none mt-2">
+                  {initials}
+                </span>
               </span>
-            </div>
+            )}
+            <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-full bg-black/45 text-[12px] font-bold text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+              <Camera className="size-6" aria-hidden="true" />
+              {shownPhoto ? "Change photo" : "Add photo"}
+            </span>
+          </button>
+          {photoError ? (
+            <p role="alert" className="text-[12px] text-[#C0392B]">{photoError}</p>
+          ) : (
+            <p className="text-[12px] text-[#A2938A]">
+              {photoFile ? "New photo — saved with the employee." : "Optional. JPEG, PNG, or WebP, up to 5MB."}
+            </p>
           )}
         </div>
 
@@ -411,75 +559,67 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
 
           {/* Role Dropdown */}
           <div className="flex flex-col gap-1.5 w-full">
-            <label className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase">
+            <label {...roleMenu.labelProps} className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase">
               Role
             </label>
             <div className="relative">
               <button
-                type="button"
-                onClick={() => setRoleOpen(!roleOpen)}
-                aria-expanded={roleOpen}
+                {...roleMenu.triggerProps}
                 className="flex w-full items-center justify-between bg-white border border-[#DDCDB8] rounded-[12px] p-[14px] text-[15px] text-[#1A1210] transition-colors hover:bg-[#FAF5EB] focus:outline-none focus:ring-2 focus:ring-[#E8541F]"
               >
                 <span>{role}</span>
-                {roleOpen ? <ChevronDown className="w-6 h-6 text-[#1A1210]" /> : <ChevronRight className="w-6 h-6 text-[#1A1210]" />}
+                {roleOpen ? <ChevronDown aria-hidden="true" className="w-6 h-6 text-[#1A1210]" /> : <ChevronRight aria-hidden="true" className="w-6 h-6 text-[#1A1210]" />}
               </button>
               {roleOpen && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setRoleOpen(false)} />
-                  <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 bg-white border border-[#DDCDB8] rounded-[12px] p-1 shadow-lg max-h-[160px] overflow-y-auto">
-                    {ROLES.map(r => (
-                      <button
-                        key={r}
-                        type="button"
-                        onClick={() => { setRole(r); setRoleOpen(false); }}
-                        className={cn(
-                          "w-full text-left px-3 py-2.5 rounded-lg text-[14px] transition-colors",
-                          role === r ? "bg-[#F6E9D9] font-bold text-[#8C1C13]" : "text-[#1A1210] hover:bg-[#FAF5EB]"
-                        )}
-                      >
-                        {r}
-                      </button>
-                    ))}
-                  </div>
-                </>
+                <div {...roleMenu.listProps} className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 bg-white border border-[#DDCDB8] rounded-[12px] p-1 shadow-lg max-h-[160px] overflow-y-auto">
+                  {ROLES.map(r => (
+                    <button
+                      key={r}
+                      {...roleMenu.optionProps(role === r)}
+                      onClick={() => { setRole(r); roleMenu.close(); }}
+                      className={cn(
+                        "w-full text-left px-3 py-2.5 rounded-lg text-[14px] transition-colors",
+                        DROPDOWN_FOCUS_RING,
+                        role === r ? "bg-[#F6E9D9] font-bold text-[#8C1C13]" : "text-[#1A1210] hover:bg-[#FAF5EB]"
+                      )}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
           </div>
 
           <div className="flex flex-col gap-1.5 w-full">
-            <label className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase">
+            <label {...shiftMenu.labelProps} className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase">
               Scheduled Shift
             </label>
             <div className="relative">
               <button
-                type="button"
-                onClick={() => setShiftOpen(!shiftOpen)}
-                aria-expanded={shiftOpen}
+                {...shiftMenu.triggerProps}
                 className="flex w-full items-center justify-between bg-white border border-[#DDCDB8] rounded-[12px] p-[14px] text-[15px] text-[#1A1210] transition-colors hover:bg-[#FAF5EB] focus:outline-none focus:ring-2 focus:ring-[#E8541F]"
               >
                 <span>{shift}</span>
-                {shiftOpen ? <ChevronDown className="w-6 h-6 text-[#1A1210]" /> : <ChevronRight className="w-6 h-6 text-[#1A1210]" />}
+                {shiftOpen ? <ChevronDown aria-hidden="true" className="w-6 h-6 text-[#1A1210]" /> : <ChevronRight aria-hidden="true" className="w-6 h-6 text-[#1A1210]" />}
               </button>
               {shiftOpen && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setShiftOpen(false)} />
-                  <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 bg-white border border-[#DDCDB8] rounded-[12px] p-1 shadow-lg max-h-[160px] overflow-y-auto">
-                    {SHIFTS.map(s => (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => { setShift(s); setShiftOpen(false); }}
-                        className={cn(
-                          "w-full text-left px-3 py-2.5 rounded-lg text-[14px] transition-colors",
-                          shift === s ? "bg-[#F6E9D9] font-bold text-[#8C1C13]" : "text-[#1A1210] hover:bg-[#FAF5EB]"
-                        )}
-                      >
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                </>
+                <div {...shiftMenu.listProps} className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 bg-white border border-[#DDCDB8] rounded-[12px] p-1 shadow-lg max-h-[160px] overflow-y-auto">
+                  {SHIFTS.map(s => (
+                    <button
+                      key={s}
+                      {...shiftMenu.optionProps(shift === s)}
+                      onClick={() => { setShift(s); shiftMenu.close(); }}
+                      className={cn(
+                        "w-full text-left px-3 py-2.5 rounded-lg text-[14px] transition-colors",
+                        DROPDOWN_FOCUS_RING,
+                        shift === s ? "bg-[#F6E9D9] font-bold text-[#8C1C13]" : "text-[#1A1210] hover:bg-[#FAF5EB]"
+                      )}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
           </div>
@@ -578,13 +718,17 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
           {/* Actions */}
           <div className="flex flex-col gap-[10px] pt-[10px] shrink-0">
             <div className="flex gap-[10px] w-full">
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 border border-[#DDCDB8] rounded-[13px] py-[10px] font-bold text-[#7A6A60] text-[14px] hover:bg-black/5 transition-colors"
-              >
-                Cancel
-              </button>
+              <DialogDismiss fallback={onClose}>
+                {(requestClose) => (
+                  <button
+                    type="button"
+                    onClick={requestClose}
+                    className="flex-1 border border-[#DDCDB8] rounded-[13px] py-[10px] font-bold text-[#7A6A60] text-[14px] hover:bg-black/5 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </DialogDismiss>
               <Tooltip
                 content={
                   canSave
