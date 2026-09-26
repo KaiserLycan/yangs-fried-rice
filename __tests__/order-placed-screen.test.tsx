@@ -207,9 +207,18 @@ describe("OrderPlacedScreen", () => {
     expect(document.querySelector("input")).toBeNull();
   });
 
+  /**
+   * Named rather than matched on /cancel/i: this screen carries the nav bar,
+   * whose sign-out confirmation is a closed native `<dialog>`. A closed
+   * `<dialog>` is `display: none` in a browser but still in the DOM, and
+   * jsdom applies no UA stylesheet — so its "Cancel" button is findable here
+   * while being invisible and unreachable to anyone using the app.
+   */
   it("offers no cancel control — cancelling lives on the tracking screen", () => {
     renderScreen();
-    expect(screen.queryByText(/cancel/i)).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /cancel order/i }),
+    ).toBeNull();
   });
 });
 

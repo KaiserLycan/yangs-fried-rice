@@ -1,9 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { SiteNavBar } from "@/components/nav/site-nav-bar";
 import { ToastProvider } from "@/components/ui/toast";
 import type { CustomerProfile } from "@/lib/profile/customer-profile";
+
+// The bar carries a sign-out control (issue #106), which navigates on
+// success. There is no app router in this environment.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: vi.fn(), refresh: vi.fn(), push: vi.fn() }),
+}));
 
 /**
  * `SiteNavBar` is desktop chrome behind `middleware.ts`'s auth gate, so it
