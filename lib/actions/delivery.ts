@@ -5,7 +5,10 @@ import { orderItemName } from "@/lib/orders/item-name";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { computeOrderTotal } from "@/lib/orders/order-total";
 import {
+  DELIVERY_CAP_MESSAGE,
   RELEASED_DELIVERY_STATUS,
+  isAtDeliveryCap,
+  isDeliveryFinished,
   releaseRefusalReason,
 } from "@/lib/orders/delivery-assignment";
 import { revalidatePath } from "next/cache";
@@ -29,6 +32,12 @@ type DeliverySummary = {
   deliveryStatus: string | null;
   estimatedTime: string | null;
   createdAt: string;
+  /** Null while nobody has taken it. */
+  riderId: string | null;
+  /** The signed-in rider holds it. */
+  isMine: boolean;
+  /** Another rider holds it — their name, so the card can say who (P46). */
+  takenBy: string | null;
 };
 
 type DeliveryDetail = {
@@ -88,23 +97,19 @@ async function getCurrentRider(supabase: ReturnType<typeof createClient>) {
 }
 
 /**
- * Order5: deliveries dispatched to the signed-in rider.
+ * Order5: the rider queue.
  *
- * "Receive incoming delivery requests" is read here as viewing what's
- * already been dispatched (rider_id set) rather than an accept/decline
- * flow — the ERD's Employee-to-Delivery relationship is literally
- * "dispatches," implying staff assign the rider elsewhere, and this
- * action's job is just to show the rider their queue.
- *
- * Excludes already-delivered ones so the list reads as an active queue,
- * not a full history — delivery history for riders isn't part of this
- * issue's acceptance criteria.
+ * Every rider sees the same queue (P45): every unfinished delivery, whoever
+ * holds it, plus this rider's own finished ones for the Delivered tab. A
+ * delivery another rider took stays visible with their name on it (P46), so
+ * riders see the queue shrink instead of orders silently vanishing. Only the
+ * holder can act on it — the card hides its buttons, and `markDelivered` and
+ * the update policy refuse anyone else (P47).
  */
 export async function getAssignedDeliveries(): Promise<{
   deliveries: DeliverySummary[];
   error: string | null;
 }> {
-  console.log("getAssignedDeliveries called");
   const supabase = createClient();
   const rider = await getCurrentRider(supabase);
   if (!rider) {
@@ -114,49 +119,96 @@ export async function getAssignedDeliveries(): Promise<{
     };
   }
 
-  // Deliveries assigned to this rider, plus the ones nobody has taken.
-  //
-  // Two filtered reads rather than one `.or("rider_id.eq." + id + ",…")`.
-  // That string is a PostgREST filter expression, so building it by
-  // concatenation is the same class of mistake as building SQL by
-  // concatenation; `.eq`/`.is` send values the client encodes, which nothing
-  // can break out of. `__tests__/security/injection.test.ts` fails the build
-  // if a filter string with interpolation reappears anywhere.
+  // All deliveries are read and other riders' finished ones dropped here,
+  // because `delivery_status` is free text and `isDeliveryFinished` is the
+  // one place that folds it. Employees may read every delivery (RLS
+  // `employee_select_all_delivery`).
   const SELECT =
-    "delivery_id, order_id, delivery_status, estimated_time, order:order_id(created_at)";
+    "delivery_id, order_id, delivery_status, estimated_time, rider_id, order:order_id(created_at)";
 
-  const [assigned, unassigned] = await Promise.all([
-    supabase.from("delivery").select(SELECT).eq("rider_id", rider.rider_id),
-    supabase.from("delivery").select(SELECT).is("rider_id", null),
-  ]);
+  const { data, error } = await supabase.from("delivery").select(SELECT);
 
-  if (assigned.error || unassigned.error) {
+  if (error) {
     return { deliveries: [], error: "Could not load your deliveries." };
   }
 
-  // Soonest estimate first, with un-estimated deliveries last — what the
-  // single query's `order(..., { nullsFirst: false })` used to do.
-  const data = [...(assigned.data ?? []), ...(unassigned.data ?? [])].sort(
-    (a: any, b: any) => {
-      if (!a.estimated_time && !b.estimated_time) return 0;
-      if (!a.estimated_time) return 1;
-      if (!b.estimated_time) return -1;
-      return (
-        new Date(a.estimated_time).getTime() - new Date(b.estimated_time).getTime()
-      );
-    },
+  const rows = (data ?? []).filter(
+    (d: any) =>
+      d.rider_id === rider.rider_id ||
+      !isDeliveryFinished({ assignedRiderId: d.rider_id, status: d.delivery_status }),
   );
 
+  const otherRiderIds = Array.from(
+    new Set(
+      rows
+        .map((d: any) => d.rider_id as string | null)
+        .filter((id): id is string => id !== null && id !== rider.rider_id),
+    ),
+  );
+  const riderNames = await readRiderNames(otherRiderIds);
+
+  // Soonest estimate first, with un-estimated deliveries last.
+  const sorted = [...rows].sort((a: any, b: any) => {
+    if (!a.estimated_time && !b.estimated_time) return 0;
+    if (!a.estimated_time) return 1;
+    if (!b.estimated_time) return -1;
+    return (
+      new Date(a.estimated_time).getTime() - new Date(b.estimated_time).getTime()
+    );
+  });
+
   return {
-    deliveries: data.map((d: any) => ({
-      deliveryId: d.delivery_id,
-      orderId: d.order_id,
-      deliveryStatus: d.delivery_status,
-      estimatedTime: d.estimated_time,
-      createdAt: d.order?.created_at || new Date().toISOString(),
-    })),
+    deliveries: sorted.map((d: any) => {
+      const isMine = d.rider_id === rider.rider_id;
+      return {
+        deliveryId: d.delivery_id,
+        orderId: d.order_id,
+        deliveryStatus: d.delivery_status,
+        estimatedTime: d.estimated_time,
+        createdAt: d.order?.created_at || new Date().toISOString(),
+        riderId: d.rider_id,
+        isMine,
+        takenBy:
+          d.rider_id && !isMine
+            ? riderNames.get(d.rider_id) ?? "another rider"
+            : null,
+      };
+    }),
     error: null,
   };
+}
+
+/**
+ * Rider id -> the rider's name, for the "Taken by" line.
+ *
+ * Service role, because a rider cannot read another employee's row. Only the
+ * name is selected, so nothing else about a colleague is exposed.
+ */
+async function readRiderNames(riderIds: string[]): Promise<Map<string, string>> {
+  const names = new Map<string, string>();
+  if (riderIds.length === 0) return names;
+
+  const admin = createAdminClient();
+  const { data: riders } = await admin
+    .from("rider")
+    .select("rider_id, employee_id")
+    .in("rider_id", riderIds);
+
+  const employeeIds = (riders ?? [])
+    .map((r) => r.employee_id)
+    .filter((id): id is string => Boolean(id));
+  if (employeeIds.length === 0) return names;
+
+  const { data: employees } = await admin
+    .from("employee")
+    .select("employee_id, name")
+    .in("employee_id", employeeIds);
+
+  for (const r of riders ?? []) {
+    const name = employees?.find((e) => e.employee_id === r.employee_id)?.name;
+    if (name) names.set(r.rider_id, name);
+  }
+  return names;
 }
 
 /**
@@ -169,7 +221,6 @@ export async function getAssignedDeliveries(): Promise<{
  * is real. Customer name/address is PII; this boundary matters.
  */
 export async function getDeliveryDetailsBatch(deliveryIds: string[]) {
-  console.log("getDeliveryDetailsBatch called with IDs:", deliveryIds);
   const supabase = createClient();
   const rider = await getCurrentRider(supabase);
   if (!rider) return { deliveries: [], error: "Unauthorized" };
@@ -185,6 +236,7 @@ export async function getDeliveryDetailsBatch(deliveryIds: string[]) {
       delivery_status,
       estimated_time,
       proof_of_delivery,
+      rider_id,
       order:order_id (
         created_at,
         delivery_address,
@@ -198,8 +250,6 @@ export async function getDeliveryDetailsBatch(deliveryIds: string[]) {
     `
     )
     .in("delivery_id", deliveryIds);
-
-  console.log("Query returned deliveries length:", deliveries?.length, "error:", error?.message);
 
   if (error || !deliveries) {
     return { deliveries: [], error: error?.message || "Failed to fetch details" };
@@ -236,11 +286,16 @@ export async function getDeliveryDetailsBatch(deliveryIds: string[]) {
     const orderRow = delivery.order as any;
     const createdAt = orderRow?.created_at || new Date().toISOString();
     
+    // Another rider's customer: the queue shows the card (P46) but their
+    // phone number has no reason to reach this rider's browser.
+    const isOtherRiders =
+      delivery.rider_id !== null && delivery.rider_id !== rider.rider_id;
+
     let customer = null;
     if (orderRow?.customer) {
       customer = {
         name: orderRow.customer.name,
-        phone: orderRow.customer.phone_number || "",
+        phone: isOtherRiders ? "" : orderRow.customer.phone_number || "",
         email: "",
         address: orderRow.delivery_address || "",
       };
@@ -602,10 +657,10 @@ export async function markDelivered(
 /**
  * Order10: Atomically accept a pending delivery.
  *
- * A rider may hold as many deliveries as they accept — the only condition is
- * that this one is still unassigned, which is checked inside the UPDATE so two
- * riders tapping at once cannot both win it. Anything they take can be handed
- * back again with `releaseDelivery`.
+ * A rider may hold up to `MAX_ACTIVE_DELIVERIES` at once (P48). The delivery
+ * must still be unassigned, which is checked inside the UPDATE so two riders
+ * tapping at once cannot both win it. Anything they take can be handed back
+ * again with `releaseDelivery`.
  */
 export async function acceptDelivery(deliveryId: string): Promise<{ success: boolean; error: string | null }> {
   const supabase = createClient();
@@ -613,6 +668,26 @@ export async function acceptDelivery(deliveryId: string): Promise<{ success: boo
   
   if (!rider) {
     return { success: false, error: "You must be signed in as a rider to accept deliveries." };
+  }
+
+  // Counted before the update rather than inside it, so two taps at the same
+  // instant could both pass at 9. One over the cap is harmless; the cap is
+  // there to stop hoarding, not to be exact.
+  const { data: held, error: heldError } = await supabase
+    .from("delivery")
+    .select("delivery_status")
+    .eq("rider_id", rider.rider_id);
+
+  if (heldError) {
+    return { success: false, error: "Couldn't check your current deliveries. Try again." };
+  }
+
+  const activeCount = (held ?? []).filter(
+    (d) => !isDeliveryFinished({ assignedRiderId: rider.rider_id, status: d.delivery_status }),
+  ).length;
+
+  if (isAtDeliveryCap(activeCount)) {
+    return { success: false, error: DELIVERY_CAP_MESSAGE };
   }
 
   // Atomic update: Only succeeds if rider_id is still exactly NULL
