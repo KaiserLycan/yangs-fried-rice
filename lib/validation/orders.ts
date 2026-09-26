@@ -77,8 +77,10 @@ export const VALID_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
   payment_failed: ["pending", "cancelled"],
   pending: ["preparing", "cancelled"],
   received: ["preparing", "cancelled"],
-  preparing: ["ready", "out_for_delivery", "cancelled"],
-  ready: ["out_for_delivery", "completed", "cancelled"],
+  // Pickup-only (issue #114): nothing new goes out for delivery. The status
+  // stays in the vocabulary so legacy orders already there can be finished.
+  preparing: ["ready", "cancelled"],
+  ready: ["completed", "cancelled"],
   out_for_delivery: ["completed", "cancelled"],
   completed: [],   // terminal
   cancelled: [],   // terminal

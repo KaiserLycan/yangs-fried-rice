@@ -23,9 +23,6 @@ export const FIELD_LIMITS = {
   zip: { min: 4, max: 4 },
   addressLabel: { min: 0, max: 30 },
   deliveryNote: { min: 0, max: 200 },
-  vehicleMakeModel: { min: 2, max: 50 },
-  vehiclePlateNumber: { min: 5, max: 10 },
-  driverLicenseNumber: { min: 11, max: 13 },
   productName: { min: 2, max: 80 },
   productDetails: { min: 0, max: 300 },
   categoryName: { min: 2, max: 40 },
@@ -131,37 +128,6 @@ export const addressPartsSchema = z.object({
 });
 
 export type AddressParts = z.infer<typeof addressPartsSchema>;
-
-// ---------------------------------------------------------------------------
-// Riders
-// ---------------------------------------------------------------------------
-
-export const vehicleMakeModelSchema = requiredText("vehicleMakeModel", "Vehicle make and model", "Enter the vehicle make and model.");
-
-/** "ABC 1234" (car), "123 ABC" / "AB 12345" (motorcycle). */
-export const vehiclePlateNumberSchema = requiredText("vehiclePlateNumber", "Plate number", "Enter the plate number.").pipe(
-  z
-    .string()
-    .regex(/^[A-Z0-9]+(?: [A-Z0-9]+)?$/i, "Use letters and numbers only, e.g. ABC 1234."),
-);
-
-/** LTO licence number: letter + 2 digits, 2 digits, 6 digits — N01-12-345678. */
-export const driverLicenseNumberSchema = requiredText("driverLicenseNumber", "Licence number", "Enter the licence number.").pipe(
-  z.string().regex(/^[A-Z]\d{2}-\d{2}-\d{6}$/i, "Use the LTO format, e.g. N01-12-345678."),
-);
-
-/** An ISO date that is today or later — an expired licence can't be used. */
-export const licenseExpiryDateSchema = z
-  .string()
-  .min(1, "Enter the licence expiry date.")
-  .refine((value) => /^\d{4}-\d{2}-\d{2}$/.test(value), "Enter a valid date.")
-  .refine((value) => {
-    const [y, m, d] = value.split("-").map(Number);
-    const expiry = new Date(y, m - 1, d);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return expiry.getTime() >= today.getTime();
-  }, "The licence has expired.");
 
 // ---------------------------------------------------------------------------
 // Helpers

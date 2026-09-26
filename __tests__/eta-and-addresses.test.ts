@@ -235,7 +235,9 @@ describe("ETA API", () => {
     expect(body.activeOrdersAhead).toBe(2);
     expect(body.isDeliverable).toBe(true);
     expect(body.arrivalWindow).toBeDefined();
-    expect(mockUpdate).toHaveBeenCalled();
+    // Pickup-only (issue #114): the delivery table is gone, so the estimate
+    // is computed and returned, never written back anywhere.
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 
   it("TC-ETA-3: Rejects with 404 Order not found when order belongs to another customer", async () => {

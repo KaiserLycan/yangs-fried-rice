@@ -332,34 +332,9 @@ describe("Checkout place order", () => {
     );
   });
 
-  it("sends the saved address's delivery note with a delivery order (P33)", async () => {
-    vi.mocked(submitCart).mockResolvedValue({
-      data: {
-        order_id: "order-79",
-        order_status: "pending",
-        cart_id: "cart-1",
-        is_final: true,
-      },
-      error: null,
-    });
-    renderCheckout({
-      fulfilment: "delivery",
-      profile: { ...profile, deliverToNote: "Gate on the left, ring thrice" },
-    });
-
-    fireEvent.click(screen.getAllByRole("button", { name: /Place order/ })[0]);
-
-    await waitFor(() =>
-      expect(submitCart).toHaveBeenCalledWith(
-        expect.objectContaining({
-          order_type: "delivery",
-          special_instructions: "Gate on the left, ring thrice",
-        }),
-      ),
-    );
-  });
-
-  it("sends the current delivery fee on a delivery order", async () => {
+  // Pickup-only (issue #114): even a stale page drawn for delivery submits
+  // a take-out order, and `submit_cart_to_order` would refuse anything else.
+  it("submits every order as take-out, even from a page drawn for delivery", async () => {
     vi.mocked(submitCart).mockResolvedValue({
       data: {
         order_id: "order-78",
@@ -375,9 +350,31 @@ describe("Checkout place order", () => {
 
     await waitFor(() =>
       expect(submitCart).toHaveBeenCalledWith(
-        expect.objectContaining({ order_type: "delivery", delivery_fee: 50 }),
+        expect.objectContaining({ order_type: "take_out" }),
       ),
     );
+  });
+
+  it("sends a disabled customer to sign in again, with the reason", async () => {
+    vi.mocked(submitCart).mockResolvedValue({
+      data: null,
+      error: "Your account has been disabled.",
+      code: "ACCOUNT_DISABLED",
+    });
+    const assign = vi.fn();
+    vi.stubGlobal("location", { ...window.location, assign });
+    try {
+      renderCheckout();
+
+      fireEvent.click(screen.getAllByRole("button", { name: /Place order/ })[0]);
+
+      await waitFor(() =>
+        expect(assign).toHaveBeenCalledWith("/login?error=account-disabled"),
+      );
+      expect(push).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("stays on checkout and shows the backend's reason when the order is refused", async () => {

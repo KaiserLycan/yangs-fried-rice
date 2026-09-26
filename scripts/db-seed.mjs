@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // ============================================================================
-// Demo data seed — a realistic menu, staff, riders, customers with Metro
-// Manila addresses, and a month of orders, deliveries, payments and reviews,
-// so every screen (menu, KDS, dashboard, reports, delivery queue, order
-// history) has something believable on it during testing.
+// Demo data seed — a realistic menu, staff, customers with Metro Manila
+// addresses, and a month of pickup orders, payments and reviews, so every
+// screen (menu, KDS, dashboard, reports, order history) has something
+// believable on it during testing. The shop is pickup-only (issue #114).
 //
 //   npm run db:seed              add the demo data (refuses if already there)
 //   npm run db:seed -- --reset   remove the previous demo data first, then add
@@ -103,12 +103,6 @@ const EMPLOYEES = [
   { first: "Grace", last: "Lim", email: "grace.lim@yangs.ph", role: "STAFF", shift: "MWF – 12-3PM", phone: "+639171110002", dob: "1996-07-21" },
   { first: "Paolo", last: "Dizon", email: "paolo.dizon@yangs.ph", role: "STAFF", shift: "TThS – 9-5PM", phone: "+639171110003", dob: "1999-11-02" },
   { first: "Anna Mae", last: "Santos", email: "annamae.santos@yangs.ph", role: "STAFF", shift: "Weekends – 10-10PM", phone: "+639171110004", dob: "2001-01-30" },
-  { first: "Jerome", last: "Bautista", email: "jerome.bautista@yangs.ph", role: "RIDER", shift: "Mon-Fri – 8-4PM", phone: "+639171110005", dob: "1995-05-18",
-    rider: { vehicle_make_model: "Honda Click 125i", vehicle_plate_number: "NBA 1234", driver_license_number: "N01-15-123456", license_expiry_date: "2029-05-18" } },
-  { first: "Mark Anthony", last: "Cruz", email: "markanthony.cruz@yangs.ph", role: "RIDER", shift: "TThS – 9-5PM", phone: "+639171110006", dob: "1993-09-09",
-    rider: { vehicle_make_model: "Yamaha Mio i125", vehicle_plate_number: "DAE 5821", driver_license_number: "N02-13-654321", license_expiry_date: "2028-09-09" } },
-  { first: "Rodel", last: "Villanueva", email: "rodel.villanueva@yangs.ph", role: "RIDER", shift: "Weekends – 10-10PM", phone: "+639171110007", dob: "1990-12-01",
-    rider: { vehicle_make_model: "Suzuki Raider 150", vehicle_plate_number: "KTP 3390", driver_license_number: "D11-10-246810", license_expiry_date: "2027-12-01" } },
 ];
 
 // [first, last, [buildingNo, street, barangay, city, zip], note]
@@ -131,7 +125,7 @@ const CUSTOMERS = [
 ];
 
 const REVIEW_COMMENTS = {
-  5: ["Hot and fast — the Yang Chow is still the best in the city.", "Rider was friendly and the food arrived piping hot.", "Perfect as always. The siomai never misses!", "Generous servings, will order again."],
+  5: ["Hot and fast — the Yang Chow is still the best in the city.", "Staff were friendly and the food was piping hot.", "Perfect as always. The siomai never misses!", "Generous servings, will order again."],
   4: ["Really good, just a little late tonight.", "Tasty fried rice, wish there was a bit more shrimp.", "Solid order, packaging kept everything warm."],
   3: ["Food was fine but arrived lukewarm.", "Okay overall — the noodles were a bit soggy."],
 };
@@ -208,7 +202,6 @@ for (const [categoryName, items] of Object.entries(MENU)) {
 console.log(`Menu: ${Object.keys(MENU).length} categories, ${products.length} products.`);
 
 // ---- employees ---------------------------------------------------------------
-const riders = []; // { rider_id, employee_id }
 for (const e of EMPLOYEES) {
   const id = await createAuthUser(e.email, `${e.first} ${e.last}`);
   check(await db.from("employee").insert({
@@ -218,15 +211,11 @@ for (const e of EMPLOYEES) {
     email: e.email,
     role: e.role,
     schedule_shift: e.shift,
-    "phone-num": e.phone,
+    phone_number: e.phone,
     date_of_birth: e.dob,
   }), `employee ${e.email}`);
-  if (e.rider) {
-    const rider = check(await db.from("rider").insert({ employee_id: id, ...e.rider }).select("rider_id").single(), `rider ${e.email}`);
-    riders.push({ rider_id: rider.rider_id, employee_id: id });
-  }
 }
-console.log(`Employees: ${EMPLOYEES.length} (${riders.length} riders).`);
+console.log(`Employees: ${EMPLOYEES.length}.`);
 
 // ---- customers ---------------------------------------------------------------
 const customers = []; // { id, address }
@@ -260,7 +249,6 @@ for (const [index, [first, last, parts, note]] of CUSTOMERS.entries()) {
 console.log(`Customers: ${customers.length}, each with a Metro Manila address.`);
 
 // ---- orders ------------------------------------------------------------------
-const DELIVERY_FEE = 49;
 const now = Date.now();
 let orderCount = 0;
 let reviewCount = 0;
@@ -273,7 +261,6 @@ async function createOrder({ customer, createdAt, status, orderType }) {
     const addOn = product.addOns.length && random() < 0.35 ? pick(product.addOns) : null;
     lines.push({ product, quantity, addOn });
   }
-  const deliveryFee = orderType === "delivery" ? DELIVERY_FEE : 0;
   const completedAt = status === "completed" ? new Date(createdAt.getTime() + between(25, 55) * 60000) : null;
   const cancelled = status === "cancelled";
 
@@ -281,12 +268,12 @@ async function createOrder({ customer, createdAt, status, orderType }) {
     customer_id: customer.id,
     order_type: orderType,
     order_status: status,
-    delivery_fee: deliveryFee,
-    delivery_address: orderType === "delivery" ? customer.address : null,
+    delivery_fee: 0,
+    delivery_address: null,
     created_at: createdAt.toISOString(),
     completed_at: completedAt?.toISOString() ?? null,
     cancelled_at: cancelled ? new Date(createdAt.getTime() + 5 * 60000).toISOString() : null,
-    cancellation_reason: cancelled ? pick(["Ordered the wrong items.", "Changed my mind about delivery.", "Store was about to close."]) : null,
+    cancellation_reason: cancelled ? pick(["Ordered the wrong items.", "Changed my mind.", "Store was about to close."]) : null,
     special_instructions: random() < 0.2 ? pick(["No onions please.", "Extra chili on the side.", "Please include utensils."]) : null,
   }).select("order_id").single(), "order");
 
@@ -300,6 +287,8 @@ async function createOrder({ customer, createdAt, status, orderType }) {
       product_id: line.product.product_id,
       quantity: line.quantity,
       subtotal: lineTotal,
+      product_name: line.product.name,
+      unit_price: unit,
     }).select("order_item_id").single(), "order item");
     if (line.addOn) {
       check(await db.from("order_item_add_on").insert({ order_item_id: item.order_item_id, addon_id: line.addOn.addon_id }), "order item add-on");
@@ -307,7 +296,7 @@ async function createOrder({ customer, createdAt, status, orderType }) {
   }
 
   const paid = status === "completed";
-  const method = random() < 0.6 ? "cash_on_delivery" : "paymongo";
+  const method = random() < 0.6 ? "pay_in_store" : "paymongo";
   check(await db.from("transaction").insert({
     order_id: order.order_id,
     payment_method: method,
@@ -315,23 +304,9 @@ async function createOrder({ customer, createdAt, status, orderType }) {
     subtotal: money(subtotal),
     tax_amount: 0,
     discount_amount: 0,
-    total_paid: paid ? money(subtotal + deliveryFee) : 0,
+    total_paid: paid ? money(subtotal) : 0,
     transaction_date: createdAt.toISOString(),
   }), "transaction");
-
-  if (orderType === "delivery" && ["out_for_delivery", "completed"].includes(status)) {
-    const rider = pick(riders);
-    // Upsert: trg_create_delivery_for_ready_order already inserted a pending
-    // row for an out_for_delivery order, so fill that one in.
-    check(await db.from("delivery").upsert({
-      order_id: order.order_id,
-      rider_id: rider.rider_id,
-      employee_id: rider.employee_id,
-      delivery_status: status === "completed" ? "delivered" : "in_transit",
-      estimated_time: new Date(createdAt.getTime() + 40 * 60000).toISOString(),
-      completed_at: completedAt?.toISOString() ?? null,
-    }, { onConflict: "order_id" }), "delivery");
-  }
 
   if (status === "completed" && random() < 0.55) {
     const rating = pick([5, 5, 5, 4, 4, 3]);
@@ -356,17 +331,17 @@ for (let daysAgo = 30; daysAgo >= 1; daysAgo -= 1) {
       customer: pick(customers),
       createdAt,
       status: random() < 0.08 ? "cancelled" : "completed",
-      orderType: random() < 0.75 ? "delivery" : "take_out",
+      orderType: random() < 0.85 ? "take_out" : "dine_in",
     });
   }
 }
-// Today's live queue, so the KDS and delivery screens have work on them.
-for (const status of ["pending", "pending", "preparing", "preparing", "ready", "out_for_delivery", "out_for_delivery"]) {
+// Today's live queue, so the KDS and orders screens have work on them.
+for (const status of ["pending", "pending", "preparing", "preparing", "ready", "ready"]) {
   await createOrder({
     customer: pick(customers),
     createdAt: new Date(now - between(5, 50) * 60000),
     status,
-    orderType: status === "ready" ? "take_out" : "delivery",
+    orderType: "take_out",
   });
 }
 console.log(`Orders: ${orderCount} (30 days of history + today's queue), ${reviewCount} reviews.`);
@@ -375,6 +350,5 @@ console.log(`
 Demo sign-ins (password for all: ${DEMO_PASSWORD})
   Manager   ramon.tan@yangs.ph            → /employee/login
   Staff     grace.lim@yangs.ph            → /employee/login
-  Rider     jerome.bautista@yangs.ph      → /employee/login
   Customer  ${emailFor("Liza", "Reyes").padEnd(29)} → /login
 `);

@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState, useTransition } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Field } from "@/components/ui/field";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -15,10 +15,14 @@ import {
   employeeLoginSchema,
 } from "@/lib/validation/employee-login";
 import { loginEmployee } from "@/app/(auth)/actions";
+import {
+  ACCOUNT_DISABLED_LOGIN_ERROR,
+  EMPLOYEE_ACCOUNT_DISABLED_MESSAGE,
+} from "@/lib/auth/account-status";
 
 /**
  * COPY: "created by an admin" names a role that does not exist — the confirmed
- * user types are Customer, Business Owner, Staff and Rider, and employee
+ * user types are Customer, Business Owner and Staff, and employee
  * accounts are the Business Owner's to create. Ported as drawn and flagged.
  *
  * BACKEND: "Sessions end automatically at close of shift" is an authentication
@@ -38,8 +42,25 @@ const FOOTER_NOTE =
  * cream column and the footer becomes its last row, above a hairline rule.
  */
 export function EmployeeLoginForm() {
+  // useSearchParams() needs a Suspense boundary during static prerendering,
+  // the same reason CustomerLoginForm wraps its inner form.
+  return (
+    <Suspense fallback={null}>
+      <EmployeeLoginFormInner />
+    </Suspense>
+  );
+}
+
+function EmployeeLoginFormInner() {
   const router = useRouter();
-  const [serverError, setServerError] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  // Middleware signs a disabled employee out and lands them here with the
+  // reason in the URL (issue #114).
+  const [serverError, setServerError] = useState<string | null>(
+    searchParams.get("error") === ACCOUNT_DISABLED_LOGIN_ERROR
+      ? EMPLOYEE_ACCOUNT_DISABLED_MESSAGE
+      : null,
+  );
   const [showPassword, setShowPassword] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -56,9 +77,8 @@ export function EmployeeLoginForm() {
   const handleSubmit = live.handleSubmit(async (values) => {
     setServerError(null);
 
-    // Route on Employee.role: Staff and Business Owner to /manage, Rider
-    // to /deliver. Role values are placeholders pending PM confirmation
-    // — see the comment above EMPLOYEE_ROLE_REDIRECTS in actions.ts.
+    // Route on Employee.role: managers to the dashboard, staff to orders
+    // (homePathForRole in lib/auth/roles.ts).
     startTransition(async () => {
       const outcome = await loginEmployee(values);
       if (!outcome.success) {

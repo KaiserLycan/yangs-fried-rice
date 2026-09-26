@@ -2,6 +2,10 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { reviewSubmissionSchema, type ReviewSubmission } from "@/lib/validation/reviews";
+import {
+  ACCOUNT_DISABLED_CODE,
+  ACCOUNT_DISABLED_MESSAGE,
+} from "@/lib/auth/account-status";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -9,7 +13,7 @@ import { reviewSubmissionSchema, type ReviewSubmission } from "@/lib/validation/
 
 type ActionResult<T> =
   | { data: T; error: null }
-  | { data: null; error: string };
+  | { data: null; error: string; code?: string };
 
 /** Shape returned by the get_customer_order_history RPC. */
 export type OrderHistoryItem = {
@@ -111,12 +115,21 @@ async function requireCustomer(): Promise<
   // Verify the user is actually a customer (not just any authenticated user)
   const { data: customer } = await supabase
     .from("customer")
-    .select("customer_id")
+    .select("customer_id, is_account_disabled")
     .eq("customer_id", user.id)
     .single();
 
   if (!customer) {
     return { data: null, error: "You are not registered as a customer." };
+  }
+
+  // A disabled customer's token is still valid; the flag is what stops them.
+  if (customer.is_account_disabled) {
+    return {
+      data: null,
+      error: ACCOUNT_DISABLED_MESSAGE,
+      code: ACCOUNT_DISABLED_CODE,
+    };
   }
 
   return { data: { customer_id: user.id }, error: null };
@@ -136,7 +149,7 @@ export async function getMyOrders(): Promise<
   ActionResult<OrderHistoryItem[]>
 > {
   const auth = await requireCustomer();
-  if (!auth.data) return { data: null, error: auth.error };
+  if (!auth.data) return { data: null, error: auth.error, code: auth.code };
 
   const supabase = createClient();
   const { data, error } = await supabase.rpc("get_customer_order_history", {
@@ -167,7 +180,7 @@ export async function getMyOrderDetail(
   orderId: string,
 ): Promise<ActionResult<OrderDetail>> {
   const auth = await requireCustomer();
-  if (!auth.data) return { data: null, error: auth.error };
+  if (!auth.data) return { data: null, error: auth.error, code: auth.code };
 
   const supabase = createClient();
   const { data, error } = await supabase
@@ -242,7 +255,7 @@ export async function submitReview(
   rawData: unknown,
 ): Promise<ActionResult<ReviewResult>> {
   const auth = await requireCustomer();
-  if (!auth.data) return { data: null, error: auth.error };
+  if (!auth.data) return { data: null, error: auth.error, code: auth.code };
 
   // Validate input
   const parsed = reviewSubmissionSchema.safeParse(rawData);

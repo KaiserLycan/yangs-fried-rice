@@ -49,11 +49,7 @@ export async function readPastOrders(): Promise<PastOrder[]> {
 
   const orderIds = orders.map((row) => row.order_id);
 
-  const [deliveries, items, reviews] = await Promise.all([
-    supabase
-      .from("delivery")
-      .select("order_id, delivery_status")
-      .in("order_id", orderIds),
+  const [items, reviews] = await Promise.all([
     supabase
       .from("order_item")
       .select("order_id, quantity, subtotal, product_id, product_name, product(product_name)")
@@ -64,11 +60,6 @@ export async function readPastOrders(): Promise<PastOrder[]> {
       .eq("customer_id", user.id)
       .in("order_id", orderIds),
   ]);
-
-  const deliveryStatusByOrder = new Map<string, string | null>();
-  for (const row of deliveries.data ?? []) {
-    if (row.order_id) deliveryStatusByOrder.set(row.order_id, row.delivery_status);
-  }
 
   const ratingByOrder = new Map<string, number | null>();
   const productRatingsByOrder = new Map<string, Record<string, number>>();
@@ -109,7 +100,8 @@ export async function readPastOrders(): Promise<PastOrder[]> {
         placedAt: row.created_at,
         orderStatus: row.order_status,
         cancelledAt: row.cancelled_at,
-        deliveryStatus: deliveryStatusByOrder.get(row.order_id) ?? null,
+        // Pickup-only (issue #114): no delivery table, so no delivery status.
+        deliveryStatus: null,
         orderType: row.order_type,
         items: orderItems.map(({ name, quantity, productId }) => ({ name, quantity, productId })),
         total: totalOf(orderItems, row.delivery_fee, row.order_type),

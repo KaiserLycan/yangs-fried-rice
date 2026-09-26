@@ -23,7 +23,7 @@
 //      manager to fix by hand — and the last manager is never deleted at all.
 //   4. Addresses with a part that can't pass, duplicates, and orphans are
 //      deleted; a customer left without a default gets one.
-//   5. Invalid rider plate / licence values are cleared.
+//   5. (Removed: riders — the shop is pickup-only, issue #114.)
 //   6. Test products are deleted (or hidden, if past orders reference them);
 //      products that break the name/price rules are hidden and listed.
 //   7. Orphans: auth users with no customer or employee row (half-finished
@@ -54,8 +54,6 @@ const NAME = /^\p{L}[\p{L}\p{M} .'-]*$/u;
 const EMAIL = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
 const PHONE_STORED = /^\+639\d{9}$/;
 const PHONE_ANY = /^(?:\+?63|0)?9\d{9}$/;
-const PLATE = /^[A-Z0-9]+(?: [A-Z0-9]+)?$/i;
-const LICENSE = /^[A-Z]\d{2}-\d{2}-\d{6}$/i;
 
 const validName = (v) => typeof v === "string" && v.length >= 2 && v.length <= 50 && NAME.test(v);
 const validEmail = (v) => typeof v === "string" && v.length >= 6 && v.length <= 254 && EMAIL.test(v);
@@ -128,12 +126,11 @@ const plan = {
 const db = createAdmin();
 console.log(`\nYang's Fried Rice — database cleanse (${APPLY ? "APPLY" : "dry run"})\n`);
 
-const [customers, employees, addresses, riders, products, categories, orderItems, carts, cartItems, notifications, authUsers] =
+const [customers, employees, addresses, products, categories, orderItems, carts, cartItems, notifications, authUsers] =
   await Promise.all([
     selectAll(db, "customer", "customer_id, first_name, last_name, email, phone_number"),
-    selectAll(db, "employee", 'employee_id, first_name, last_name, email, role, "phone-num"'),
+    selectAll(db, "employee", "employee_id, first_name, last_name, email, role, phone_number"),
     selectAll(db, "customer_address", "address_id, customer_id, label, building_no, street, barangay, city, zip_code, address_note, is_default"),
-    selectAll(db, "rider", "rider_id, employee_id, vehicle_plate_number, driver_license_number, vehicle_make_model"),
     selectAll(db, "product", "product_id, product_name, product_price, product_details, is_available, category_id"),
     selectAll(db, "categories", "category_id, category_name"),
     selectAll(db, "order_item", "product_id"),
@@ -187,11 +184,11 @@ for (const e of employees) {
     continue;
   }
   const name = repairName(e.first_name, e.last_name);
-  const phone = repairPhone(e["phone-num"]);
+  const phone = repairPhone(e.phone_number);
   const patch = {};
   if (name.first !== e.first_name) patch.first_name = name.first;
   if (name.last !== e.last_name) patch.last_name = name.last;
-  if (phone.value !== e["phone-num"]) patch["phone-num"] = phone.value;
+  if (phone.value !== e.phone_number) patch.phone_number = phone.value;
   if (Object.keys(patch).length) {
     plan.updates.push({ table: "employee", key: "employee_id", id: e.employee_id, patch, why: "tidy name / normalise phone" });
   }
@@ -234,18 +231,6 @@ for (const a of addresses) {
 for (const [, list] of keptByCustomer) {
   if (!list.some((a) => a.is_default)) {
     plan.updates.push({ table: "customer_address", key: "address_id", id: list[0].address_id, patch: { is_default: true }, why: "customer had no default address" });
-  }
-}
-
-// 5. riders
-for (const r of riders) {
-  if (plan.deleteEmployees.has(r.employee_id)) continue;
-  const patch = {};
-  if (r.vehicle_plate_number && !(PLATE.test(r.vehicle_plate_number) && r.vehicle_plate_number.length >= 5 && r.vehicle_plate_number.length <= 10)) patch.vehicle_plate_number = null;
-  if (r.driver_license_number && !LICENSE.test(r.driver_license_number)) patch.driver_license_number = null;
-  if (r.vehicle_make_model && (tidy(r.vehicle_make_model).length < 2 || tidy(r.vehicle_make_model).length > 50)) patch.vehicle_make_model = null;
-  if (Object.keys(patch).length) {
-    plan.updates.push({ table: "rider", key: "rider_id", id: r.rider_id, patch, why: `invalid ${Object.keys(patch).join(", ")} cleared — re-enter in Manage → Employees` });
   }
 }
 

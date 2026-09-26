@@ -6,31 +6,32 @@
  * in exactly one place.
  *
  * Hierarchy (highest → lowest):
- *   manager  >  staff  >  rider
+ *   manager  >  staff
+ *
+ * There is no rider role: the shop is pickup-only (issue #114). A stored
+ * "RIDER" or "Delivery" role therefore resolves to null — not a recognised
+ * employee — so such an account cannot sign in or pass any guard. Those
+ * accounts were disabled by 20260927000000_pickup_only_drop_rider_and_delivery.sql.
  */
 
 // ---------------------------------------------------------------------------
 // Vocabulary
 // ---------------------------------------------------------------------------
 
-export const EMPLOYEE_ROLES = ["MANAGER", "STAFF", "RIDER"] as const;
+export const EMPLOYEE_ROLES = ["MANAGER", "STAFF"] as const;
 export type EmployeeRole = (typeof EMPLOYEE_ROLES)[number];
 
 const UI_ROLE_ALIASES: Record<string, EmployeeRole> = {
   MANAGER: "MANAGER",
   STAFF: "STAFF",
-  RIDER: "RIDER",
   SERVER: "STAFF",
   COOK: "STAFF",
   CASHIER: "STAFF",
-  DELIVERY: "RIDER",
   "MANAGER ": "MANAGER",
   "STAFF ": "STAFF",
-  "RIDER ": "RIDER",
   "SERVER ": "STAFF",
   "COOK ": "STAFF",
   "CASHIER ": "STAFF",
-  "DELIVERY ": "RIDER",
 };
 
 export function normalizeEmployeeRoleLabel(
@@ -50,7 +51,6 @@ export function normalizeEmployeeRoleLabel(
 export const ROLE_HIERARCHY: Record<EmployeeRole, number> = {
   MANAGER: 2,
   STAFF: 1,
-  RIDER: 0,
 };
 
 // ---------------------------------------------------------------------------
@@ -70,7 +70,7 @@ export function isManager(role: EmployeeRole): boolean {
   return role === "MANAGER";
 }
 
-/** MANAGER or STAFF — everyone except riders. */
+/** MANAGER or STAFF — every employee role. */
 export function canAccessManage(role: EmployeeRole): boolean {
   return role === "MANAGER" || role === "STAFF";
 }
@@ -93,15 +93,15 @@ export function canAccessAdminOnly(role: EmployeeRole): boolean {
  *
  * Rules:
  *  - MANAGER → can change anyone to any role
- *  - STAFF / RIDER → never
+ *  - STAFF → never
  */
 export function canChangeRole(
   callerRole: EmployeeRole,
   targetCurrentRole: EmployeeRole,
   newRole: EmployeeRole,
 ): boolean {
-  // Staff and riders can never change roles.
-  if (callerRole === "STAFF" || callerRole === "RIDER") return false;
+  // Staff can never change roles.
+  if (callerRole === "STAFF") return false;
 
   // Manager can do anything.
   if (callerRole === "MANAGER") return true;
@@ -114,8 +114,8 @@ export function canChangeRole(
  *
  * Rules:
  *  - Cannot disable own account
- *  - MANAGER → can disable/enable STAFF and RIDER only (cannot touch other MANAGERs)
- *  - STAFF / RIDER → never
+ *  - MANAGER → can disable/enable STAFF only (cannot touch other MANAGERs)
+ *  - STAFF → never
  */
 export function canDisableEmployee(
   callerRole: EmployeeRole,
@@ -124,7 +124,7 @@ export function canDisableEmployee(
 ): boolean {
   if (isSelf) return false;
   if (callerRole === "MANAGER") {
-    return targetRole === "STAFF" || targetRole === "RIDER";
+    return targetRole === "STAFF";
   }
   return false;
 }
@@ -134,8 +134,8 @@ export function canDisableEmployee(
  *
  * Rules:
  *  - Anyone can change their own password
- *  - MANAGER → can change STAFF and RIDER passwords only (cannot touch other MANAGERs)
- *  - STAFF / RIDER → cannot change anyone else's password
+ *  - MANAGER → can change STAFF passwords only (cannot touch other MANAGERs)
+ *  - STAFF → cannot change anyone else's password
  */
 export function canResetEmployeePassword(
   callerRole: EmployeeRole,
@@ -144,29 +144,26 @@ export function canResetEmployeePassword(
 ): boolean {
   if (isSelf) return true;
   if (callerRole === "MANAGER") {
-    return targetRole === "STAFF" || targetRole === "RIDER";
+    return targetRole === "STAFF";
   }
   return false;
 }
-
-
 
 // ---------------------------------------------------------------------------
 // Display + routing
 // ---------------------------------------------------------------------------
 
 /**
- * The three roles the back office presents. Every legacy label (Server, Cook,
+ * The two roles the back office presents. Every legacy label (Server, Cook,
  * Cashier, …) is folded into STAFF by `normalizeEmployeeRoleLabel`, so the
  * directory, its filter and the create/edit form only ever show these.
  */
 export const ROLE_DISPLAY_LABELS: Record<EmployeeRole, string> = {
   MANAGER: "Manager",
   STAFF: "Staff",
-  RIDER: "Delivery",
 };
 
-/** "Manager" | "Staff" | "Delivery" for any stored role spelling; "Staff" if unknown. */
+/** "Manager" | "Staff" for any stored role spelling; "Staff" if unknown. */
 export function roleDisplayLabel(role: string | null | undefined): string {
   const normalized = normalizeEmployeeRoleLabel(role);
   return normalized ? ROLE_DISPLAY_LABELS[normalized] : ROLE_DISPLAY_LABELS.STAFF;
@@ -192,7 +189,6 @@ export function resolveEmployeeRole(
  * pointing at itself.
  */
 export function homePathForRole(role: EmployeeRole | null): string {
-  if (role === "RIDER") return "/deliver";
   if (role === "STAFF") return "/manage/orders";
   if (role === "MANAGER") return "/manage/dashboard";
   return "/employee/login";

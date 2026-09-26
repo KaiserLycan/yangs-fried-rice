@@ -1,12 +1,10 @@
 import { orderItemName } from "@/lib/orders/item-name";
 import { createClient } from "@/lib/supabase/server";
 import { formatOrderNumber } from "@/lib/orders/order-number";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { validateNcrAddress } from "@/lib/address/validate-ncr";
 
 /**
- * One customer's order and its delivery record, narrowed to what the tracking
- * screen draws.
+ * One customer's order, narrowed to what the tracking screen draws.
  *
  * This will read `null` for every customer today, and that is correct rather
  * than a bug to work around: nothing writes an `order` row yet — placing an
@@ -29,23 +27,23 @@ export type TrackedOrder = {
   orderStatus: string | null;
   cancelledAt: string | null;
   cancellationReason: string | null;
+  /**
+   * Always null: the shop is pickup-only and the `delivery` table is gone
+   * (issue #114). Kept on the type because `resolveOrderProgress` still
+   * accepts it for legacy delivery orders.
+   */
   deliveryStatus: string | null;
-  /** `delivery.delivery_id`, so the screen can subscribe to the right row. */
-  deliveryId: string | null;
   orderType: string | null;
   /**
    * "25–35 mins", or null when nothing has been estimated. Not read here:
-   * the page fills it from `getOrderEtaAction`, because `delivery.
-   * estimated_time` is a timestamp the ETA engine writes as a side effect,
-   * not the range the design shows. See `lib/orders/arrival-window.ts`.
+   * the page fills it from `getOrderEtaAction`. See
+   * `lib/orders/arrival-window.ts`.
    */
   arrivalWindow: string | null;
   /** The address the order is going to, or null for a non-delivery order. */
   destination: string | null;
   /** Geocoded coordinates of the destination */
   destinationCoordinates: { lat: number; lng: number } | null;
-  /** Null until a rider accepts the delivery — see `AssignedRider`. */
-  rider: AssignedRider | null;
   items: { productId: string; name: string }[];
   /**
    * The order-level `review.rating`, or null when the customer has not rated
@@ -56,23 +54,6 @@ export type TrackedOrder = {
 
 // This file used to carry a second, byte-identical copy of the customer's
 // order-number helper. Both are gone; see `lib/orders/order-number.ts`.
-
-/**
- * The rider attached to this order's delivery (`CONTEXT.md`: Assigned
- * rider), narrowed to what a customer is shown. Licence details stay on the
- * rider table and are never read here. There is no phone column on
- * `employee`, so there is nothing to call yet — see
- * `docs/unimplemented_issues.md`.
- */
-export type AssignedRider = {
-  /** `delivery.rider_id`, so the screen can tell a new rider from a status change. */
-  riderId: string;
-  /** Null when the employee record could not be read — the rider still exists. */
-  name: string | null;
-  photoUrl: string | null;
-  vehicle: string | null;
-  plate: string | null;
-};
 
 export async function readTrackedOrder(
   orderId: string,
@@ -97,14 +78,7 @@ export async function readTrackedOrder(
 
   if (!order) return null;
 
-  const { data: delivery } = await supabase
-    .from("delivery")
-    .select("delivery_id, delivery_status, rider_id")
-    .eq("order_id", order.order_id)
-    .maybeSingle();
-
-  const [rider, orderItems, review] = await Promise.all([
-    readAssignedRider(supabase, delivery?.rider_id ?? null),
+  const [orderItems, review] = await Promise.all([
     supabase
       .from("order_item")
       .select("product_id, product_name, product(product_name)")
@@ -127,13 +101,11 @@ export async function readTrackedOrder(
     orderStatus: order.order_status,
     cancelledAt: order.cancelled_at,
     cancellationReason: order.cancellation_reason,
-    deliveryStatus: delivery?.delivery_status ?? null,
-    deliveryId: delivery?.delivery_id ?? null,
+    deliveryStatus: null,
     orderType: order.order_type,
     arrivalWindow: null,
     destination: order.delivery_address,
     destinationCoordinates: await geocode(order.delivery_address),
-    rider,
     items: (orderItems || []).map((item) => ({
       productId: item.product_id || "",
       name: orderItemName(
@@ -144,58 +116,6 @@ export async function readTrackedOrder(
       ),
     })),
     rating: review?.rating ?? null,
-  };
-}
-
-/**
- * A rider's name and photo live on `employee`, not on `rider` — the `rider`
- * table only carries licence and vehicle details, and points at the employee
- * record. A rider id with nothing readable behind it is still an assigned
- * rider — saying "not assigned yet" would be false — so the card is kept
- * and the fields are null. This is also what a customer sees if a read
- * policy on `rider` or `employee` is missing; see `docs/unimplemented_issues.md`.
- */
-async function readAssignedRider(
-  supabase: ReturnType<typeof createClient>,
-  riderId: string | null,
-): Promise<AssignedRider | null> {
-  if (!riderId) return null;
-
-  // Read with the service role, not the caller's session.
-  //
-  // This runs on the *customer's* tracking screen, and both rows belong to
-  // somebody else. `employee` and `rider` are RLS-protected so that customers
-  // and anonymous visitors cannot read staff records, which means a
-  // session-scoped read here matches zero rows and the rider's name silently
-  // disappears from tracking.
-  //
-  // Only the name, photo and vehicle are selected, and only for the rider
-  // already assigned to this delivery, so nothing else is exposed. The
-  // alternative — a policy letting a customer read staff rows by joining
-  // delivery to order — widens the table's exposure to express a rule that
-  // belongs here.
-  const admin = createAdminClient();
-
-  const { data: rider } = await admin
-    .from("rider")
-    .select("employee_id, vehicle_make_model, vehicle_plate_number")
-    .eq("rider_id", riderId)
-    .maybeSingle();
-
-  const { data: employee } = rider?.employee_id
-    ? await admin
-        .from("employee")
-        .select("name, profileImage_URL")
-        .eq("employee_id", rider.employee_id)
-        .maybeSingle()
-    : { data: null };
-
-  return {
-    riderId,
-    name: employee?.name ?? null,
-    photoUrl: employee?.profileImage_URL ?? null,
-    vehicle: rider?.vehicle_make_model ?? null,
-    plate: rider?.vehicle_plate_number ?? null,
   };
 }
 

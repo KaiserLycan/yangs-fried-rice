@@ -42,7 +42,7 @@ export type EmployeeData = {
 };
 
 // Server / Cook / Cashier are all Staff — the directory shows and filters three roles.
-const ROLES = ["All Roles", "Manager", "Staff", "Delivery"];
+const ROLES = ["All Roles", "Manager", "Staff"];
 
 // 1. Wrapper component to provide the Toast context
 export default function ManageEmployeePage() {
@@ -102,7 +102,7 @@ function ManageEmployeeInner() {
         firstName: e.first_name || "",
         lastName: e.last_name || "",
         email: e.email || "No email",
-        contact: formatMobileNumber(e["phone-num"]) || "N/A",
+        contact: formatMobileNumber(e.phone_number) || "N/A",
         role: roleDisplayLabel(e.role),
         roleKey: resolveEmployeeRole(e.role) ?? "STAFF",
         // Map the new columns exactly as they are spelled in the database image
@@ -111,7 +111,7 @@ function ManageEmployeeInner() {
           ? new Date(e.last_access_log).toLocaleString() 
           : "No login history",
         imageUrl: e.profileImage_URL || undefined,
-        phone: e["phone-num"] || "",
+        phone: e.phone_number || "",
         dateOfBirth: e.date_of_birth || "",
         isDisabled: Boolean(e.is_account_disabled),
       }));
@@ -158,14 +158,6 @@ function ManageEmployeeInner() {
       scheduleShift: employeeToAdd.shift ?? null,
       phone: employeeToAdd.phone ?? "",
       dateOfBirth: employeeToAdd.dateOfBirth ?? "",
-      riderDetails: dbRole === "RIDER"
-        ? {
-            vehicle_make_model: employeeToAdd.riderDetails?.vehicle_make_model ?? "",
-            vehicle_plate_number: employeeToAdd.riderDetails?.vehicle_plate_number ?? "",
-            driver_license_number: employeeToAdd.riderDetails?.driver_license_number ?? "",
-            license_expiry_date: employeeToAdd.riderDetails?.license_expiry_date ?? "",
-          }
-        : undefined,
     });
 
     if (result.error) {
@@ -202,7 +194,6 @@ function ManageEmployeeInner() {
       phone: employeeToEdit.phone,
       dateOfBirth: employeeToEdit.dateOfBirth,
       isAccountDisabled: employeeToEdit.isAccountDisabled,
-      riderDetails: employeeToEdit.riderDetails,
     });
 
     if (result.error) {
@@ -331,7 +322,7 @@ function ManageEmployeeInner() {
             )}
           </div>
           <Tooltip
-            content="Create a new staff, manager or rider account"
+            content="Create a new staff or manager account"
             shortcut={SHORTCUTS.newItem.combo}
             side="bottom"
             className="w-full sm:w-auto"

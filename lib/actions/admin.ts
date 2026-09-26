@@ -3,6 +3,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
+  ACCOUNT_DISABLED_CODE,
+  EMPLOYEE_ACCOUNT_DISABLED_MESSAGE,
+} from "@/lib/auth/account-status";
+import {
   isEmployeeRole,
   isManager,
   canChangeRole,
@@ -32,7 +36,6 @@ import {
   lastNameSchema,
   passwordSchema,
 } from "@/lib/validation/fields";
-import { riderDetailsSchema } from "@/lib/validation/admin";
 import {
   fieldErrorFromDbError,
   fieldErrorsFromIssues,
@@ -56,7 +59,7 @@ import { removeStoredImage } from "@/lib/storage/remove-stored-image";
  */
 type ActionResult<T> =
   | { data: T; error: null; fieldErrors?: undefined }
-  | { data: null; error: string; fieldErrors?: FieldErrors };
+  | { data: null; error: string; fieldErrors?: FieldErrors; code?: string };
 
 type Employee = Tables<"employee">;
 type Customer = Tables<"customer">;
@@ -90,6 +93,16 @@ export async function getCurrentEmployee(): Promise<
 
   if (error || !employee) {
     return { data: null, error: "You are not registered as an employee." };
+  }
+
+  // The session cookie outlives a manager disabling the account, so the
+  // flag is re-read on every call (issue #114).
+  if (employee.is_account_disabled) {
+    return {
+      data: null,
+      error: EMPLOYEE_ACCOUNT_DISABLED_MESSAGE,
+      code: ACCOUNT_DISABLED_CODE,
+    };
   }
 
   return { data: employee, error: null };
@@ -176,7 +189,6 @@ export async function createEmployee(
     scheduleShift,
     phone,
     dateOfBirth,
-    riderDetails,
   } = {
     ...parsed.data,
     role: normalizedRole,
@@ -212,7 +224,6 @@ export async function createEmployee(
       };
     }
 
-    const supabase = createClient();
     const employeeRow = {
       employee_id: authData.user.id,
       first_name: firstName,
@@ -220,11 +231,14 @@ export async function createEmployee(
       email,
       role: canonicalRole,
       schedule_shift: scheduleShift ?? null,
-      "phone-num": phone ? toInternationalMobile(phone) : null,
+      phone_number: phone ? toInternationalMobile(phone) : null,
       date_of_birth: dateOfBirth ? dateOfBirth : null,
     };
 
-    const { data: employee, error: insertError } = await supabase
+    // Service role, like the Auth user above: `employee` has RLS on and no
+    // INSERT policy (20260925000001), so the manager's own session cannot
+    // write the row. The caller was verified as a manager at the top.
+    const { data: employee, error: insertError } = await adminClient
       .from("employee")
       .insert(employeeRow)
       .select()
@@ -240,26 +254,6 @@ export async function createEmployee(
       };
     }
 
-    if (canonicalRole === "RIDER") {
-      const riderPayload = {
-        employee_id: employee.employee_id,
-        vehicle_plate_number: riderDetails?.vehicle_plate_number ?? null,
-        vehicle_make_model: riderDetails?.vehicle_make_model ?? null,
-        driver_license_number: riderDetails?.driver_license_number ?? null,
-        license_expiry_date: riderDetails?.license_expiry_date ?? null,
-      };
-
-      const { error: riderInsertError } = await supabase
-        .from("rider")
-        .insert(riderPayload);
-
-      if (riderInsertError) {
-        await adminClient.auth.admin.deleteUser(authData.user.id);
-        await supabase.from("employee").delete().eq("employee_id", authData.user.id);
-        return { data: null, error: riderInsertError.message };
-      }
-    }
-
     return { data: employee, error: null };
   } catch (err: any) {
     return { data: null, error: err.message || "Failed to create employee" };
@@ -271,7 +265,7 @@ export async function createEmployee(
  *
  * Enforces hierarchy via canChangeRole():
  *  - manager → can change anyone to any role
- *  - staff/rider → never
+ *  - staff → never
  *
  * Requires: manager.
  */
@@ -328,7 +322,7 @@ export async function changeEmployeeRole(
  * Enable or disable an employee account.
  * Enforces role hierarchy via canDisableEmployee:
  *  - Cannot disable self
- *  - MANAGER can disable STAFF and RIDER only
+ *  - MANAGER can disable STAFF only
  * Requires: MANAGER.
  */
 export async function toggleEmployeeDisabled(
@@ -375,7 +369,7 @@ export async function toggleEmployeeDisabled(
 
 /**
  * Change the signed-in employee's own password.
- * Available to ALL roles: MANAGER, STAFF, RIDER.
+ * Available to ALL roles: MANAGER, STAFF.
  */
 export async function changeOwnPassword(
   input: ChangePasswordInput,
@@ -404,8 +398,8 @@ export async function changeOwnPassword(
  * Reset/change another employee's password.
  * Enforces role hierarchy via canResetEmployeePassword:
  *  - Self: allowed
- *  - MANAGER: can change STAFF and RIDER passwords only
- *  - STAFF / RIDER: cannot change anyone else's password
+ *  - MANAGER: can change STAFF passwords only
+ *  - STAFF: cannot change anyone else's password
  * Requires: MANAGER.
  */
 export async function resetEmployeePassword(
@@ -472,18 +466,12 @@ export async function resetEmployeePassword(
 }
 /**
  * Everything a manager can change about an employee, read back for the edit
- * form: the employee row plus, for riders, the vehicle/licence row.
+ * form.
  * Requires: MANAGER.
  */
 export async function getEmployeeForEdit(employeeId: string): Promise<
   ActionResult<{
     employee: Employee;
-    rider: {
-      vehicle_make_model: string | null;
-      vehicle_plate_number: string | null;
-      driver_license_number: string | null;
-      license_expiry_date: string | null;
-    } | null;
   }>
 > {
   const auth = await requireRole("MANAGER");
@@ -498,13 +486,7 @@ export async function getEmployeeForEdit(employeeId: string): Promise<
     .single();
   if (error || !employee) return { data: null, error: "Employee not found." };
 
-  const { data: rider } = await adminClient
-    .from("rider")
-    .select("vehicle_make_model, vehicle_plate_number, driver_license_number, license_expiry_date")
-    .eq("employee_id", employeeId)
-    .maybeSingle();
-
-  return { data: { employee, rider: rider ?? null }, error: null };
+  return { data: { employee }, error: null };
 }
 
 type EmployeeEditInput = {
@@ -517,18 +499,12 @@ type EmployeeEditInput = {
   phone?: string;
   dateOfBirth?: string;
   isAccountDisabled?: boolean;
-  riderDetails?: {
-    vehicle_make_model?: string;
-    vehicle_plate_number?: string;
-    driver_license_number?: string;
-    license_expiry_date?: string;
-  } | null;
 };
 
 /**
  * Update any detail of an employee — name, email, password, role, shift,
- * mobile, date of birth, active/disabled, and (for riders) vehicle and
- * licence. Only the fields that are passed are changed.
+ * mobile, date of birth and active/disabled. Only the fields that are passed
+ * are changed.
  * Requires: MANAGER.
  *
  * Email lives in two places — the Supabase Auth user (what they sign in
@@ -595,17 +571,7 @@ export async function updateEmployeeDetails(
 
   const requestedRole = input.role ? resolveEmployeeRole(input.role) : null;
   if (input.role && !requestedRole) {
-    fieldErrors.role = "Role must be Manager, Staff or Delivery.";
-  }
-
-  const rider = input.riderDetails ?? null;
-  if (rider) {
-    const riderResult = riderDetailsSchema.safeParse(rider);
-    if (!riderResult.success) {
-      for (const [key, message] of Object.entries(fieldErrorsFromIssues(riderResult.error.issues))) {
-        fieldErrors[key] = message;
-      }
-    }
+    fieldErrors.role = "Role must be Manager or Staff.";
   }
 
   if (Object.keys(fieldErrors).length > 0) {
@@ -637,7 +603,12 @@ export async function updateEmployeeDetails(
     input.isAccountDisabled !== undefined &&
     input.isAccountDisabled !== Boolean(current.is_account_disabled)
   ) {
-    if (!currentRole || !canDisableEmployee(callerRole, currentRole, isSelf)) {
+    // A former rider's stored role no longer resolves (pickup-only, issue
+    // #114), so the role being assigned in this same save decides — that is
+    // how a manager re-enables one as Staff in one step. It grants nothing
+    // new: a manager could already change the role first, then enable.
+    const targetRole = currentRole ?? requestedRole;
+    if (!targetRole || !canDisableEmployee(callerRole, targetRole, isSelf)) {
       return {
         data: null,
         error: isSelf
@@ -672,7 +643,7 @@ export async function updateEmployeeDetails(
   if (emailChanged) updates.email = newEmail;
   if (requestedRole) updates.role = requestedRole;
   if (input.shift !== undefined) updates.schedule_shift = input.shift || null;
-  if (phone !== undefined) (updates as Record<string, unknown>)["phone-num"] = phone;
+  if (phone !== undefined) updates.phone_number = phone;
   if (dateOfBirth !== undefined) (updates as Record<string, unknown>).date_of_birth = dateOfBirth;
   if (input.isAccountDisabled !== undefined) updates.is_account_disabled = input.isAccountDisabled;
 
@@ -695,39 +666,6 @@ export async function updateEmployeeDetails(
         error: error.message,
         fieldErrors: fieldErrorFromDbError(error) ?? undefined,
       };
-    }
-  }
-
-  // ---- 3. Rider row (vehicle / licence) ----
-  const finalRole = requestedRole ?? currentRole;
-  if (finalRole === "RIDER") {
-    const { data: riderRow } = await adminClient
-      .from("rider")
-      .select("rider_id")
-      .eq("employee_id", employeeId)
-      .maybeSingle();
-
-    const riderFields = rider
-      ? {
-          vehicle_make_model: rider.vehicle_make_model?.trim() || null,
-          vehicle_plate_number: rider.vehicle_plate_number?.trim() || null,
-          driver_license_number: rider.driver_license_number?.trim() || null,
-          license_expiry_date: rider.license_expiry_date?.trim() || null,
-        }
-      : null;
-
-    if (riderRow && riderFields) {
-      const { error: riderError } = await adminClient
-        .from("rider")
-        .update(riderFields)
-        .eq("employee_id", employeeId);
-      if (riderError) return { data: null, error: riderError.message };
-    } else if (!riderRow) {
-      // A rider needs a rider row to appear in the delivery queue.
-      const { error: riderError } = await adminClient
-        .from("rider")
-        .insert({ employee_id: employeeId, ...(riderFields ?? {}) });
-      if (riderError) return { data: null, error: riderError.message };
     }
   }
 
@@ -757,26 +695,30 @@ export async function deleteEmployee(
     return { data: null, error: "You cannot delete your own account." };
   }
 
-  const supabase = createClient();
-  const { data: photoRow } = await supabase
+  // Service role: `employee` has no DELETE policy, so a session delete would
+  // match zero rows and the Auth user below would be removed from under a
+  // row that is still there. The caller was verified as a manager above.
+  const admin = createAdminClient();
+  const { data: photoRow } = await admin
     .from("employee")
     .select("profileImage_URL")
     .eq("employee_id", employeeId)
     .maybeSingle();
 
-  const { error: deleteError } = await supabase
+  const { error: deleteError } = await admin
     .from("employee")
     .delete()
     .eq("employee_id", employeeId);
 
-  if (!deleteError) {
-    await removeStoredImage(IMAGE_BUCKETS.employeeAvatar, photoRow?.profileImage_URL);
+  if (deleteError) {
+    return { data: null, error: deleteError.message };
   }
+
+  await removeStoredImage(IMAGE_BUCKETS.employeeAvatar, photoRow?.profileImage_URL);
 
   try {
     // Delete the Auth user so the email can be reused.
-    const adminClient = createAdminClient();
-    await adminClient.auth.admin.deleteUser(employeeId);
+    await admin.auth.admin.deleteUser(employeeId);
   } catch (err: any) {
     return { data: null, error: err.message || "Failed to delete user" };
   }

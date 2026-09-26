@@ -1,19 +1,8 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect } from "vitest";
 import { mapStaffOrder, type StaffOrderRow } from "@/lib/orders/map-staff-order";
 import { formatOrderNumber } from "@/lib/orders/order-number";
-import { ProofOfDeliveryModal } from "@/components/deliver/proof-of-delivery-modal";
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn() }),
-}));
-
-vi.mock("@/lib/actions/delivery", () => ({
-  markDelivered: vi.fn(),
-}));
 
 const ORDER_ID = "7c9e6679-7425-40de-944b-e07fc1f90ae7";
-const DELIVERY_ID = "1b2c3d4e-5555-6666-7777-888899990000";
 
 function staffRow(): StaffOrderRow {
   return {
@@ -64,49 +53,5 @@ describe("one order reference", () => {
 
     expect(mapStaffOrder(staffRow()).orderNumber).toBe("7c9e6679");
     expect(mapStaffOrder(other as StaffOrderRow).orderNumber).toBe("7c9e0000");
-  });
-});
-
-describe("the rider's proof-of-delivery modal", () => {
-  it("quotes the order, not the delivery's own id", () => {
-    render(
-      <ProofOfDeliveryModal
-        isOpen
-        onClose={() => {}}
-        deliveryId={DELIVERY_ID}
-        orderId={ORDER_ID}
-        customerName="Liza Reyes"
-      />,
-    );
-
-    expect(
-      screen.getByText(new RegExp(`Order #${formatOrderNumber(ORDER_ID)}`)),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByText(new RegExp(formatOrderNumber(DELIVERY_ID))),
-    ).toBeNull();
-  });
-
-  /**
-   * A delivery with no order row behind it has nothing else to identify it.
-   * It falls back to its own id — but says which kind of reference that is,
-   * rather than passing it off as the order's.
-   */
-  it("labels the fallback honestly when there is no order", () => {
-    render(
-      <ProofOfDeliveryModal
-        isOpen
-        onClose={() => {}}
-        deliveryId={DELIVERY_ID}
-        orderId={null}
-        customerName="Liza Reyes"
-      />,
-    );
-
-    expect(
-      screen.getByText(
-        new RegExp(`Delivery #${formatOrderNumber(DELIVERY_ID)}`),
-      ),
-    ).toBeInTheDocument();
   });
 });

@@ -108,18 +108,24 @@ describe("submitCartSchema", () => {
     expect(res.success).toBe(true);
     if (res.success) {
       expect(res.data.order_type).toBe("take_out");
-      expect(res.data.delivery_fee).toBe(0);
     }
   });
 
-  it("accepts explicit order_type delivery with delivery_fee", () => {
+  it("accepts dine_in with special instructions", () => {
+    const res = submitCartSchema.safeParse({
+      cart_id: validUUID,
+      order_type: "dine_in",
+      special_instructions: "No onions",
+    });
+    expect(res.success).toBe(true);
+  });
+
+  it("rejects delivery — the shop is pickup-only (issue #114)", () => {
     const res = submitCartSchema.safeParse({
       cart_id: validUUID,
       order_type: "delivery",
-      delivery_fee: 50,
-      special_instructions: "Leave at door",
     });
-    expect(res.success).toBe(true);
+    expect(res.success).toBe(false);
   });
 
   it("rejects invalid order_type", () => {
@@ -171,63 +177,30 @@ describe("cancelOrderSchema", () => {
 });
 
 /**
- * Issue #106: the picker offered all three methods on every order, so a
- * customer could promise to pay a rider for food they were collecting
- * themselves. The picker is fixed, but it is not the only way in —
- * `app/api/cart/submit/route.ts` passes a raw body straight through.
+ * Issue #106 / #114: only the methods a pickup order can use get through.
+ * The picker is not the only way in — `app/api/cart/submit/route.ts` passes a
+ * raw body straight through.
  */
-describe("submitCartSchema payment method and fulfilment", () => {
+describe("submitCartSchema payment method", () => {
   const validUUID = "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d";
   const parse = (extra: Record<string, unknown>) =>
     submitCartSchema.safeParse({ cart_id: validUUID, ...extra });
 
-  it("rejects cash on delivery on an order nobody is delivering", () => {
+  it("rejects cash on delivery", () => {
     expect(
       parse({ order_type: "take_out", payment_method: "cash-on-delivery" })
         .success,
     ).toBe(false);
-    expect(
-      parse({ order_type: "dine_in", payment_method: "cash-on-delivery" })
-        .success,
-    ).toBe(false);
   });
 
-  it("rejects paying in store for a delivery", () => {
-    expect(
-      parse({ order_type: "delivery", payment_method: "pay-in-store" }).success,
-    ).toBe(false);
+  it("accepts the wallet and paying in store", () => {
+    expect(parse({ payment_method: "wallet" }).success).toBe(true);
+    expect(parse({ payment_method: "pay-in-store" }).success).toBe(true);
   });
 
-  it("accepts each method on the fulfilment that offers it", () => {
-    expect(
-      parse({ order_type: "delivery", payment_method: "cash-on-delivery" })
-        .success,
-    ).toBe(true);
-    expect(
-      parse({ order_type: "take_out", payment_method: "pay-in-store" }).success,
-    ).toBe(true);
-  });
-
-  it("accepts the wallet either way — it is paid before the food is cooked", () => {
-    expect(
-      parse({ order_type: "delivery", payment_method: "wallet" }).success,
-    ).toBe(true);
-    expect(
-      parse({ order_type: "take_out", payment_method: "wallet" }).success,
-    ).toBe(true);
-  });
-
-  it("fills in a method that suits the order when none is given", () => {
-    // A fixed default of cash on delivery would have made every silent
-    // take-out submission fail the rule above.
-    const pickup = parse({ order_type: "take_out" });
-    expect(pickup.success).toBe(true);
-    if (pickup.success) expect(pickup.data.payment_method).toBe("pay-in-store");
-
-    const delivery = parse({ order_type: "delivery" });
-    expect(delivery.success).toBe(true);
-    if (delivery.success) {
-      expect(delivery.data.payment_method).toBe("cash-on-delivery");
-    }
+  it("defaults to paying in store when no method is given", () => {
+    const res = parse({ order_type: "take_out" });
+    expect(res.success).toBe(true);
+    if (res.success) expect(res.data.payment_method).toBe("pay-in-store");
   });
 });

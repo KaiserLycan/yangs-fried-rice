@@ -3,8 +3,9 @@
  * both the browser upload code and the server actions can import them.
  *
  * The database stores each image as a *public URL*, not a storage path —
- * `product.image_url`, `customer.profileImage_URL`, `employee.profileImage_URL`
- * and `delivery.proof_of_delivery` all hold the result of `getPublicUrl()`.
+ * `product.image_url`, `customer.profileImage_URL` and `employee.profileImage_URL`
+ * all hold the result of `getPublicUrl()`. (Senior/PWD ID photos are the
+ * exception: private, never a public URL — see `senior-pwd-ids.ts`.)
  * Removing the file therefore starts by turning that URL back into a path.
  */
 
@@ -13,7 +14,6 @@ export const IMAGE_BUCKETS = {
   menu: "menu-images",
   customerAvatar: "avatars",
   employeeAvatar: "emp-pfp",
-  proofOfDelivery: "proof-of-delivery",
 } as const;
 
 export type ImageBucket = (typeof IMAGE_BUCKETS)[keyof typeof IMAGE_BUCKETS];
@@ -72,7 +72,7 @@ export function imageExtensionFor(file: { type: string; name?: string }): string
   return fromName && fromName !== file.name?.toLowerCase() ? fromName : "bin";
 }
 
-/** Same limits the proof-of-delivery upload already enforces. */
+/** Upload limits for every image the app accepts. */
 export const MAX_IMAGE_UPLOAD_BYTES = 5 * 1024 * 1024;
 export const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 

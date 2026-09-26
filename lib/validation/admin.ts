@@ -3,14 +3,10 @@ import { EMPLOYEE_ROLES, type EmployeeRole } from "@/lib/auth/roles";
 import { optionalPhoneSchema } from "./phone";
 import { employeeDateOfBirthSchema } from "./date-of-birth";
 import {
-  driverLicenseNumberSchema,
   emailSchema,
   firstNameSchema,
   lastNameSchema,
-  licenseExpiryDateSchema,
   passwordSchema,
-  vehicleMakeModelSchema,
-  vehiclePlateNumberSchema,
 } from "./fields";
 
 /**
@@ -24,16 +20,6 @@ import {
 // ---------------------------------------------------------------------------
 // Create Employee
 // ---------------------------------------------------------------------------
-
-/** A rider's four vehicle/licence fields — all required when the role is Rider. */
-export const riderDetailsSchema = z.object({
-  vehicle_make_model: vehicleMakeModelSchema,
-  vehicle_plate_number: vehiclePlateNumberSchema,
-  driver_license_number: driverLicenseNumberSchema,
-  license_expiry_date: licenseExpiryDateSchema,
-});
-
-export type RiderDetailsInput = z.infer<typeof riderDetailsSchema>;
 
 export const createEmployeeSchema = z.object({
   firstName: firstNameSchema,
@@ -56,16 +42,6 @@ export const createEmployeeSchema = z.object({
 
   /** Optional ISO date, not in the future. */
   dateOfBirth: employeeDateOfBirthSchema.optional(),
-
-  riderDetails: riderDetailsSchema.optional(),
-}).superRefine((values, ctx) => {
-  if (values.role === "RIDER" && !values.riderDetails) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["riderDetails"],
-      message: "A rider needs a licence number, vehicle and plate number.",
-    });
-  }
 });
 
 export type CreateEmployeeInput = z.infer<typeof createEmployeeSchema>;

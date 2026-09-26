@@ -7,6 +7,41 @@ import {
   homePathForRole,
   resolveEmployeeRole,
 } from "@/lib/auth/roles";
+import { ACCOUNT_DISABLED_LOGIN_ERROR } from "@/lib/auth/account-status";
+
+/**
+ * Set after an employee's `is_account_disabled` flag has been read, so the
+ * check costs one Supabase request per minute per employee rather than one
+ * per page. A manager disabling someone therefore takes effect within a
+ * minute on page loads — and immediately on anything that reaches a server
+ * action, since every employee guard re-reads the flag itself.
+ */
+const EMPLOYEE_ACTIVE_CHECK_COOKIE = "yfr_employee_active_checked";
+const EMPLOYEE_ACTIVE_CHECK_SECONDS = 60;
+
+/** Drops every session cookie — Supabase's, and the employee JWT — from `response`. */
+function clearSessionCookies(request: NextRequest, response: NextResponse) {
+  request.cookies
+    .getAll()
+    .filter(
+      ({ name }) =>
+        name.startsWith("sb-") ||
+        name === "yfr_employee_session" ||
+        name === EMPLOYEE_ACTIVE_CHECK_COOKIE,
+    )
+    .forEach(({ name }) => response.cookies.delete(name));
+  return response;
+}
+
+/**
+ * Sends a disabled account to its login page with the reason in the URL,
+ * signed out, so the next request starts clean.
+ */
+function signOutDisabled(request: NextRequest, loginPath: string) {
+  const redirectUrl = new URL(loginPath, request.url);
+  redirectUrl.searchParams.set("error", ACCOUNT_DISABLED_LOGIN_ERROR);
+  return clearSessionCookies(request, NextResponse.redirect(redirectUrl));
+}
 
 /**
  * Route-protection seam.
@@ -56,9 +91,7 @@ export async function middleware(request: NextRequest) {
   const isCustomerArea = ["/cart", "/checkout", "/orders", "/profile"].some(
     (path) => pathname.startsWith(path)
   );
-  const isEmployeeArea = ["/manage", "/deliver"].some((path) =>
-    pathname.startsWith(path)
-  );
+  const isEmployeeArea = pathname.startsWith("/manage");
 
   // Pages you reach precisely because you are not signed in — so a signed-in
   // visitor is sent on to their home instead (see below). /forgot-password
@@ -102,10 +135,36 @@ export async function middleware(request: NextRequest) {
     }
     // Role gate. The session payload carries the role, so this costs no
     // network call. STAFF must not reach the dashboard, reports, customers or
-    // employee pages by typing the URL; RIDERs belong in /deliver only.
-    if (pathname.startsWith("/manage") && !canAccessManagePath(sessionRole, pathname)) {
+    // employee pages by typing the URL.
+    if (!canAccessManagePath(sessionRole, pathname)) {
       // Guaranteed to be somewhere this role *can* go, so this cannot bounce.
       return NextResponse.redirect(new URL(homePathForRole(sessionRole), request.url));
+    }
+
+    // Disabled-account check, at most once a minute (see the cookie above).
+    // Only an explicit `true` signs the employee out: a failed read — Auth
+    // briefly unreachable, an expired token mid-refresh — must not throw a
+    // working employee out of the back office.
+    if (!request.cookies.get(EMPLOYEE_ACTIVE_CHECK_COOKIE)) {
+      const { data: employee } = await supabase
+        .from("employee")
+        .select("is_account_disabled")
+        .eq("employee_id", payload.employee_id)
+        .maybeSingle();
+
+      if (employee?.is_account_disabled === true) {
+        return signOutDisabled(request, "/employee/login");
+      }
+
+      if (employee) {
+        response.cookies.set(EMPLOYEE_ACTIVE_CHECK_COOKIE, "1", {
+          httpOnly: true,
+          sameSite: "lax",
+          secure: process.env.NODE_ENV === "production",
+          maxAge: EMPLOYEE_ACTIVE_CHECK_SECONDS,
+          path: "/",
+        });
+      }
     }
 
     // Still return the response so Supabase cookies are passed through if needed
@@ -125,17 +184,23 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
-  // Signed in is not the same as being a customer. Administrators, staff and
-  // riders have Supabase accounts too; one without a `customer` row must not
-  // reach the cart, checkout, orders or profile pages. RLS only lets a person
-  // read their OWN customer row, so this answers "is this account a
-  // customer?" and nothing more.
+  // Signed in is not the same as being a customer. Managers and staff have
+  // Supabase accounts too; one without a `customer` row must not reach the
+  // cart, checkout, orders or profile pages. RLS only lets a person read their
+  // OWN customer row, so this answers "is this account a customer?" and
+  // nothing more.
   if (isCustomerArea && user) {
     const { data: customer } = await supabase
       .from("customer")
-      .select("customer_id")
+      .select("customer_id, is_account_disabled")
       .eq("customer_id", user.id)
       .maybeSingle();
+
+    // Disabled while signed in: end the session and say why, rather than
+    // letting every action on the page fail one by one (issue #114).
+    if (customer?.is_account_disabled) {
+      return signOutDisabled(request, "/login");
+    }
 
     if (!customer) {
       if (isValidEmployee) {
@@ -153,11 +218,31 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // A signed-in visitor is normally sent on to their home. A disabled one is
+  // signed out and shown the form instead — otherwise "go to /login" would
+  // bounce straight back to a home page they can no longer use. The extra
+  // read only happens for a signed-in visitor on a login page, which is rare.
   if (isAuthPage) {
     if (isValidEmployee) {
+      const { data: employee } = await supabase
+        .from("employee")
+        .select("is_account_disabled")
+        .eq("employee_id", payload.employee_id)
+        .maybeSingle();
+      if (employee?.is_account_disabled === true) {
+        return clearSessionCookies(request, response);
+      }
       return NextResponse.redirect(new URL(homePathForRole(sessionRole), request.url));
     }
     if (user) {
+      const { data: customer } = await supabase
+        .from("customer")
+        .select("is_account_disabled")
+        .eq("customer_id", user.id)
+        .maybeSingle();
+      if (customer?.is_account_disabled === true) {
+        return clearSessionCookies(request, response);
+      }
       return NextResponse.redirect(new URL("/", request.url));
     }
   }

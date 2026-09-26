@@ -1,6 +1,10 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import {
+  ACCOUNT_DISABLED_CODE,
+  EMPLOYEE_ACCOUNT_DISABLED_MESSAGE,
+} from "@/lib/auth/account-status";
 import { resolveEmployeeRole, canAccessManage, type EmployeeRole } from "@/lib/auth/roles";
 import {
   orderStatusSchema,
@@ -10,7 +14,6 @@ import {
   type OrderStatus,
   type OrderFilters,
 } from "@/lib/validation/orders";
-import { ensureDeliveryRow } from "@/lib/orders/order-side-effects";
 import { isPickupOrder } from "@/lib/orders/format";
 import { orderIdRangeFor } from "@/lib/orders/order-number";
 import type { Tables, TablesUpdate } from "@/types/database.types";
@@ -21,7 +24,7 @@ import type { Tables, TablesUpdate } from "@/types/database.types";
 
 type ActionResult<T> =
   | { data: T; error: null }
-  | { data: null; error: string };
+  | { data: null; error: string; code?: string };
 
 type Order = Tables<"order">;
 
@@ -44,11 +47,6 @@ type OrderWithDetails = Order & {
     payment_method: string | null;
     payment_status: string | null;
     total_paid: number | null;
-  }[];
-  delivery: {
-    delivery_id: string;
-    delivery_status: string | null;
-    rider_id: string | null;
   }[];
 };
 
@@ -89,12 +87,22 @@ async function requireManageAccess(): Promise<
 
   const { data: employee, error } = await supabase
     .from("employee")
-    .select("employee_id, role")
+    .select("employee_id, role, is_account_disabled")
     .eq("employee_id", user.id)
     .single();
 
   if (error || !employee) {
     return { data: null, error: "You are not registered as an employee." };
+  }
+
+  // A disabled account can still hold a live session; refuse it here too
+  // (issue #114).
+  if (employee.is_account_disabled) {
+    return {
+      data: null,
+      error: EMPLOYEE_ACCOUNT_DISABLED_MESSAGE,
+      code: ACCOUNT_DISABLED_CODE,
+    };
   }
 
   const role = resolveEmployeeRole(employee.role);
@@ -228,7 +236,7 @@ export async function getAllOrders(
 
 /**
  * List all orders with full details: customer, items with product info, 
- * transactions, and delivery info. Supports filtering by status, date range, 
+ * and transactions. Supports filtering by status, date range, 
  * and pagination. Highly optimized to avoid N+1 queries.
  *
  * Requires: admin, manager, or staff.
@@ -268,11 +276,6 @@ export async function getDetailedOrders(
         payment_method,
         payment_status,
         total_paid
-      ),
-      delivery (
-        delivery_id,
-        delivery_status,
-        rider_id
       )
     `,
       { count: "exact" }
@@ -327,7 +330,7 @@ export async function getDetailedOrders(
 
 /**
  * Full order detail: customer, items with product info, transactions,
- * and delivery info.
+ * and payment.
  *
  * Requires: admin, manager, or staff.
  */
@@ -357,11 +360,6 @@ export async function getOrderDetail(
         payment_method,
         payment_status,
         total_paid
-      ),
-      delivery (
-        delivery_id,
-        delivery_status,
-        rider_id
       )
     `,
     )
@@ -469,15 +467,6 @@ export async function updateOrderStatus(
     .single();
 
   if (updateError) return { data: null, error: updateError.message };
-
-  // A delivery order that is ready to go needs a `delivery` row, otherwise no
-  // rider can see it.
-  if (
-    validatedNewStatus === "ready" ||
-    validatedNewStatus === "out_for_delivery"
-  ) {
-    await ensureDeliveryRow(orderId);
-  }
 
   return { data: updated, error: null };
 }

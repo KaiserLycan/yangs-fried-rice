@@ -28,10 +28,13 @@ describe("isValidTransition", () => {
     expect(isValidTransition("received", "preparing")).toBe(true);
   });
 
-  it("preparing → out_for_delivery", () => {
-    expect(isValidTransition("preparing", "out_for_delivery")).toBe(true);
+  // Pickup-only (issue #114): nothing new goes out for delivery…
+  it("preparing → out_for_delivery is refused", () => {
+    expect(isValidTransition("preparing", "out_for_delivery")).toBe(false);
+    expect(isValidTransition("ready", "out_for_delivery")).toBe(false);
   });
 
+  // …but a legacy order already out can still be finished.
   it("out_for_delivery → completed", () => {
     expect(isValidTransition("out_for_delivery", "completed")).toBe(true);
   });

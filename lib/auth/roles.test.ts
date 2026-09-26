@@ -35,9 +35,8 @@ describe("isEmployeeRole", () => {
 });
 
 describe("ROLE_HIERARCHY ordering", () => {
-  it("MANAGER > STAFF > RIDER", () => {
+  it("MANAGER > STAFF", () => {
     expect(ROLE_HIERARCHY.MANAGER).toBeGreaterThan(ROLE_HIERARCHY.STAFF);
-    expect(ROLE_HIERARCHY.STAFF).toBeGreaterThan(ROLE_HIERARCHY.RIDER);
   });
 });
 
@@ -49,20 +48,12 @@ describe("isManager", () => {
   it("returns false for STAFF", () => {
     expect(isManager("STAFF")).toBe(false);
   });
-
-  it("returns false for RIDER", () => {
-    expect(isManager("RIDER")).toBe(false);
-  });
 });
 
 describe("canAccessManage", () => {
   it("allows MANAGER, STAFF", () => {
     expect(canAccessManage("MANAGER")).toBe(true);
     expect(canAccessManage("STAFF")).toBe(true);
-  });
-
-  it("denies RIDER", () => {
-    expect(canAccessManage("RIDER")).toBe(false);
   });
 });
 
@@ -71,23 +62,14 @@ describe("canAccessAdminOnly", () => {
     expect(canAccessAdminOnly("MANAGER")).toBe(true);
   });
 
-  it("denies STAFF, RIDER", () => {
+  it("denies STAFF", () => {
     expect(canAccessAdminOnly("STAFF")).toBe(false);
-    expect(canAccessAdminOnly("RIDER")).toBe(false);
   });
 });
 
 describe("canChangeRole", () => {
   // ---- MANAGER caller ----
   describe("MANAGER caller", () => {
-    it("can change STAFF to RIDER", () => {
-      expect(canChangeRole("MANAGER", "STAFF", "RIDER")).toBe(true);
-    });
-
-    it("can change RIDER to STAFF", () => {
-      expect(canChangeRole("MANAGER", "RIDER", "STAFF")).toBe(true);
-    });
-
     it("can promote STAFF to MANAGER", () => {
       expect(canChangeRole("MANAGER", "STAFF", "MANAGER")).toBe(true);
     });
@@ -101,15 +83,7 @@ describe("canChangeRole", () => {
   describe("STAFF caller", () => {
     it("cannot change any role", () => {
       expect(canChangeRole("STAFF", "STAFF", "MANAGER")).toBe(false);
-      expect(canChangeRole("STAFF", "RIDER", "STAFF")).toBe(false);
-    });
-  });
-
-  // ---- RIDER caller ----
-  describe("RIDER caller", () => {
-    it("cannot change any role", () => {
-      expect(canChangeRole("RIDER", "STAFF", "MANAGER")).toBe(false);
-      expect(canChangeRole("RIDER", "RIDER", "STAFF")).toBe(false);
+      expect(canChangeRole("STAFF", "MANAGER", "STAFF")).toBe(false);
     });
   });
 });
@@ -120,9 +94,8 @@ describe("canDisableEmployee", () => {
   });
 
   describe("MANAGER caller", () => {
-    it("can disable STAFF and RIDER", () => {
+    it("can disable STAFF", () => {
       expect(canDisableEmployee("MANAGER", "STAFF", false)).toBe(true);
-      expect(canDisableEmployee("MANAGER", "RIDER", false)).toBe(true);
     });
 
     it("cannot disable another MANAGER", () => {
@@ -130,10 +103,9 @@ describe("canDisableEmployee", () => {
     });
   });
 
-  describe("STAFF / RIDER caller", () => {
+  describe("STAFF caller", () => {
     it("cannot disable anyone", () => {
       expect(canDisableEmployee("STAFF", "STAFF", false)).toBe(false);
-      expect(canDisableEmployee("RIDER", "RIDER", false)).toBe(false);
     });
   });
 });
@@ -142,13 +114,11 @@ describe("canResetEmployeePassword", () => {
   it("allows self-reset for any role", () => {
     expect(canResetEmployeePassword("MANAGER", "MANAGER", true)).toBe(true);
     expect(canResetEmployeePassword("STAFF", "STAFF", true)).toBe(true);
-    expect(canResetEmployeePassword("RIDER", "RIDER", true)).toBe(true);
   });
 
   describe("MANAGER caller", () => {
-    it("can reset password for STAFF and RIDER", () => {
+    it("can reset password for STAFF", () => {
       expect(canResetEmployeePassword("MANAGER", "STAFF", false)).toBe(true);
-      expect(canResetEmployeePassword("MANAGER", "RIDER", false)).toBe(true);
     });
 
     it("cannot reset password for another MANAGER", () => {
@@ -156,21 +126,19 @@ describe("canResetEmployeePassword", () => {
     });
   });
 
-  describe("STAFF / RIDER caller", () => {
+  describe("STAFF caller", () => {
     it("cannot reset anyone else's password", () => {
       expect(canResetEmployeePassword("STAFF", "STAFF", false)).toBe(false);
-      expect(canResetEmployeePassword("RIDER", "RIDER", false)).toBe(false);
     });
   });
 });
 
 describe("role display + routing", () => {
-  it("folds legacy staff labels into Staff and shows RIDER as Delivery", () => {
+  it("folds legacy staff labels into Staff", () => {
     expect(roleDisplayLabel("Server")).toBe("Staff");
     expect(roleDisplayLabel("cook")).toBe("Staff");
     expect(roleDisplayLabel("CASHIER")).toBe("Staff");
     expect(roleDisplayLabel("manager")).toBe("Manager");
-    expect(roleDisplayLabel("RIDER")).toBe("Delivery");
     expect(roleDisplayLabel(null)).toBe("Staff");
   });
 
@@ -178,6 +146,15 @@ describe("role display + routing", () => {
     expect(resolveEmployeeRole("Manager")).toBe("MANAGER");
     expect(resolveEmployeeRole("manager")).toBe("MANAGER");
     expect(resolveEmployeeRole("nonsense")).toBeNull();
+  });
+
+  // Pickup-only (issue #114): a stored rider role is no longer an employee
+  // role, so it passes no guard and has no home page.
+  it("does not recognise the retired rider roles", () => {
+    expect(resolveEmployeeRole("RIDER")).toBeNull();
+    expect(resolveEmployeeRole("Delivery")).toBeNull();
+    expect(isEmployeeRole("RIDER")).toBe(false);
+    expect(homePathForRole(resolveEmployeeRole("RIDER"))).toBe("/employee/login");
   });
 
   it("keeps the dashboard and admin pages away from STAFF", () => {
@@ -195,15 +172,13 @@ describe("role display + routing", () => {
     expect(canAccessManagePath("STAFF", "/manage/orders-admin")).toBe(false);
   });
 
-  it("lets a MANAGER anywhere and a RIDER nowhere under /manage", () => {
+  it("lets a MANAGER anywhere and an unrecognised role nowhere under /manage", () => {
     expect(canAccessManagePath("MANAGER", "/manage/dashboard")).toBe(true);
-    expect(canAccessManagePath("RIDER", "/manage/orders")).toBe(false);
     expect(canAccessManagePath(null, "/manage/orders")).toBe(false);
   });
 
   it("sends each role to its own home page", () => {
     expect(homePathForRole("MANAGER")).toBe("/manage/dashboard");
     expect(homePathForRole("STAFF")).toBe("/manage/orders");
-    expect(homePathForRole("RIDER")).toBe("/deliver");
   });
 });
