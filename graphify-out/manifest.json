@@ -2502,8 +2502,8 @@
     "semantic_hash": "5772dd7f2ec01df67006d1401e72ab6e"
   },
   "types/database.types.ts": {
-    "mtime": 1790445966.858735,
-    "seen": 1790446514.3996577,
+    "mtime": 1790447382.7239377,
+    "seen": 1790448565.7517917,
     "ast_hash": "53fc5d01dba95319bf35f3fe9925b0f2",
     "semantic_hash": ""
   },
@@ -2622,9 +2622,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1790436819.4272265,
-    "seen": 1790440873.7083602,
-    "ast_hash": "e781387d72399623d45513b57b1d8680",
+    "mtime": 1790448500.6677885,
+    "seen": 1790448565.751808,
+    "ast_hash": "a20bcd7b859ff458dea38de567d1fda3",
     "semantic_hash": ""
   },
   "docs/comparison.md": {
@@ -2640,9 +2640,9 @@
     "semantic_hash": ""
   },
   "docs/issue-106-followups.md": {
-    "mtime": 1790436689.2840729,
-    "seen": 1790440873.708362,
-    "ast_hash": "ffbbd5b7e849370472dbc4df1d770162",
+    "mtime": 1790448553.0743518,
+    "seen": 1790448565.75181,
+    "ast_hash": "283876b42d073c53f2a4d76b1d0700b7",
     "semantic_hash": ""
   },
   "docs/lacking.md": {
@@ -2652,15 +2652,15 @@
     "semantic_hash": ""
   },
   "docs/limitations.md": {
-    "mtime": 1790441418.7728045,
-    "seen": 1790442216.7157683,
-    "ast_hash": "4dbac0ed378038dd758d02f7116f2703",
+    "mtime": 1790448553.0712385,
+    "seen": 1790448565.7518115,
+    "ast_hash": "785390cdeda9eae4deaf52a8a8f25b51",
     "semantic_hash": ""
   },
   "docs/phase4-security-testing-report.md": {
-    "mtime": 1790381263.5478125,
-    "seen": 1790440873.7083638,
-    "ast_hash": "f65ce531fcdde00d3fafc329a53f8635",
+    "mtime": 1790448553.0732553,
+    "seen": 1790448565.7518125,
+    "ast_hash": "9f1ca3cdecc3dbaa272a3c7c03015143",
     "semantic_hash": ""
   },
   "docs/reference/rider-queue-handoff.md": {
@@ -2676,9 +2676,9 @@
     "semantic_hash": ""
   },
   "docs/unimplemented_issues.md": {
-    "mtime": 1790436819.5334094,
-    "seen": 1790440873.7083652,
-    "ast_hash": "cc4304064059ec1d775c9f4127af12ef",
+    "mtime": 1790448553.0732553,
+    "seen": 1790448565.7518144,
+    "ast_hash": "3cf1219a6ff9349caccd5150d3454cc5",
     "semantic_hash": ""
   },
   "docs/user-simulation.md": {
@@ -2901,6 +2901,30 @@
     "mtime": 1790445233.740306,
     "seen": 1790445463.623779,
     "ast_hash": "26e94b3c3f1100e25fe4c75ba34b3998",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20260927000000_pickup_only_drop_rider_and_delivery.sql": {
+    "mtime": 1790445233.740306,
+    "seen": 1790448565.7517827,
+    "ast_hash": "c3a72f362dd751b3f2429d11c443ff60",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20260927000001_atomic_checkout_and_order_write_lockdown.sql": {
+    "mtime": 1790445233.740306,
+    "seen": 1790448565.751784,
+    "ast_hash": "69c40f11abca3a6a9fac3b4ba9737999",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20260927000002_security_hardening_indexes_and_storage.sql": {
+    "mtime": 1790445233.740306,
+    "seen": 1790448565.751785,
+    "ast_hash": "46bc1e4ee3179d04f647271fe7dc4794",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20260927000003_quantity_bounds_and_search_path.sql": {
+    "mtime": 1790446424.5784492,
+    "seen": 1790448565.7517858,
+    "ast_hash": "886f587d3a32703577de10bb504eb275",
     "semantic_hash": ""
   }
 }

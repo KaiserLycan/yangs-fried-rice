@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { emailSchema, passwordSchema } from "./fields";
+import { emailSchema, newPasswordSchema, passwordSchema } from "./fields";
 
 /**
  * Customer login (Cust2): email and password only.
@@ -19,6 +19,12 @@ import { emailSchema, passwordSchema } from "./fields";
 export const customerEmailSchema = emailSchema;
 
 export const customerPasswordSchema = passwordSchema;
+
+/**
+ * A password the customer is *choosing* (sign-up, change). Stricter than the
+ * sign-in rule above, to match Supabase Auth's password requirements.
+ */
+export const customerNewPasswordSchema = newPasswordSchema;
 
 export const loginSchema = z.object({
   email: customerEmailSchema,

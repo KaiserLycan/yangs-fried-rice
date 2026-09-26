@@ -34,7 +34,7 @@ import {
   firstNameSchema,
   joinFullName,
   lastNameSchema,
-  passwordSchema,
+  newPasswordSchema,
 } from "@/lib/validation/fields";
 import {
   fieldErrorFromDbError,
@@ -546,7 +546,7 @@ export async function updateEmployeeDetails(
     input.lastName !== undefined ? check("lastName", lastNameSchema, input.lastName) : undefined;
 
   const newPassword = input.password?.trim() ?? "";
-  if (newPassword) check("password", passwordSchema, newPassword);
+  if (newPassword) check("password", newPasswordSchema, newPassword);
 
   const newEmail = input.email?.trim() ?? "";
   if (newEmail) check("email", emailSchema, newEmail);

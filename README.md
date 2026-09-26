@@ -79,7 +79,7 @@ A **disabled** account (`is_account_disabled`) is refused by every server guard 
 
 **Accounts**
 - Customers must be at least 13. Employees must be at least 18.
-- Passwords are at least 8 characters.
+- New passwords need at least 8 characters, with a lowercase letter, an uppercase letter, a number and a symbol. This matches the Supabase Auth password settings; the forms check it first (`newPasswordSchema` in `lib/validation/fields.ts`). Sign-in only checks length, so older passwords still work.
 - Phone numbers use one format: `+63 9XX XXX XXXX`.
 - Photos (profile, employee, menu) must be under 5MB. Senior Citizen / PWD ID photos must be under 2MB.
 - Sign-in is locked for 15 minutes after 5 wrong passwords on one email, or 30 from one IP address.

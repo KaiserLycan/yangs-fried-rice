@@ -24,7 +24,7 @@ import {
   firstNameSchema,
   lastNameSchema,
   lengthProps,
-  passwordSchema,
+  newPasswordSchema,
   splitFullName,
   type LimitedField,
 } from "@/lib/validation/fields";
@@ -86,7 +86,7 @@ function employeeFormSchema(isEditMode: boolean) {
     lastName: lastNameSchema,
     email: emailSchema,
     // Required for a new account; on edit, blank means "leave unchanged".
-    password: isEditMode ? z.union([z.literal(""), passwordSchema]) : passwordSchema,
+    password: isEditMode ? z.union([z.literal(""), newPasswordSchema]) : newPasswordSchema,
     phone: optionalPhoneSchema,
     dateOfBirth: employeeDateOfBirthSchema,
   });

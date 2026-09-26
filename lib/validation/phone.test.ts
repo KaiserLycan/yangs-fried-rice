@@ -108,7 +108,7 @@ describe("every role is held to the same rule", () => {
       firstName: "Liza",
       lastName: "Reyes",
       email: "liza@example.com",
-      password: "securepassword123",
+      password: "Yangs!Pass2026",
       buildingNo: "1",
       street: "Mapúa Ave",
       barangay: "San Andres",
@@ -138,7 +138,7 @@ describe("every role is held to the same rule", () => {
       firstName: "Alice",
       lastName: "Smith",
       email: "alice@example.com",
-      password: "securepassword123",
+      password: "Yangs!Pass2026",
       role: "STAFF" as const,
     };
     expect(createEmployeeSchema.safeParse({ ...base, phone: bad }).success).toBe(false);

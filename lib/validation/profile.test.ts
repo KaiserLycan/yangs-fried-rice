@@ -220,8 +220,8 @@ describe("deliveryAddressSchema", () => {
 describe("passwordChangeSchema", () => {
   const valid = {
     currentPassword: "oldpassword1",
-    newPassword: "newpassword1",
-    confirmPassword: "newpassword1",
+    newPassword: "Newpassword1!",
+    confirmPassword: "Newpassword1!",
   };
 
   it("accepts a current password, a valid new one, and a matching confirmation", () => {

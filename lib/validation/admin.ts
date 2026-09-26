@@ -6,7 +6,7 @@ import {
   emailSchema,
   firstNameSchema,
   lastNameSchema,
-  passwordSchema,
+  newPasswordSchema,
 } from "./fields";
 
 /**
@@ -27,7 +27,7 @@ export const createEmployeeSchema = z.object({
 
   email: emailSchema,
 
-  password: passwordSchema,
+  password: newPasswordSchema,
 
   role: z.enum(EMPLOYEE_ROLES, {
     errorMap: () => ({
@@ -69,7 +69,7 @@ export type ChangeRoleInput = z.infer<typeof changeRoleSchema>;
 // ---------------------------------------------------------------------------
 
 export const changePasswordSchema = z.object({
-  new_password: passwordSchema,
+  new_password: newPasswordSchema,
 });
 
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;

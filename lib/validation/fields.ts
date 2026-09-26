@@ -99,6 +99,35 @@ export const passwordSchema = z
   .min(FIELD_LIMITS.password.min, `Password must be at least ${FIELD_LIMITS.password.min} characters.`)
   .max(FIELD_LIMITS.password.max, `Password must be ${FIELD_LIMITS.password.max} characters or fewer.`);
 
+/**
+ * The symbols Supabase Auth counts for its "lowercase, uppercase letters,
+ * digits and symbols" password requirement. A space or an accented letter is
+ * not one of them, so it must not satisfy the rule here either — otherwise
+ * the form would accept a password that Supabase then rejects.
+ */
+const PASSWORD_SYMBOL = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/;
+
+/**
+ * A password being *set* — sign-up, reset, change, or a manager creating an
+ * employee. Mirrors the Supabase Auth setting (min 8; at least one lowercase,
+ * uppercase, digit and symbol) so the form refuses what Auth would.
+ *
+ * Sign-in keeps `passwordSchema` (length only): an account created before the
+ * rule existed must still be able to sign in.
+ */
+export const newPasswordSchema = passwordSchema.superRefine((value, ctx) => {
+  const missing: string[] = [];
+  if (!/[a-z]/.test(value)) missing.push("a lowercase letter");
+  if (!/[A-Z]/.test(value)) missing.push("an uppercase letter");
+  if (!/[0-9]/.test(value)) missing.push("a number");
+  if (!PASSWORD_SYMBOL.test(value)) missing.push("a symbol such as ! @ # or ?");
+  if (missing.length === 0) return;
+  ctx.addIssue({
+    code: z.ZodIssueCode.custom,
+    message: `Password needs ${missing.length > 1 ? `${missing.slice(0, -1).join(", ")} and ${missing[missing.length - 1]}` : missing[0]}.`,
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Addresses
 // ---------------------------------------------------------------------------

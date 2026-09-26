@@ -25,7 +25,7 @@ describe("createEmployeeSchema", () => {
     firstName: "Juan",
     lastName: "Dela Cruz",
     email: "juan@yangsfr.com",
-    password: "securepass1",
+    password: "Yangs!Pass2026",
     role: "STAFF" as const,
   };
 
@@ -133,7 +133,7 @@ describe("updateCustomerSchema", () => {
 describe("changePasswordSchema", () => {
   it("accepts valid password (>= 8 chars)", () => {
     expect(
-      changePasswordSchema.safeParse({ new_password: "securepassword123" })
+      changePasswordSchema.safeParse({ new_password: "Yangs!Pass2026" })
         .success,
     ).toBe(true);
   });

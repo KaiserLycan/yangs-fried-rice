@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { customerEmailSchema, customerPasswordSchema } from "./login";
+import { customerEmailSchema, customerNewPasswordSchema } from "./login";
 import { dateOfBirthSchema } from "./date-of-birth";
 import { phoneSchema } from "./phone";
 import {
@@ -47,7 +47,7 @@ export const signupSchema = z
     phone: customerMobileSchema,
     /** Optional. "" or an ISO date that is not in the future. */
     dateOfBirth: dateOfBirthSchema.optional(),
-    password: customerPasswordSchema,
+    password: customerNewPasswordSchema,
   })
   .merge(addressPartsSchema);
 
