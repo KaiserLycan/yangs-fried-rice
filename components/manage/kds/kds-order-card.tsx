@@ -4,8 +4,6 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { OrderData } from "@/lib/mock-orders";
 import { primaryActionFor, type StaffAction } from "@/lib/orders/staff-actions";
-import { ORDER_NUMBER_CLASS } from "@/lib/orders/order-number";
-import { cn } from "@/lib/utils";
 
 interface KdsOrderCardProps {
   order: OrderData;
@@ -37,17 +35,10 @@ export function KdsOrderCard({ order, onAction }: KdsOrderCardProps) {
         {/* Order Number & Time */}
         <div className="flex justify-between items-start">
           <div className="flex flex-col items-start gap-1">
-            {/* The whole order id since issue #106, so the kitchen and the
-                customer on the phone are quoting the same string. It no
-                longer fits at display size, and it is a code rather than a
-                heading, so it is set small and monospaced — `0`/`O` and
-                `1`/`l` have to be told apart when it is read out. */}
-            <span
-              className={cn(
-                ORDER_NUMBER_CLASS,
-                "mb-1 max-w-[19ch] text-[10px] font-bold text-[#fbf6ec]",
-              )}
-            >
+            {/* The same eight characters the customer and the rider see
+                since issue #106 — this used to be the id's *first* four
+                while the customer was shown its *last* four. */}
+            <span className="font-display text-[#fbf6ec] text-[22px] leading-none mb-1">
               #{order.orderNumber}
             </span>
             <span className="font-bold text-[#fbf6ec] text-[11px] tracking-[0.88px] uppercase">

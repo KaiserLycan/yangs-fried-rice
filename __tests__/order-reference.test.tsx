@@ -42,6 +42,8 @@ function staffRow(): StaffOrderRow {
  * last four characters of the UUID, the kitchen and manage saw the *first*
  * four, and the rider's modal showed the `delivery_id` — a different UUID
  * entirely. Nobody could check they were talking about the same food.
+ *
+ * Everyone now gets the UUID's leading group of eight.
  */
 describe("one order reference", () => {
   it("gives the kitchen and manage the same string as the customer", () => {
@@ -50,13 +52,18 @@ describe("one order reference", () => {
     );
   });
 
-  it("no longer truncates, so two orders cannot share a reference", () => {
-    const other = { ...staffRow(), order_id: "7c9e6679-0000-0000-0000-000000000000" };
+  /**
+   * Four hex characters is 65,536 possibilities, so a collision arrives
+   * within a few hundred orders. These two both used to map to "7C9E".
+   */
+  it("keeps enough of the id that these two no longer collide", () => {
+    const other = {
+      ...staffRow(),
+      order_id: "7c9e0000-7425-40de-944b-e07fc1f90ae7",
+    };
 
-    // Both used to map to "7C9E" — the first four characters.
-    expect(mapStaffOrder(staffRow()).orderNumber).not.toBe(
-      mapStaffOrder(other as StaffOrderRow).orderNumber,
-    );
+    expect(mapStaffOrder(staffRow()).orderNumber).toBe("7c9e6679");
+    expect(mapStaffOrder(other as StaffOrderRow).orderNumber).toBe("7c9e0000");
   });
 });
 
@@ -72,8 +79,12 @@ describe("the rider's proof-of-delivery modal", () => {
       />,
     );
 
-    expect(screen.getByText(`#${ORDER_ID}`)).toBeInTheDocument();
-    expect(screen.queryByText(`#${DELIVERY_ID}`)).toBeNull();
+    expect(
+      screen.getByText(new RegExp(`Order #${formatOrderNumber(ORDER_ID)}`)),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(new RegExp(formatOrderNumber(DELIVERY_ID))),
+    ).toBeNull();
   });
 
   /**
@@ -92,7 +103,10 @@ describe("the rider's proof-of-delivery modal", () => {
       />,
     );
 
-    expect(screen.getByText(`#${DELIVERY_ID}`)).toBeInTheDocument();
-    expect(screen.getByText("Delivery")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        new RegExp(`Delivery #${formatOrderNumber(DELIVERY_ID)}`),
+      ),
+    ).toBeInTheDocument();
   });
 });

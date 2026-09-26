@@ -2,7 +2,6 @@ import { cn } from "@/lib/utils";
 
 import { OrderData } from "@/lib/mock-orders";
 import { canCancel, primaryActionFor, statusLabelFor, type StaffAction } from "@/lib/orders/staff-actions";
-import { ORDER_NUMBER_CLASS } from "@/lib/orders/order-number";
 
 interface OrderCardProps {
   order: OrderData;
@@ -56,9 +55,9 @@ export function OrderCard({ order, onClick, onAction }: OrderCardProps) {
       {/* Header */}
       <div className={cn("flex justify-between items-start p-4 text-white", config.headerBg)}>
         <div>
-          {/* Whole id since issue #106 — see `lib/orders/order-number.ts`.
-              Too long for the 20px heading it used to be. */}
-          <div className={cn(ORDER_NUMBER_CLASS, "mb-1 max-w-[19ch] text-[10px] font-bold")}>
+          {/* The same eight characters the customer sees since issue
+              #106 — this used to be the id's first four. */}
+          <div className="text-xl font-bold tracking-wider leading-none mb-1">
             #{order.orderNumber}
           </div>
           <div className="text-xs font-medium tracking-wide opacity-90">{order.time}</div>

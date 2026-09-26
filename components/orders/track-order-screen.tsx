@@ -9,7 +9,6 @@ import {
   arrivalLineFor,
   arrivalWindowFrom,
 } from "@/lib/orders/arrival-window";
-import { ORDER_NUMBER_CLASS } from "@/lib/orders/order-number";
 import { cn } from "@/lib/utils";
 import {
   fulfilmentOf,
@@ -222,14 +221,12 @@ export function TrackOrderScreen({
             <ChevronLeft className="h-[14px] w-[14px] md:h-[16px] md:w-[16px]" />
             <span>Back to orders</span>
           </Link>
-          <span className="text-[11px] text-on-ink-faint md:text-[12px] md:text-muted-foreground">
-            <span className="uppercase tracking-[1.76px] md:tracking-[1.92px]">
-              Order{" "}
-            </span>
-            {/* Whole id since issue #106 — see `lib/orders/order-number.ts`. */}
-            <span className={cn(ORDER_NUMBER_CLASS, "text-[10px] md:text-[11px]")}>
-              #{order.orderNumber}
-            </span>
+          <span
+            className="text-[11px] uppercase tracking-[1.76px] text-on-ink-faint md:text-[12px] md:tracking-[1.92px] md:text-muted-foreground"
+          >
+            {/* The id renders in the case it is stored in — see the receipt's
+                own note, and `lib/orders/order-number.ts`. */}
+            Order <span className="normal-case">#{order.orderNumber}</span>
           </span>
           <h1 className="font-display text-[30px] text-on-ink md:text-[38px] md:leading-[1.05] md:text-foreground">
             {headlineFor(progress, fulfilment)}

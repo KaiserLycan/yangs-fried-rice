@@ -9,24 +9,21 @@
  * person in the kitchen could not check they were talking about the same
  * food.
  *
- * Any four characters of a UUID also collide sooner than people expect: at
- * four hex characters there are 65,536 of them, so by a few hundred orders a
- * repeat is likelier than not. "#3F1A" was never a safe thing to act on.
+ * Now everyone gets the first eight characters: the UUID's leading group,
+ * `#38206dc0` of `38206dc0-b033-4453-864c-b7c487862c7c`.
  *
- * So the whole id is shown. It is not pretty, and it is deliberately the
- * value as stored — the same string that is in the database, in the URL of
- * the tracking page, and in anything staff paste into a search box. A short
- * readable code would need an `order_number` column with a sequence behind
- * it; until that exists, the honest reference is the real one.
+ * Eight rather than four, because four was not safe to act on — 65,536
+ * possibilities means a repeat is likelier than not by a few hundred orders.
+ * Eight gives 4.3 billion, which for one restaurant is never. Not the whole
+ * id, because 36 characters does not fit the card headers and nobody reads
+ * that out over a phone.
+ *
+ * Case is left exactly as stored, so the string on screen is one that can be
+ * pasted into a search and match.
+ *
+ * TODO (Backend): an `order_number` column with a sequence behind it, so the
+ * reference is something a person can say out loud without spelling it.
  */
 export function formatOrderNumber(orderId: string | null | undefined): string {
-  return orderId?.trim() ?? "";
+  return orderId?.trim().slice(0, 8) ?? "";
 }
-
-/**
- * The classes every screen renders the reference with: monospace so that
- * `0`/`O` and `1`/`l` are distinguishable when someone reads one out, and
- * breakable so 36 characters do not push a card header sideways. Each
- * caller adds its own colour and size.
- */
-export const ORDER_NUMBER_CLASS = "font-mono break-all leading-tight";

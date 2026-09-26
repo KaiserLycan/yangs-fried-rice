@@ -7,10 +7,7 @@ import { cn } from "@/lib/utils";
 import { compressImage } from "@/lib/image/compress";
 import { useRouter } from "next/navigation";
 import { markDelivered } from "@/lib/actions/delivery";
-import {
-  ORDER_NUMBER_CLASS,
-  formatOrderNumber,
-} from "@/lib/orders/order-number";
+import { formatOrderNumber } from "@/lib/orders/order-number";
 
 interface ProofOfDeliveryModalProps {
   isOpen: boolean;
@@ -137,23 +134,11 @@ export function ProofOfDeliveryModal({
                 the app. A rider reading it out to a customer was quoting a
                 number nobody else could look up (issue #106). */}
             <p className="text-[14px] text-[#7A6A60]">
-              {orderId ? (
-                <>
-                  <span>Order </span>
-                  <span className={cn(ORDER_NUMBER_CLASS, "text-[11px]")}>
-                    #{formatOrderNumber(orderId)}
-                  </span>
-                </>
-              ) : (
-                // No order row to point at. Say which kind of reference this
-                // is rather than passing it off as the order's.
-                <>
-                  <span>Delivery </span>
-                  <span className={cn(ORDER_NUMBER_CLASS, "text-[11px]")}>
-                    #{deliveryId}
-                  </span>
-                </>
-              )}{" "}
+              {orderId
+                ? `Order #${formatOrderNumber(orderId)}`
+                : // No order row to point at. Say which kind of reference
+                  // this is rather than passing it off as the order's.
+                  `Delivery #${formatOrderNumber(deliveryId)}`}{" "}
               · {customerName}
             </p>
           </div>
