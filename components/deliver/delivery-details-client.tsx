@@ -9,6 +9,9 @@ import Link from "next/link";
 export type DeliveryDetailsClientProps = {
   initialDelivery: {
     id: string;
+    /** The order's reference. `id` above is the delivery's own, which the
+     *  rider's screens must not quote at anyone (issue #106). */
+    orderId: string | null;
     customer: string;
     address: string;
     phone: string;

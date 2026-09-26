@@ -9,10 +9,17 @@
  * Deliberately unguarded. The login wall for customers sits on the "Add to
  * cart" action, not on the menu pages.
  */
+import { SiteFooter } from "@/components/layout/site-footer";
+
 export default function ShopLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <div className="min-h-screen">{children}</div>;
+  return (
+    <div className="flex min-h-screen flex-col">
+      <div className="flex-1">{children}</div>
+      <SiteFooter />
+    </div>
+  );
 }

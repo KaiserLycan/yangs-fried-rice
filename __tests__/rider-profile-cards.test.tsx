@@ -128,7 +128,7 @@ describe("rider profile edit cards", () => {
     });
   });
 
-  it("keeps Save disabled and shows the error as soon as a field is cleared", () => {
+  it("keeps Save disabled and shows the error once a cleared field settles", async () => {
     render(
       <ToastProvider>
         <DriverDetailsCard vehicleMakeModel="Toyota Vios" vehiclePlateNumber="ABC 1234" />
@@ -140,7 +140,10 @@ describe("rider profile edit cards", () => {
       target: { value: "" },
     });
 
-    expect(screen.getByText("Enter the plate number.")).toBeInTheDocument();
+    // Debounced since issue #106 — the check runs when typing pauses.
+    await waitFor(() =>
+      expect(screen.getByText("Enter the plate number.")).toBeInTheDocument(),
+    );
     expect(screen.getByRole("button", { name: /save changes/i })).toBeDisabled();
     expect(fetchMock).not.toHaveBeenCalled();
   });

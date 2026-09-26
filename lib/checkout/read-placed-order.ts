@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import { orderNumberFrom, type PlacedOrder } from "@/lib/checkout/placed-order";
+import { type PlacedOrder } from "@/lib/checkout/placed-order";
+import { formatOrderNumber } from "@/lib/orders/order-number";
 import { PAYMENT_METHODS } from "@/lib/checkout/payment-methods";
 import { foldPaymentStatus } from "@/lib/checkout/payment-status";
 import { orderItemName, orderItemUnitPrice } from "@/lib/orders/item-name";
@@ -65,7 +66,7 @@ export async function readPlacedOrder(
 
   return {
     orderId: order.order_id,
-    orderNumber: orderNumberFrom(order.order_id),
+    orderNumber: formatOrderNumber(order.order_id),
     customerName: customer.data?.name ?? "",
     placedAtLabel: formatOrderTime(
       order.created_at ? new Date(order.created_at) : new Date(),

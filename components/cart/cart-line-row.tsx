@@ -5,7 +5,7 @@ import { removeCartItem, updateCartItem } from "@/lib/actions/cart";
 import { useCartAction } from "@/lib/cart/use-cart-action";
 import { formatPeso } from "@/lib/menu/product-listing";
 import { lineTotal, type CartLine } from "@/lib/menu/cart-totals";
-import { MAX_QUANTITY, MIN_QUANTITY } from "@/lib/menu/quantity";
+import { MAX_QUANTITY, MIN_QUANTITY, clampQuantity } from "@/lib/menu/quantity";
 import { cn } from "@/lib/utils";
 
 /**
@@ -58,8 +58,22 @@ export function CartLineRow({
 
   const setQuantity = (quantity: number) => {
     if (quantity > MAX_QUANTITY) return;
-    
-    setLocalQuantity(quantity);
+
+    // Stepping below one removes the line, and does it now rather than in
+    // 600ms. The write used to be the only thing that checked the lower
+    // bound, so until the debounce fired the screen showed whatever the
+    // customer had clicked down to — 0, then −1, −2 — with the line total
+    // going negative underneath it. Nothing stopped the clicks: `isPending`
+    // only becomes true once the write starts, which is after the wait.
+    if (quantity < MIN_QUANTITY) {
+      remove();
+      return;
+    }
+
+    // Belt and braces on the upper bound too, through the shared helper the
+    // menu's stepper already uses, so the two cannot drift apart.
+    const next = clampQuantity(quantity);
+    setLocalQuantity(next);
 
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
@@ -67,12 +81,8 @@ export function CartLineRow({
 
     debounceTimerRef.current = setTimeout(() => {
       debounceTimerRef.current = null;
-      if (quantity < MIN_QUANTITY) {
-        remove();
-      } else {
-        onUpdate?.(quantity);
-        run(() => updateCartItem(line.id, { quantity }));
-      }
+      onUpdate?.(next);
+      run(() => updateCartItem(line.id, { quantity: next }));
     }, 600);
   };
 

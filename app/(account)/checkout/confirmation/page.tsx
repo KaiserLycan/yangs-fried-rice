@@ -6,6 +6,8 @@ import { walletFromParam } from "@/lib/checkout/payment-methods";
 import { readPlacedOrder } from "@/lib/checkout/read-placed-order";
 import { readCustomerProfile } from "@/lib/profile/customer-profile";
 import { WALLET_TAB_PARAM } from "@/lib/checkout/wallet-tab";
+import { getOrderEtaAction } from "@/lib/actions/eta";
+import { arrivalWindowFrom } from "@/lib/orders/arrival-window";
 
 /**
  * Order placed (Browsing12, Browsing16, PP1) — the receipt a customer lands
@@ -42,6 +44,24 @@ export default async function CheckoutConfirmationPage({
 
   if (!order) notFound();
 
+  // The order exists by the time anyone sees this page, so it can be
+  // estimated properly — the same engine, and the same call, the tracking
+  // screen makes one step later. The receipt used to print the fixed string
+  // "35–45 min" here instead (issue #106).
+  //
+  // Guarded, unlike the tracking page's identical call. This is where a
+  // customer lands the moment they have paid, and the action reaches the
+  // database and the geocoder without an error boundary of its own. An
+  // estimate is worth a line of text; it is not worth a 500 on the one page
+  // that confirms someone's money arrived. Losing it falls back to
+  // "Arrival time to be confirmed".
+  let arrivalWindow: string | null = null;
+  try {
+    arrivalWindow = arrivalWindowFrom(await getOrderEtaAction(order.orderId));
+  } catch {
+    arrivalWindow = null;
+  }
+
   return (
     <ToastProvider>
       {/* Renders nothing. If this document is the tab checkout opened for
@@ -58,6 +78,7 @@ export default async function CheckoutConfirmationPage({
         order={order}
         wallet={walletFromParam(searchParams.pay)}
         startFailed={searchParams.pay_error === "1"}
+        arrivalWindow={arrivalWindow}
       />
     </ToastProvider>
   );

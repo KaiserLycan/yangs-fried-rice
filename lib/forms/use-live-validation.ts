@@ -21,7 +21,16 @@ import {
  * Works with uncontrolled inputs: spread `formProps` onto the `<form>` and
  * `read` pulls the values out of its FormData, the way the forms already did
  * on submit.
+ *
+ * Typing is debounced. Every keystroke used to rebuild the whole FormData and
+ * re-parse the entire schema — on signup that is eleven fields plus an
+ * address, per character (issue #106). Leaving a field, submitting and
+ * mounting all still check immediately, so nothing a person waits on is
+ * delayed; only the running commentary while they are mid-word is.
  */
+
+/** Long enough to cover a fast typist's gaps, short enough to feel live. */
+const REVALIDATE_DEBOUNCE_MS = 200;
 export function useLiveValidation<Values>({
   schema,
   read,
@@ -41,14 +50,37 @@ export function useLiveValidation<Values>({
   const readRef = React.useRef(read);
   readRef.current = read;
 
+  const pending = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cancelPending = React.useCallback(() => {
+    if (pending.current === null) return;
+    clearTimeout(pending.current);
+    pending.current = null;
+  }, []);
+
+  // Immediate, and the only one that returns a result — a caller that needs
+  // an answer (submit) cannot be handed a promise of one later.
   const revalidate = React.useCallback(() => {
+    cancelPending();
     const form = formRef.current;
     if (!form) return null;
     const result = schema.safeParse(readRef.current(new FormData(form)));
     setClientErrors(result.success ? {} : fieldErrorsFromIssues(result.error.issues));
     setIsValid(result.success);
     return result;
-  }, [schema]);
+  }, [schema, cancelPending]);
+
+  const revalidateSoon = React.useCallback(() => {
+    cancelPending();
+    pending.current = setTimeout(() => {
+      pending.current = null;
+      revalidate();
+    }, REVALIDATE_DEBOUNCE_MS);
+  }, [revalidate, cancelPending]);
+
+  // A form that unmounts mid-word — a dialog being closed — must not run a
+  // check against a node that is no longer there.
+  React.useEffect(() => cancelPending, [cancelPending]);
 
   // A callback ref rather than a mount effect: profile cards and dialogs only
   // render their <form> while open, so validation has to run whenever the
@@ -77,10 +109,13 @@ export function useLiveValidation<Values>({
 
   const onChange = React.useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
+      // Touching is immediate: it is what decides whether this field's error
+      // is allowed to show at all, and delaying it would make an error the
+      // person has already fixed appear 200ms after they fixed it.
       touch((event.target as HTMLInputElement).name);
-      revalidate();
+      revalidateSoon();
     },
-    [touch, revalidate],
+    [touch, revalidateSoon],
   );
 
   const onBlur = React.useCallback(

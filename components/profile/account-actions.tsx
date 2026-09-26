@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import * as React from "react";
-import { logout } from "@/app/(auth)/actions";
+import { LogOutControl } from "@/components/auth/log-out-control";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
@@ -10,10 +10,12 @@ import { useToast } from "@/components/ui/toast";
 /**
  * The two account-level controls at the foot of the profile screen.
  *
- * Log out (Cust3) is a solid red button. Delete account (Cust5) is wired to
- * DELETE /api/profile (lib/actions/profile.ts) — same pattern as logout: end
- * the session, replace + refresh to /login so a browser Back can't flash the
- * signed-in page after the account is gone.
+ * Log out (Cust3) is a solid red button, and since issue #106 it is also in
+ * the nav bar on every customer screen — so the control itself lives in
+ * `LogOutControl` and this file only styles the trigger. Delete account
+ * (Cust5) is wired to DELETE /api/profile (lib/actions/profile.ts) — same
+ * pattern as logout: end the session, replace + refresh to /login so a
+ * browser Back can't flash the signed-in page after the account is gone.
  *
  * Deleting takes one confirmation dialog, not a type-the-word step: the
  * dialog already states plainly that it is permanent, and a second hurdle on
@@ -23,31 +25,12 @@ export function AccountActions() {
   const router = useRouter();
   const showToast = useToast();
 
-  const [dialog, setDialog] = React.useState<"none" | "logout" | "delete">(
-    "none",
-  );
-  const [isSigningOut, startSigningOut] = React.useTransition();
+  const [dialog, setDialog] = React.useState<"none" | "delete">("none");
   const [isDeleting, startDeleting] = React.useTransition();
 
   const closeDialog = () => {
     setDialog("none");
   };
-
-  function handleLogOut() {
-    startSigningOut(async () => {
-      const result = await logout();
-
-      if (!result.success) {
-        closeDialog();
-        showToast(result.error);
-        return;
-      }
-
-      closeDialog();
-      router.replace("/login");
-      router.refresh();
-    });
-  }
 
   function handleDeleteAccount() {
     startDeleting(async () => {
@@ -74,13 +57,7 @@ export function AccountActions() {
   return (
     <>
       <div className="flex flex-col gap-[12px] md:gap-[26px]">
-        <button
-          type="button"
-          onClick={() => setDialog("logout")}
-          className="w-full rounded-sm bg-error-border p-[10px] text-center text-[13.5px] font-bold text-white transition-colors hover:bg-error-border/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error-border/40 disabled:cursor-not-allowed disabled:opacity-60 md:px-[18px] md:py-[15px]"
-        >
-          Log out
-        </button>
+        <LogOutControl className="w-full rounded-sm bg-error-border p-[10px] text-center text-[13.5px] font-bold text-white transition-colors hover:bg-error-border/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error-border/40 disabled:cursor-not-allowed disabled:opacity-60 md:px-[18px] md:py-[15px]" />
 
         <button
           type="button"
@@ -90,33 +67,6 @@ export function AccountActions() {
           Delete Account
         </button>
       </div>
-
-      <Dialog
-        open={dialog === "logout"}
-        onClose={closeDialog}
-        title="LOG OUT?"
-        description="You’ll need to sign in again to place an order."
-        footer={
-          <>
-            <Button
-              variant="outline"
-              className="flex-1 p-[14px]"
-              onClick={closeDialog}
-              disabled={isSigningOut}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="confirm"
-              className="flex-1"
-              onClick={handleLogOut}
-              disabled={isSigningOut}
-            >
-              {isSigningOut ? "Logging out…" : "Log Out"}
-            </Button>
-          </>
-        }
-      />
 
       <Dialog
         open={dialog === "delete"}

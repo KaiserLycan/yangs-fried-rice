@@ -33,6 +33,7 @@ export default async function DeliveryDetailsPage({
 
   const initialDelivery = {
     id: d.deliveryId,
+    orderId: d.orderId,
     customer: d.customer?.name || "Walk-in Customer",
     address: d.customer?.address || "No address provided",
     phone: d.customer?.phone || "No phone provided",

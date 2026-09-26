@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isPaymentMethodAllowed } from "@/lib/checkout/payment-methods";
 
 export const addCartItemSchema = z.object({
   product_id: z.string().uuid({ message: "product_id must be a valid UUID" }),
@@ -75,9 +76,36 @@ export const submitCartSchema = z.object({
           "payment_method must be wallet, cash-on-delivery, or pay-in-store",
       }),
     })
-    .optional()
-    .default("cash-on-delivery"),
-});
+    .optional(),
+})
+  // Filled in rather than defaulted on the field, because what a caller that
+  // names no method must have meant depends on the other field: cash on
+  // delivery for a delivery, paying at the counter for anything collected.
+  // A fixed default of cash on delivery would have made every silent
+  // take-out order fail the check below.
+  .transform((data) => ({
+    ...data,
+    payment_method:
+      data.payment_method ??
+      (data.order_type === "delivery" ? "cash-on-delivery" : "pay-in-store"),
+  }))
+  .superRefine((data, ctx) => {
+    // The picker no longer offers an impossible pairing, but the picker is
+    // not the only way in — `app/api/cart/submit/route.ts` passes a raw body
+    // straight through. Two of the methods name the moment money changes
+    // hands, and that moment only exists for one kind of order (issue #106).
+    const fulfilment = data.order_type === "delivery" ? "delivery" : "pickup";
+    if (isPaymentMethodAllowed(data.payment_method, fulfilment)) return;
+
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["payment_method"],
+      message:
+        data.payment_method === "cash-on-delivery"
+          ? "Cash on delivery is only available for delivery orders."
+          : "Pay in store is only available for pickup orders.",
+    });
+  });
 
 export const cancelOrderSchema = z.object({
   cancellation_reason: z
