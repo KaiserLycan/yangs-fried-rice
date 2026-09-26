@@ -153,15 +153,11 @@ export function OrderSummaryCard({
       return;
     }
 
-    // `card` is refused above, so only the three the action accepts remain.
-    // Spelled out rather than cast so adding a fifth method fails to compile
-    // here instead of silently arriving as cash on delivery.
-    const chosenMethod: "wallet" | "cash-on-delivery" | "pay-in-store" =
-      paymentMethod === "wallet"
-        ? "wallet"
-        : paymentMethod === "pay-in-store"
-          ? "pay-in-store"
-          : "cash-on-delivery";
+    // `card` is refused above. Pickup-only (issue #114): the action accepts
+    // the wallet or paying at the counter, and anything else lands on the
+    // counter — the method that needs nothing up front.
+    const chosenMethod: "wallet" | "pay-in-store" =
+      paymentMethod === "wallet" ? "wallet" : "pay-in-store";
 
     // Opened here, in the click itself, and before anything is awaited: a
     // popup asked for later — after `submitCart` comes back — is one the

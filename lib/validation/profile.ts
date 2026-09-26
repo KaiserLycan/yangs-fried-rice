@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { customerEmailSchema, customerPasswordSchema } from "./login";
+import { customerEmailSchema, customerNewPasswordSchema } from "./login";
 import { customerMobileSchema } from "./signup";
 import { dateOfBirthSchema } from "./date-of-birth";
 import {
@@ -59,7 +59,7 @@ export type DeliveryAddressValues = z.infer<typeof deliveryAddressSchema>;
 export type DeliveryAddressField = keyof DeliveryAddressValues;
 
 /**
- * The password card (Cust4). The new password takes login's rule; whether
+ * The password card (Cust4). The new password takes the new-password rule; whether
  * the current one is *correct* is the server's question, so the client only
  * checks something was typed. The mismatch error is pointed at
  * `confirmPassword`, the field the frame annotates.
@@ -69,7 +69,7 @@ export const passwordChangeSchema = z
     currentPassword: z
       .string()
       .refine((value) => value.trim().length > 0, "Enter your current password."),
-    newPassword: customerPasswordSchema,
+    newPassword: customerNewPasswordSchema,
     confirmPassword: z.string().min(1, "Confirm your new password."),
   })
   .refine((values) => values.newPassword === values.confirmPassword, {

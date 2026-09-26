@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { emailSchema, passwordSchema } from "./fields";
+import { emailSchema, newPasswordSchema } from "./fields";
 
 /**
  * Forgotten-password recovery, for customers and employees alike.
@@ -23,7 +23,7 @@ export type ForgotPasswordValues = z.infer<typeof forgotPasswordSchema>;
 
 export const resetPasswordSchema = z
   .object({
-    password: passwordSchema,
+    password: newPasswordSchema,
     confirmPassword: z.string().min(1, { message: "Confirm your new password." }),
   })
   .refine((values) => values.password === values.confirmPassword, {

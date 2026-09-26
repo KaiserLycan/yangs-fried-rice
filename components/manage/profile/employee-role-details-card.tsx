@@ -31,19 +31,17 @@ import { useCardEditor } from "@/components/profile/use-card-editor";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useToast } from "@/components/ui/toast";
 
-const ROLES = ["Manager", "Staff", "Delivery"];
+const ROLES = ["Manager", "Staff"];
 const SHIFTS = ["MWF – 12-3PM", "TThS – 9-5PM", "Weekends – 10-10PM", "Mon-Fri – 8-4PM"];
 
 const roleMap: Record<string, string> = {
   MANAGER: "Manager",
   STAFF: "Staff",
-  RIDER: "Delivery",
 };
 
 const reverseRoleMap: Record<string, string> = {
   Manager: "MANAGER",
   Staff: "STAFF",
-  Delivery: "RIDER",
 };
 
 const roleDetailsSchema = z.object({

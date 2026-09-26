@@ -8,11 +8,15 @@ import {
 } from "./admin";
 
 describe("normalizeEmployeeRoleLabel", () => {
-  it("maps delivery UI labels to rider database roles", () => {
-    expect(normalizeEmployeeRoleLabel("Delivery")).toBe("RIDER");
+  it("maps UI labels to database roles", () => {
     expect(normalizeEmployeeRoleLabel("Manager")).toBe("MANAGER");
     expect(normalizeEmployeeRoleLabel("Server")).toBe("STAFF");
-    expect(normalizeEmployeeRoleLabel("Rider")).toBe("RIDER");
+  });
+
+  // Pickup-only (issue #114): the rider labels no longer name a role.
+  it("does not map the retired rider labels", () => {
+    expect(normalizeEmployeeRoleLabel("Delivery")).toBeNull();
+    expect(normalizeEmployeeRoleLabel("Rider")).toBeNull();
   });
 });
 
@@ -21,7 +25,7 @@ describe("createEmployeeSchema", () => {
     firstName: "Juan",
     lastName: "Dela Cruz",
     email: "juan@yangsfr.com",
-    password: "securepass1",
+    password: "Yangs!Pass2026",
     role: "STAFF" as const,
   };
 
@@ -52,22 +56,6 @@ describe("createEmployeeSchema", () => {
     expect(createEmployeeSchema.safeParse({ ...valid, firstName: "Juan2" }).success).toBe(false);
   });
 
-  it("requires rider details for a rider", () => {
-    expect(createEmployeeSchema.safeParse({ ...valid, role: "RIDER" }).success).toBe(false);
-    expect(
-      createEmployeeSchema.safeParse({
-        ...valid,
-        role: "RIDER",
-        riderDetails: {
-          vehicle_make_model: "Honda Click 125i",
-          vehicle_plate_number: "NBA 1234",
-          driver_license_number: "N01-15-123456",
-          license_expiry_date: "2099-01-01",
-        },
-      }).success,
-    ).toBe(true);
-  });
-
   it("rejects invalid email", () => {
     expect(
       createEmployeeSchema.safeParse({ ...valid, email: "not-email" }).success,
@@ -80,53 +68,12 @@ describe("createEmployeeSchema", () => {
     ).toBe(false);
   });
 
-  const riderDetails = {
-    vehicle_make_model: "Toyota Hiace",
-    vehicle_plate_number: "ABC 1234",
-    driver_license_number: "N01-12-345678",
-    license_expiry_date: "2099-05-30",
-  };
-
-  it.each(["MANAGER", "STAFF", "RIDER"] as const)(
-    "accepts role '%s'",
-    (role) => {
-      expect(
-        createEmployeeSchema.safeParse({
-          ...valid,
-          role,
-          ...(role === "RIDER" ? { riderDetails } : {}),
-        }).success,
-      ).toBe(true);
-    },
-  );
-
-  it("accepts rider-specific details for a delivery/rider employee", () => {
-    const result = createEmployeeSchema.safeParse({
-      ...valid,
-      role: "RIDER",
-      scheduleShift: null,
-      riderDetails,
-    });
-
-    expect(result.success).toBe(true);
+  it.each(["MANAGER", "STAFF"] as const)("accepts role '%s'", (role) => {
+    expect(createEmployeeSchema.safeParse({ ...valid, role }).success).toBe(true);
   });
 
-  it("rejects a licence number that isn't in the LTO format", () => {
-    const result = createEmployeeSchema.safeParse({
-      ...valid,
-      role: "RIDER",
-      riderDetails: { ...riderDetails, driver_license_number: "N01-1234567" },
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it("rejects an expired licence", () => {
-    const result = createEmployeeSchema.safeParse({
-      ...valid,
-      role: "RIDER",
-      riderDetails: { ...riderDetails, license_expiry_date: "2001-01-01" },
-    });
-    expect(result.success).toBe(false);
+  it("rejects the retired RIDER role", () => {
+    expect(createEmployeeSchema.safeParse({ ...valid, role: "RIDER" }).success).toBe(false);
   });
 
   it("rejects unknown role", () => {
@@ -186,7 +133,7 @@ describe("updateCustomerSchema", () => {
 describe("changePasswordSchema", () => {
   it("accepts valid password (>= 8 chars)", () => {
     expect(
-      changePasswordSchema.safeParse({ new_password: "securepassword123" })
+      changePasswordSchema.safeParse({ new_password: "Yangs!Pass2026" })
         .success,
     ).toBe(true);
   });

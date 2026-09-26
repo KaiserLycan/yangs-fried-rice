@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import {
   getMyEmployeeProfile as getMyEmployeeProfileAction,
   updateMyEmployeeProfile as updateMyEmployeeProfileAction,
-  updateMyRiderDetails as updateMyRiderDetailsAction,
   deactivateMyEmployeeAccount as deactivateMyEmployeeAccountAction,
   deleteMyEmployeeAccount as deleteMyEmployeeAccountAction,
 } from "@/lib/actions/employee-profile";
@@ -13,9 +12,6 @@ function errorToStatus(error: string): number {
   }
   if (error.includes("Only a manager")) {
     return 403;
-  }
-  if (error.toLowerCase().includes("no rider profile found")) {
-    return 404;
   }
   return 400;
 }
@@ -99,30 +95,4 @@ export async function deactivateMyEmployeeAccount() {
     );
   }
   return NextResponse.json({ message: "Account deactivated successfully" });
-}
-
-/**
- * PATCH /api/employee/profile/rider
- * Body: { vehicleMakeModel?, vehiclePlateNumber?, driverLicenseNumber?, licenseExpiryDate? }
- * Requires: authenticated employee who has a rider row.
- */
-export async function updateMyRiderDetails(request: Request) {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json(
-      { error: "Invalid JSON format in request body" },
-      { status: 400 },
-    );
-  }
-
-  const result = await updateMyRiderDetailsAction(body as any);
-  if (!result.success) {
-    return NextResponse.json(
-      { error: result.error, fieldErrors: "fieldErrors" in result ? result.fieldErrors : undefined },
-      { status: errorToStatus(result.error) },
-    );
-  }
-  return NextResponse.json({ message: "Driver details updated successfully" });
 }

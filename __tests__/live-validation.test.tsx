@@ -73,7 +73,7 @@ describe("real-time validation", () => {
     fireEvent.change(screen.getByLabelText(/^password/i), { target: { value: "short" } });
     expect(button).toBeDisabled();
 
-    fireEvent.change(screen.getByLabelText(/^password/i), { target: { value: "long-enough-password" } });
+    fireEvent.change(screen.getByLabelText(/^password/i), { target: { value: "Long-enough-Passw0rd" } });
     await waitFor(() => expect(button).toBeEnabled());
   });
 });
@@ -86,7 +86,7 @@ describe("sign-up", () => {
     set(/last name/i, "Reyes");
     set(/^email/i, "liza@example.com");
     set(/mobile number/i, "9171234567");
-    set(/^password/i, "long-enough-password");
+    set(/^password/i, "Long-enough-Passw0rd");
     set(/building \/ house no/i, "21");
     set(/^street/i, "Mabini St.");
     set(/^barangay/i, "Malate");

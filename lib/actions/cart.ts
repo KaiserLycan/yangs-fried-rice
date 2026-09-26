@@ -2,9 +2,6 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { validateNcrAddress } from "@/lib/address/validate-ncr";
-import { MAX_DELIVERY_RADIUS_KM, MIN_DELIVERY_FEE_PHP } from "@/lib/eta/engine";
-import { calculateDeliveryFee } from "@/lib/menu/cart-totals";
 import {
   addCartItemSchema,
   updateCartItemSchema,
@@ -19,6 +16,10 @@ import {
   UNPAID_ORDER_STATUSES,
   isUnpaidStatus,
 } from "@/lib/validation/orders";
+import {
+  ACCOUNT_DISABLED_CODE,
+  ACCOUNT_DISABLED_MESSAGE,
+} from "@/lib/auth/account-status";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -61,62 +62,43 @@ async function requireCustomer(): Promise<
   ActionResult<{ customer_id: string }>
 > {
   const supabase = createClient();
-  // Optimization: getSession reads from the cookie locally (0 network requests),
-  // whereas getUser makes an HTTP request to the Supabase Auth API.
+  // getUser, not getSession: getSession only decodes the cookie, so a token
+  // that was revoked, or forged, would still read as signed in. getUser asks
+  // Supabase Auth to verify it — the one extra request is the price of the
+  // check actually meaning something (issue #114).
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (!session?.user) {
+  if (!user) {
     return { data: null, error: "You must be signed in.", code: "UNAUTHORIZED" };
   }
 
-  // Optimization: We skip checking the `customer` table explicitly because 
-  // foreign key constraints on `cart` will prevent non-customers from creating carts anyway.
-  return { data: { customer_id: session.user.id }, error: null };
-}
+  // Read for the disabled flag. RLS lets a customer see only their own row,
+  // so no row also means "not a customer".
+  const { data: customer } = await supabase
+    .from("customer")
+    .select("customer_id, is_account_disabled")
+    .eq("customer_id", user.id)
+    .maybeSingle();
 
-// ---------------------------------------------------------------------------
-// Delivery fee (server-side)
-// ---------------------------------------------------------------------------
-
-/**
- * The fee an order is actually charged.
- *
- * - Pickup / dine-in: none.
- * - Delivery: base + per-km, from the distance to the delivery address. If the
- *   address can't be geocoded (no API key, service down) the fee falls back to
- *   whatever the browser quoted, but never below the minimum — a delivery order
- *   must not go out at ₱0.
- * - An address that geocodes beyond the delivery radius is refused.
- */
-async function resolveDeliveryFee({
-  orderType,
-  address,
-  clientFee,
-}: {
-  orderType: string;
-  address: string | null;
-  clientFee: number;
-}): Promise<{ fee: number; error: null } | { fee: 0; error: string }> {
-  if (orderType !== "delivery") return { fee: 0, error: null };
-
-  if (address && address.trim().length >= 5) {
-    const check = await validateNcrAddress(address);
-    if (Number.isFinite(check.distanceKm)) {
-      if (!check.valid) {
-        return {
-          fee: 0,
-          error:
-            check.message ??
-            `Delivery is limited to ${MAX_DELIVERY_RADIUS_KM} km from the store.`,
-        };
-      }
-      return { fee: calculateDeliveryFee(check.distanceKm), error: null };
-    }
+  if (!customer) {
+    return {
+      data: null,
+      error: "You are not registered as a customer.",
+      code: "FORBIDDEN",
+    };
   }
 
-  return { fee: Math.max(clientFee, MIN_DELIVERY_FEE_PHP), error: null };
+  if (customer.is_account_disabled) {
+    return {
+      data: null,
+      error: ACCOUNT_DISABLED_MESSAGE,
+      code: ACCOUNT_DISABLED_CODE,
+    };
+  }
+
+  return { data: { customer_id: user.id }, error: null };
 }
 
 // ---------------------------------------------------------------------------
@@ -668,9 +650,24 @@ export async function clearCart(): Promise<
 }
 
 // ---------------------------------------------------------------------------
-// 5. Submit Cart (Locks Cart Immediately & Generates Order)
+// 5. Submit Cart (one atomic database call)
 // ---------------------------------------------------------------------------
 
+/**
+ * Places the cart as a pickup order.
+ *
+ * All of it happens inside `submit_cart_to_order`
+ * (supabase/migrations/20260927000001_*.sql): the cart row is locked, checked
+ * for `is_final`, every line is priced from the menu, and the order, its
+ * lines, add-ons, payment row and the cart's lock are written in one
+ * transaction. There is deliberately no fallback. The old one did the same
+ * steps as separate requests — two taps made two orders, and a failure part
+ * way left an order with no lines — and it relied on customers being allowed
+ * to insert into the order tables directly, which they no longer are.
+ *
+ * The browser's `delivery_fee` and `delivery_address` are not sent on: the
+ * shop is pickup-only, and the function charges no fee.
+ */
 export async function submitCart(
   rawInput: SubmitCartInput
 ): Promise<
@@ -691,226 +688,36 @@ export async function submitCart(
 
   const supabase = createClient();
 
-  // The delivery fee is decided here, not taken on trust from the browser:
-  // a delivery order pays a distance-based fee (never ₱0), a pickup order pays
-  // none, and an address beyond the delivery radius is refused outright.
-  const feeResult = await resolveDeliveryFee({
-    orderType: parsed.data.order_type,
-    address: parsed.data.delivery_address ?? null,
-    clientFee: parsed.data.delivery_fee ?? 0,
+  const { data, error } = await supabase.rpc("submit_cart_to_order", {
+    p_cart_id: parsed.data.cart_id,
+    p_order_type: parsed.data.order_type,
+    p_special_instructions: parsed.data.special_instructions ?? undefined,
+    p_payment_method: parsed.data.payment_method,
   });
-  if (feeResult.error !== null) {
-    return { data: null, error: feeResult.error };
-  }
-  const deliveryFee = feeResult.fee;
 
-  // Try RPC first (if installed in Supabase). The RPC is optional in this
-  // codebase, so the generated types may not include it for every schema snapshot.
-  const { data: rpcData, error: rpcError } = await (supabase.rpc as any)(
-    "submit_cart_to_order",
-    {
-      p_cart_id: parsed.data.cart_id,
-      p_order_type: parsed.data.order_type,
-      p_special_instructions: parsed.data.special_instructions ?? undefined,
-      p_delivery_fee: deliveryFee,
+  if (error || !data) {
+    // The function raises with a customer-facing message and a stable code
+    // in `hint` (CART_LOCKED, ITEM_UNAVAILABLE, ACCOUNT_DISABLED, …). Anything
+    // without a hint is unexpected, so its raw text is logged, not shown.
+    if (error?.hint) {
+      return { data: null, error: error.message, code: error.hint };
     }
-  );
-
-  if (!rpcError && rpcData) {
-    return {
-      data: rpcData as {
-        order_id: string;
-        order_status: string;
-        cart_id: string;
-        is_final: boolean;
-      },
-      error: null,
-    };
-  }
-
-  // Fallback to direct client orchestration if RPC is not yet executed in Supabase
-  const { data: cart, error: cartError } = await supabase
-    .from("cart")
-    .select("cart_id, customer_id, is_final, status")
-    .eq("cart_id", parsed.data.cart_id)
-    .single();
-
-  if (cartError || !cart) {
-    return { data: null, error: "Cart not found." };
-  }
-
-  if (cart.customer_id !== auth.data.customer_id) {
-    return { data: null, error: "Access denied.", code: "FORBIDDEN" };
-  }
-
-  if (cart.is_final) {
+    console.error("submitCart: submit_cart_to_order failed:", error);
     return {
       data: null,
-      error: "Cart is already submitted and locked.",
-      code: "CART_LOCKED",
+      error: "We couldn't place your order. Please try again.",
     };
   }
-
-  const { data: cartItems, error: itemsError } = await supabase
-    .from("cart_item")
-    .select(`
-      cart_item_id,
-      product_id,
-      quantity,
-      special_instructions,
-      product ( product_name, product_price ),
-      cart_item_add_on ( addon_id, add_on ( price ) )
-    `)
-    .eq("cart_id", cart.cart_id);
-
-  const { data: cartAddOns } = await supabase
-    .from("cart_add_on")
-    .select("addon_id, add_on ( price )")
-    .eq("cart_id", cart.cart_id);
-
-  if (itemsError || !cartItems || cartItems.length === 0) {
-    return { data: null, error: "Cannot submit an empty cart." };
-  }
-
-  // A wallet order is not fit to cook until PayMongo says the money arrived,
-  // so it is parked at `awaiting_payment` and the webhook promotes it to
-  // `pending`. Cash on delivery and pay in store are `pending` immediately —
-  // those are collected later by design, not unpaid by accident. Before this
-  // every order was born `pending`, so an abandoned wallet payment went
-  // straight to the kitchen and the rider queue (issue #106).
-  const isWalletOrder = parsed.data.payment_method === "wallet";
-  const initialOrderStatus = isWalletOrder ? "awaiting_payment" : "pending";
-
-  // 1. Create the order, held or live depending on how it is being paid for
-  const { data: newOrder, error: orderError } = await supabase
-    .from("order")
-    .insert({
-      customer_id: auth.data.customer_id,
-      order_status: initialOrderStatus,
-      order_type: parsed.data.order_type,
-      special_instructions: parsed.data.special_instructions ?? null,
-      delivery_fee: deliveryFee,
-      delivery_address: parsed.data.delivery_address ?? null,
-    })
-    .select()
-    .single();
-
-  if (orderError || !newOrder) {
-    return { data: null, error: orderError?.message ?? "Failed to create order." };
-  }
-
-  // 2. Transfer cart items and their add-ons
-  const orderItemsToInsert = cartItems.map((item) => {
-    const product = item.product as
-      | { product_name: string; product_price: number }
-      | null;
-    const price = product?.product_price ?? 0;
-    const addOnTotal = (
-      (item.cart_item_add_on as { add_on: { price: number } | null }[] | null) ?? []
-    ).reduce((sum, row) => sum + (row.add_on?.price ?? 0), 0);
-    return {
-      order_item_id: crypto.randomUUID(),
-      order_id: newOrder.order_id,
-      product_id: item.product_id,
-      quantity: item.quantity,
-      // Add-ons are billed: the line is (dish + its add-ons) x quantity, the
-      // same figure the cart showed the customer.
-      subtotal: (price + addOnTotal) * item.quantity,
-      special_instructions: item.special_instructions,
-      // What was bought, written down at the moment of buying. Renaming,
-      // repricing or removing the product afterwards no longer rewrites
-      // history or turns the line into "Unknown item" (issue #106).
-      product_name: product?.product_name ?? null,
-      unit_price: price + addOnTotal,
-    };
-  });
-
-  const orderItemAddOnsToInsert = cartItems.flatMap((item, index) => {
-    const addOns = item.cart_item_add_on as { addon_id: string; add_on: { price: number } }[] | null;
-    if (!addOns) return [];
-    return addOns.map(addon => ({
-      order_item_id: orderItemsToInsert[index].order_item_id,
-      addon_id: addon.addon_id,
-    }));
-  });
-
-  const orderAddOnsToInsert = (cartAddOns || []).map(addon => ({
-    order_id: newOrder.order_id,
-    addon_id: addon.addon_id,
-    price: (addon.add_on as any)?.price ?? 0,
-  }));
-
-  const subtotal = orderItemsToInsert.reduce((acc, curr) => acc + curr.subtotal, 0)
-    + orderAddOnsToInsert.reduce((acc, curr) => acc + curr.price, 0);
-
-  // Record what the customer actually chose. This used to say
-  // "cash_on_delivery" for every order including wallet ones, which made the
-  // receipt mislabel a GCash order until `create-payment-intent` overwrote
-  // the row, and left no way to tell an unpaid wallet order from a cash one.
-  // "paymongo" is the gateway rather than the wallet because the intent
-  // allows either — the same value `create-payment-intent` writes.
-  const transactionMethod = isWalletOrder
-    ? "paymongo"
-    : parsed.data.payment_method === "pay-in-store"
-      ? "pay_in_store"
-      : "cash_on_delivery";
-
-  const transactionToInsert = {
-    transaction_id: crypto.randomUUID(),
-    order_id: newOrder.order_id,
-    payment_method: transactionMethod,
-    payment_status: "pending",
-    subtotal: subtotal,
-    tax_amount: 0,
-    discount_amount: 0,
-    total_paid: 0,
-    transaction_date: new Date().toISOString(),
-  };
-
-  // `transaction` carries only SELECT policies (000_remote_schema.sql), so a
-  // customer-session insert here matched zero rows and failed silently —
-  // every order was left with no payment row at all, which is why the
-  // receipt could say "Not recorded" and why `create-payment-intent` had
-  // nothing to reuse. The service role is what actually writes it; the row
-  // is pinned to the order just created above.
-  const [, , , transactionResult] = await Promise.all([
-    supabase.from("order_item").insert(orderItemsToInsert),
-    orderItemAddOnsToInsert.length > 0 ? supabase.from("order_item_add_on").insert(orderItemAddOnsToInsert) : Promise.resolve(),
-    orderAddOnsToInsert.length > 0 ? supabase.from("order_add_on").insert(orderAddOnsToInsert) : Promise.resolve(),
-    createAdminClient().from("transaction").insert(transactionToInsert),
-  ]);
-
-  // Surfaced rather than discarded: a wallet order with no payment row can
-  // never be paid, and the customer would be told it was placed regardless.
-  if (transactionResult?.error) {
-    console.error(
-      "submitCart: could not record the transaction:",
-      transactionResult.error,
-    );
-  }
-
-  // 3. Lock cart immediately
-  const now = new Date().toISOString();
-  await supabase
-    .from("cart")
-    .update({
-      is_final: true,
-      status: "submitted",
-      order_id: newOrder.order_id,
-      submitted_at: now,
-      updated_at: now,
-    })
-    .eq("cart_id", cart.cart_id);
 
   const { revalidatePath } = await import("next/cache");
   revalidatePath("/", "layout");
 
   return {
-    data: {
-      order_id: newOrder.order_id,
-      order_status: initialOrderStatus,
-      cart_id: cart.cart_id,
-      is_final: true,
+    data: data as {
+      order_id: string;
+      order_status: string;
+      cart_id: string;
+      is_final: boolean;
     },
     error: null,
   };

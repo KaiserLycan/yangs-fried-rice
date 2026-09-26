@@ -26,7 +26,7 @@ const SIGNUP = {
   lastName: "Reyes",
   email: "liza@example.com",
   phone: "+639171234567",
-  password: "securepassword123",
+  password: "Yangs!Pass2026",
   buildingNo: "10",
   street: "Mercedes Ave",
   barangay: "San Miguel",
@@ -98,14 +98,24 @@ describe("A4. password", () => {
     expect(signupSchema.safeParse({ ...SIGNUP, password: "1234567" }).success).toBe(false);
   });
 
-  it("accepts 8 characters", () => {
-    expect(signupSchema.safeParse({ ...SIGNUP, password: "12345678" }).success).toBe(true);
+  it("accepts 8 characters with lowercase, uppercase, a digit and a symbol", () => {
+    expect(signupSchema.safeParse({ ...SIGNUP, password: "Abcdef1!" }).success).toBe(true);
   });
+
+  // Matches the Supabase Auth "lowercase, uppercase, digits and symbols" setting,
+  // so the form never accepts a password that Auth would then reject.
+  it.each(["12345678", "abcdefg1!", "ABCDEFG1!", "Abcdefgh!", "Abcdefg12", "Abcdefg1 "])(
+    "rejects %j — it is missing a required character class",
+    (password) => {
+      expect(signupSchema.safeParse({ ...SIGNUP, password }).success).toBe(false);
+    },
+  );
 
   it("applies the same rule to a manager creating an employee", () => {
     const base = { firstName: "Alice", lastName: "Smith", email: "a@b.com", role: "STAFF" as const };
     expect(createEmployeeSchema.safeParse({ ...base, password: "short" }).success).toBe(false);
-    expect(createEmployeeSchema.safeParse({ ...base, password: "12345678" }).success).toBe(true);
+    expect(createEmployeeSchema.safeParse({ ...base, password: "12345678" }).success).toBe(false);
+    expect(createEmployeeSchema.safeParse({ ...base, password: "Abcdef1!" }).success).toBe(true);
   });
 });
 

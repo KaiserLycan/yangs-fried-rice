@@ -2,11 +2,17 @@
 
 This document tracks all the pending/unimplemented acceptance criteria from open issues regarding the backend, frontend, and API. It has been updated to reflect the current state of the codebase.
 
-## Pending: assigned rider on the customer tracking screen
-The tracking screen (`/orders/[orderId]`) now shows the assigned rider's name, photo, vehicle and plate once `delivery.rider_id` is set (`lib/orders/read-tracked-order.ts`, `components/orders/assigned-rider-card.tsx`).
-- [ ] **Backend:** nothing creates the `delivery` row, so the rider queue is always empty. How to fix: `docs/reference/rider-queue-handoff.md`.
-- [ ] **Backend:** no `employee.phone_number` column. A "Call rider" button on the card is waiting on it; the customer table already has the equivalent column.
-- [ ] **Backend:** confirm customers can read `rider` (`vehicle_make_model`, `vehicle_plate_number`) and `employee` (`name`, `profileImage_URL`) under RLS. If either is blocked the card reads as "Rider not assigned yet" even with a rider on the row.
+## Issue #114: Part 1: Security, Database & Privacy Enhancements
+The shop is now **pickup-only**. The assigned-rider card, the rider queue and the `/deliver` area were removed with the `rider` and `delivery` tables, so the old "assigned rider on the tracking screen" items no longer apply. (`employee.phone_number` now exists, renamed from `phone-num`.)
+- [x] **Implemented:** pending migrations applied; RLS on `employee`; `rider` / `delivery` archived to a private schema and dropped; RIDER accounts disabled.
+- [x] **Implemented:** `submit_cart_to_order` atomic checkout (cart row lock, `is_final` check, one transaction, unique `order.cart_id`); checkout uses it exclusively.
+- [x] **Implemented:** customer INSERT policies dropped on `order`, `order_item`, `order_add_on`, `order_item_add_on`; customer cancel limited to status and cancellation fields.
+- [x] **Implemented:** `requireCustomer` uses `getUser()`; `is_account_disabled` checked in every guard and in the database; disabled users are signed out with a message.
+- [x] **Implemented:** private `senior-pwd-ids` bucket with ≤5-minute signed URLs (`lib/storage/senior-pwd-ids.ts`).
+- [x] **Implemented:** `EXECUTE` revoked on `handle_password_timestamp_update()`; `search_path = public` on every SECURITY DEFINER function.
+- [x] **Implemented:** indexes on `order(customer_id, created_at)`, `order(order_status, created_at)`, `order_item(order_id)`, `transaction(order_id)`.
+- [x] **Implemented:** `types/database.types.ts` regenerated; `employee."phone-num"` renamed to `phone_number`.
+- [ ] **Open:** leaked-password protection needs the Supabase Pro plan.
 
 ## Issue #42: SAS1- Administrators should be able to view and manage all registered user accounts, remote orders, and payments (CLOSED)
 - [x] **Implemented:** Frontend UI for managing customers (`app/manage/customers`) and orders (`app/manage/orders`) is fully wired to live Supabase queries and mutations.

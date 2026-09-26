@@ -149,24 +149,15 @@ export async function deleteCustomersCascade(db, customerIds) {
   return customerIds.length;
 }
 
-/** Removes employees (and rider rows) and their auth users. Deliveries keep their order. */
+/** Removes employees and their auth users. Reports they generated are kept, detached. */
 export async function deleteEmployeesCascade(db, employeeIds) {
   if (employeeIds.length === 0) return 0;
-  const riders = await selectIn(db, "rider", "rider_id", "employee_id", employeeIds);
-  const riderIds = riders.map((r) => r.rider_id);
-  for (let i = 0; i < riderIds.length; i += 100) {
-    check(
-      await db.from("delivery").update({ rider_id: null }).in("rider_id", riderIds.slice(i, i + 100)),
-      "detach deliveries from rider",
-    );
-  }
+  // `rider`, `delivery` and `order.employee_id` are gone (pickup-only,
+  // issue #114), so reports are the only thing left pointing at an employee.
   for (let i = 0; i < employeeIds.length; i += 100) {
     const batch = employeeIds.slice(i, i + 100);
-    check(await db.from("delivery").update({ employee_id: null }).in("employee_id", batch), "detach deliveries");
-    check(await db.from("order").update({ employee_id: null }).in("employee_id", batch), "detach orders");
     check(await db.from("reports").update({ generated_by_employee_id: null }).in("generated_by_employee_id", batch), "detach reports");
   }
-  await deleteIn(db, "rider", "employee_id", employeeIds);
   await deleteIn(db, "employee", "employee_id", employeeIds);
   for (const id of employeeIds) {
     const { error } = await db.auth.admin.deleteUser(id);

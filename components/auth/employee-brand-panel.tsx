@@ -45,9 +45,9 @@ export function EmployeeBrandPanel() {
         <p className="max-w-[360px] text-[13px] leading-[19.5px] text-on-console-muted md:text-[15px] md:leading-[22.5px]">
           {/* COPY: "Manager and owner accounts only" names two roles that do
               not exist — the confirmed user types are Customer, Business
-              Owner, Staff and Rider. Ported as drawn; flagged for the PM. */}
+              Owner and Staff. Ported as drawn; flagged for the PM. */}
           <span className="hidden md:block">
-            Menu, live orders, rider assignment and daily sales.
+            Menu, live orders, pickups and daily sales.
           </span>
           Manager and owner accounts only.
         </p>
@@ -72,7 +72,6 @@ export function EmployeeBrandPanel() {
           <div className="flex gap-6">
             <Stat value="37" label="Orders" />
             <Stat value="6" label="Staff on shift" />
-            <Stat value="2" label="Riders online" />
           </div>
         </div>
       </div>

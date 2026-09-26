@@ -1,6 +1,10 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import {
+  ACCOUNT_DISABLED_CODE,
+  EMPLOYEE_ACCOUNT_DISABLED_MESSAGE,
+} from "@/lib/auth/account-status";
 import { resolveEmployeeRole, isManager, type EmployeeRole } from "@/lib/auth/roles";
 import {
   reportDateRangeSchema,
@@ -29,7 +33,7 @@ import {
 
 type ActionResult<T> =
   | { data: T; error: null }
-  | { data: null; error: string };
+  | { data: null; error: string; code?: string };
 
 /** A single row in the sales breakdown (grouped by period). */
 export type SalesRow = {
@@ -128,12 +132,22 @@ async function requireReportAccess(): Promise<
 
   const { data: employee, error } = await supabase
     .from("employee")
-    .select("employee_id, role")
+    .select("employee_id, role, is_account_disabled")
     .eq("employee_id", user.id)
     .single();
 
   if (error || !employee) {
     return { data: null, error: "You are not registered as an employee." };
+  }
+
+  // A disabled account can still hold a live session; refuse it here too
+  // (issue #114).
+  if (employee.is_account_disabled) {
+    return {
+      data: null,
+      error: EMPLOYEE_ACCOUNT_DISABLED_MESSAGE,
+      code: ACCOUNT_DISABLED_CODE,
+    };
   }
 
   const role = resolveEmployeeRole(employee.role);

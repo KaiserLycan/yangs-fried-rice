@@ -50,7 +50,7 @@ describe("US-01: CustomerSignupForm Validations", () => {
     fireEvent.change(screen.getByLabelText(/last name/i), { target: { value: "Reyes" } });
     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "liza@example.com" } });
     fireEvent.change(screen.getByLabelText(/mobile number/i), { target: { value: "09171234567" } });
-    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "securepassword123" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "Yangs!Pass2026" } });
     fireEvent.change(screen.getByLabelText(/building \/ house no\./i), { target: { value: "123" } });
     fireEvent.change(screen.getByLabelText(/street/i), { target: { value: "Mapúa Ave" } });
     fireEvent.change(screen.getByLabelText(/barangay/i), { target: { value: "San Andres" } });
@@ -71,7 +71,7 @@ describe("US-01: CustomerSignupForm Validations", () => {
           lastName: "Reyes",
           email: "liza@example.com",
           phone: "+639171234567",
-          password: "securepassword123",
+          password: "Yangs!Pass2026",
           buildingNo: "123",
           street: "Mapúa Ave",
           barangay: "San Andres",
@@ -95,7 +95,7 @@ describe("US-01: CustomerSignupForm Validations", () => {
     fireEvent.change(screen.getByLabelText(/last name/i), { target: { value: "User" } });
     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "duplicate@example.com" } });
     fireEvent.change(screen.getByLabelText(/mobile number/i), { target: { value: "09171234567" } });
-    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "securepassword123" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "Yangs!Pass2026" } });
     fireEvent.change(screen.getByLabelText(/building \/ house no\./i), { target: { value: "123" } });
     fireEvent.change(screen.getByLabelText(/street/i), { target: { value: "Mapúa Ave" } });
     fireEvent.change(screen.getByLabelText(/barangay/i), { target: { value: "San Andres" } });

@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getOrderEtaAction } from "@/lib/actions/eta";
@@ -20,7 +19,6 @@ import {
 } from "@/lib/orders/order-stage";
 import type { TrackedOrder } from "@/lib/orders/read-tracked-order";
 import { Alert } from "@/components/ui/alert";
-import { AssignedRiderCard } from "@/components/orders/assigned-rider-card";
 import { CancelOrderControl } from "@/components/orders/cancel-order-control";
 import { LiveMapPanel } from "@/components/orders/live-map-panel";
 import { OrderTimeline } from "@/components/orders/order-timeline";
@@ -99,18 +97,6 @@ export function TrackOrderScreen({
   const { orderId } = order;
 
   /**
-   * The rider is the one thing on this screen the subscription cannot patch
-   * in: a delivery event carries `rider_id`, but the name, photo and vehicle
-   * live on `rider` and `employee`. So when the id changes the page is asked
-   * to re-read, and the card fills from the next server render. The id goes
-   * through a ref for the same reason as `serverStatusRef` — the handler
-   * closes over the first render.
-   */
-  const router = useRouter();
-  const riderIdRef = React.useRef(order.rider?.riderId ?? null);
-  riderIdRef.current = order.rider?.riderId ?? null;
-
-  /**
    * The arrival window moves too, but not over the subscription: the ETA is
    * computed by `getOrderEtaAction`, not stored anywhere the screen could
    * watch. So every status event re-asks the action, and the answer replaces
@@ -155,14 +141,8 @@ export function TrackOrderScreen({
   React.useEffect(() => {
     const supabase = createClient();
 
-    // Both tables, because the four stages are split across them: stages 1
-    // and 2 come from `order`, stages 3 and 4 from `delivery`. Watching only
-    // one would leave the screen stuck halfway through the journey.
-    //
-    // The delivery subscription filters on `order_id` rather than
-    // `delivery_id` so it also hears the INSERT — a delivery row does not
-    // exist until the order is dispatched, so there is frequently no
-    // `delivery_id` to subscribe to when this screen first mounts.
+    // Pickup-only (issue #114): every stage comes from `order` now, so one
+    // subscription is the whole journey.
     const channel = supabase
       .channel(`order-tracking-${orderId}`)
       .on(
@@ -183,32 +163,12 @@ export function TrackOrderScreen({
           refreshEta();
         },
       )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "delivery",
-          filter: `order_id=eq.${orderId}`,
-        },
-        (payload: { new?: Record<string, unknown> }) => {
-          setLive((previous) => ({
-            ...(previous ?? serverStatusRef.current),
-            deliveryStatus:
-              (payload.new?.delivery_status as string | null) ?? null,
-          }));
-          refreshEta();
-
-          const riderId = (payload.new?.rider_id as string | null) ?? null;
-          if (riderId !== riderIdRef.current) router.refresh();
-        },
-      )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [orderId, refreshEta, router]);
+  }, [orderId, refreshEta]);
 
   // Take-out reads "Ready for pick up" / "Picked up"; delivery keeps its own words.
   const fulfilment = fulfilmentOf(order.orderType);
@@ -229,23 +189,10 @@ export function TrackOrderScreen({
     : null;
   const subline = [arrival, destination].filter(Boolean).join(" · ");
 
-  // A rider only ever exists for a delivery, and an empty card on a cancelled
-  // order would promise one that is never coming. A rider already on the
-  // order stays visible regardless — the customer may still want to know
-  // who has their food.
-  const showRider =
-    order.rider !== null ||
-    (!isCollectedInStore(order.orderType) && progress.kind !== "cancelled");
-
   return (
     <div className="min-h-screen bg-background">
       <div
-        className={cn(
-          cnGrid,
-          showRider
-            ? "md:grid-rows-[auto_auto_auto]"
-            : "md:grid-rows-[auto_auto]",
-        )}
+        className={cn(cnGrid, "md:grid-rows-[auto_auto]")}
         data-testid="track-order-layout"
       >
         {/* Header. Full-bleed ink panel on mobile, plain copy on cream on
@@ -299,7 +246,7 @@ export function TrackOrderScreen({
 
         {/* Second on mobile, right-hand column on desktop. */}
         <LiveMapPanel
-          riderName={order.rider?.name ?? null}
+          riderName={null}
           destinationCoordinates={order.destinationCoordinates}
           className="md:col-start-2 md:row-start-1 md:row-span-full"
           locationIqApiKey={locationIqApiKey}
@@ -349,42 +296,15 @@ export function TrackOrderScreen({
             </div>
           )}
         </div>
-
-        {/* Fourth on mobile, third row of the left column on desktop. */}
-        {showRider && (
-          <AssignedRiderCard
-            rider={order.rider}
-            className="border-t border-rule md:col-start-1 md:row-start-3"
-          />
-        )}
       </div>
     </div>
   );
 }
 
 /**
- * `order_type` is free text, folded the way `order-stage.ts` folds a status.
- * Take-out and dine-in orders are collected at the counter, so no rider is
- * ever involved and the card would only ever say "not assigned yet".
- * Anything else, a NULL type included, is treated as a delivery. Local to
- * this screen on purpose: `isPickup` in `past-order.ts` decides labels and
- * fees for the history screen, and widening it would change those too.
- */
-function isCollectedInStore(orderType: string | null): boolean {
-  const folded = orderType?.trim().toLowerCase().replace(/[\s-]+/g, "_");
-  return (
-    folded === "pickup" ||
-    folded === "pick_up" ||
-    folded === "takeout" ||
-    folded === "take_out" ||
-    folded === "dine_in"
-  );
-}
-
-/**
  * Mobile is a plain stack in DOM order. Desktop becomes a two-column grid
- * whose second column holds the map across every row — header, timeline and,
- * when there is one, the rider card — which is what lets the map move from
+ * whose second column holds the map across every row — header and
+ * timeline — which is what lets the map move from
  * between the header and the timeline to beside them without the markup
  * changing. The row count is set at the call site, because an empty third
  * row would still carry the gap above it.

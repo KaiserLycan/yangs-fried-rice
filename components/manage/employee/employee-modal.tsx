@@ -24,11 +24,10 @@ import {
   firstNameSchema,
   lastNameSchema,
   lengthProps,
-  passwordSchema,
+  newPasswordSchema,
   splitFullName,
   type LimitedField,
 } from "@/lib/validation/fields";
-import { riderDetailsSchema } from "@/lib/validation/admin";
 import type { FieldErrors } from "@/lib/validation/field-errors";
 import {
   PH_MOBILE_EXAMPLE,
@@ -74,41 +73,23 @@ interface EmployeeModalProps {
   } | null;
 }
 
-// The three roles the back office uses. Server / Cook / Cashier are all just
-// "Staff" — see `roleDisplayLabel` / `normalizeEmployeeRoleLabel`.
-const ROLES = ["Manager", "Staff", "Delivery"];
+// The two roles the back office uses (pickup-only since issue #114 — there
+// are no riders). Server / Cook / Cashier are all just "Staff" — see
+// `roleDisplayLabel` / `normalizeEmployeeRoleLabel`.
+const ROLES = ["Manager", "Staff"];
 const DEFAULT_ROLE = "Staff";
 const SHIFTS = ["MWF – 12-3PM", "TThS – 9-5PM", "Weekends – 10-10PM", "Mon-Fri – 8-4PM"];
 
-const EMPTY_RIDER = {
-  vehicle_make_model: "",
-  vehicle_plate_number: "",
-  driver_license_number: "",
-  license_expiry_date: "",
-};
-
 function employeeFormSchema(isEditMode: boolean) {
-  return z
-    .object({
-      firstName: firstNameSchema,
-      lastName: lastNameSchema,
-      email: emailSchema,
-      // Required for a new account; on edit, blank means "leave unchanged".
-      password: isEditMode ? z.union([z.literal(""), passwordSchema]) : passwordSchema,
-      phone: optionalPhoneSchema,
-      dateOfBirth: employeeDateOfBirthSchema,
-      isRider: z.boolean(),
-      vehicle_make_model: z.string(),
-      vehicle_plate_number: z.string(),
-      driver_license_number: z.string(),
-      license_expiry_date: z.string(),
-    })
-    .superRefine((values, ctx) => {
-      if (!values.isRider) return;
-      const rider = riderDetailsSchema.safeParse(values);
-      if (rider.success) return;
-      for (const issue of rider.error.issues) ctx.addIssue(issue);
-    });
+  return z.object({
+    firstName: firstNameSchema,
+    lastName: lastNameSchema,
+    email: emailSchema,
+    // Required for a new account; on edit, blank means "leave unchanged".
+    password: isEditMode ? z.union([z.literal(""), newPasswordSchema]) : newPasswordSchema,
+    phone: optionalPhoneSchema,
+    dateOfBirth: employeeDateOfBirthSchema,
+  });
 }
 
 /** Every value the dialog can edit, for the unsaved-changes comparison. */
@@ -122,7 +103,6 @@ type FormSnapshot = {
   phone: string;
   dateOfBirth: string;
   isDisabled: boolean;
-  riderDetails: typeof EMPTY_RIDER;
 };
 
 /** A blank new-employee form, overlaid with whatever is known. */
@@ -137,15 +117,13 @@ function snapshotFields(values: Partial<FormSnapshot>): FormSnapshot {
     phone: "",
     dateOfBirth: "",
     isDisabled: false,
-    riderDetails: EMPTY_RIDER,
     ...values,
   };
 }
 
 /** Key order is fixed by `snapshotFields`, so equal forms serialise equally. */
 function snapshotOf(values: Partial<FormSnapshot>): string {
-  const full = snapshotFields(values);
-  return JSON.stringify({ ...full, riderDetails: { ...EMPTY_RIDER, ...full.riderDetails } });
+  return JSON.stringify(snapshotFields(values));
 }
 
 const inputClass = (invalid: boolean) =>
@@ -165,9 +143,8 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
   const [phone, setPhone] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [isDisabled, setIsDisabled] = useState(false);
-  const [loadingRider, setLoadingRider] = useState(false);
+  const [loadingDetails, setLoadingDetails] = useState(false);
   const [lastAccessLog, setLastAccessLog] = useState("");
-  const [riderDetails, setRiderDetails] = useState(EMPTY_RIDER);
 
   const [roleOpen, setRoleOpen] = useState(false);
   const [shiftOpen, setShiftOpen] = useState(false);
@@ -178,11 +155,9 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
-  // What the form held when it opened (and once the stored rider details
-  // arrived), serialised, so "has anything changed?" is one comparison.
+  // What the form held when it opened (and once the stored details arrived),
+  // serialised, so "has anything changed?" is one comparison.
   const [baseline, setBaseline] = useState("");
-
-  const isRiderRole = roleDisplayLabel(role) === "Delivery";
 
   const schema = useMemo(() => employeeFormSchema(isEditMode), [isEditMode]);
   const values = useMemo(
@@ -193,10 +168,8 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
       password,
       phone: phone ? toInternationalMobile(phone) : "",
       dateOfBirth,
-      isRider: isRiderRole,
-      ...riderDetails,
     }),
-    [firstName, lastName, email, password, phone, dateOfBirth, isRiderRole, riderDetails],
+    [firstName, lastName, email, password, phone, dateOfBirth],
   );
   const form = useValidatedValues(schema, values);
   const { errors, touch } = form;
@@ -232,7 +205,6 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
         setIsDisabled(false);
         setLastAccessLog("");
       }
-      setRiderDetails(EMPTY_RIDER);
       setBaseline(
         snapshotOf(
           employee
@@ -282,28 +254,18 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
     }
   };
 
-  // Editing an existing rider: load their vehicle / licence row so the form
-  // shows (and can change) what is actually stored, instead of empty boxes.
+  // Editing an existing employee: load their stored row so the name fields
+  // show what is actually stored.
   useEffect(() => {
     if (!isOpen || !employee?.id) return;
     let cancelled = false;
-    setLoadingRider(true);
+    setLoadingDetails(true);
     getEmployeeForEdit(employee.id)
       .then((result) => {
         if (cancelled || !result.data) return;
         const row = result.data.employee;
         if (row.first_name) setFirstName(row.first_name);
         if (row.last_name) setLastName(row.last_name);
-        const rider = result.data.rider;
-        const storedRider = rider
-          ? {
-              vehicle_make_model: rider.vehicle_make_model ?? "",
-              vehicle_plate_number: rider.vehicle_plate_number ?? "",
-              driver_license_number: rider.driver_license_number ?? "",
-              license_expiry_date: rider.license_expiry_date ?? "",
-            }
-          : null;
-        if (storedRider) setRiderDetails(storedRider);
         // The stored values are the starting point, not an edit.
         setBaseline((prev) => {
           const base = prev ? (JSON.parse(prev) as FormSnapshot) : snapshotFields({});
@@ -311,19 +273,18 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
             ...base,
             ...(row.first_name ? { firstName: row.first_name } : {}),
             ...(row.last_name ? { lastName: row.last_name } : {}),
-            ...(storedRider ? { riderDetails: storedRider } : {}),
           });
         });
       })
       .finally(() => {
-        if (!cancelled) setLoadingRider(false);
+        if (!cancelled) setLoadingDetails(false);
       });
     return () => {
       cancelled = true;
     };
   }, [isOpen, employee?.id]);
 
-  const canSave = form.isValid && !loadingRider;
+  const canSave = form.isValid && !loadingDetails;
 
   const isDirty =
     photoFile !== null ||
@@ -339,7 +300,6 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
           phone,
           dateOfBirth,
           isDisabled,
-          riderDetails,
         }));
 
   // Validate BEFORE handing off to the confirm dialog, and never clear the
@@ -362,7 +322,6 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
       dateOfBirth,
       isAccountDisabled: isDisabled,
       lastAccessLog,
-      riderDetails: isRiderRole ? riderDetails : null,
       photoFile,
     });
   };
@@ -412,33 +371,6 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
     </div>
   );
 
-  const riderField = (
-    key: keyof typeof EMPTY_RIDER,
-    label: string,
-    limit: LimitedField | null,
-    extra: React.InputHTMLAttributes<HTMLInputElement> = {},
-  ) => (
-    <div className="flex flex-col gap-1.5 w-full">
-      <label htmlFor={`employee-${key}`} className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase">
-        {label}
-      </label>
-      <input
-        id={`employee-${key}`}
-        value={riderDetails[key]}
-        onChange={(e) => {
-          const next = e.target.value;
-          setRiderDetails((prev) => ({ ...prev, [key]: next }));
-          touch(key);
-        }}
-        onBlur={() => touch(key)}
-        aria-invalid={errors[key] ? true : undefined}
-        {...(limit ? lengthProps(limit) : {})}
-        {...extra}
-        className={inputClass(Boolean(errors[key]))}
-      />
-      {errors[key] ? <p className="text-[12px] text-[#C0392B]">{errors[key]}</p> : null}
-    </div>
-  );
 
   return (
     <DialogRoot
@@ -631,24 +563,6 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
             </div>
           </div>
 
-          {isRiderRole && (
-            <div className="flex flex-col gap-3 w-full rounded-[12px] border border-[#DDCDB8] bg-[#F8F1E6] p-3">
-              <div className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase">
-                Rider Details{loadingRider ? " — loading…" : " — required for riders"}
-              </div>
-              {riderField("driver_license_number", "Driver License Number", "driverLicenseNumber", {
-                placeholder: "e.g. N01-12-345678",
-              })}
-              {riderField("vehicle_make_model", "Vehicle Make / Model", "vehicleMakeModel", {
-                placeholder: "e.g. Honda Click 125i",
-              })}
-              {riderField("vehicle_plate_number", "Vehicle Plate Number", "vehiclePlateNumber", {
-                placeholder: "e.g. ABC 1234",
-              })}
-              {riderField("license_expiry_date", "License Expiry Date", null, { type: "date" })}
-            </div>
-          )}
-
           {/* Password */}
           <div className="flex flex-col gap-1.5 w-full">
             <label htmlFor="employee-password" className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase">
@@ -740,8 +654,8 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
                 content={
                   canSave
                     ? isEditMode ? "Save this employee's changes" : "Create this employee's account"
-                    : loadingRider
-                      ? "Loading the rider's stored details…"
+                    : loadingDetails
+                      ? "Loading the employee's stored details…"
                       : "Complete the highlighted fields to continue."
                 }
                 shortcut={canSave ? SHORTCUTS.submitForm.combo : undefined}
@@ -750,9 +664,9 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
                 <button
                   type="button"
                   onClick={handleSave}
-                  // Not while the rider's stored details are still loading — saving
-                  // the still-empty boxes would overwrite them — nor while any
-                  // field is invalid.
+                  // Not while the stored details are still loading — saving the
+                  // still-empty boxes would overwrite them — nor while any field
+                  // is invalid.
                   disabled={!canSave}
                   className="w-full bg-[#E8541F] rounded-[13px] py-[10px] font-bold text-white text-[14px] hover:bg-[#E8541F]/90 transition-colors disabled:opacity-60 disabled:pointer-events-none"
                 >

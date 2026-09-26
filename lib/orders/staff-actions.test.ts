@@ -18,17 +18,15 @@ describe("statusLabelFor", () => {
 });
 
 describe("primaryActionFor", () => {
-  it("sends a delivery order out for delivery from prep", () => {
-    expect(primaryActionFor({ status: "PREP", isDelivery: true })?.type).toBe("Deliver");
-  });
-
-  it("marks a take-out order ready for pick up from prep", () => {
+  // Pickup-only (issue #114): nothing is sent out, whatever the order type.
+  it("marks every order ready for pick up from prep, even a legacy delivery", () => {
     expect(primaryActionFor({ status: "PREP", isDelivery: false })?.type).toBe("Ready");
+    expect(primaryActionFor({ status: "PREP", isDelivery: true })?.type).toBe("Ready");
   });
 
-  it("lets staff finish a take-out order, but leaves a delivery to the rider", () => {
+  it("lets staff finish every order — there are no riders to do it", () => {
     expect(primaryActionFor({ status: "DELIVERY", isDelivery: false })?.type).toBe("Complete");
-    expect(primaryActionFor({ status: "DELIVERY", isDelivery: true })).toBeNull();
+    expect(primaryActionFor({ status: "DELIVERY", isDelivery: true })?.type).toBe("Complete");
   });
 
   it("has no action for finished orders", () => {
@@ -41,9 +39,9 @@ describe("dbStatusFor", () => {
   it("only ever writes transitions the order pipeline allows", () => {
     const steps: [OrderStatus, ReturnType<typeof dbStatusFor>][] = [
       ["pending", dbStatusFor("Confirm")],
-      ["preparing", dbStatusFor("Deliver")],
       ["preparing", dbStatusFor("Ready")],
       ["ready", dbStatusFor("Complete")],
+      ["out_for_delivery", dbStatusFor("Complete")],
       ["preparing", dbStatusFor("Cancel")],
     ];
     for (const [from, to] of steps) {

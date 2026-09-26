@@ -270,7 +270,7 @@ export async function loginCustomer(
   await clearLoginFailures(email);
 
   // A valid Supabase login is not enough: the customer portal is for
-  // accounts with a `customer` row. Admins, staff and riders have auth
+  // accounts with a `customer` row. Managers and staff have auth
   // accounts too, and without this check they could sign in here and act as
   // a customer with no customer record behind them. Sign the session back
   // out so no half-authenticated cookie is left behind.
@@ -422,24 +422,7 @@ type EmployeeLoginResult =
   | { success: false; error: string };
 
 /**
- * Confirmed Employee.role values and their post-login destinations.
- *
- * Hierarchy: manager > staff > rider
- *  - manager and staff all land in /manage (the back office)
- *  - rider lands in /deliver (the delivery queue)
- */
-const EMPLOYEE_ROLE_REDIRECTS: Record<string, string> = {
-  MANAGER: "/manage/dashboard",
-  STAFF: "/manage/orders",
-  RIDER: "/deliver",
-  manager: "/manage/dashboard",
-  staff: "/manage/orders",
-  rider: "/deliver",
-};
-const DEFAULT_EMPLOYEE_REDIRECT = "/manage/dashboard";
-
-/**
- * SAS1: authenticate an employee (Manager, Staff or Rider).
+ * SAS1: authenticate an employee (Manager or Staff).
  *
  * Mirrors the customer login pattern per PM direction — employees get
  * their own Supabase Auth accounts, linked via employee.employee_id =
@@ -506,14 +489,22 @@ export async function loginEmployee(
   }
 
   // Normalise the stored role ("Manager", "manager", "Server", …) so the
-  // redirect and the session cookie agree with the permission checks.
+  // redirect and the session cookie agree with the permission checks. A role
+  // the app no longer has — RIDER, since the shop went pickup-only — has no
+  // page to land on, so it is refused here rather than sent somewhere that
+  // would only bounce it back.
   const role = resolveEmployeeRole(employee.role);
-  const redirectTo = role
-    ? homePathForRole(role)
-    : EMPLOYEE_ROLE_REDIRECTS[employee.role ?? ""] ?? DEFAULT_EMPLOYEE_REDIRECT;
+  if (!role) {
+    await supabase.auth.signOut();
+    return {
+      success: false,
+      error: "Your account doesn't have access to the back office. Please contact your manager.",
+    };
+  }
+  const redirectTo = homePathForRole(role);
 
   // Create the fast local session cookie for middleware
-  await createSession(authData.user.id, role ?? employee.role ?? "");
+  await createSession(authData.user.id, role);
 
   return { success: true, redirectTo };
 }

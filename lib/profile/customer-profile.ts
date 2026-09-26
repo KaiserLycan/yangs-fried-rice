@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
-import { ADDRESS_COLUMNS, addressPartsFromRow } from "@/lib/address/format";
+import { ADDRESS_COLUMNS, addressPartsFromRow, formatAddress } from "@/lib/address/format";
 import { splitFullName } from "@/lib/validation/fields";
 
 /**
@@ -138,14 +138,19 @@ export async function readCustomerProfile(): Promise<CustomerProfile | null> {
   ]);
 
   const addresses: CustomerAddress[] = (addressesResult.data ?? []).map(
-    (row) => ({
-      id: row.address_id,
-      label: row.label,
-      ...addressPartsFromRow(row),
-      addressDetails: row.address_details,
-      deliveryNote: row.address_note,
-      isDefault: row.is_default,
-    }),
+    (row) => {
+      const parts = addressPartsFromRow(row);
+      return {
+        id: row.address_id,
+        label: row.label,
+        ...parts,
+        // Generated from the parts in the database, and so typed nullable;
+        // the same join is done here if it ever arrives empty.
+        addressDetails: row.address_details ?? formatAddress(parts),
+        deliveryNote: row.address_note,
+        isDefault: row.is_default,
+      };
+    },
   );
 
   const cookieStore = cookies();

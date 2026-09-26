@@ -18,9 +18,10 @@ export interface GetOrderEtaResult {
 }
 
 /**
- * Calculates real-time ETA for an order factoring in active kitchen queue traffic,
- * order type, and delivery distance from the store.
- * Also persists arrival window to `delivery.estimated_time` for Supabase Realtime clients.
+ * Calculates real-time ETA for an order from the active kitchen queue and the
+ * order type. Pickup-only (issue #114): there is no delivery leg, and nothing
+ * is written back — the old `delivery.estimated_time` column went with the
+ * table.
  *
  * Security: Enforces that customers can only view ETA for their own orders.
  * Returns "Order not found." for unauthorized queries to prevent IDOR scanning.
@@ -48,7 +49,7 @@ export async function getOrderEtaAction(
   // 2. Enforce order ownership
   let isAuthorized = false;
 
-  // Check if caller has an active employee session (Manager, Staff, Rider)
+  // Check if caller has an active employee session (Manager, Staff)
   try {
     const cookieStore = cookies();
     const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
@@ -77,14 +78,8 @@ export async function getOrderEtaAction(
     }
   }
 
-  // 2. Fetch associated delivery record if available
-  const { data: delivery } = await supabase
-    .from("delivery")
-    .select("delivery_id, delivery_status, estimated_time")
-    .eq("order_id", orderId)
-    .maybeSingle();
-
-  // 3. Resolve customer coordinates
+  // 3. Resolve customer coordinates (only legacy delivery orders carry an
+  // address; a pickup order has none and this stays null)
   let customerCoordinates: Coordinates | null = customCoords ?? null;
 
   if (!customerCoordinates && order.delivery_address) {
@@ -110,19 +105,7 @@ export async function getOrderEtaAction(
     activeOrdersAhead,
     customerCoordinates,
     orderStatus: order.order_status || undefined,
-    deliveryStatus: delivery?.delivery_status || undefined,
   });
-
-  // 6. Update delivery.estimated_time (timestamptz column) if delivery record exists
-  const timestampToSave =
-    etaResult.arrivalWindow === "None" ? null : etaResult.estimatedArrivalTimestamp;
-
-  if (delivery && delivery.estimated_time !== timestampToSave) {
-    await supabase
-      .from("delivery")
-      .update({ estimated_time: timestampToSave })
-      .eq("order_id", orderId);
-  }
 
   return {
     success: true,

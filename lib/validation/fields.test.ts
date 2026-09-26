@@ -3,12 +3,10 @@ import { readFileSync } from "node:fs";
 import {
   FIELD_LIMITS,
   addressPartsSchema,
-  driverLicenseNumberSchema,
   emailSchema,
   firstNameSchema,
   lengthProps,
   splitFullName,
-  vehiclePlateNumberSchema,
   zipSchema,
 } from "./fields";
 import { fieldErrorFromDbError } from "./field-errors";
@@ -86,13 +84,6 @@ describe("field rules", () => {
     if (!result.success) {
       expect(result.error.issues.map((i) => i.path[0]).sort()).toEqual(["buildingNo", "street"]);
     }
-  });
-
-  it("plate and licence formats", () => {
-    expect(vehiclePlateNumberSchema.safeParse("ABC 1234").success).toBe(true);
-    expect(vehiclePlateNumberSchema.safeParse("AB-1234!").success).toBe(false);
-    expect(driverLicenseNumberSchema.safeParse("N01-12-345678").success).toBe(true);
-    expect(driverLicenseNumberSchema.safeParse("N01-1234567").success).toBe(false);
   });
 
   it("splitFullName keeps the last word as the last name", () => {

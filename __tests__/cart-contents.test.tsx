@@ -95,23 +95,20 @@ describe("CartContents", () => {
     expect(screen.getAllByText(/^Note:/)).toHaveLength(1);
   });
 
-  it("computes the subtotal, delivery fee and total from the real lines", () => {
+  // Pickup-only (issue #114): no fee, so subtotal and total are the same
+  // figure — both legitimately on screen at once.
+  it("computes the subtotal and total from the real lines, with no delivery fee", () => {
     renderCart(<CartContents lines={lines} ctaLabel="Checkout" arrivalEstimate="30–40 min" />);
 
-    expect(screen.getByText("₱450")).toBeInTheDocument();
-    expect(screen.getByText("₱50")).toBeInTheDocument();
-    expect(screen.getAllByText("₱500").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("₱450")).toHaveLength(2);
+    expect(screen.queryByText("₱500")).not.toBeInTheDocument();
   });
 
-  it("drops the delivery fee when Pickup is chosen, and the total follows", () => {
+  it("states pickup instead of offering a Delivery / Pickup choice", () => {
     renderCart(<CartContents lines={lines} ctaLabel="Checkout" arrivalEstimate="30–40 min" />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Pickup" }));
-
-    expect(screen.getByText("₱0")).toBeInTheDocument(); // delivery fee
-    // Subtotal and total now read the same figure, since the fee is zero —
-    // both are legitimately on screen at once.
-    expect(screen.getAllByText("₱450")).toHaveLength(2);
+    expect(screen.getByText(/pickup only/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delivery" })).not.toBeInTheDocument();
   });
 
   /**
@@ -134,31 +131,13 @@ describe("CartContents", () => {
     expect(screen.getByText(/estimated 30–40 min/i)).toBeInTheDocument();
   });
 
-  it("uses the ctaLabel passed in for the checkout link", () => {
+  it("uses the ctaLabel passed in for the checkout link, which carries pickup", () => {
     renderCart(
       <CartContents
         lines={lines}
         ctaLabel="Continue to checkout"
       />,
     );
-
-    expect(
-      screen.getByRole("link", { name: "Continue to checkout" }),
-    ).toHaveAttribute("href", "/checkout?fulfilment=delivery");
-  });
-
-  // Nothing persists the fulfilment choice — there is no column for it — so
-  // the link carries it. Without this, picking Pickup here would land on a
-  // checkout still charging the ₱95 delivery fee.
-  it("carries the fulfilment choice through to checkout", () => {
-    renderCart(
-      <CartContents
-        lines={lines}
-        ctaLabel="Continue to checkout"
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Pickup" }));
 
     expect(
       screen.getByRole("link", { name: "Continue to checkout" }),

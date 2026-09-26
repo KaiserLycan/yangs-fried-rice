@@ -11,7 +11,7 @@ import {
   useShortcut,
 } from "@/lib/hooks/use-shortcut";
 
-const STAFF_AREAS = ["/manage", "/deliver", "/employee"];
+const STAFF_AREAS = ["/manage", "/employee"];
 
 /**
  * App-wide keyboard shortcuts, mounted once in the root layout:

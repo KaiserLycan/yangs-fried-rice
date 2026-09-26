@@ -7,11 +7,10 @@ import { IMAGE_BUCKETS } from "@/lib/storage/stored-image";
 import { removeStoredImage } from "@/lib/storage/remove-stored-image";
 import { isManager, resolveEmployeeRole, type EmployeeRole } from "@/lib/auth/roles";
 import { toInternationalMobile } from "@/lib/validation/phone";
+import { joinFullName } from "@/lib/validation/fields";
 import {
   employeeProfileUpdateSchema,
-  riderDetailsUpdateSchema,
   type EmployeeProfileUpdateInput,
-  type RiderDetailsUpdateInput,
 } from "@/lib/validation/employee-profile";
 import {
   fieldErrorFromDbError,
@@ -41,12 +40,15 @@ async function requireEmployee(
 
   const { data: employee } = await supabase
     .from("employee")
-    .select("employee_id, role")
+    .select("employee_id, role, is_account_disabled")
     .eq("employee_id", user.id)
     .single();
 
   const role = resolveEmployeeRole(employee?.role);
-  if (!employee || !role) return null;
+  // A disabled account is treated as not signed in: every caller below then
+  // refuses with its "sign in" error, and the middleware has already sent
+  // the browser to /employee/login?error=account-disabled (issue #114).
+  if (!employee || !role || employee.is_account_disabled) return null;
 
   return { employeeId: employee.employee_id, role };
 }
@@ -69,12 +71,6 @@ export async function getMyEmployeeProfile(): Promise<
     profileImageUrl: string | null;
     passwordLastUpdated: string | null;
     isAccountDisabled: boolean;
-    rider: {
-      vehicleMakeModel: string | null;
-      vehiclePlateNumber: string | null;
-      driverLicenseNumber: string | null;
-      licenseExpiryDate: string | null;
-    } | null;
   }>
 > {
   const supabase = createClient();
@@ -86,7 +82,7 @@ export async function getMyEmployeeProfile(): Promise<
   const { data: employee, error: employeeError } = await supabase
     .from("employee")
     .select(
-      'first_name, last_name, name, email, role, schedule_shift, profileImage_URL, date_of_birth, "phone-num", password_last_updated, is_account_disabled',
+      'first_name, last_name, name, email, role, schedule_shift, profileImage_URL, date_of_birth, phone_number, password_last_updated, is_account_disabled',
     )
     .eq("employee_id", caller.employeeId)
     .single();
@@ -95,36 +91,22 @@ export async function getMyEmployeeProfile(): Promise<
     return { success: false, error: "Could not load your profile." };
   }
 
-  const { data: riderRow } = await supabase
-    .from("rider")
-    .select(
-      "vehicle_make_model, vehicle_plate_number, driver_license_number, license_expiry_date",
-    )
-    .eq("employee_id", caller.employeeId)
-    .maybeSingle();
-
   return {
     success: true,
     data: {
       firstName: employee.first_name,
       lastName: employee.last_name,
-      name: employee.name,
+      // A generated column (first + last), which Postgres always reports as
+      // nullable; rebuilt the same way if it ever does come back empty.
+      name: employee.name ?? joinFullName(employee.first_name, employee.last_name),
       email: employee.email,
-      phoneNumber: (employee as any)["phone-num"] ?? null,
+      phoneNumber: employee.phone_number ?? null,
       dateOfBirth: employee.date_of_birth ?? null,
       role: (resolveEmployeeRole(employee.role) ?? employee.role) as EmployeeRole,
       scheduleShift: employee.schedule_shift,
       profileImageUrl: employee.profileImage_URL,
       passwordLastUpdated: employee.password_last_updated,
       isAccountDisabled: employee.is_account_disabled,
-      rider: riderRow
-        ? {
-            vehicleMakeModel: riderRow.vehicle_make_model,
-            vehiclePlateNumber: riderRow.vehicle_plate_number,
-            driverLicenseNumber: riderRow.driver_license_number,
-            licenseExpiryDate: riderRow.license_expiry_date,
-          }
-        : null,
     },
   };
 }
@@ -137,12 +119,10 @@ export async function getMyEmployeeProfile(): Promise<
  * Updates whichever fields are present.
  *
  * `role` is the one field with an extra gate beyond schema validation:
- * only a caller who IS a Manager may change it. This closes a real gap
- * in the current UI: components/profile/rider-details-cards.tsx's
- * EmployeeDetailsCard (used on /deliver/profile) has no such gate
- * client-side, so without this check a Rider could submit a role change
- * and have nothing stop it. `mobile`/`department` are validated but not
- * persisted — no matching columns exist on `employee` yet.
+ * only a caller who IS a Manager may change it, whatever the client sends.
+ * The database refuses it too (`guard_employee_self_update`, issue #114).
+ * `department` is validated but not persisted — no matching column exists
+ * on `employee` yet.
  */
 export async function updateMyEmployeeProfile(
   input: EmployeeProfileUpdateInput,
@@ -170,8 +150,8 @@ export async function updateMyEmployeeProfile(
     };
   }
 
-  // Role and shift are assigned by a manager, never self-served — a rider or
-  // staff member must not be able to rewrite their own shift by calling this
+  // Role and shift are assigned by a manager, never self-served — a staff
+  // member must not be able to rewrite their own shift by calling this
   // endpoint directly, whatever the profile card shows.
   if (scheduleShift !== undefined && !isManager(caller.role)) {
     return {
@@ -199,8 +179,7 @@ export async function updateMyEmployeeProfile(
     (updatePayload as Record<string, string | null>).date_of_birth = dateOfBirth || null;
   }
   if (mobile !== undefined) {
-    (updatePayload as Record<string, string | null>)["phone-num"] =
-      toInternationalMobile(mobile) || null;
+    updatePayload.phone_number = toInternationalMobile(mobile) || null;
   }
 
   if (Object.keys(updatePayload).length === 0) {
@@ -249,82 +228,18 @@ function describeProfileUpdateError(error: {
   const message = error.message ?? "";
 
   // 42703 = undefined_column, PGRST204 = column not in PostgREST's schema cache
-  if (error.code === "42703" || error.code === "PGRST204" || /phone-num/.test(message)) {
+  if (error.code === "42703" || error.code === "PGRST204" || /phone_number/.test(message)) {
     return "Couldn't save: the database is missing the employee phone number column (or its API cache is stale). Add the column and reload the API schema, then try again.";
   }
   // 23514 = check_violation — e.g. a stored role the role constraint rejects
   if (error.code === "23514") {
-    return "Couldn't save: your employee record has a role the database doesn't accept. Ask a manager to set it to Manager, Staff or Delivery.";
+    return "Couldn't save: your employee record has a role the database doesn't accept. Ask a manager to set it to Manager or Staff.";
   }
   // 42501 = insufficient_privilege (row-level security)
   if (error.code === "42501") {
     return "Couldn't save: you don't have permission to update this profile.";
   }
   return `Could not update your profile${message ? ` (${message})` : ""}.`;
-}
-
-/**
- * Updates the caller's own `rider` row. Returns an error if the caller
- * has no rider row at all (e.g. a Staff or Manager account) rather than
- * silently doing nothing.
- */
-export async function updateMyRiderDetails(
-  input: RiderDetailsUpdateInput,
-): Promise<ActionResult<undefined>> {
-  const supabase = createClient();
-  const caller = await requireEmployee(supabase);
-  if (!caller) {
-    return { success: false, error: "You must be signed in as an employee." };
-  }
-
-  const parsed = riderDetailsUpdateSchema.safeParse(input);
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error.issues[0]?.message ?? "Some fields need fixing.",
-      fieldErrors: fieldErrorsFromIssues(parsed.error.issues),
-    };
-  }
-  const { vehicleMakeModel, vehiclePlateNumber, driverLicenseNumber, licenseExpiryDate } =
-    parsed.data;
-
-    const updatePayload: TablesUpdate<"rider"> = {};
-  if (vehicleMakeModel !== undefined) updatePayload.vehicle_make_model = vehicleMakeModel;
-  if (vehiclePlateNumber !== undefined)
-    updatePayload.vehicle_plate_number = vehiclePlateNumber;
-  if (driverLicenseNumber !== undefined)
-    updatePayload.driver_license_number = driverLicenseNumber;
-  if (licenseExpiryDate !== undefined)
-    updatePayload.license_expiry_date = licenseExpiryDate;
-
-  if (Object.keys(updatePayload).length === 0) {
-    return { success: true, data: undefined };
-  }
-
-  const { error, count } = await supabase
-    .from("rider")
-    .update(updatePayload)
-    .eq("employee_id", caller.employeeId);
-
-  if (error) {
-    const constraint = `${error.message ?? ""} ${error.details ?? ""}`;
-    const fieldErrors: FieldErrors | undefined = /plate/.test(constraint)
-      ? { vehiclePlateNumber: "Plate number was rejected. Use e.g. ABC 1234." }
-      : /license/.test(constraint)
-        ? { driverLicenseNumber: "Licence number was rejected. Use e.g. N01-12-345678." }
-        : /make_model/.test(constraint)
-          ? { vehicleMakeModel: "Vehicle must be 2–50 characters." }
-          : undefined;
-    return { success: false, error: "Could not update your driver details.", fieldErrors };
-  }
-  if (count === 0) {
-    return {
-      success: false,
-      error: "No rider profile found for your account.",
-    };
-  }
-
-  return { success: true, data: undefined };
 }
 
 // ---------------------------------------------------------------------------
@@ -360,8 +275,7 @@ export async function deactivateMyEmployeeAccount(): Promise<
 
 /**
  * Permanently deletes the caller's own employee account — ONLY when
- * they have no historical records referencing them (orders processed,
- * deliveries handled, reports generated). Employee history is an audit
+ * they have no historical records referencing them (reports generated). Employee history is an audit
  * trail, not personal data the way a customer's cart is; deleting an
  * employee who has processed real orders would either violate FK
  * constraints or destroy accountability records depending on how those
@@ -379,31 +293,20 @@ export async function deleteMyEmployeeAccount(): Promise<
     return { success: false, error: "You must be signed in as an employee." };
   }
 
-  const [ordersResult, deliveriesResult, reportsResult] = await Promise.all([
-    supabase
-      .from("order")
-      .select("order_id", { count: "exact", head: true })
-      .eq("employee_id", caller.employeeId),
-    supabase
-      .from("delivery")
-      .select("delivery_id", { count: "exact", head: true })
-      .eq("employee_id", caller.employeeId),
-    supabase
-      .from("reports")
-      .select("report_id", { count: "exact", head: true })
-      .eq("generated_by_employee_id", caller.employeeId),
-  ]);
+  // `order.employee_id` and the `delivery` table are both gone (nothing
+  // wrote the first; the second went with pickup-only, issue #114), so
+  // generated reports are the history left to protect. A failed count is
+  // treated as history: refusing is the safe answer when we can't tell.
+  const reportsResult = await supabase
+    .from("reports")
+    .select("report_id", { count: "exact", head: true })
+    .eq("generated_by_employee_id", caller.employeeId);
 
-  const hasHistory =
-    (ordersResult.count ?? 0) > 0 ||
-    (deliveriesResult.count ?? 0) > 0 ||
-    (reportsResult.count ?? 0) > 0;
-
-  if (hasHistory) {
+  if (reportsResult.error || (reportsResult.count ?? 0) > 0) {
     return {
       success: false,
       error:
-        "Your account has order, delivery, or report history and can't be deleted. Deactivate your account instead.",
+        "Your account has report history and can't be deleted. Deactivate your account instead.",
     };
   }
 
@@ -414,23 +317,20 @@ export async function deleteMyEmployeeAccount(): Promise<
     .eq("employee_id", caller.employeeId)
     .maybeSingle();
 
-  const { error: riderError } = await supabase
-    .from("rider")
-    .delete()
-    .eq("employee_id", caller.employeeId);
-  if (riderError) {
-    return { success: false, error: "Could not delete your account. Please try again." };
-  }
-
-  const { error: employeeError } = await supabase
+  // Service role: `employee` has no DELETE policy (RLS), so a session delete
+  // would match zero rows and "succeed" while leaving the row behind, and the
+  // auth user below would then be orphaned from it. The caller is verified
+  // above and the delete is pinned to their own id.
+  const admin = createAdminClient();
+  const { data: deletedRows, error: employeeError } = await admin
     .from("employee")
     .delete()
-    .eq("employee_id", caller.employeeId);
-  if (employeeError) {
+    .eq("employee_id", caller.employeeId)
+    .select("employee_id");
+  if (employeeError || !deletedRows || deletedRows.length === 0) {
     return { success: false, error: "Could not delete your account. Please try again." };
   }
 
-  const admin = createAdminClient();
   const { error: authDeleteError } = await admin.auth.admin.deleteUser(
     caller.employeeId,
   );

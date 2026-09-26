@@ -16,6 +16,10 @@ import { useSubmitShortcut } from "@/lib/hooks/use-shortcut";
 import { lengthProps } from "@/lib/validation/fields";
 import { loginSchema } from "@/lib/validation/login";
 import { loginCustomer } from "@/app/(auth)/actions";
+import {
+  ACCOUNT_DISABLED_LOGIN_ERROR,
+  ACCOUNT_DISABLED_MESSAGE,
+} from "@/lib/auth/account-status";
 
 /**
  * Exported wrapper — keeps the same name/interface the page imports.
@@ -37,9 +41,14 @@ const NOT_CUSTOMER_NOTICE =
 function LoginFormInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [serverError, setServerError] = useState<string | null>(
-    searchParams.get("error") === "not-customer" ? NOT_CUSTOMER_NOTICE : null,
-  );
+  const [serverError, setServerError] = useState<string | null>(() => {
+    const reason = searchParams.get("error");
+    if (reason === "not-customer") return NOT_CUSTOMER_NOTICE;
+    // Set by middleware, or by checkout, when the account was disabled while
+    // signed in; the session has already been ended.
+    if (reason === ACCOUNT_DISABLED_LOGIN_ERROR) return ACCOUNT_DISABLED_MESSAGE;
+    return null;
+  });
   const [showPassword, setShowPassword] = useState(false);
   const [isPending, startTransition] = useTransition();
   const justRegistered = searchParams.get("registered") === "1";

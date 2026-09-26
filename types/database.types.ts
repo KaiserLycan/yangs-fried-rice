@@ -211,79 +211,81 @@ export type Database = {
       customer: {
         Row: {
           customer_id: string
+          date_of_birth: string | null
           email: string | null
-          is_account_disabled: boolean
           first_name: string
+          is_account_disabled: boolean
           last_name: string
-          /** Generated: first_name + " " + last_name. Read-only. */
-          name: string
+          name: string | null
           password_last_updated: string | null
           phone_number: string | null
-          date_of_birth: string | null
           profileImage_URL: string | null
         }
         Insert: {
           customer_id?: string
+          date_of_birth?: string | null
           email?: string | null
-          is_account_disabled?: boolean
           first_name: string
+          is_account_disabled?: boolean
           last_name: string
+          name?: string | null
           password_last_updated?: string | null
           phone_number?: string | null
-          date_of_birth?: string | null
           profileImage_URL?: string | null
         }
         Update: {
           customer_id?: string
+          date_of_birth?: string | null
           email?: string | null
-          is_account_disabled?: boolean
           first_name?: string
+          is_account_disabled?: boolean
           last_name?: string
+          name?: string | null
           password_last_updated?: string | null
           phone_number?: string | null
-          date_of_birth?: string | null
           profileImage_URL?: string | null
         }
         Relationships: []
       }
       customer_address: {
         Row: {
-          /** Generated from the parts below. Read-only. */
-          address_details: string
+          address_details: string | null
+          address_id: string
+          address_note: string | null
           barangay: string
           building_no: string
           city: string
-          street: string
-          zip_code: string
-          address_id: string
-          address_note: string | null
           customer_id: string | null
           is_default: boolean
           label: string | null
+          street: string
+          zip_code: string
         }
         Insert: {
+          address_details?: string | null
+          address_id?: string
+          address_note?: string | null
           barangay: string
           building_no: string
           city: string
-          street: string
-          zip_code: string
-          address_id?: string
-          address_note?: string | null
           customer_id?: string | null
           is_default?: boolean
           label?: string | null
+          street: string
+          zip_code: string
         }
         Update: {
+          address_details?: string | null
+          address_id?: string
+          address_note?: string | null
           barangay?: string
           building_no?: string
           city?: string
-          street?: string
-          zip_code?: string
-          address_id?: string
-          address_note?: string | null
           customer_id?: string | null
           is_default?: boolean
           label?: string | null
+          street?: string
+          zip_code?: string
         }
         Relationships: [
           {
@@ -295,74 +297,18 @@ export type Database = {
           },
         ]
       }
-      delivery: {
-        Row: {
-          completed_at: string | null
-          delivery_id: string
-          delivery_status: string | null
-          employee_id: string | null
-          estimated_time: string | null
-          order_id: string | null
-          proof_of_delivery: string | null
-          rider_id: string | null
-        }
-        Insert: {
-          completed_at?: string | null
-          delivery_id?: string
-          delivery_status?: string | null
-          employee_id?: string | null
-          estimated_time?: string | null
-          order_id?: string | null
-          proof_of_delivery?: string | null
-          rider_id?: string | null
-        }
-        Update: {
-          completed_at?: string | null
-          delivery_id?: string
-          delivery_status?: string | null
-          employee_id?: string | null
-          estimated_time?: string | null
-          order_id?: string | null
-          proof_of_delivery?: string | null
-          rider_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "delivery_employee_id_fkey"
-            columns: ["employee_id"]
-            isOneToOne: false
-            referencedRelation: "employee"
-            referencedColumns: ["employee_id"]
-          },
-          {
-            foreignKeyName: "delivery_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "order"
-            referencedColumns: ["order_id"]
-          },
-          {
-            foreignKeyName: "delivery_rider_id_fkey"
-            columns: ["rider_id"]
-            isOneToOne: false
-            referencedRelation: "rider"
-            referencedColumns: ["rider_id"]
-          },
-        ]
-      }
       employee: {
         Row: {
           date_of_birth: string | null
           email: string
           employee_id: string
+          first_name: string
           is_account_disabled: boolean
           last_access_log: string | null
-          first_name: string
           last_name: string
-          /** Generated: first_name + " " + last_name. Read-only. */
-          name: string
+          name: string | null
           password_last_updated: string | null
-          "phone-num": string | null
+          phone_number: string | null
           profileImage_URL: string | null
           role: string | null
           schedule_shift: string | null
@@ -371,12 +317,13 @@ export type Database = {
           date_of_birth?: string | null
           email: string
           employee_id?: string
+          first_name: string
           is_account_disabled?: boolean
           last_access_log?: string | null
-          first_name: string
           last_name: string
+          name?: string | null
           password_last_updated?: string | null
-          "phone-num"?: string | null
+          phone_number?: string | null
           profileImage_URL?: string | null
           role?: string | null
           schedule_shift?: string | null
@@ -385,12 +332,13 @@ export type Database = {
           date_of_birth?: string | null
           email?: string
           employee_id?: string
+          first_name?: string
           is_account_disabled?: boolean
           last_access_log?: string | null
-          first_name?: string
           last_name?: string
+          name?: string | null
           password_last_updated?: string | null
-          "phone-num"?: string | null
+          phone_number?: string | null
           profileImage_URL?: string | null
           role?: string | null
           schedule_shift?: string | null
@@ -454,59 +402,59 @@ export type Database = {
         Row: {
           cancellation_reason: string | null
           cancelled_at: string | null
+          cart_id: string | null
           completed_at: string | null
           created_at: string | null
           customer_id: string | null
+          delivery_address: string | null
           delivery_fee: number | null
-          employee_id: string | null
           order_id: string
           order_status: string | null
           order_type: string | null
           special_instructions: string | null
-          delivery_address: string | null
         }
         Insert: {
           cancellation_reason?: string | null
           cancelled_at?: string | null
+          cart_id?: string | null
           completed_at?: string | null
           created_at?: string | null
           customer_id?: string | null
+          delivery_address?: string | null
           delivery_fee?: number | null
-          employee_id?: string | null
           order_id?: string
           order_status?: string | null
           order_type?: string | null
           special_instructions?: string | null
-          delivery_address?: string | null
         }
         Update: {
           cancellation_reason?: string | null
           cancelled_at?: string | null
+          cart_id?: string | null
           completed_at?: string | null
           created_at?: string | null
           customer_id?: string | null
+          delivery_address?: string | null
           delivery_fee?: number | null
-          employee_id?: string | null
           order_id?: string
           order_status?: string | null
           order_type?: string | null
           special_instructions?: string | null
-          delivery_address?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "order_cart_id_fkey"
+            columns: ["cart_id"]
+            isOneToOne: false
+            referencedRelation: "cart"
+            referencedColumns: ["cart_id"]
+          },
           {
             foreignKeyName: "order_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customer"
             referencedColumns: ["customer_id"]
-          },
-          {
-            foreignKeyName: "order_employee_id_fkey"
-            columns: ["employee_id"]
-            isOneToOne: false
-            referencedRelation: "employee"
-            referencedColumns: ["employee_id"]
           },
         ]
       }
@@ -764,44 +712,6 @@ export type Database = {
           },
         ]
       }
-      rider: {
-        Row: {
-          driver_license_number: string | null
-          employee_id: string | null
-          is_active: boolean | null
-          license_expiry_date: string | null
-          rider_id: string
-          vehicle_make_model: string | null
-          vehicle_plate_number: string | null
-        }
-        Insert: {
-          driver_license_number?: string | null
-          employee_id?: string | null
-          is_active?: boolean | null
-          license_expiry_date?: string | null
-          rider_id?: string
-          vehicle_make_model?: string | null
-          vehicle_plate_number?: string | null
-        }
-        Update: {
-          driver_license_number?: string | null
-          employee_id?: string | null
-          is_active?: boolean | null
-          license_expiry_date?: string | null
-          rider_id?: string
-          vehicle_make_model?: string | null
-          vehicle_plate_number?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "rider_employee_id_fkey"
-            columns: ["employee_id"]
-            isOneToOne: false
-            referencedRelation: "employee"
-            referencedColumns: ["employee_id"]
-          },
-        ]
-      }
       transaction: {
         Row: {
           discount_amount: number | null
@@ -869,12 +779,26 @@ export type Database = {
         Returns: Json
       }
       is_menu_manager: { Args: never; Returns: boolean }
+      submit_cart_to_order: {
+        Args: {
+          p_cart_id: string
+          p_order_type?: string
+          p_payment_method?: string
+          p_special_instructions?: string
+        }
+        Returns: Json
+      }
       submit_direct_product_review: {
         Args: { p_comment?: string; p_product_id: string; p_rating: number }
         Returns: Json
       }
       submit_order_review: {
-        Args: { p_comment?: string; p_order_id: string; p_product_id?: string; p_rating: number }
+        Args: {
+          p_comment?: string
+          p_order_id: string
+          p_product_id?: string
+          p_rating: number
+        }
         Returns: Json
       }
     }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import {
   canAccessManagePath,
   canChangeRole,
@@ -9,7 +9,6 @@ import {
   resolveEmployeeRole,
   type EmployeeRole,
 } from "@/lib/auth/roles";
-import { canReleaseDelivery } from "@/lib/orders/delivery-assignment";
 
 /**
  * Authorization — Phase 4 section D.
@@ -20,7 +19,7 @@ import { canReleaseDelivery } from "@/lib/orders/delivery-assignment";
  *   3. The server actions, which re-check the caller before touching data.
  */
 
-const ROLES: (EmployeeRole | null)[] = ["MANAGER", "STAFF", "RIDER", null];
+const ROLES: (EmployeeRole | null)[] = ["MANAGER", "STAFF", null];
 
 describe("D1. page access by role", () => {
   const MANAGER_ONLY = [
@@ -34,14 +33,13 @@ describe("D1. page access by role", () => {
   it.each(MANAGER_ONLY)("only a manager may open %s", (path) => {
     expect(canAccessManagePath("MANAGER", path)).toBe(true);
     expect(canAccessManagePath("STAFF", path)).toBe(false);
-    expect(canAccessManagePath("RIDER", path)).toBe(false);
     expect(canAccessManagePath(null, path)).toBe(false);
   });
 
-  it.each(SHARED)("a manager and staff may open %s, a rider may not", (path) => {
+  it.each(SHARED)("a manager and staff may open %s, nobody else may", (path) => {
     expect(canAccessManagePath("MANAGER", path)).toBe(true);
     expect(canAccessManagePath("STAFF", path)).toBe(true);
-    expect(canAccessManagePath("RIDER", path)).toBe(false);
+    expect(canAccessManagePath(resolveEmployeeRole("RIDER"), path)).toBe(false);
     expect(canAccessManagePath(null, path)).toBe(false);
   });
 
@@ -71,9 +69,8 @@ describe("D1. page access by role", () => {
 
 describe("D2. management actions by role", () => {
   it("only a manager may change roles", () => {
-    expect(canChangeRole("MANAGER", "STAFF", "RIDER")).toBe(true);
-    expect(canChangeRole("STAFF", "RIDER", "MANAGER")).toBe(false);
-    expect(canChangeRole("RIDER", "RIDER", "MANAGER")).toBe(false);
+    expect(canChangeRole("MANAGER", "STAFF", "MANAGER")).toBe(true);
+    expect(canChangeRole("STAFF", "STAFF", "MANAGER")).toBe(false);
   });
 
   it("nobody may disable their own account", () => {
@@ -83,29 +80,42 @@ describe("D2. management actions by role", () => {
   it("a manager may not disable another manager", () => {
     expect(canDisableEmployee("MANAGER", "MANAGER", false)).toBe(false);
     expect(canDisableEmployee("MANAGER", "STAFF", false)).toBe(true);
-    expect(canDisableEmployee("MANAGER", "RIDER", false)).toBe(true);
   });
 
-  it("staff and riders may not disable anyone", () => {
-    expect(canDisableEmployee("STAFF", "RIDER", false)).toBe(false);
-    expect(canDisableEmployee("RIDER", "STAFF", false)).toBe(false);
+  it("staff may not disable anyone", () => {
+    expect(canDisableEmployee("STAFF", "STAFF", false)).toBe(false);
+    expect(canDisableEmployee("STAFF", "MANAGER", false)).toBe(false);
   });
 
   it("anyone may change their own password; only a manager may change another's", () => {
-    expect(canResetEmployeePassword("RIDER", "RIDER", true)).toBe(true);
-    expect(canResetEmployeePassword("STAFF", "RIDER", false)).toBe(false);
+    expect(canResetEmployeePassword("STAFF", "STAFF", true)).toBe(true);
+    expect(canResetEmployeePassword("STAFF", "STAFF", false)).toBe(false);
     expect(canResetEmployeePassword("MANAGER", "STAFF", false)).toBe(true);
     expect(canResetEmployeePassword("MANAGER", "MANAGER", false)).toBe(false);
   });
 });
 
-describe("D3. a rider may only act on their own delivery", () => {
-  it("cannot hand back a delivery belonging to another rider", () => {
-    expect(canReleaseDelivery({ assignedRiderId: "rider-2", status: "delivering" }, "rider-1")).toBe(false);
+/**
+ * D3. Pickup-only (issue #114): the rider app is gone, not merely hidden.
+ * A route left behind would query the dropped `rider` / `delivery` tables
+ * and, worse, keep an unmaintained surface reachable.
+ */
+describe("D3. no rider or delivery surface remains", () => {
+  it.each([
+    "app/deliver",
+    "app/api/deliveries",
+    "app/api/riders",
+    "app/api/employee/profile/rider",
+    "app/api/routers/deliveries.ts",
+    "app/api/routers/riders.ts",
+    "lib/actions/delivery.ts",
+  ])("%s does not exist", (path) => {
+    expect(existsSync(path)).toBe(false);
   });
 
-  it("can hand back their own", () => {
-    expect(canReleaseDelivery({ assignedRiderId: "rider-1", status: "delivering" }, "rider-1")).toBe(true);
+  it("a stored rider role is not an employee role", () => {
+    expect(resolveEmployeeRole("RIDER")).toBeNull();
+    expect(resolveEmployeeRole("delivery")).toBeNull();
   });
 });
 
@@ -138,8 +148,6 @@ describe("D4. no API route is left unguarded", () => {
     "products",
     "addons",
     "transactions",
-    "deliveries",
-    "riders",
     "admin",
     "notifications",
     "address",
@@ -185,21 +193,13 @@ describe("D4. no API route is left unguarded", () => {
       }
     }
   });
-
-  it("rider administration is manager-only", () => {
-    const source = readFileSync("app/api/routers/riders.ts", "utf8");
-    for (const verb of ["createRider", "updateRider", "deleteRider"]) {
-      const handler = source.split(verb)[1] ?? "";
-      expect(handler).toMatch(/requireApiEmployee\("MANAGER"\)/);
-    }
-  });
 });
 
 /**
  * D5. A public endpoint must not read a table the `anon` role cannot see.
  *
  * Migration 20260921000004 revoked anon's SELECT on customer, customer_address,
- * employee, rider, reports and notification. A public route that embeds one of
+ * employee, reports and notification. A public route that embeds one of
  * them fails outright for a signed-out visitor — and would have been exposing
  * that data to them before the revoke.
  */
@@ -208,7 +208,6 @@ describe("D5. public routes read only publicly readable tables", () => {
     "customer",
     "customer_address",
     "employee",
-    "rider",
     "reports",
     "notification",
   ];

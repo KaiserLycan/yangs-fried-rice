@@ -37,19 +37,19 @@ beforeAll(async () => {
 describe("C1. credential validation", () => {
   it("accepts a well-formed customer login", () => {
     expect(
-      loginSchema.safeParse({ email: "liza@example.com", password: "securepassword123" }).success,
+      loginSchema.safeParse({ email: "liza@example.com", password: "Yangs!Pass2026" }).success,
     ).toBe(true);
   });
 
   it("rejects empty login fields", () => {
     expect(loginSchema.safeParse({ email: "", password: "" }).success).toBe(false);
     expect(loginSchema.safeParse({ email: "liza@example.com", password: "" }).success).toBe(false);
-    expect(loginSchema.safeParse({ email: "", password: "securepassword123" }).success).toBe(false);
+    expect(loginSchema.safeParse({ email: "", password: "Yangs!Pass2026" }).success).toBe(false);
   });
 
   it("rejects a malformed email", () => {
     for (const email of ["abc", "abc@", "@example.com", "a b@example.com"]) {
-      expect(loginSchema.safeParse({ email, password: "securepassword123" }).success).toBe(false);
+      expect(loginSchema.safeParse({ email, password: "Yangs!Pass2026" }).success).toBe(false);
     }
   });
 
@@ -66,12 +66,15 @@ describe("C1. credential validation", () => {
       zip: "1000",
     };
     expect(signupSchema.safeParse({ ...base, password: "short" }).success).toBe(false);
-    expect(signupSchema.safeParse({ ...base, password: "12345678" }).success).toBe(true);
+    // Mirrors Supabase Auth: 8+ with lowercase, uppercase, a digit and a symbol.
+    expect(signupSchema.safeParse({ ...base, password: "12345678" }).success).toBe(false);
+    expect(signupSchema.safeParse({ ...base, password: "Yangs!Pass2026" }).success).toBe(true);
   });
 
   it("enforces the same minimum when a manager sets a password", () => {
     expect(changePasswordSchema.safeParse({ new_password: "short" }).success).toBe(false);
-    expect(changePasswordSchema.safeParse({ new_password: "12345678" }).success).toBe(true);
+    expect(changePasswordSchema.safeParse({ new_password: "12345678" }).success).toBe(false);
+    expect(changePasswordSchema.safeParse({ new_password: "Yangs!Pass2026" }).success).toBe(true);
   });
 
   it("requires an identifier and password for employee sign-in", () => {

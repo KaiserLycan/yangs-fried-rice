@@ -3,6 +3,10 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/toast";
+import {
+  ACCOUNT_DISABLED_CODE,
+  ACCOUNT_DISABLED_LOGIN_ERROR,
+} from "@/lib/auth/account-status";
 
 /**
  * The shape every write in `lib/actions/cart.ts` returns: exactly one of
@@ -63,6 +67,13 @@ export function useCartAction() {
             return;
           }
           if (result.error !== null) {
+            // Disabled while signed in: no retry will help. A full page load
+            // (not a client navigation) so middleware sees the request, ends
+            // the session and the login form explains why (issue #114).
+            if (result.code === ACCOUNT_DISABLED_CODE) {
+              window.location.assign(`/login?error=${ACCOUNT_DISABLED_LOGIN_ERROR}`);
+              return;
+            }
             showToast(result.error, "error");
             startTransition(() => router.refresh());
             return;

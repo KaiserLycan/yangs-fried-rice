@@ -3,8 +3,8 @@ import { EmployeeBrandPanel } from "@/components/auth/employee-brand-panel";
 import { EmployeeLoginForm } from "@/components/auth/employee-login-form";
 
 /**
- * Employee sign-in (SAS1). One page shared by Staff, Business Owner and
- * Rider. Customers do not sign in here — they use /login. There is no
+ * Employee sign-in (SAS1). One page shared by Staff and the Business
+ * Owner. Customers do not sign in here — they use /login. There is no
  * matching register page: employee accounts are created by the Business
  * Owner, and the footer on this screen says so.
  *
