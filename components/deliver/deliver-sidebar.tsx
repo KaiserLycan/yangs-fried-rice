@@ -1,17 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState, useEffect, useMemo } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { DeliveryOverviewCard, type DeliveryData } from "./delivery-overview-card";
 import { DeliveryOverviewSkeleton } from "./delivery-overview-skeleton";
 import { getAssignedDeliveries, getDeliveryDetailsBatch } from "@/lib/actions/delivery";
-import { formatMobileNumber } from "@/lib/validation/phone";
-import { Loader2 } from "lucide-react";
+import { activeCountOf, toDeliveryCard } from "@/lib/orders/rider-queue";
+import { createClient } from "@/lib/supabase/client";
 import { ManagePagination } from "@/components/manage/manage-pagination";
 
 export function DeliverSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const activeDeliveryId = pathname.split("/").pop();
   
   const [filter, setFilter] = useState<"all" | "queue" | "delivered">("queue");
@@ -50,6 +51,31 @@ export function DeliverSidebar() {
     const handleUpdate = () => setRefreshTrigger(prev => prev + 1);
     window.addEventListener("delivery-updated", handleUpdate);
     return () => window.removeEventListener("delivery-updated", handleUpdate);
+  }, []);
+
+  // Another rider accepting, handing back or finishing a delivery changes
+  // this rider's queue too (P46), so every change to `delivery` re-reads it.
+  // The queue page is a Server Component, so it is refreshed as well.
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
+  const routerRef = useRef(router);
+  routerRef.current = router;
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel("rider-queue")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "delivery" },
+        () => {
+          setRefreshTrigger((prev) => prev + 1);
+          if (pathnameRef.current === "/deliver") routerRef.current.refresh();
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // Filter and sort the entire pool of summaries
@@ -110,29 +136,14 @@ export function DeliverSidebar() {
         .map(id => detailedResults.find(d => d.deliveryId === id))
         .filter(Boolean);
 
-      const mapped: DeliveryData[] = orderedResults
-        .map(d => {
-          const deliveryData = d!;
-          let cardStatus: "ready" | "delivering" | "completed" = "ready";
-          if (deliveryData.deliveryStatus === "delivering" || deliveryData.deliveryStatus === "out_for_delivery") cardStatus = "delivering";
-          if (deliveryData.deliveryStatus === "delivered") cardStatus = "completed";
-
-          return {
-            id: deliveryData.deliveryId,
-            customer: deliveryData.customer?.name || "Walk-in Customer",
-            address: deliveryData.customer?.address || "Address details protected",
-            phone: formatMobileNumber(deliveryData.customer?.phone) || "Contact via details",
-            notes: deliveryData.deliveryNote ?? "",
-            paymentMethod: deliveryData.payment?.method || "Standard",
-            total: deliveryData.payment?.total || 0,
-            status: cardStatus,
-            createdAt: deliveryData.createdAt || new Date().toISOString(),
-            items: deliveryData.items.map(item => ({
-              qty: item.quantity,
-              name: item.productName
-            }))
-          };
-        });
+      const activeCount = activeCountOf(allSummaries);
+      const mapped: DeliveryData[] = orderedResults.map((d) =>
+        toDeliveryCard(
+          d!,
+          allSummaries.find((s) => s.deliveryId === d!.deliveryId),
+          activeCount,
+        ),
+      );
 
       setDeliveries(mapped);
       setIsFetchingPage(false);
@@ -183,7 +194,15 @@ export function DeliverSidebar() {
           <>
             {deliveries.map((delivery) => {
               const isActive = activeDeliveryId === delivery.id;
-              
+
+              // Another rider's delivery has no detail page this rider may
+              // open, so it is a plain card rather than a link.
+              if (delivery.takenBy) {
+                return (
+                  <DeliveryOverviewCard key={delivery.id} delivery={delivery} />
+                );
+              }
+
               return (
                 <Link 
                   key={delivery.id} 
