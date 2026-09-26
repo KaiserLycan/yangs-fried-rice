@@ -330,9 +330,9 @@ describe("an unpaid order has no stage", () => {
   });
 });
 
-describe("cancellationNoticeFor (P28)", () => {
+describe("cancellationNoticeFor (P28, P50)", () => {
   it("says the restaurant cancelled when no reason was written", () => {
-    // The kitchen's cancel (`updateOrderStatus`) writes no reason.
+    // Kitchen cancels from before P50 wrote no reason.
     expect(cancellationNoticeFor(null)).toBe(
       "The restaurant cancelled this order. Sorry about that — you can place a new order from the menu.",
     );
@@ -346,9 +346,9 @@ describe("cancellationNoticeFor (P28)", () => {
     );
   });
 
-  it("shows the reason when one was written", () => {
-    expect(cancellationNoticeFor("Changed my mind")).toBe(
-      "This order was cancelled. Reason: Changed my mind",
+  it("shows the staff's reason when one was written", () => {
+    expect(cancellationNoticeFor("Out of chicken")).toBe(
+      "The restaurant cancelled this order. Reason: Out of chicken",
     );
   });
 });

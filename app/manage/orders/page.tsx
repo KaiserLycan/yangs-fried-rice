@@ -125,7 +125,11 @@ function ManageOrdersInner() {
 
     const newDbStatus = dbStatusFor(confirmAction.type);
 
-    const result = await updateOrderStatus(confirmAction.order.id, newDbStatus);
+    const result = await updateOrderStatus(
+      confirmAction.order.id,
+      newDbStatus,
+      confirmAction.type === "Cancel" ? cancelReason : undefined,
+    );
 
     if (result.error) {
       showToast(`Failed to update order: ${result.error}`, "error");

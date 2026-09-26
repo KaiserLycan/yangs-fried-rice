@@ -380,13 +380,17 @@ export async function getOrderDetail(
  *   (cancelled is allowed from any non-terminal status)
  *
  * Sets `completed_at` when transitioning to `completed`.
- * Sets `cancelled_at` when transitioning to `cancelled`.
+ * Sets `cancelled_at` when transitioning to `cancelled`, and
+ * `cancellation_reason` when staff gave one — the customer's tracking screen
+ * shows it (P50). The staff dialog always asked for a reason, but it was
+ * never sent here, so every kitchen cancel reached the customer blank.
  *
  * Requires: admin, manager, or staff.
  */
 export async function updateOrderStatus(
   orderId: string,
   newStatus: string,
+  cancellationReason?: string,
 ): Promise<ActionResult<Order>> {
   const auth = await requireManageAccess();
   if (!auth.data) return { data: null, error: auth.error };
@@ -434,6 +438,9 @@ export async function updateOrderStatus(
   }
   if (validatedNewStatus === "cancelled") {
     updatePayload.cancelled_at = new Date().toISOString();
+    // Same 300-character limit the customer's own cancel enforces.
+    const reason = cancellationReason?.trim().slice(0, 300);
+    if (reason) updatePayload.cancellation_reason = reason;
   }
 
   const { data: updated, error: updateError } = await supabase

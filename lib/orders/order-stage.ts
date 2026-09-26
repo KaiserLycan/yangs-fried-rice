@@ -315,9 +315,9 @@ export function headlineFor(
 }
 
 /**
- * The line a cancelled order shows its customer (P28). The kitchen's cancel
- * writes no reason, so an empty reason means the restaurant did it — without
- * this the customer saw only "ORDER CANCELLED" and no word on why.
+ * The line a cancelled order shows its customer (P28, P50). A customer's own
+ * cancel always writes the default reason below; anything else came from
+ * staff, who are asked for a reason. Older kitchen cancels have none.
  */
 const CUSTOMER_CANCEL_REASON = "Customer requested cancellation";
 
@@ -328,5 +328,5 @@ export function cancellationNoticeFor(reason: string | null): string {
   if (!trimmed) {
     return "The restaurant cancelled this order. Sorry about that — you can place a new order from the menu.";
   }
-  return `This order was cancelled. Reason: ${trimmed}`;
+  return `The restaurant cancelled this order. Reason: ${trimmed}`;
 }
