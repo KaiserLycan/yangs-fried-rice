@@ -163,6 +163,8 @@ report.
 
 ## H. Security and architecture
 
+- **✅ Done in #114.** RLS is on for `employee` (and `rider` was dropped with pickup-only); add-on line tables have
+  policies and RLS; login attempts are rate limited. The original note follows.
 - **Re-enable RLS on `employee` and `rider`.** Migration
   `004_employee_profile_rls.sql:20-21` enables it and is recorded as applied,
   but it is **off** on the live database — someone disabled it since. The

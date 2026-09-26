@@ -14,16 +14,16 @@ Priority: **P1** = do first (legal, security or a real bug). **P2** = do if time
 | 4 | No Senior Citizen / PWD discount | P1 | 3–4 h |
 | 5 | No security headers | P1 | 1 h |
 | 6 | No minimum order amount | P1 | 0.5 h |
-| 26 | **Live database is missing 5 migrations; RLS is off on `employee`** (any customer can become a manager) | **P0 — today, before anything else** | 0.5 h |
+| 26 | ~~Live database is missing 5 migrations; RLS is off on `employee`~~ | ✅ **Done in #114** | — |
 | 27 | Pay-in-store sales never marked paid; payment values in 5 spellings | P1 | 1 h |
-| 28 | Disabled accounts stay signed in; senior/PWD ID photos are public | P1 | 1.5 h |
+| 28 | ~~Disabled accounts stay signed in; senior/PWD ID photos are public~~ | ✅ **Done in #114** | — |
 | 29 | Terms promise card payments and refunds that don't exist; map credits hidden | P1 | 1 h |
 | 30 | Orders page can't filter by date, customer, payment or type | P2 (high) | 2 h |
 | 31 | Customer list has no order totals or order history; loads every customer | P2 | 2 h |
 | 32 | Reports have no breakdowns and no CSV | P2 | 2.5 h |
 | 33 | No error pages; `received` status is unreachable; real types live in "mock" files | P2 | 1 h |
-| 21 | **Customers can write orders straight into the database** (own status, fee and prices) | P1 — do first | 1 h (with #15) |
-| 15 | Placing an order is not atomic (double orders, half-saved orders) | P1 | 1.5 h |
+| 21 | ~~Customers can write orders straight into the database~~ | ✅ **Done in #114** | — |
+| 15 | ~~Placing an order is not atomic (double orders, half-saved orders)~~ | ✅ **Done in #114** | — |
 | 16 | A customer can delete their account before picking up | P1 | 0.5 h |
 | 7 | No "pause store" / busy mode | P2 | 1.5 h |
 | 8 | No "change for ₱___" on cash payments | P2 | 1 h |
@@ -43,6 +43,8 @@ Priority: **P1** = do first (legal, security or a real bug). **P2** = do if time
 | 25 | No accessibility check has been done | P2 | 1 h |
 
 P0 + P1 total: about 15 h. P2 total: about 26 h. That is more than 1.5 days, so do all of P1, then pick P2 items in order.
+
+**Progress (27 Sep 2026):** issue #114 closed items 15, 21, 26 and 28, and made the shop pickup-only: the `rider` and `delivery` tables are dropped (archived in a private `archive` schema) and there is no rider role. Items still written in delivery terms below should be read as pickup.
 
 Items 15–20 came from the second round of research (GitHub projects, Baymard UX research, OWASP, Philippine news).
 Item 21 came from the persona walkthroughs in [`user-simulation.md`](user-simulation.md). Items 22–25, and the additions
@@ -117,6 +119,9 @@ Philippine news and social media reports); see [`lacking.md`](lacking.md#round-3
 - **Fix:** write `submit_cart_to_order` as a migration. It should run in one transaction and lock the
   cart first (`SELECT … FOR UPDATE`, stop if `is_final`), then check availability and prices, insert
   everything, and mark the cart final. Also add a unique index on `order.cart_id` as a backstop.
+- **✅ Done in #114:** `supabase/migrations/20260927000001_atomic_checkout_and_order_write_lockdown.sql`. The function
+  refuses unavailable items and prices every line from the menu; `submitCart` calls it with no fallback. Price-change
+  and sold-out *messages* in the cart UI are still #115 (item 2).
 - **Why:** OWASP's business-logic guidance lists this "check, then act" race as a classic checkout bug.
   The Next.js + Supabase restaurant project on GitHub (crizt0495/restaurant) uses a single
   `create_order_atomic` database function for the same reason.
@@ -132,6 +137,9 @@ Philippine news and social media reports); see [`lacking.md`](lacking.md#round-3
 - **Fix:** drop the customer insert rules on `order`, `order_item`, `order_add_on` and `order_item_add_on`, and create
   orders only through the server (the atomic `submit_cart_to_order` function from #15, or the service-role client).
   Also tighten `customer_cancel_own_orders` so the update can't change anything except the status and cancellation fields.
+- **✅ Done in #114:** the four customer INSERT policies are dropped (confirmed live), and trigger
+  `trg_guard_customer_order_update` refuses any customer change outside `order_status`, `cancelled_at`,
+  `cancellation_reason`. `cart_item.quantity` is also bounded to 1–99 so a direct write can't produce a negative order.
 
 ### 16. A customer can delete their account before picking up
 - **Now:** `deleteMyAccount` (`lib/actions/profile.ts`) detaches the customer from their orders and deletes
@@ -269,6 +277,10 @@ and `SELECT` queries. Nothing was changed. Details and SQL are in [`user-simulat
 - **Fix:** run `npx supabase db push` (or apply the 5 files in `supabase/migrations/` from `20260925000000` onward in the SQL
   editor), then run the advisor again. `20260925000001_restore_employee_rider_rls.sql` is the one that closes this.
   Check for misuse with the "managers" query in persona 13 afterwards.
+- **✅ Done in #114:** all migrations through `20260927000003` are applied and recorded under their file versions; RLS is on
+  for `employee`, and the advisor reports no ERROR. `EXECUTE` on `handle_password_timestamp_update()` is revoked and every
+  SECURITY DEFINER function pins `search_path`. Staff can no longer change their own role (trigger
+  `trg_guard_employee_self_update`). Leaked-password protection could not be enabled: it needs the Supabase Pro plan.
 - **Also, while there:** turn on leaked-password protection (Auth settings), and revoke `EXECUTE` on
   `handle_password_timestamp_update()` from `anon` and `authenticated`.
 
@@ -288,6 +300,12 @@ and `SELECT` queries. Nothing was changed. Details and SQL are in [`user-simulat
 - **Fix:** check `is_account_disabled` in `requireCustomer`, `requireManageAccess`, `requireRole`, `requireEmployee` and
   `requireReportAccess`, and switch `requireCustomer` to `getUser()`. Make `senior-pwd-ids` private and show photos with
   `createSignedUrl` (valid for a few minutes). Keep the Senior/PWD ID photos from L4 in a private bucket from the start.
+- **✅ Done in #114:** every guard (`requireCustomer`, `requireManageAccess`, `requireRole`, `requireEmployee`,
+  `requireReportAccess`) checks `is_account_disabled`, and `requireCustomer` uses `getUser()`. `current_employee_role()`
+  ignores disabled accounts, so the database refuses them too. Middleware signs a disabled user out and the login page
+  says why. `senior-pwd-ids` is a private 2 MB image bucket with per-customer folders; `lib/storage/senior-pwd-ids.ts`
+  signs URLs for at most 5 minutes. `proof-of-delivery` is now private. The upload UI and deleting photos after the
+  order are part of #116 (item 4).
 
 ### 29. Terms promise card payments and refunds that don't exist; map credits hidden (P1)
 - **Found by:** the lawyer walkthrough (persona 15, J3 and J9).

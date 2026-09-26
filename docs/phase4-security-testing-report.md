@@ -5,6 +5,12 @@
 **Branch tested:** `QAbugFix`
 **Test command:** `npm test` (Vitest)
 
+> **Update, 27 Sep 2026 (issue #114):** this report describes the system as tested at the time. Since then the shop is
+> pickup-only: the rider role, the `/deliver` area, `/api/riders`, `/api/deliveries` and the `rider` / `delivery`
+> tables are gone, so every rider row below is historical. The rest was tightened further: RLS is on for every public
+> table including `employee`, customers can only place orders through `submit_cart_to_order`, disabled accounts are
+> refused by every guard and by the database, and the tests for it are in `__tests__/security/`.
+
 ---
 
 ## How this report was produced, and what it does not cover

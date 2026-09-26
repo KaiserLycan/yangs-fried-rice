@@ -1482,9 +1482,9 @@
     "semantic_hash": "945e7f8bc82dd972b55e6141134d4437"
   },
   "lib/actions/admin.ts": {
-    "mtime": 1790445233.6825197,
-    "seen": 1790445463.617596,
-    "ast_hash": "83976e42fd5338329c83e3d1e340b3da",
+    "mtime": 1790446433.5131764,
+    "seen": 1790446514.3879735,
+    "ast_hash": "fdafdae2d7fc2475e94889eba69feb3b",
     "semantic_hash": ""
   },
   "lib/actions/cart.ts": {
@@ -1506,9 +1506,9 @@
     "semantic_hash": "2d2d04242475e7f62b229ef16665d400"
   },
   "lib/actions/employee-profile.ts": {
-    "mtime": 1790445233.6825197,
-    "seen": 1790445463.6176772,
-    "ast_hash": "8be6849dd000d28f3b7e1fb9da894c54",
+    "mtime": 1790446077.912289,
+    "seen": 1790446514.388217,
+    "ast_hash": "7e2d52a5d3c5c60c312973737f19274a",
     "semantic_hash": ""
   },
   "lib/actions/eta.ts": {
@@ -1962,10 +1962,10 @@
     "semantic_hash": "16165d92485d4244d016fbcf6954dd1e"
   },
   "lib/profile/customer-profile.ts": {
-    "mtime": 1790436819.5400493,
-    "seen": 1790438534.6694477,
-    "ast_hash": "6a26c3ca5657e03c8578ef322cb650b9",
-    "semantic_hash": "6a26c3ca5657e03c8578ef322cb650b9"
+    "mtime": 1790446077.9127014,
+    "seen": 1790446514.394131,
+    "ast_hash": "bef650d4d48c141f526bc857f304b07b",
+    "semantic_hash": ""
   },
   "lib/profile/delete-confirmation.test.ts": {
     "mtime": 1790381263.5894763,
@@ -2502,10 +2502,10 @@
     "semantic_hash": "5772dd7f2ec01df67006d1401e72ab6e"
   },
   "types/database.types.ts": {
-    "mtime": 1790436689.4037936,
-    "seen": 1790438534.6695025,
-    "ast_hash": "c12146642976d140cf0db6cba8dc5ae6",
-    "semantic_hash": "c12146642976d140cf0db6cba8dc5ae6"
+    "mtime": 1790445966.858735,
+    "seen": 1790446514.3996577,
+    "ast_hash": "53fc5d01dba95319bf35f3fe9925b0f2",
+    "semantic_hash": ""
   },
   "vitest.config.mts": {
     "mtime": 1790381263.6276803,
@@ -2880,9 +2880,9 @@
     "semantic_hash": ""
   },
   "__tests__/security/database-lockdown.test.ts": {
-    "mtime": 1790445233.7376788,
-    "seen": 1790445463.6006687,
-    "ast_hash": "713b70f0043ccdeb9b10cd960761f23b",
+    "mtime": 1790446443.2212317,
+    "seen": 1790446514.3692422,
+    "ast_hash": "bea03f3b238b098debe9c7bc870c2851",
     "semantic_hash": ""
   },
   "lib/auth/account-status.ts": {
