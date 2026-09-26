@@ -48,11 +48,29 @@ export function activeCountOf(summaries: QueueSummary[]): number {
   ).length;
 }
 
+/**
+ * Where a card sits: this rider's own first, then ones waiting for anyone,
+ * then ones another rider holds, then finished. Other riders' cards are
+ * there to explain where an order went, not to be worked on, so they go low.
+ */
+export function queueRank(summary: QueueSummary): number {
+  const status = cardStatusOf(summary.deliveryStatus);
+  if (status === "completed") return 3;
+  if (summary.isMine) return 0;
+  if (summary.takenBy) return 2;
+  return 1;
+}
+
 export function toDeliveryCard(
   detail: QueueDetail,
   summary: QueueSummary | undefined,
   activeCount: number,
 ): DeliveryData {
+  // A delivery this rider holds is theirs to deliver whatever its status
+  // text says — some rows are assigned with a status other than
+  // "delivering", and those used to show this rider an Accept button for
+  // an order they already had.
+  const status = cardStatusOf(detail.deliveryStatus);
   return {
     id: detail.deliveryId,
     customer: detail.customer?.name || "Walk-in Customer",
@@ -61,7 +79,7 @@ export function toDeliveryCard(
     notes: detail.deliveryNote ?? "",
     paymentMethod: detail.payment?.method ?? "cash_on_delivery",
     total: detail.payment?.total ?? 0,
-    status: cardStatusOf(detail.deliveryStatus),
+    status: summary?.isMine && status === "ready" ? "delivering" : status,
     createdAt: detail.createdAt ?? new Date().toISOString(),
     items: detail.items.map((item) => ({
       qty: item.quantity,

@@ -6,7 +6,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { DeliveryOverviewCard, type DeliveryData } from "./delivery-overview-card";
 import { DeliveryOverviewSkeleton } from "./delivery-overview-skeleton";
 import { getAssignedDeliveries, getDeliveryDetailsBatch } from "@/lib/actions/delivery";
-import { activeCountOf, toDeliveryCard } from "@/lib/orders/rider-queue";
+import { activeCountOf, queueRank, toDeliveryCard } from "@/lib/orders/rider-queue";
 import { createClient } from "@/lib/supabase/client";
 import { ManagePagination } from "@/components/manage/manage-pagination";
 
@@ -92,19 +92,9 @@ export function DeliverSidebar() {
         return true;
       })
       .sort((a, b) => {
-        let statusA = "ready";
-        if (a.deliveryStatus === "delivering" || a.deliveryStatus === "out_for_delivery") statusA = "delivering";
-        if (a.deliveryStatus === "delivered") statusA = "completed";
-        
-        let statusB = "ready";
-        if (b.deliveryStatus === "delivering" || b.deliveryStatus === "out_for_delivery") statusB = "delivering";
-        if (b.deliveryStatus === "delivered") statusB = "completed";
-
-        const statusWeight = { delivering: 0, ready: 1, completed: 2 };
-        if (statusWeight[statusA as keyof typeof statusWeight] !== statusWeight[statusB as keyof typeof statusWeight]) {
-          return statusWeight[statusA as keyof typeof statusWeight] - statusWeight[statusB as keyof typeof statusWeight];
-        }
-        
+        // Same order as the queue page — see `queueRank`.
+        const rank = queueRank(a) - queueRank(b);
+        if (rank !== 0) return rank;
         return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       });
   }, [allSummaries, filter]);

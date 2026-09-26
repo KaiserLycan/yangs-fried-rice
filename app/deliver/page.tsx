@@ -1,7 +1,7 @@
 import { Bike } from "lucide-react";
 import Link from "next/link";
 import { getAssignedDeliveries, getDeliveryDetailsBatch } from "@/lib/actions/delivery";
-import { activeCountOf, toDeliveryCard } from "@/lib/orders/rider-queue";
+import { activeCountOf, queueRank, toDeliveryCard } from "@/lib/orders/rider-queue";
 import { DeliveryOverviewCard } from "@/components/deliver/delivery-overview-card";
 
 export default async function DeliverHomePage() {
@@ -35,7 +35,8 @@ export default async function DeliverHomePage() {
   );
   const activeCount = activeCountOf(deliveries);
 
-  const mappedDeliveries = deliveries
+  const mappedDeliveries = [...deliveries]
+    .sort((a, b) => queueRank(a) - queueRank(b))
     .flatMap((summary) => {
       const detail = details.find((d) => d.deliveryId === summary.deliveryId);
       return detail ? [toDeliveryCard(detail, summary, activeCount)] : [];
