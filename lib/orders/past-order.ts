@@ -33,7 +33,7 @@ export type PastOrderItem = {
  */
 export type PastOrder = {
   orderId: string;
-  /** Human-facing reference — `orderNumberFrom` in `read-tracked-order.ts`. */
+  /** The order's reference — see `lib/orders/order-number.ts`. */
   orderNumber: string;
   /** ISO timestamp, from `order.created_at`. */
   placedAt: string | null;

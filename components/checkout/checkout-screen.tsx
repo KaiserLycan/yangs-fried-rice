@@ -7,8 +7,8 @@ import { DeliveryDetailsCard } from "@/components/checkout/delivery-details-card
 import { OrderSummaryCard } from "@/components/checkout/order-summary-card";
 import { PaymentMethodPicker } from "@/components/checkout/payment-method-picker";
 import {
-  DEFAULT_PAYMENT_METHOD,
   DEFAULT_WALLET_PROVIDER,
+  defaultPaymentMethodFor,
   type PaymentMethodId,
   type WalletProvider,
 } from "@/lib/checkout/payment-methods";
@@ -41,6 +41,7 @@ export function CheckoutScreen({
   fulfilment,
   distanceKm = null,
   placedAtLabel,
+  arrivalEstimate,
 }: {
   profile: CustomerProfile;
   /** The active cart's id — what `submitCart` turns into an order. `null`
@@ -51,9 +52,14 @@ export function CheckoutScreen({
   /** Distance to the delivery address, when known — sets the delivery fee. */
   distanceKm?: number | null;
   placedAtLabel: string;
+  /** Quoted from the live kitchen queue and this order's distance — see
+   *  `lib/checkout/arrival-estimate.ts`. */
+  arrivalEstimate: string;
 }) {
+  // Seeded from the fulfilment rather than from the global default, which is
+  // cash on delivery — not an option when the customer is collecting.
   const [paymentMethod, setPaymentMethod] = React.useState<PaymentMethodId>(
-    DEFAULT_PAYMENT_METHOD,
+    () => defaultPaymentMethodFor(fulfilment),
   );
   const [wallet, setWallet] = React.useState<WalletProvider>(
     DEFAULT_WALLET_PROVIDER,
@@ -128,6 +134,7 @@ export function CheckoutScreen({
                   onChange={setPaymentMethod}
                   wallet={wallet}
                   onWalletChange={setWallet}
+                  fulfilment={fulfilment}
                 />
               </section>
             </div>
@@ -144,6 +151,7 @@ export function CheckoutScreen({
                 totals={totals}
                 paymentMethod={paymentMethod}
                 wallet={wallet}
+                arrivalEstimate={arrivalEstimate}
               />
             </div>
           </div>

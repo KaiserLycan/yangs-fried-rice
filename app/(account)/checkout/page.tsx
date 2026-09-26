@@ -7,6 +7,7 @@ import { readCart } from "@/lib/cart/read-cart";
 import { findAwaitingPaymentOrder } from "@/lib/checkout/find-awaiting-payment-order";
 import { readCustomerProfile } from "@/lib/profile/customer-profile";
 import { validateNcrAddress } from "@/lib/address/validate-ncr";
+import { readArrivalQuote } from "@/lib/checkout/read-arrival-quote";
 
 /**
  * Checkout (Browsing8-10, TPI1; GitHub issue #22) — order review and payment
@@ -66,6 +67,11 @@ export default async function CheckoutPage({
     }
   }
 
+  // Quoted from the live kitchen queue and the distance just geocoded, so
+  // the figure the customer agrees to here is produced by the same engine
+  // that will tell them where their order is a minute later (issue #106).
+  const arrivalEstimate = await readArrivalQuote({ fulfilment, distanceKm });
+
   return (
     <ToastProvider>
       <CheckoutScreen
@@ -75,6 +81,7 @@ export default async function CheckoutPage({
         fulfilment={fulfilment}
         distanceKm={distanceKm}
         placedAtLabel={formatOrderTime(new Date())}
+        arrivalEstimate={arrivalEstimate}
       />
     </ToastProvider>
   );

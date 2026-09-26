@@ -18,15 +18,18 @@
  * decided a customer must be logged in before adding to the cart — the Cart
  * table is keyed by customer_id, so there is no such thing as a guest cart.
  */
+import { SiteFooter } from "@/components/layout/site-footer";
+
 export default function AccountLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen">
+    <div className="flex min-h-screen flex-col">
       {/* This renders all /account nested routes like /account/orders */}
       <main className="flex-1">{children}</main>
+      <SiteFooter />
     </div>
   );
 }

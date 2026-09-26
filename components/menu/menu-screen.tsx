@@ -47,12 +47,19 @@ export function MenuScreen({
   productsPromise,
   categoriesPromise,
   cartPromise,
+  arrivalEstimatePromise,
   initialFulfilment,
 }: {
   profilePromise: Promise<CustomerProfile | null>;
   productsPromise: Promise<ProductListing[]>;
   categoriesPromise: Promise<CategoryOption[]>;
   cartPromise: Promise<CartRead>;
+  /**
+   * The window the cart rail quotes, read from the live kitchen queue
+   * (issue #106). A promise like the rest, so the menu paints without
+   * waiting on a count that only the rail needs.
+   */
+  arrivalEstimatePromise: Promise<string | null>;
   initialFulfilment?: Fulfilment;
 }) {
   const [search, setSearch] = React.useState("");
@@ -293,6 +300,7 @@ export function MenuScreen({
         }>
           <ResolvedCartRail 
             cartPromise={cartPromise} 
+            arrivalEstimatePromise={arrivalEstimatePromise}
             optimisticCartLines={optimisticCartLines}
             setOptimisticCartLines={setOptimisticCartLines}
             initialFulfilment={initialFulfilment}
@@ -465,16 +473,19 @@ function ResolvedProductGrid({
 
 function ResolvedCartRail({
   cartPromise,
+  arrivalEstimatePromise,
   optimisticCartLines,
   setOptimisticCartLines,
   initialFulfilment,
 }: {
   cartPromise: Promise<CartRead>;
+  arrivalEstimatePromise: Promise<string | null>;
   optimisticCartLines: CartLine[] | null;
   setOptimisticCartLines: (lines: CartLine[]) => void;
   initialFulfilment?: Fulfilment;
 }) {
   const [cart, setCart] = useState<CartRead | null>(null);
+  const [arrivalEstimate, setArrivalEstimate] = useState<string | null>(null);
   useEffect(() => {
     let active = true;
     cartPromise.then((next) => {
@@ -482,12 +493,27 @@ function ResolvedCartRail({
     });
     return () => { active = false; };
   }, [cartPromise]);
+  // Resolved separately from the cart: the estimate is a nicety, and the
+  // rail must not wait on a queue count to show someone their own items.
+  useEffect(() => {
+    let active = true;
+    arrivalEstimatePromise.then((next) => {
+      if (active) setArrivalEstimate(next);
+    });
+    return () => { active = false; };
+  }, [arrivalEstimatePromise]);
   React.useEffect(() => {
     if (!cart) return;
     setOptimisticCartLines(cart.lines);
   }, [cart, setOptimisticCartLines]);
 
-  return <DesktopCartRail lines={optimisticCartLines ?? cart?.lines ?? []} initialFulfilment={initialFulfilment} />;
+  return (
+    <DesktopCartRail
+      lines={optimisticCartLines ?? cart?.lines ?? []}
+      initialFulfilment={initialFulfilment}
+      arrivalEstimate={arrivalEstimate}
+    />
+  );
 }
 
 function ResolvedBottomTabBar({

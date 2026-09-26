@@ -85,6 +85,7 @@ function renderScreen() {
         productsPromise={Promise.resolve(MOCK_PRODUCTS)}
         categoriesPromise={Promise.resolve(MOCK_CATEGORIES)}
         cartPromise={Promise.resolve({ cartId: null, lines: [] })}
+        arrivalEstimatePromise={Promise.resolve("30–40 min")}
       />
     </ToastProvider>,
   );

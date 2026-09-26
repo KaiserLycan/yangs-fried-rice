@@ -9,6 +9,7 @@ import {
   arrivalLineFor,
   arrivalWindowFrom,
 } from "@/lib/orders/arrival-window";
+import { cn } from "@/lib/utils";
 import {
   cancellationNoticeFor,
   fulfilmentOf,
@@ -230,7 +231,9 @@ export function TrackOrderScreen({
           <span
             className="text-[11px] uppercase tracking-[1.76px] text-on-ink-faint md:text-[12px] md:tracking-[1.92px] md:text-muted-foreground"
           >
-            Order #{order.orderNumber}
+            {/* The id renders in the case it is stored in — see the receipt's
+                own note, and `lib/orders/order-number.ts`. */}
+            Order <span className="normal-case">#{order.orderNumber}</span>
           </span>
           <h1 className="font-display text-[30px] text-on-ink md:text-[38px] md:leading-[1.05] md:text-foreground">
             {headlineFor(progress, fulfilment)}

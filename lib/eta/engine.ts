@@ -98,6 +98,25 @@ export function calculateKitchenPrepMinutes(activeOrdersAhead: number): number {
 }
 
 /**
+ * The ±5 minute range quoted around a point estimate, floored at 5 so a
+ * near-instant order is not promised in "0–5 mins".
+ *
+ * Exported because checkout now quotes a window before the order exists
+ * (issue #106: the checkout ETA was the hardcoded string "35–45 min"). Two
+ * copies of this arithmetic would let the figure a customer agrees to at
+ * checkout disagree with the one they are shown on tracking a second later.
+ */
+export function arrivalWindowBounds(totalEstimatedMinutes: number): {
+  lower: number;
+  upper: number;
+} {
+  return {
+    lower: Math.max(5, totalEstimatedMinutes - 5),
+    upper: totalEstimatedMinutes + 5,
+  };
+}
+
+/**
  * Calculates transit time based on distance and order type.
  */
 export function calculateTransitMinutes(
@@ -236,8 +255,8 @@ export function calculateOrderEta({
   const totalEstimatedMinutes = kitchenPrepMinutes + transitMinutes;
 
   // Arrival window range: [T - 5, T + 5] (minimum window lower bound is 5 mins)
-  const windowLower = Math.max(5, totalEstimatedMinutes - 5);
-  const windowUpper = totalEstimatedMinutes + 5;
+  const { lower: windowLower, upper: windowUpper } =
+    arrivalWindowBounds(totalEstimatedMinutes);
   let arrivalWindow: string;
 
   if (orderType === "take_out" || orderType === "dine_in") {

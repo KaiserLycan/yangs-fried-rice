@@ -8,7 +8,6 @@ import { OrderSummaryRows } from "@/components/checkout/order-summary-rows";
 import { useToast } from "@/components/ui/toast";
 import { submitCart } from "@/lib/actions/cart";
 import { useCartAction } from "@/lib/cart/use-cart-action";
-import { ARRIVAL_ESTIMATE } from "@/lib/checkout/arrival-estimate";
 import { orderTypeFor } from "@/lib/checkout/fulfilment-param";
 import {
   isOnlinePaymentConfigured,
@@ -49,6 +48,7 @@ export function OrderSummaryCard({
   totals,
   paymentMethod,
   wallet,
+  arrivalEstimate,
 }: {
   customerName: string;
   placedAtLabel: string;
@@ -61,6 +61,12 @@ export function OrderSummaryCard({
   totals: CartTotals;
   paymentMethod: PaymentMethodId;
   wallet: WalletProvider;
+  /**
+   * The window quoted for this order, computed from the live kitchen queue
+   * and the delivery distance (issue #106 — this was the fixed string
+   * "35–45 min"). Read on the server, because the queue is a database count.
+   */
+  arrivalEstimate: string;
 }) {
   const router = useRouter();
   const showToast = useToast();
@@ -256,7 +262,9 @@ export function OrderSummaryCard({
       />
 
       <p className="rounded-md bg-secondary/50 p-[12px] text-[12px] leading-[18px] text-muted-strong">
-        Estimated arrival <strong>{ARRIVAL_ESTIMATE}</strong> — based on current
+        {/* This sentence has always claimed the figure came from the queue
+            and the distance. Since issue #106 it does. */}
+        Estimated arrival <strong>{arrivalEstimate}</strong> — based on current
         kitchen queue and delivery distance.
       </p>
 

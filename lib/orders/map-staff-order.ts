@@ -1,6 +1,7 @@
 import type { OrderData } from "@/lib/mock-orders";
 import { formatOrderType, isDeliveryOrder } from "@/lib/orders/format";
 import { orderItemName } from "@/lib/orders/item-name";
+import { formatOrderNumber } from "@/lib/orders/order-number";
 import { computeOrderTotal } from "@/lib/orders/order-total";
 import { formatMobileNumber } from "@/lib/validation/phone";
 
@@ -101,7 +102,10 @@ export function mapStaffOrder(order: StaffOrderRow): OrderData {
   return {
     id: order.order_id,
     rawCreatedAt: order.created_at,
-    orderNumber: order.order_id.substring(0, 4).toUpperCase(),
+    // Was `substring(0, 4).toUpperCase()` while the customer was shown the
+    // last four — the same order, two references, neither able to check the
+    // other (issue #106).
+    orderNumber: formatOrderNumber(order.order_id),
     time: order.created_at
       ? new Date(order.created_at).toLocaleTimeString([], {
           hour: "2-digit",

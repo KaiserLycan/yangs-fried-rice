@@ -55,6 +55,8 @@ export function OrderCard({ order, onClick, onAction }: OrderCardProps) {
       {/* Header */}
       <div className={cn("flex justify-between items-start p-4 text-white", config.headerBg)}>
         <div>
+          {/* The same eight characters the customer sees since issue
+              #106 — this used to be the id's first four. */}
           <div className="text-xl font-bold tracking-wider leading-none mb-1">
             #{order.orderNumber}
           </div>

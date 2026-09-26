@@ -2,11 +2,12 @@
 
 import { cn } from "@/lib/utils";
 import {
-  PAYMENT_METHODS,
   WALLET_PROVIDERS,
+  paymentMethodsFor,
   type PaymentMethodId,
   type WalletProvider,
 } from "@/lib/checkout/payment-methods";
+import type { Fulfilment } from "@/lib/menu/cart-totals";
 
 /**
  * The payment method block — a 2×2 grid on desktop (`133:1106`), a
@@ -30,12 +31,17 @@ export function PaymentMethodPicker({
   onChange,
   wallet,
   onWalletChange,
+  fulfilment,
 }: {
   value: PaymentMethodId;
   onChange: (value: PaymentMethodId) => void;
   wallet: WalletProvider;
   onWalletChange: (value: WalletProvider) => void;
+  /** Decides which methods are on offer — see `paymentMethodsFor`. */
+  fulfilment: Fulfilment;
 }) {
+  const methods = paymentMethodsFor(fulfilment);
+
   return (
     <div className="flex flex-col gap-[8px] md:gap-[10px]">
       <div
@@ -43,7 +49,7 @@ export function PaymentMethodPicker({
         aria-label="Payment method"
         className="grid grid-cols-1 gap-[8px] md:grid-cols-2 md:gap-[10px]"
       >
-        {PAYMENT_METHODS.map((method) => {
+        {methods.map((method) => {
           const isSelected = method.id === value;
 
           return (
