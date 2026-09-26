@@ -3,7 +3,7 @@ import { SiteNavBar } from "@/components/nav/site-nav-bar";
 import { OrderSummaryRows } from "@/components/checkout/order-summary-rows";
 import { PaymentStatusCard } from "@/components/checkout/payment-status-card";
 import { SwitchToCodButton } from "@/components/checkout/switch-to-cod-button";
-import { ARRIVAL_ESTIMATE } from "@/lib/checkout/arrival-estimate";
+import { ARRIVAL_UNKNOWN } from "@/lib/orders/arrival-window";
 import { isUnpaidStatus } from "@/lib/validation/orders";
 import { ORDER_NUMBER_CLASS } from "@/lib/orders/order-number";
 import { cn } from "@/lib/utils";
@@ -47,6 +47,7 @@ export function OrderPlacedScreen({
   order,
   wallet = null,
   startFailed = false,
+  arrivalWindow = null,
 }: {
   profile: CustomerProfile;
   order: PlacedOrder;
@@ -54,6 +55,16 @@ export function OrderPlacedScreen({
   wallet?: WalletProvider | null;
   /** From `?pay_error=1` — checkout could not open the wallet page. */
   startFailed?: boolean;
+  /**
+   * The order's real arrival window, from the same ETA engine the tracking
+   * screen reads. Null when the engine has nothing to say — an order it
+   * could not estimate, or one already finished.
+   *
+   * This used to be the fixed string "35–45 min", printed on a receipt for
+   * an order that existed and could therefore be estimated properly (issue
+   * #106).
+   */
+  arrivalWindow?: string | null;
 }) {
   // The same module the cart and checkout use. Checkout must not compute
   // money one way and its own receipt another.
@@ -113,8 +124,8 @@ export function OrderPlacedScreen({
                 ? `Waiting for payment · to ${order.address ?? "your saved address"}`
                 : "Waiting for payment · collect in store"
               : isDelivery
-                ? `Arriving in about ${ARRIVAL_ESTIMATE} · to ${order.address ?? "your saved address"}`
-                : `Ready for collection in about ${ARRIVAL_ESTIMATE} · collect in store`}
+                ? `${arrivalWindow ? `Arriving in about ${arrivalWindow}` : ARRIVAL_UNKNOWN} · to ${order.address ?? "your saved address"}`
+                : `${arrivalWindow ? `Ready for collection in about ${arrivalWindow}` : ARRIVAL_UNKNOWN} · collect in store`}
           </p>
         </header>
 

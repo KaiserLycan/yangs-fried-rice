@@ -9,6 +9,7 @@ import {
   type EtaResult,
 } from "@/lib/eta/engine";
 import { validateNcrAddress } from "@/lib/address/validate-ncr";
+import { countActiveKitchenOrders } from "@/lib/orders/kitchen-queue";
 
 export interface GetOrderEtaResult {
   success: boolean;
@@ -97,13 +98,10 @@ export async function getOrderEtaAction(
   }
 
   // 4. Count active orders ahead in kitchen queue
-  const { count: queueCount } = await supabase
-    .from("order")
-    .select("order_id", { count: "exact", head: true })
-    .in("order_status", ["pending", "received", "confirmed", "preparing"])
-    .lt("created_at", order.created_at || new Date().toISOString());
-
-  const activeOrdersAhead = queueCount ?? 0;
+  const activeOrdersAhead = await countActiveKitchenOrders(
+    supabase,
+    order.created_at || new Date().toISOString(),
+  );
 
   // 5. Calculate ETA breakdown
   const etaResult = calculateOrderEta({

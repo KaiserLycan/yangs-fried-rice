@@ -120,6 +120,9 @@ function renderScreen(
   placed: PlacedOrder = order(),
   wallet: WalletProvider | null = null,
   startFailed = false,
+  // What the ETA engine answered for this order. The page reads it; this
+  // component only prints it.
+  arrivalWindow: string | null = "25–35 mins",
 ) {
   return render(
     <ToastProvider>
@@ -128,6 +131,7 @@ function renderScreen(
         order={placed}
         wallet={wallet}
         startFailed={startFailed}
+        arrivalWindow={arrivalWindow}
       />
     </ToastProvider>,
   );
@@ -157,11 +161,16 @@ describe("OrderPlacedScreen", () => {
     expect(screen.getByText(/#1042/)).toBeInTheDocument();
   });
 
+  /**
+   * The window is the real one now, from the ETA engine, passed in by the
+   * page. It used to be the hardcoded "35–45 min" — on a receipt for an
+   * order that existed and could therefore be estimated properly (#106).
+   */
   it("tells a delivery customer when it arrives and where it is going", () => {
     renderScreen();
     const line = screen.getByTestId("fulfilment-line");
     expect(line).toHaveTextContent(/arriving/i);
-    expect(line).toHaveTextContent("35–45 min");
+    expect(line).toHaveTextContent("25–35 mins");
     expect(line).toHaveTextContent("21 Mabini St, Malate, Manila");
   });
 
@@ -505,6 +514,6 @@ describe("OrderPlacedScreen tracking gate", () => {
     renderScreen(walletOrder("failed"));
     const line = screen.getByTestId("fulfilment-line");
     expect(line).toHaveTextContent(/waiting for payment/i);
-    expect(line).not.toHaveTextContent("35–45 min");
+    expect(line).not.toHaveTextContent("25–35 mins");
   });
 });

@@ -69,7 +69,7 @@ const lines: CartLine[] = [
 
 describe("CartContents", () => {
   it("shows the empty state and nothing else when the cart has no lines", () => {
-    renderCart(<CartContents lines={[]} ctaLabel="Checkout" showEstimate />);
+    renderCart(<CartContents lines={[]} ctaLabel="Checkout" arrivalEstimate="30–40 min" />);
 
     expect(
       screen.getByRole("link", { name: /cart is empty/i }),
@@ -78,7 +78,7 @@ describe("CartContents", () => {
   });
 
   it("renders every line with its name, line total and quantity", () => {
-    renderCart(<CartContents lines={lines} ctaLabel="Checkout" showEstimate />);
+    renderCart(<CartContents lines={lines} ctaLabel="Checkout" arrivalEstimate="30–40 min" />);
 
     expect(screen.getByText("Yangzhou Special")).toBeInTheDocument();
     expect(screen.getByText("₱360")).toBeInTheDocument(); // 180 × 2
@@ -87,7 +87,7 @@ describe("CartContents", () => {
   });
 
   it("shows special instructions only for the line that has them", () => {
-    renderCart(<CartContents lines={lines} ctaLabel="Checkout" showEstimate />);
+    renderCart(<CartContents lines={lines} ctaLabel="Checkout" arrivalEstimate="30–40 min" />);
 
     expect(screen.getByText(/extra chili, no egg/i)).toBeInTheDocument();
     // Only one line carries a note — asserting there's exactly one keeps
@@ -96,7 +96,7 @@ describe("CartContents", () => {
   });
 
   it("computes the subtotal, delivery fee and total from the real lines", () => {
-    renderCart(<CartContents lines={lines} ctaLabel="Checkout" showEstimate />);
+    renderCart(<CartContents lines={lines} ctaLabel="Checkout" arrivalEstimate="30–40 min" />);
 
     expect(screen.getByText("₱450")).toBeInTheDocument();
     expect(screen.getByText("₱50")).toBeInTheDocument();
@@ -104,7 +104,7 @@ describe("CartContents", () => {
   });
 
   it("drops the delivery fee when Pickup is chosen, and the total follows", () => {
-    renderCart(<CartContents lines={lines} ctaLabel="Checkout" showEstimate />);
+    renderCart(<CartContents lines={lines} ctaLabel="Checkout" arrivalEstimate="30–40 min" />);
 
     fireEvent.click(screen.getByRole("button", { name: "Pickup" }));
 
@@ -114,18 +114,24 @@ describe("CartContents", () => {
     expect(screen.getAllByText("₱450")).toHaveLength(2);
   });
 
-  it("shows the estimate line only when asked to", () => {
+  /**
+   * The estimate used to be a `showEstimate` boolean over the hardcoded
+   * string "Estimated 35–45 min". It is now the quoted window itself,
+   * computed from the live kitchen queue (issue #106), and the placements
+   * that draw no estimate pass null.
+   */
+  it("shows the estimate line only when given one", () => {
     const { rerender } = renderCart(
-      <CartContents lines={lines} ctaLabel="Checkout" showEstimate={false} />,
+      <CartContents lines={lines} ctaLabel="Checkout" arrivalEstimate={null} />,
     );
     expect(screen.queryByText(/estimated/i)).not.toBeInTheDocument();
 
     rerender(
       <ToastProvider>
-        <CartContents lines={lines} ctaLabel="Checkout" showEstimate />
+        <CartContents lines={lines} ctaLabel="Checkout" arrivalEstimate="30–40 min" />
       </ToastProvider>,
     );
-    expect(screen.getByText(/estimated 35–45 min/i)).toBeInTheDocument();
+    expect(screen.getByText(/estimated 30–40 min/i)).toBeInTheDocument();
   });
 
   it("uses the ctaLabel passed in for the checkout link", () => {
@@ -133,7 +139,6 @@ describe("CartContents", () => {
       <CartContents
         lines={lines}
         ctaLabel="Continue to checkout"
-        showEstimate={false}
       />,
     );
 
@@ -150,7 +155,6 @@ describe("CartContents", () => {
       <CartContents
         lines={lines}
         ctaLabel="Continue to checkout"
-        showEstimate={false}
       />,
     );
 
@@ -167,7 +171,7 @@ describe("CartLineRow writes", () => {
   // The displayed quantity is the persisted server value. A control never
   // edits it locally: it asks the backend, then re-reads the page.
   it("sends the new quantity to the backend and re-reads the page on +", async () => {
-    renderCart(<CartContents lines={lines} ctaLabel="Checkout" showEstimate />);
+    renderCart(<CartContents lines={lines} ctaLabel="Checkout" arrivalEstimate="30–40 min" />);
 
     fireEvent.click(
       screen.getAllByRole("button", { name: "Increase quantity" })[0],
@@ -181,7 +185,7 @@ describe("CartLineRow writes", () => {
   });
 
   it("removes the line instead of sending quantity 0 when − is pressed on a single item", async () => {
-    renderCart(<CartContents lines={lines} ctaLabel="Checkout" showEstimate />);
+    renderCart(<CartContents lines={lines} ctaLabel="Checkout" arrivalEstimate="30–40 min" />);
 
     // Line "2" (Lumpia) has quantity 1.
     fireEvent.click(
@@ -193,7 +197,7 @@ describe("CartLineRow writes", () => {
   });
 
   it("removes the line on Remove", async () => {
-    renderCart(<CartContents lines={lines} ctaLabel="Checkout" showEstimate />);
+    renderCart(<CartContents lines={lines} ctaLabel="Checkout" arrivalEstimate="30–40 min" />);
 
     fireEvent.click(screen.getAllByRole("button", { name: "Remove" })[0]);
 
@@ -205,7 +209,7 @@ describe("CartLineRow writes", () => {
       data: null,
       error: "Cart is locked.",
     });
-    renderCart(<CartContents lines={lines} ctaLabel="Checkout" showEstimate />);
+    renderCart(<CartContents lines={lines} ctaLabel="Checkout" arrivalEstimate="30–40 min" />);
 
     fireEvent.click(
       screen.getAllByRole("button", { name: "Increase quantity" })[0],
@@ -235,7 +239,7 @@ describe("CartLineRow lower bound", () => {
   ];
 
   it("removes the line instead of showing zero", async () => {
-    renderCart(<CartContents lines={single} ctaLabel="Checkout" showEstimate />);
+    renderCart(<CartContents lines={single} ctaLabel="Checkout" arrivalEstimate="30–40 min" />);
 
     fireEvent.click(screen.getByRole("button", { name: "Decrease quantity" }));
 
@@ -244,7 +248,7 @@ describe("CartLineRow lower bound", () => {
   });
 
   it("never renders a negative quantity or a negative total, however fast", async () => {
-    renderCart(<CartContents lines={single} ctaLabel="Checkout" showEstimate />);
+    renderCart(<CartContents lines={single} ctaLabel="Checkout" arrivalEstimate="30–40 min" />);
 
     const minus = screen.getByRole("button", { name: "Decrease quantity" });
     for (let click = 0; click < 6; click += 1) fireEvent.click(minus);
@@ -257,7 +261,7 @@ describe("CartLineRow lower bound", () => {
   });
 
   it("does not send a quantity update for a line it is removing", async () => {
-    renderCart(<CartContents lines={single} ctaLabel="Checkout" showEstimate />);
+    renderCart(<CartContents lines={single} ctaLabel="Checkout" arrivalEstimate="30–40 min" />);
 
     fireEvent.click(screen.getByRole("button", { name: "Decrease quantity" }));
 

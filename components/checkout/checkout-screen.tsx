@@ -41,6 +41,7 @@ export function CheckoutScreen({
   fulfilment,
   distanceKm = null,
   placedAtLabel,
+  arrivalEstimate,
 }: {
   profile: CustomerProfile;
   /** The active cart's id — what `submitCart` turns into an order. `null`
@@ -51,6 +52,9 @@ export function CheckoutScreen({
   /** Distance to the delivery address, when known — sets the delivery fee. */
   distanceKm?: number | null;
   placedAtLabel: string;
+  /** Quoted from the live kitchen queue and this order's distance — see
+   *  `lib/checkout/arrival-estimate.ts`. */
+  arrivalEstimate: string;
 }) {
   // Seeded from the fulfilment rather than from the global default, which is
   // cash on delivery — not an option when the customer is collecting.
@@ -146,6 +150,7 @@ export function CheckoutScreen({
                 totals={totals}
                 paymentMethod={paymentMethod}
                 wallet={wallet}
+                arrivalEstimate={arrivalEstimate}
               />
             </div>
           </div>

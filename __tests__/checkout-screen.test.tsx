@@ -94,6 +94,9 @@ function renderCheckout(
         lines={lines}
         fulfilment="delivery"
         placedAtLabel="Aug 30, 6:40 PM"
+        // Read on the server from the live kitchen queue and this order's
+        // distance (issue #106). It was the fixed string "35–45 min".
+        arrivalEstimate="30–40 min"
         {...overrides}
       />
     </ToastProvider>,
