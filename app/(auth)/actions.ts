@@ -439,7 +439,7 @@ const EMPLOYEE_ROLE_REDIRECTS: Record<string, string> = {
 const DEFAULT_EMPLOYEE_REDIRECT = "/manage/dashboard";
 
 /**
- * SAS1: authenticate an employee (Staff, Business Owner, or Rider).
+ * SAS1: authenticate an employee (Manager, Staff or Rider).
  *
  * Mirrors the customer login pattern per PM direction — employees get
  * their own Supabase Auth accounts, linked via employee.employee_id =
@@ -450,13 +450,6 @@ const DEFAULT_EMPLOYEE_REDIRECT = "/manage/dashboard";
  * AND `npm run supabase:types` is re-run, this will show real TypeScript
  * errors on the .from("employee") calls below. That's expected this
  * time — not the earlier never[] bug.
- *
- * Staff-ID sign-in (e.g. "YFR-0142") is validated client-side by
- * employeeLoginSchema but not wired here — there's no staff_id column on
- * employee, and unlike email, the PM hasn't confirmed one's coming.
- * Guessing at that lookup would either error or, worse, silently match
- * the wrong person, so staff-ID attempts get turned away with a clear
- * message instead.
  */
 export async function loginEmployee(
   values: EmployeeLoginValues

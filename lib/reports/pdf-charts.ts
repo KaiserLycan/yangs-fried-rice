@@ -33,6 +33,11 @@ export type ChartBar = {
 };
 
 const TITLE_GAP = 6;
+/** Narrowest bar slot (mm) that fits a value label written flat. */
+const MIN_FLAT_LABEL_SLOT = 11;
+/** Headroom above the tallest bar for its value label. */
+const FLAT_LABEL_ROOM = 6;
+const ROTATED_LABEL_ROOM = 14;
 
 function drawTitle(doc: jsPDF, title: string, x: number, y: number) {
   doc.setFont("helvetica", "bold");
@@ -45,8 +50,8 @@ function drawTitle(doc: jsPDF, title: string, x: number, y: number) {
  * A vertical bar chart — sales over time.
  *
  * With many bars the period labels would run together, so only every nth is
- * printed; value labels are dropped entirely once a bar is too thin to hold
- * one, the same rule the on-screen chart follows.
+ * printed. Every bar keeps its value label; once a bar is too thin to hold
+ * one flat, the label is rotated to run up from the bar instead (P38).
  */
 export function drawBarChart(
   doc: jsPDF,
@@ -55,7 +60,9 @@ export function drawBarChart(
   const { x, y, width, height, title, bars } = options;
   drawTitle(doc, title, x, y);
 
-  const plotTop = y + TITLE_GAP + 6; // room for value labels above the tallest bar
+  const slot = bars.length > 0 ? width / bars.length : width;
+  const rotateValues = slot < MIN_FLAT_LABEL_SLOT;
+  const plotTop = y + TITLE_GAP + (rotateValues ? ROTATED_LABEL_ROOM : FLAT_LABEL_ROOM);
   const plotBottom = y + TITLE_GAP + height;
   const plotHeight = plotBottom - plotTop;
 
@@ -72,10 +79,8 @@ export function drawBarChart(
   }
 
   const max = Math.max(...bars.map((b) => b.value), 0);
-  const slot = width / bars.length;
   const barWidth = Math.min(slot * 0.7, 18);
   const labelEvery = Math.max(1, Math.ceil(bars.length / 12));
-  const showValues = slot >= 11;
 
   bars.forEach((bar, i) => {
     const barHeight = max > 0 ? (bar.value / max) * plotHeight : 0;
@@ -87,11 +92,15 @@ export function drawBarChart(
       doc.rect(bx, by, barWidth, barHeight, "F");
     }
 
-    if (showValues) {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(6.5);
-      doc.setTextColor(...CHART_COLORS.highlight);
-      doc.text(bar.valueLabel ?? String(bar.value), bx + barWidth / 2, by - 1.5, { align: "center" });
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(6.5);
+    doc.setTextColor(...CHART_COLORS.highlight);
+    const valueLabel = bar.valueLabel ?? String(bar.value);
+    if (rotateValues) {
+      // Reads bottom to top, starting just above the bar.
+      doc.text(valueLabel, bx + barWidth / 2 + 1, by - 1.5, { angle: 90 });
+    } else {
+      doc.text(valueLabel, bx + barWidth / 2, by - 1.5, { align: "center" });
     }
 
     if (i % labelEvery === 0) {
