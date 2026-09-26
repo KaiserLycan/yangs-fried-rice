@@ -39,6 +39,12 @@ import {
   type FieldErrors,
 } from "@/lib/validation/field-errors";
 import type { Tables, TablesUpdate } from "@/types/database.types";
+import {
+  IMAGE_BUCKETS,
+  imageExtensionFor,
+  imageUploadProblem,
+} from "@/lib/storage/stored-image";
+import { removeStoredImage } from "@/lib/storage/remove-stored-image";
 
 // ---------------------------------------------------------------------------
 // Shared types
@@ -752,10 +758,20 @@ export async function deleteEmployee(
   }
 
   const supabase = createClient();
+  const { data: photoRow } = await supabase
+    .from("employee")
+    .select("profileImage_URL")
+    .eq("employee_id", employeeId)
+    .maybeSingle();
+
   const { error: deleteError } = await supabase
     .from("employee")
     .delete()
     .eq("employee_id", employeeId);
+
+  if (!deleteError) {
+    await removeStoredImage(IMAGE_BUCKETS.employeeAvatar, photoRow?.profileImage_URL);
+  }
 
   try {
     // Delete the Auth user so the email can be reused.
@@ -766,6 +782,71 @@ export async function deleteEmployee(
   }
 
   return { data: { employee_id: employeeId }, error: null };
+}
+
+/**
+ * Set an employee's profile photo.
+ *
+ * Requires: the employee themselves, or a manager. It is the one upload path
+ * for staff photos — the profile screen's avatar and the manager's employee
+ * dialog both call it — so validation and cleanup live in one place.
+ *
+ * Runs on the server with the service role, after the check above, because
+ * a manager writing into another employee's photo is exactly the case bucket
+ * policies scoped to "your own file" would refuse. The previous photo is
+ * removed once the new URL is saved; each upload gets a unique name, so the
+ * old file was otherwise left in the bucket for good.
+ */
+export async function setEmployeePhoto(
+  employeeId: string,
+  formData: FormData,
+): Promise<ActionResult<{ imageUrl: string }>> {
+  const caller = await getCurrentEmployee();
+  if (!caller.data) return { data: null, error: caller.error };
+
+  const callerRole = resolveEmployeeRole(caller.data.role);
+  const isSelf = caller.data.employee_id === employeeId;
+  if (!isSelf && !(callerRole && isManager(callerRole))) {
+    return { data: null, error: "You do not have permission to perform this action." };
+  }
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { data: null, error: "Choose a photo to upload." };
+  }
+  const problem = imageUploadProblem(file);
+  if (problem) return { data: null, error: problem };
+
+  const admin = createAdminClient();
+  const { data: before, error: readError } = await admin
+    .from("employee")
+    .select("profileImage_URL")
+    .eq("employee_id", employeeId)
+    .maybeSingle();
+  if (readError) return { data: null, error: readError.message };
+  if (!before) return { data: null, error: "Employee not found." };
+
+  const filePath = `employee-${employeeId}-${Date.now()}.${imageExtensionFor(file)}`;
+  const { error: uploadError } = await admin.storage
+    .from(IMAGE_BUCKETS.employeeAvatar)
+    .upload(filePath, file, { contentType: file.type });
+  if (uploadError) return { data: null, error: uploadError.message };
+
+  const {
+    data: { publicUrl },
+  } = admin.storage.from(IMAGE_BUCKETS.employeeAvatar).getPublicUrl(filePath);
+
+  const { error: updateError } = await admin
+    .from("employee")
+    .update({ profileImage_URL: publicUrl })
+    .eq("employee_id", employeeId);
+  if (updateError) {
+    await removeStoredImage(IMAGE_BUCKETS.employeeAvatar, publicUrl);
+    return { data: null, error: updateError.message };
+  }
+
+  await removeStoredImage(IMAGE_BUCKETS.employeeAvatar, before.profileImage_URL);
+  return { data: { imageUrl: publicUrl }, error: null };
 }
 
 // ---------------------------------------------------------------------------
@@ -881,12 +962,19 @@ export async function deleteCustomer(
   if (!auth.data) return { data: null, error: auth.error };
 
   const supabase = createClient();
+  const { data: photoRow } = await supabase
+    .from("customer")
+    .select("profileImage_URL")
+    .eq("customer_id", customerId)
+    .maybeSingle();
+
   const { error: deleteError } = await supabase
     .from("customer")
     .delete()
     .eq("customer_id", customerId);
 
   if (deleteError) return { data: null, error: deleteError.message };
+  await removeStoredImage(IMAGE_BUCKETS.customerAvatar, photoRow?.profileImage_URL);
 
   try {
     // Delete the Auth user so the email can be reused.

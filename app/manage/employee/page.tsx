@@ -11,12 +11,14 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { Tooltip } from "@/components/ui/tooltip";
 import { SHORTCUTS, useShortcut } from "@/lib/hooks/use-shortcut";
+import { DROPDOWN_FOCUS_RING, useDropdown } from "@/lib/hooks/use-dropdown";
 import type { FieldErrors } from "@/lib/validation/field-errors";
 import { 
   getAllEmployees, 
   createEmployee, 
   deleteEmployee, 
-  updateEmployeeDetails 
+  updateEmployeeDetails,
+  setEmployeePhoto,
 } from "@/lib/actions/admin";
 import { normalizeEmployeeRoleLabel, resolveEmployeeRole, roleDisplayLabel, type EmployeeRole } from "@/lib/auth/roles";
 
@@ -66,6 +68,7 @@ function ManageEmployeeInner() {
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [roleFilter, setRoleFilter] = useState("All Roles");
   const [roleFilterOpen, setRoleFilterOpen] = useState(false);
+  const roleFilterMenu = useDropdown({ open: roleFilterOpen, onOpenChange: setRoleFilterOpen });
   const [nameSort, setNameSort] = useState<"asc" | "desc" | "none">("none");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   
@@ -88,7 +91,7 @@ function ManageEmployeeInner() {
     const result = await getAllEmployees();
     
     if (result.error) {
-      showToast(`Failed to load employees: ${result.error}`);
+      showToast(`Failed to load employees: ${result.error}`, "error");
     } else if (result.data) {
       // Safely map backend data to our UI schema
       // Safely map backend data to our UI schema
@@ -120,6 +123,24 @@ function ManageEmployeeInner() {
     loadEmployees();
   }, [loadEmployees]);
 
+  /**
+   * Upload the photo picked in the modal, after the employee row is saved —
+   * a new hire has no id to attach it to before then. A failure here is
+   * reported but does not undo the save: the details are in, and the photo
+   * can be picked again.
+   */
+  const uploadPickedPhoto = async (employeeId: string, photoFile: File | null | undefined) => {
+    if (!photoFile) return true;
+    const formData = new FormData();
+    formData.append("file", photoFile);
+    const result = await setEmployeePhoto(employeeId, formData);
+    if (result.error !== null) {
+      showToast(`Saved, but the photo didn't upload: ${result.error}`, "error");
+      return false;
+    }
+    return true;
+  };
+
   // Execute Backend Mutations
   const handleAddConfirm = async () => {
     if (!employeeToAdd) return;
@@ -147,13 +168,16 @@ function ManageEmployeeInner() {
     });
 
     if (result.error) {
-      showToast(`Failed to add employee: ${result.error}`);
+      showToast(`Failed to add employee: ${result.error}`, "error");
       // Back to the form, with each rejected field marked.
       setModalFieldErrors(result.fieldErrors ?? null);
       setEmployeeToAdd(null);
     } else {
       setModalFieldErrors(null);
-      showToast("Employee added successfully.");
+      const photoSaved = result.data
+        ? await uploadPickedPhoto(result.data.employee_id, employeeToAdd.photoFile)
+        : true;
+      if (photoSaved) showToast("Employee added successfully.", "success");
       await loadEmployees(); // Refresh the list from the DB
       setEmployeeToAdd(null);
       setIsAddModalOpen(false);
@@ -181,12 +205,13 @@ function ManageEmployeeInner() {
     });
 
     if (result.error) {
-      showToast(`Failed to update employee: ${result.error}`);
+      showToast(`Failed to update employee: ${result.error}`, "error");
       setModalFieldErrors(result.fieldErrors ?? null);
       setEmployeeToEdit(null);
     } else {
       setModalFieldErrors(null);
-      showToast("Employee details updated successfully.");
+      const photoSaved = await uploadPickedPhoto(selectedEmployee.id, employeeToEdit.photoFile);
+      if (photoSaved) showToast("Employee details updated successfully.", "success");
       await loadEmployees();
       setEmployeeToEdit(null);
       setSelectedEmployee(null);
@@ -202,9 +227,9 @@ function ManageEmployeeInner() {
     const result = await deleteEmployee(employeeToDelete.id);
     
     if (result.error) {
-      showToast(`Failed to delete employee: ${result.error}`);
+      showToast(`Failed to delete employee: ${result.error}`, "error");
     } else {
-      showToast("Employee account deleted successfully.");
+      showToast("Employee account deleted successfully.", "success");
       setEmployees(prev => prev.filter(e => e.id !== employeeToDelete.id));
       setEmployeeToDelete(null);
       setSelectedEmployee(null);
@@ -270,37 +295,38 @@ function ManageEmployeeInner() {
           
           {/* Role Filter */}
           <div className="relative w-full sm:w-auto">
+            <span {...roleFilterMenu.labelProps} className="sr-only">
+              Filter by role
+            </span>
             <button
-              onClick={() => setRoleFilterOpen(!roleFilterOpen)}
+              {...roleFilterMenu.triggerProps}
               className="w-full sm:w-auto h-[45px] px-4 rounded-xl border border-[#DDCDB8] bg-white text-sm flex items-center justify-between sm:justify-start gap-2 hover:bg-[#FAF5EB] transition-colors focus:outline-none focus:ring-2 focus:ring-[#E8541F]"
             >
               <div className="flex items-center gap-2">
-                <Filter className="w-[16px] h-[16px] text-[#A2938A]" />
+                <Filter aria-hidden="true" className="w-[16px] h-[16px] text-[#A2938A]" />
                 <span className="text-[#1A1210] font-medium min-w-[70px] text-left">{roleFilter}</span>
               </div>
-              <ChevronDown className="w-4 h-4 text-[#A2938A]" />
+              <ChevronDown aria-hidden="true" className="w-4 h-4 text-[#A2938A]" />
             </button>
-            
+
             {roleFilterOpen && (
-              <>
-                <div className="fixed inset-0 z-10" onClick={() => setRoleFilterOpen(false)} />
-                <div className="absolute left-0 sm:left-auto sm:right-0 top-[calc(100%+8px)] z-20 w-full sm:w-[160px] bg-white border border-[#DDCDB8] rounded-xl p-1 shadow-[0_8px_20px_rgba(26,18,16,0.08)]">
-                  {ROLES.map(role => (
-                    <button
-                      key={role}
-                      onClick={() => {
-                        setRoleFilter(role);
-                        setRoleFilterOpen(false);
-                      }}
-                      className={`w-full text-left px-3 py-2.5 rounded-lg text-[13px] transition-colors ${
-                        roleFilter === role ? "bg-[#F6E9D9] font-bold text-[#8C1C13]" : "text-[#1A1210] hover:bg-[#FAF5EB]"
-                      }`}
-                    >
-                      {role}
-                    </button>
-                  ))}
-                </div>
-              </>
+              <div {...roleFilterMenu.listProps} className="absolute left-0 sm:left-auto sm:right-0 top-[calc(100%+8px)] z-20 w-full sm:w-[160px] bg-white border border-[#DDCDB8] rounded-xl p-1 shadow-[0_8px_20px_rgba(26,18,16,0.08)]">
+                {ROLES.map(role => (
+                  <button
+                    key={role}
+                    {...roleFilterMenu.optionProps(roleFilter === role)}
+                    onClick={() => {
+                      setRoleFilter(role);
+                      roleFilterMenu.close();
+                    }}
+                    className={`w-full text-left px-3 py-2.5 rounded-lg text-[13px] transition-colors ${DROPDOWN_FOCUS_RING} ${
+                      roleFilter === role ? "bg-[#F6E9D9] font-bold text-[#8C1C13]" : "text-[#1A1210] hover:bg-[#FAF5EB]"
+                    }`}
+                  >
+                    {role}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
           <Tooltip

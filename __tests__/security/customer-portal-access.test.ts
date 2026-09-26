@@ -31,6 +31,24 @@ vi.mock("@/lib/auth/session", () => ({
 
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 
+// The action reads the caller's IP for rate limiting; there is no request
+// scope in a unit test.
+vi.mock("next/headers", () => ({
+  headers: () => new Headers({ "x-forwarded-for": "203.0.113.7" }),
+}));
+
+const checkLoginAllowed = vi.fn();
+const recordLoginFailure = vi.fn();
+vi.mock("@/lib/auth/login-rate-limit", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/auth/login-rate-limit")>();
+  return {
+    ...actual,
+    checkLoginAllowed: (...args: unknown[]) => checkLoginAllowed(...args),
+    recordLoginFailure: (...args: unknown[]) => recordLoginFailure(...args),
+    clearLoginFailures: vi.fn(),
+  };
+});
+
 import { loginCustomer } from "@/app/(auth)/actions";
 
 const credentials = { email: "admin@yangs.ph", password: "correct-password" };
@@ -39,6 +57,27 @@ describe("customer login refuses accounts that aren't customers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     signInWithPassword.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
+    checkLoginAllowed.mockResolvedValue({ allowed: true });
+  });
+
+  it("does not try the password at all while the email is locked out", async () => {
+    checkLoginAllowed.mockResolvedValue({ allowed: false, retryAfterMinutes: 9 });
+
+    const result = await loginCustomer(credentials);
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).toMatch(/Too many failed sign-in attempts.*9 minutes.*reset your password/);
+    expect(signInWithPassword).not.toHaveBeenCalled();
+    expect(checkLoginAllowed).toHaveBeenCalledWith(credentials.email, "203.0.113.7");
+  });
+
+  it("counts a wrong password against the email and IP", async () => {
+    signInWithPassword.mockResolvedValue({ data: { user: null }, error: { message: "Invalid" } });
+
+    await loginCustomer(credentials);
+
+    expect(recordLoginFailure).toHaveBeenCalledWith(credentials.email, "203.0.113.7");
   });
 
   it("signs an administrator with no customer row straight back out", async () => {

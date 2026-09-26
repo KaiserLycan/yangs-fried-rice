@@ -41,11 +41,11 @@ export function DeliveryDetailsPanel({ delivery }: { delivery: any }) {
       setConfirmRelease(false);
       if (result.success) {
         window.dispatchEvent(new CustomEvent("delivery-updated"));
-        showToast("Delivery handed back. Another rider can take it now.");
+        showToast("Delivery handed back. Another rider can take it now.", "success");
         router.push("/deliver");
         router.refresh();
       } else {
-        showToast(result.error || "Couldn't hand this delivery back.");
+        showToast(result.error || "Couldn't hand this delivery back.", "error");
       }
     });
   };

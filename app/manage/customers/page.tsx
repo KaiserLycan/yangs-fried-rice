@@ -46,7 +46,7 @@ function ManageCustomersInner() {
       const result = await getAllCustomers();
       
       if (result.error) {
-        showToast(`Failed to load customers: ${result.error}`);
+        showToast(`Failed to load customers: ${result.error}`, "error");
       } else if (result.data) {
         // Safely map backend data to our UI schema
         const mappedData: CustomerData[] = result.data.map((c: any) => ({
@@ -78,9 +78,9 @@ function ManageCustomersInner() {
     const result = await deleteCustomer(customerToDelete.id);
     
     if (result.error) {
-      showToast(`Failed to delete customer: ${result.error}`);
+      showToast(`Failed to delete customer: ${result.error}`, "error");
     } else {
-      showToast("Customer account deleted successfully.");
+      showToast("Customer account deleted successfully.", "success");
       // Remove from local state instantly to update the UI
       setCustomers(prev => prev.filter(c => c.id !== customerToDelete.id));
       setCustomerToDelete(null);

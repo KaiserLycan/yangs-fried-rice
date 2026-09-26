@@ -15,6 +15,13 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { Tables, TablesInsert } from "@/types/database.types";
 import { groupByFrequency } from "./reports-utils";
+import { MENU_SATISFACTION_REPORT } from "@/lib/reports/report-types";
+import {
+  drawBarChart,
+  drawHorizontalBarChart,
+  ensureSpace,
+  type ChartBar,
+} from "@/lib/reports/pdf-charts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -560,6 +567,38 @@ const PDF_COLORS = {
   white: [255, 255, 255] as [number, number, number],
 };
 
+/** "12.3k" / "850" — short enough to sit above a narrow bar. */
+function compactAmount(amount: number): string {
+  return amount >= 1000 ? `${(amount / 1000).toFixed(1)}k` : amount.toFixed(0);
+}
+
+/**
+ * One bar per breakdown row. Daily periods are ISO dates, shown as the
+ * weekday with Fri–Sun highlighted, exactly like the dashboard chart; other
+ * frequencies keep their period label.
+ */
+function salesChartBars(
+  breakdown: { period: string; totalRevenue: number }[],
+  frequency: string,
+): ChartBar[] {
+  return breakdown.map((row) => {
+    const bar: ChartBar = {
+      label: row.period,
+      value: row.totalRevenue,
+      valueLabel: compactAmount(row.totalRevenue),
+    };
+    if (frequency !== "daily") return bar;
+    const date = new Date(`${row.period}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return bar;
+    const day = date.getDay();
+    return {
+      ...bar,
+      label: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      highlight: day === 0 || day === 5 || day === 6,
+    };
+  });
+}
+
 function formatPeso(amount: number): string {
   return `PHP ${amount.toLocaleString("en-PH", {
     minimumFractionDigits: 2,
@@ -721,20 +760,31 @@ export async function generateSalesPDF(
     ],
   ]);
 
-  // 3. Table Title
+  // 3. Chart — the same picture as the screen, so the export is not just a table.
+  const chartEndY = drawBarChart(doc, {
+    x: 14,
+    y: nextY + 7,
+    width: 182,
+    height: 55,
+    title: `SALES PER ${frequencyLabel.toUpperCase()} (PHP)`,
+    bars: salesChartBars(breakdown, frequency),
+  });
+
+  // 4. Table Title
+  const tableY = ensureSpace(doc, chartEndY, 30);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10.5);
   doc.setTextColor(...PDF_COLORS.black);
   doc.text(
     `PARTICULARS OF SALES BREAKDOWN (${frequencyLabel.toUpperCase()})`,
     14,
-    nextY + 7,
+    tableY,
   );
 
-  // 4. Table with autoTable
+  // 5. Table with autoTable
   if (breakdown.length > 0) {
     autoTable(doc, {
-      startY: nextY + 11,
+      startY: tableY + 4,
       head: [["#", "PERIOD", "ORDERS", "TOTAL SALES"]],
       body: breakdown.map((row, idx) => [
         (idx + 1).toString(),
@@ -771,7 +821,7 @@ export async function generateSalesPDF(
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.setTextColor(...PDF_COLORS.muted);
-    doc.text("No transactions found for this period.", 14, nextY + 16);
+    doc.text("No transactions found for this period.", 14, tableY + 9);
   }
 
   pdfFooter(doc);
@@ -785,7 +835,10 @@ export async function generateSalesPDF(
 // ---------------------------------------------------------------------------
 
 /**
- * Generate a PDF for the platform performance report.
+ * Generate the PDF for the Menu & Customer Satisfaction report — the only
+ * non-sales view on /manage/reports. The function keeps its old name because
+ * the API routes call it; the document itself is titled after the report the
+ * manager picked, not "Platform Performance Report".
  * Returns base64-encoded data URI string.
  *
  * Requires: admin or manager.
@@ -802,7 +855,7 @@ export async function generatePerformancePDF(
   const dateLabel = `${data.dateRange.start_date} to ${data.dateRange.end_date}`;
 
   // 1. Header banner
-  drawReportHeader(doc, "Platform Performance Report", dateLabel);
+  drawReportHeader(doc, `${MENU_SATISFACTION_REPORT} Report`, dateLabel);
 
   // 2. 2-column key-value metrics grid
   const trendSign = data.revenueTrend.percentChange >= 0 ? "+" : "";
@@ -856,20 +909,55 @@ export async function generatePerformancePDF(
     ],
   ]);
 
-  // 3. Table Title
+  // 3. Charts — top sellers, then how customers rated the food.
+  const productsY = ensureSpace(doc, nextY + 7, 20 + data.topSellingProducts.length * 7);
+  const productsEndY = drawHorizontalBarChart(doc, {
+    x: 14,
+    y: productsY,
+    width: 182,
+    title: "TOP SELLERS BY QUANTITY",
+    bars: data.topSellingProducts.map((p, i) => ({
+      label: `${p.rank}. ${p.productName}`,
+      value: p.quantitySold,
+      highlight: i === 0,
+    })),
+  });
+
+  const ratingsY = ensureSpace(doc, productsEndY, 20 + 5 * 7);
+  const ratingsEndY = drawHorizontalBarChart(doc, {
+    x: 14,
+    y: ratingsY,
+    width: 182,
+    labelWidth: 30,
+    title:
+      data.customerSatisfaction.averageRating === null
+        ? "CUSTOMER RATINGS"
+        : `CUSTOMER RATINGS (AVERAGE ${data.customerSatisfaction.averageRating} / 5)`,
+    bars:
+      data.customerSatisfaction.totalReviews > 0
+        ? data.customerSatisfaction.distribution.map((d) => ({
+            label: `${d.rating} star${d.rating === 1 ? "" : "s"}`,
+            value: d.count,
+            highlight: d.rating === 5,
+          }))
+        : [],
+  });
+
+  // 4. Table Title
+  const tableY = ensureSpace(doc, ratingsEndY, 30);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10.5);
   doc.setTextColor(...PDF_COLORS.black);
   doc.text(
     `TOP ${data.topSellingProducts.length} SELLING PRODUCTS`,
     14,
-    nextY + 7,
+    tableY,
   );
 
-  // 4. Table with autoTable
+  // 5. Table with autoTable
   if (data.topSellingProducts.length > 0) {
     autoTable(doc, {
-      startY: nextY + 11,
+      startY: tableY + 4,
       head: [["#", "PRODUCT NAME", "QUANTITY SOLD"]],
       body: data.topSellingProducts.map((p) => [
         p.rank.toString(),
@@ -904,7 +992,7 @@ export async function generatePerformancePDF(
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.setTextColor(...PDF_COLORS.muted);
-    doc.text("No product sales found for this period.", 14, nextY + 16);
+    doc.text("No product sales found for this period.", 14, tableY + 9);
   }
 
   pdfFooter(doc);

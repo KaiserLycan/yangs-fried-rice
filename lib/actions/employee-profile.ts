@@ -3,6 +3,8 @@
 import type { TablesUpdate } from "@/types/database.types";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { IMAGE_BUCKETS } from "@/lib/storage/stored-image";
+import { removeStoredImage } from "@/lib/storage/remove-stored-image";
 import { isManager, resolveEmployeeRole, type EmployeeRole } from "@/lib/auth/roles";
 import { toInternationalMobile } from "@/lib/validation/phone";
 import {
@@ -405,6 +407,13 @@ export async function deleteMyEmployeeAccount(): Promise<
     };
   }
 
+  // Read before the row goes: the photo is only reachable through it.
+  const { data: photoRow } = await supabase
+    .from("employee")
+    .select("profileImage_URL")
+    .eq("employee_id", caller.employeeId)
+    .maybeSingle();
+
   const { error: riderError } = await supabase
     .from("rider")
     .delete()
@@ -433,6 +442,7 @@ export async function deleteMyEmployeeAccount(): Promise<
     };
   }
 
+  await removeStoredImage(IMAGE_BUCKETS.employeeAvatar, photoRow?.profileImage_URL);
   await supabase.auth.signOut();
   return { success: true, data: undefined };
 }

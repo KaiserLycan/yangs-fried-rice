@@ -9,6 +9,8 @@ import {
   releaseRefusalReason,
 } from "@/lib/orders/delivery-assignment";
 import { revalidatePath } from "next/cache";
+import { IMAGE_BUCKETS, imageExtensionFor } from "@/lib/storage/stored-image";
+import { removeStoredImage } from "@/lib/storage/remove-stored-image";
 
 /**
  * Storage bucket for proof-of-delivery photos. Must be created manually
@@ -17,7 +19,7 @@ import { revalidatePath } from "next/cache";
  * for itself; Storage buckets are a dashboard/infra step, not a schema
  * migration.
  */
-const PROOF_BUCKET = "proof-of-delivery";
+const PROOF_BUCKET = IMAGE_BUCKETS.proofOfDelivery;
 const MAX_PROOF_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 const ALLOWED_PROOF_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
@@ -504,8 +506,9 @@ export async function markDelivered(
     };
   }
 
-  const fileExt = proofFile.name.split(".").pop() ?? "jpg";
-  const filePath = `${deliveryId}-${Date.now()}.${fileExt}`;
+  // The modal compresses to WebP, so the original filename's extension is
+  // usually wrong about what is inside.
+  const filePath = `${deliveryId}-${Date.now()}.${imageExtensionFor(proofFile)}`;
 
   const { error: uploadError } = await supabase.storage
     .from(PROOF_BUCKET)
@@ -532,6 +535,8 @@ export async function markDelivered(
     .eq("delivery_id", deliveryId);
 
   if (updateError) {
+    // Nothing points at the photo, and a retry uploads a fresh one.
+    await removeStoredImage(PROOF_BUCKET, publicUrl);
     return {
       success: false,
       error:

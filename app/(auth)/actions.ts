@@ -3,6 +3,13 @@
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createSession, deleteSession } from "@/lib/auth/session";
+import {
+  checkLoginAllowed,
+  clearLoginFailures,
+  clientIpFrom,
+  lockedOutMessage,
+  recordLoginFailure,
+} from "@/lib/auth/login-rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { homePathForRole, resolveEmployeeRole } from "@/lib/auth/roles";
 import { addressForGeocoding, validateNcrAddress } from "@/lib/address/validate-ncr";
@@ -239,6 +246,14 @@ export async function loginCustomer(
   }
   const { email, password } = parsed.data;
 
+  // Checked before the password is tried, so a locked email gets no answer
+  // about whether this guess was right.
+  const ip = clientIpFrom(headers().get("x-forwarded-for"));
+  const gate = await checkLoginAllowed(email, ip);
+  if (!gate.allowed) {
+    return { success: false, error: lockedOutMessage(gate) };
+  }
+
   const supabase = createClient();
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
@@ -246,10 +261,13 @@ export async function loginCustomer(
   });
 
   if (error || !data.user) {
+    await recordLoginFailure(email, ip);
     // Same generic message either way — don't reveal whether the email
     // exists.
     return { success: false, error: "Incorrect email or password." };
   }
+  // The password was right, whatever happens next.
+  await clearLoginFailures(email);
 
   // A valid Supabase login is not enough: the customer portal is for
   // accounts with a `customer` row. Admins, staff and riders have auth
@@ -367,6 +385,10 @@ export async function resetPassword(
     return { success: false, error: error.message };
   }
 
+  // Resetting is the documented way out of a sign-in lockout, so the new
+  // password works straight away instead of after the window expires.
+  if (user.email) await clearLoginFailures(user.email);
+
   // The recovery session is a way in that was mailed to an inbox. Once the
   // password is set, end it so the new one has to be typed — and so a shared
   // or forwarded email does not leave someone signed in.
@@ -445,14 +467,22 @@ export async function loginEmployee(
   }
   const { identifier, password } = parsed.data;
 
+  const ip = clientIpFrom(headers().get("x-forwarded-for"));
+  const gate = await checkLoginAllowed(identifier, ip);
+  if (!gate.allowed) {
+    return { success: false, error: lockedOutMessage(gate) };
+  }
+
   const supabase = createClient();
 
   const { data: authData, error: authError } =
     await supabase.auth.signInWithPassword({ email: identifier, password });
 
   if (authError || !authData.user) {
+    await recordLoginFailure(identifier, ip);
     return { success: false, error: EMPLOYEE_SIGN_IN_FAILED };
   }
+  await clearLoginFailures(identifier);
 
   const { data: employee, error: employeeError } = await supabase
     .from("employee")

@@ -11,6 +11,10 @@ import {
   type CategoryInput,
 } from "@/lib/validation/menu";
 import type { Tables, TablesInsert, TablesUpdate } from "@/types/database.types";
+import { getCurrentEmployee } from "@/lib/actions/admin";
+import { canAccessManage, resolveEmployeeRole } from "@/lib/auth/roles";
+import { IMAGE_BUCKETS } from "@/lib/storage/stored-image";
+import { removeStoredImage } from "@/lib/storage/remove-stored-image";
 
 // Shared types
 
@@ -272,6 +276,19 @@ export async function updateProduct(
 
   const changes: TablesUpdate<"product"> = { ...parsed.data };
 
+  // Read the image being replaced *before* the update, so it can be removed
+  // once the new one is saved. Every edit uploads a fresh file under a new
+  // name, and without this the old one stayed in the bucket forever.
+  let previousImageUrl: string | null = null;
+  if (changes.image_url !== undefined) {
+    const { data: before } = await supabase
+      .from("product")
+      .select("image_url")
+      .eq("product_id", productId)
+      .maybeSingle();
+    previousImageUrl = before?.image_url ?? null;
+  }
+
   const { data, error } = await supabase
     .from("product")
     .update(changes)
@@ -287,6 +304,9 @@ export async function updateProduct(
       };
     }
     return { data: null, error: error.message };
+  }
+  if (previousImageUrl && previousImageUrl !== data.image_url) {
+    await removeStoredImage(IMAGE_BUCKETS.menu, previousImageUrl);
   }
   revalidateMenuPaths();
   return { data, error: null };
@@ -308,20 +328,67 @@ export async function updateProduct(
  *
  * `is_available` is NOT the same thing: that is a temporary "we've run out"
  * flag the kitchen flips back.
+ *
+ * The photo does not survive the archive. Only the menu listing reads
+ * `image_url`, and it skips archived rows, so the file would be unreachable
+ * storage the bucket pays for indefinitely. The column is cleared with it so
+ * no row is left pointing at a deleted object.
  */
 export async function deleteProduct(
   productId: string,
 ): Promise<ActionResult<{ product_id: string }>> {
   const supabase = createClient();
 
+  const { data: before } = await supabase
+    .from("product")
+    .select("image_url")
+    .eq("product_id", productId)
+    .maybeSingle();
+
   const { error } = await supabase
     .from("product")
-    .update({ archived_at: new Date().toISOString(), is_available: false })
+    .update({
+      archived_at: new Date().toISOString(),
+      is_available: false,
+      image_url: null,
+    })
     .eq("product_id", productId);
 
   if (error) return { data: null, error: error.message };
+  await removeStoredImage(IMAGE_BUCKETS.menu, before?.image_url);
   revalidateMenuPaths();
   return { data: { product_id: productId }, error: null };
+}
+
+/**
+ * Remove a menu photo that was uploaded but never saved to a product — the
+ * product insert or update failed after the browser had already put the
+ * file in the bucket.
+ *
+ * Callable from the browser, so it checks two things before touching the
+ * service role: the caller works the menu (manager or staff), and no product
+ * row references the URL. The second check is what stops this being a way
+ * to delete a live menu photo by passing its URL.
+ */
+export async function discardUnsavedMenuImage(
+  imageUrl: string,
+): Promise<ActionResult<null>> {
+  const caller = await getCurrentEmployee();
+  const role = caller.data ? resolveEmployeeRole(caller.data.role) : null;
+  if (!role || !canAccessManage(role)) {
+    return { data: null, error: "You do not have permission to do that." };
+  }
+
+  const supabase = createClient();
+  const { count, error } = await supabase
+    .from("product")
+    .select("product_id", { count: "exact", head: true })
+    .eq("image_url", imageUrl);
+  if (error) return { data: null, error: error.message };
+  if ((count ?? 0) > 0) return { data: null, error: null };
+
+  await removeStoredImage(IMAGE_BUCKETS.menu, imageUrl);
+  return { data: null, error: null };
 }
 
 // Toggle product availability

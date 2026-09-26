@@ -2,6 +2,12 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  IMAGE_BUCKETS,
+  imageExtensionFor,
+  imageUploadProblem,
+} from "@/lib/storage/stored-image";
+import { removeStoredImage } from "@/lib/storage/remove-stored-image";
 import { addressForGeocoding, outsideDeliveryRadiusMessage } from "@/lib/address/validate-ncr";
 import {
   ADDRESS_COLUMNS,
@@ -531,6 +537,13 @@ export async function deleteMyAccount(): Promise<RouterResult<undefined>> {
 
   const userId = user.id;
 
+  // Read before the row goes: the photo is only reachable through it.
+  const { data: photoRow } = await supabase
+    .from("customer")
+    .select("profileImage_URL")
+    .eq("customer_id", userId)
+    .maybeSingle();
+
   await supabase.from("order").update({ customer_id: null }).eq("customer_id", userId);
   await supabase.from("review").update({ customer_id: null }).eq("customer_id", userId);
   await supabase
@@ -572,6 +585,7 @@ export async function deleteMyAccount(): Promise<RouterResult<undefined>> {
     };
   }
 
+  await removeStoredImage(IMAGE_BUCKETS.customerAvatar, photoRow?.profileImage_URL);
   await supabase.auth.signOut();
 
   return { data: undefined, error: null };
@@ -590,20 +604,32 @@ export async function uploadProfileImage(formData: FormData) {
 
   if (!user) return { error: "Not signed in" };
 
-  const fileExt = file.name.split(".").pop();
-  const filePath = `${user.id}/${Date.now()}.${fileExt}`;
+  const problem = imageUploadProblem(file);
+  if (problem) return { error: problem };
+
+  // The photo being replaced, removed once the new one is saved. The path is
+  // unique per upload (so a cached page never shows a half-replaced file),
+  // which also meant `upsert` never had anything to overwrite and every
+  // change left the previous photo behind.
+  const { data: before } = await supabase
+    .from("customer")
+    .select("profileImage_URL")
+    .eq("customer_id", user.id)
+    .maybeSingle();
+
+  const filePath = `${user.id}/${Date.now()}.${imageExtensionFor(file)}`;
 
   const { error: uploadError } = await supabase.storage
-    .from("avatars")
+    .from(IMAGE_BUCKETS.customerAvatar)
     .upload(filePath, file, {
       cacheControl: "3600",
-      upsert: true,
+      contentType: file.type,
     });
 
   if (uploadError) return { error: uploadError.message };
 
   const { data: publicUrlData } = supabase.storage
-    .from("avatars")
+    .from(IMAGE_BUCKETS.customerAvatar)
     .getPublicUrl(filePath);
 
   const publicUrl = publicUrlData.publicUrl;
@@ -613,7 +639,12 @@ export async function uploadProfileImage(formData: FormData) {
     .update({ profileImage_URL: publicUrl })
     .eq("customer_id", user.id);
 
-  if (updateError) return { error: updateError.message };
+  if (updateError) {
+    await removeStoredImage(IMAGE_BUCKETS.customerAvatar, publicUrl);
+    return { error: updateError.message };
+  }
+
+  await removeStoredImage(IMAGE_BUCKETS.customerAvatar, before?.profileImage_URL);
 
   revalidatePath("/", "layout");
 

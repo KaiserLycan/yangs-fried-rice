@@ -61,14 +61,14 @@ export function EmployeePersonalDetailsCard({
         const json = await res.json();
 
         if (!res.ok) {
-          showToast(json.error ?? "Could not save your personal details.");
+          showToast(json.error ?? "Could not save your personal details.", "error");
           return json.fieldErrors ? { fieldErrors: json.fieldErrors } : false;
         }
 
-        showToast("Personal details saved.");
+        showToast("Personal details saved.", "success");
         router.refresh();
       } catch {
-        showToast("Could not save your personal details. Check your connection.");
+        showToast("Could not save your personal details. Check your connection.", "error");
         return false;
       }
     },

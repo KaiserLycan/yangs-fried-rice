@@ -8,8 +8,10 @@ import { cn } from "@/lib/utils";
  *
  * DESIGNER: there is no Figma frame for this. It is derived from the error
  * banner (`components/ui/alert.tsx`) — same radius, same padding, same text
- * size and leading — and now shares its tones and glyphs too, so a failure
- * looks the same whichever of the two announces it.
+ * size and leading, same leading glyph. It used to sit on `bg-card`, which is
+ * #FFFCF6 on a #FBF6EC page: the two differ by about 1% lightness, so the
+ * toast was all but invisible. Every tone is now a solid fill with light
+ * text, so it reads against cream, white and the dark console alike.
  *
  * It exists because most of the profile screen's controls are deliberately
  * not wired: server-side work belongs to the backend developer, so a control
@@ -18,40 +20,22 @@ import { cn } from "@/lib/utils";
  */
 
 /**
- * What kind of thing happened. Everything a toast announced used to look
- * identical, so "Added 2 items to your cart" and "Couldn't reach the server"
- * arrived in the same neutral box (issue #106).
+ * `info` is the default, so the two-dozen callers written before tones
+ * existed keep working unchanged — they just become readable.
  */
 export type ToastTone = "info" | "success" | "error";
 
 type Toast = { id: number; message: string; tone: ToastTone };
 
-/**
- * Surface, border and glyph per tone. The two coloured pairs are the ones
- * `components/ui/alert.tsx` already uses, so a failure looks the same
- * whether it lands in a banner or a toast.
- *
- * `info` is the one that changed most. It used to be `bg-card` (#FFFCF6) on
- * the app's cream background (#FBF6EC) — a three-hundredth of a shade apart,
- * which is why these were reported as invisible. It is now the ink colour
- * with cream text: unmistakable against every screen in the app, and still
- * clearly not an error.
- */
-const TONE_STYLES: Record<ToastTone, string> = {
-  info: "border-foreground bg-foreground text-background",
-  success: "border-green-700/30 bg-green-50 text-green-800",
-  error: "border-error-border bg-error-surface text-error-border",
-};
-
-const TONE_GLYPHS: Record<ToastTone, string> = {
-  info: "i",
-  success: "✓",
-  error: "!",
-};
-
 type ShowToast = (message: string, tone?: ToastTone) => void;
 
 const ToastContext = React.createContext<ShowToast | null>(null);
+
+const TONE_STYLES: Record<ToastTone, { surface: string; glyph: string }> = {
+  info: { surface: "bg-foreground text-background", glyph: "i" },
+  success: { surface: "bg-success text-white", glyph: "✓" },
+  error: { surface: "bg-error-border text-white", glyph: "!" },
+};
 
 /** How long a message stays up before removing itself. */
 const DISMISS_AFTER_MS = 4000;
@@ -77,8 +61,6 @@ export function ToastProvider({
     setToasts((current) => current.filter((toast) => toast.id !== id));
   }, []);
 
-  // `tone` is optional so every existing `showToast(message)` call keeps
-  // working and keeps looking neutral.
   const showToast = React.useCallback<ShowToast>(
     (message, tone = "info") => {
       const id = nextId.current++;
@@ -112,20 +94,17 @@ export function ToastProvider({
             key={toast.id}
             data-tone={toast.tone}
             className={cn(
-              "pointer-events-auto flex w-full max-w-[380px] items-start gap-[10px] rounded-md border px-[14px] py-[11px]",
-              "text-[13px] leading-[18.2px] shadow-[0_10px_20px_rgba(26,18,16,0.12)]",
+              "pointer-events-auto flex w-full max-w-[380px] items-start gap-[10px] rounded-md px-[14px] py-[11px]",
+              "text-[13px] leading-[18.2px] shadow-[0_10px_24px_rgba(26,18,16,0.28)]",
               "animate-in fade-in slide-in-from-bottom-2",
-              TONE_STYLES[toast.tone],
+              TONE_STYLES[toast.tone].surface,
             )}
           >
-            {/* Decorative: the message already says what happened, and the
-                live region reads it. A screen reader announcing "i" or "!"
-                before every toast would be noise. */}
             <span
               aria-hidden="true"
-              className="text-[14px] font-bold leading-[18.2px]"
+              className="flex size-[18px] shrink-0 items-center justify-center rounded-full bg-white/20 text-[11px] font-bold leading-none"
             >
-              {TONE_GLYPHS[toast.tone]}
+              {TONE_STYLES[toast.tone].glyph}
             </span>
             <p>{toast.message}</p>
           </div>
@@ -141,8 +120,11 @@ export function ToastProvider({
  * Throws rather than no-oping when the provider is missing: a control whose
  * only feedback is a toast would otherwise look wired while doing nothing at
  * all, which is the exact failure this component exists to prevent.
+ *
+ * `showToast(message)` is neutral; pass `"success"` or `"error"` as the second
+ * argument when the message reports an outcome.
  */
-export function useToast() {
+export function useToast(): ShowToast {
   const showToast = React.useContext(ToastContext);
   if (!showToast) {
     throw new Error("useToast must be used inside a ToastProvider.");
