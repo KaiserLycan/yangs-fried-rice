@@ -397,6 +397,27 @@ export type Database = {
         }
         Relationships: []
       }
+      login_attempt: {
+        Row: {
+          attempted_at: string
+          email_hash: string
+          ip: string | null
+          login_attempt_id: number
+        }
+        Insert: {
+          attempted_at?: string
+          email_hash: string
+          ip?: string | null
+          login_attempt_id?: never
+        }
+        Update: {
+          attempted_at?: string
+          email_hash?: string
+          ip?: string | null
+          login_attempt_id?: never
+        }
+        Relationships: []
+      }
       notification: {
         Row: {
           created_at: string | null

@@ -6,10 +6,11 @@ import { cn } from "@/lib/utils";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useValidatedValues } from "@/lib/forms/use-live-validation";
 import { SHORTCUTS, useShortcut } from "@/lib/hooks/use-shortcut";
+import { DROPDOWN_FOCUS_RING, useDropdown } from "@/lib/hooks/use-dropdown";
 import { FIELD_LIMITS, lengthProps } from "@/lib/validation/fields";
 import { addOnFormSchema, menuItemFormSchema } from "@/components/manage/menu/menu-modals";
 import { MenuItem, MenuCategory, MOCK_CATEGORIES } from "@/components/manage/menu/mock-menu";
-import { Dialog } from "@/components/ui/dialog";
+import { Dialog, DialogDismiss, DialogRoot } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Camera, ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
 import { compressImage } from "@/lib/image/compress";
@@ -47,6 +48,7 @@ export function MenuItemDetailModal({
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [categoryOpen, setCategoryOpen] = useState(false);
+  const categoryMenu = useDropdown({ open: categoryOpen, onOpenChange: setCategoryOpen });
 
   const [addOns, setAddOns] = useState(item.add_ons || []);
   const [newAddonName, setNewAddonName] = useState("");
@@ -150,12 +152,12 @@ export function MenuItemDetailModal({
     setIsProcessingAddOn(true);
     const res = await createAddOn(item.id, newAddonName, parseFloat(newAddonPrice));
     if (res.error) {
-      showToast(`Failed to add add-on: ${res.error}`);
+      showToast(`Failed to add add-on: ${res.error}`, "error");
     } else if (res.data) {
       setAddOns([...addOns, res.data]);
       setNewAddonName("");
       setNewAddonPrice("");
-      showToast("Add-on added.");
+      showToast("Add-on added.", "success");
     }
     setIsProcessingAddOn(false);
   };
@@ -164,23 +166,29 @@ export function MenuItemDetailModal({
     setIsProcessingAddOn(true);
     const res = await deleteAddOn(addonId);
     if (res.error) {
-      showToast(`Failed to delete add-on: ${res.error}`);
+      showToast(`Failed to delete add-on: ${res.error}`, "error");
     } else {
       setAddOns(addOns.filter(a => a.addon_id !== addonId));
-      showToast("Add-on removed.");
+      showToast("Add-on removed.", "success");
     }
     setIsProcessingAddOn(false);
   };
 
   return (
     <>
-      {/* Backdrop */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1a1210]/40 p-4">
-        {/* Click outside */}
-        <div className="absolute inset-0" onClick={onClose} />
-
+      {/* A native dialog, like the Add Item one, rather than the fixed div it
+          used to be: that gives Escape, a focus trap and an inert page, and
+          lets `isDirty` — computed above for the Save button — also guard
+          against closing with unsaved edits. A half-typed add-on counts too,
+          since closing would lose it. */}
+      <DialogRoot
+        open={isOpen}
+        onClose={onClose}
+        dirty={isDirty || newAddonName !== "" || newAddonPrice !== ""}
+        className="w-[calc(100%-2rem)] max-w-[440px] md:max-w-3xl overflow-hidden rounded-[20px] bg-[#fbf6ec] shadow-[0px_30px_35px_rgba(26,18,16,0.26)]"
+      >
         {/* Modal card */}
-        <div className="relative z-10 flex w-full max-w-[440px] md:max-w-3xl flex-col overflow-hidden rounded-[20px] bg-[#fbf6ec] shadow-[0px_30px_35px_rgba(26,18,16,0.26)]">
+        <div className="relative flex w-full flex-col">
           <div className="flex flex-col md:flex-row w-full md:h-[650px] max-h-[90vh] overflow-y-auto md:overflow-hidden">
             {/* LEFT COLUMN */}
             <div className="flex w-full md:w-1/2 flex-col md:border-r border-[#ddcdb8] md:overflow-y-auto">
@@ -251,51 +259,46 @@ export function MenuItemDetailModal({
 
             {/* Category */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
+              <label {...categoryMenu.labelProps} className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
                 Category <span className="text-[#bf4342]">*</span>
               </label>
               <div className="relative">
                 <button
-                  type="button"
-                  onClick={() => setCategoryOpen((prev) => !prev)}
-                  className="flex w-full items-center justify-between rounded-[12px] border border-[#ddcdb8] bg-white px-4 py-3 text-[15px] text-[#1a1210] outline-none transition-colors hover:bg-[#faf5eb]"
+                  {...categoryMenu.triggerProps}
+                  className={cn(
+                    "flex w-full items-center justify-between rounded-[12px] border border-[#ddcdb8] bg-white px-4 py-3 text-[15px] text-[#1a1210] transition-colors hover:bg-[#faf5eb]",
+                    DROPDOWN_FOCUS_RING,
+                  )}
                 >
                   <span>{category}</span>
                   {categoryOpen ? (
-                    <ChevronDown className="h-4 w-4 text-[#7a6a60] transition-transform" />
+                    <ChevronDown aria-hidden="true" className="h-4 w-4 text-[#7a6a60] transition-transform" />
                   ) : (
-                    <ChevronRight className="h-4 w-4 text-[#7a6a60] transition-transform" />
+                    <ChevronRight aria-hidden="true" className="h-4 w-4 text-[#7a6a60] transition-transform" />
                   )}
                 </button>
 
-                {/* Dropdown list */}
+                {/* Dropdown list — dismissed by Escape or an outside press. */}
                 {categoryOpen && (
-                  <>
-                    {/* Invisible backdrop to close dropdown on outside click */}
-                    <div
-                      className="fixed inset-0 z-10"
-                      onClick={() => setCategoryOpen(false)}
-                    />
-                    <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 rounded-[12px] border border-[#ddcdb8] bg-white p-[5px] shadow-[0px_8px_20px_rgba(26,18,16,0.12)]">
-                      {selectableCategories.map((cat) => (
-                        <button
-                          key={cat}
-                          type="button"
-                          onClick={() => {
-                            setCategory(cat as MenuCategory);
-                            setCategoryOpen(false);
-                          }}
-                          className={`flex w-full items-center rounded-[8px] px-3 py-2.5 text-left text-[14px] transition-colors ${
-                            category === cat
-                              ? "bg-[#f6e9d9] font-bold text-[#8c1c13]"
-                              : "text-[#1a1210] hover:bg-[#faf5eb]"
-                          }`}
-                        >
-                          {cat}
-                        </button>
-                      ))}
-                    </div>
-                  </>
+                  <div {...categoryMenu.listProps} className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 rounded-[12px] border border-[#ddcdb8] bg-white p-[5px] shadow-[0px_8px_20px_rgba(26,18,16,0.12)]">
+                    {selectableCategories.map((cat) => (
+                      <button
+                        key={cat}
+                        {...categoryMenu.optionProps(category === cat)}
+                        onClick={() => {
+                          setCategory(cat as MenuCategory);
+                          categoryMenu.close();
+                        }}
+                        className={`flex w-full items-center rounded-[8px] px-3 py-2.5 text-left text-[14px] transition-colors ${DROPDOWN_FOCUS_RING} ${
+                          category === cat
+                            ? "bg-[#f6e9d9] font-bold text-[#8c1c13]"
+                            : "text-[#1a1210] hover:bg-[#faf5eb]"
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>
@@ -452,14 +455,19 @@ export function MenuItemDetailModal({
 
             {/* ──────────────────────────────────────── Action buttons */}
             <div className="flex gap-[10px] pt-[6px]">
-              <button
-                onClick={onClose}
-                className="flex flex-1 items-center justify-center rounded-[12px] border border-[#ddcdb8] bg-transparent p-[14px] transition-colors hover:bg-black/5"
-              >
-                <span className="text-[14px] font-bold leading-none text-[#1a1210]">
-                  Cancel
-                </span>
-              </button>
+              <DialogDismiss fallback={onClose}>
+                {(requestClose) => (
+                  <button
+                    type="button"
+                    onClick={requestClose}
+                    className="flex flex-1 items-center justify-center rounded-[12px] border border-[#ddcdb8] bg-transparent p-[14px] transition-colors hover:bg-black/5"
+                  >
+                    <span className="text-[14px] font-bold leading-none text-[#1a1210]">
+                      Cancel
+                    </span>
+                  </button>
+                )}
+              </DialogDismiss>
               <Tooltip
                 content={
                   canSave
@@ -496,7 +504,7 @@ export function MenuItemDetailModal({
             </div>
           </div>
         </div>
-      </div>
+      </DialogRoot>
 
       {/* ──────────────────────────────────── Edit confirmation dialog */}
       <Dialog

@@ -5,11 +5,12 @@ import { MenuItem, MenuCategory, MOCK_CATEGORIES } from "@/components/manage/men
 import { cn } from "@/lib/utils";
 import { Camera, ChevronDown, ChevronRight, Trash2, Plus, Loader2 } from "lucide-react";
 import { compressImage } from "@/lib/image/compress";
-import { Dialog, DialogRoot } from "@/components/ui/dialog";
+import { Dialog, DialogDismiss, DialogRoot } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useValidatedValues } from "@/lib/forms/use-live-validation";
 import { SHORTCUTS, useShortcut } from "@/lib/hooks/use-shortcut";
+import { DROPDOWN_FOCUS_RING, useDropdown } from "@/lib/hooks/use-dropdown";
 import { FIELD_LIMITS, lengthProps } from "@/lib/validation/fields";
 
 /**
@@ -111,6 +112,7 @@ export function MenuItemModal({
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [categoryOpen, setCategoryOpen] = useState(false);
+  const categoryMenu = useDropdown({ open: categoryOpen, onOpenChange: setCategoryOpen });
   const [newAddOns, setNewAddOns] = useState<{ name: string; price: number }[]>([]);
   const [tempAddonName, setTempAddonName] = useState("");
   const [tempAddonPrice, setTempAddonPrice] = useState("");
@@ -203,10 +205,23 @@ export function MenuItemModal({
   // Safe fallback for the display label as well
   const displayCategory = category || selectableCategories[0] || "Select";
 
+  // Anything typed or picked counts: closing would throw it away.
+  const isDirty =
+    name !== "" ||
+    price !== "" ||
+    category !== "" ||
+    description !== "" ||
+    available ||
+    selectedFile !== null ||
+    newAddOns.length > 0 ||
+    tempAddonName !== "" ||
+    tempAddonPrice !== "";
+
   return (
     <DialogRoot
       open={isOpen}
       onClose={onClose}
+      dirty={isDirty && !isProcessing}
       className="w-full max-w-[440px] md:max-w-3xl overflow-hidden rounded-[20px] bg-[#fbf6ec] shadow-[0px_30px_35px_rgba(26,18,16,0.26)]"
     >
       <div className="flex flex-col md:flex-row w-full md:h-[650px] max-h-[90vh] overflow-y-auto md:overflow-hidden">
@@ -290,50 +305,47 @@ export function MenuItemModal({
 
           {/* Category — custom dropdown */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
+            <label {...categoryMenu.labelProps} className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
               Category <span className="text-[#bf4342]">*</span>
             </label>
             <div className="relative">
               <button
-                type="button"
-                onClick={() => setCategoryOpen((prev) => !prev)}
-                className="flex w-full items-center justify-between rounded-[12px] border border-[#ddcdb8] bg-white px-4 py-3 text-[15px] text-[#1a1210] outline-none transition-colors hover:bg-[#faf5eb]"
+                {...categoryMenu.triggerProps}
+                className={cn(
+                  "flex w-full items-center justify-between rounded-[12px] border border-[#ddcdb8] bg-white px-4 py-3 text-[15px] text-[#1a1210] transition-colors hover:bg-[#faf5eb]",
+                  DROPDOWN_FOCUS_RING,
+                )}
               >
                 <span>{displayCategory}</span>
                 {categoryOpen ? (
-                  <ChevronDown className="h-4 w-4 text-[#7a6a60] transition-transform" />
+                  <ChevronDown aria-hidden="true" className="h-4 w-4 text-[#7a6a60] transition-transform" />
                 ) : (
-                  <ChevronRight className="h-4 w-4 text-[#7a6a60] transition-transform" />
+                  <ChevronRight aria-hidden="true" className="h-4 w-4 text-[#7a6a60] transition-transform" />
                 )}
               </button>
 
               {categoryOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-10"
-                    onClick={() => setCategoryOpen(false)}
-                  />
-                  <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 rounded-[12px] border border-[#ddcdb8] bg-white p-[5px] shadow-[0px_8px_20px_rgba(26,18,16,0.12)]">
-                    {selectableCategories.map((cat) => (
-                      <button
-                        key={cat}
-                        type="button"
-                        onClick={() => {
-                          setCategory(cat);
-                          setCategoryOpen(false);
-                        }}
-                        className={cn(
-                          "flex w-full items-center rounded-[8px] px-3 py-2.5 text-left text-[14px] transition-colors",
-                          displayCategory === cat
-                            ? "bg-[#f6e9d9] font-bold text-[#8c1c13]"
-                            : "text-[#1a1210] hover:bg-[#faf5eb]"
-                        )}
-                      >
-                        {cat}
-                      </button>
-                    ))}
-                  </div>
-                </>
+                <div {...categoryMenu.listProps} className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 rounded-[12px] border border-[#ddcdb8] bg-white p-[5px] shadow-[0px_8px_20px_rgba(26,18,16,0.12)]">
+                  {selectableCategories.map((cat) => (
+                    <button
+                      key={cat}
+                      {...categoryMenu.optionProps(displayCategory === cat)}
+                      onClick={() => {
+                        setCategory(cat);
+                        categoryMenu.close();
+                      }}
+                      className={cn(
+                        "flex w-full items-center rounded-[8px] px-3 py-2.5 text-left text-[14px] transition-colors",
+                        DROPDOWN_FOCUS_RING,
+                        displayCategory === cat
+                          ? "bg-[#f6e9d9] font-bold text-[#8c1c13]"
+                          : "text-[#1a1210] hover:bg-[#faf5eb]"
+                      )}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
           </div>
@@ -498,31 +510,24 @@ export function MenuItemModal({
 
           {/* ──────────────────────────────────── Action buttons */}
           <div className="flex gap-[10px] pt-[6px]">
-            <button
-              onClick={() => {
-                if (!isProcessing) {
-                  // Explicitly reset form in case onClose doesn't trigger effect soon enough
-                  setName("");
-                  setPrice("");
-                  setCategory("");
-                  setDescription("");
-                  setAvailable(false);
-                  setImagePreview(null);
-                  setSelectedFile(null);
-                  setCategoryOpen(false);
-                  setNewAddOns([]);
-                  setTempAddonName("");
-                  setTempAddonPrice("");
-                  onClose();
-                }
-              }}
-              disabled={isProcessing}
-              className="flex flex-1 items-center justify-center rounded-[12px] border border-[#ddcdb8] bg-transparent p-[14px] transition-colors hover:bg-black/5 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <span className="text-[14px] font-bold leading-none text-[#1a1210]">
-                Cancel
-              </span>
-            </button>
+            {/* The form resets itself in the `isOpen` effect above once the
+                dialog is closed, so Cancel only has to ask to close. */}
+            <DialogDismiss fallback={onClose}>
+              {(requestClose) => (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!isProcessing) requestClose();
+                  }}
+                  disabled={isProcessing}
+                  className="flex flex-1 items-center justify-center rounded-[12px] border border-[#ddcdb8] bg-transparent p-[14px] transition-colors hover:bg-black/5 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span className="text-[14px] font-bold leading-none text-[#1a1210]">
+                    Cancel
+                  </span>
+                </button>
+              )}
+            </DialogDismiss>
             <Tooltip
               content={itemForm.isValid ? "Add this item to the menu" : "Complete the highlighted fields to continue."}
               shortcut={itemForm.isValid ? SHORTCUTS.submitForm.combo : undefined}

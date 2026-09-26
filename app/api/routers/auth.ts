@@ -1,6 +1,32 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentEmployee } from "@/lib/actions/admin";
+import {
+  checkLoginAllowed,
+  clearLoginFailures,
+  clientIpFrom,
+  lockedOutMessage,
+  recordLoginFailure,
+} from "@/lib/auth/login-rate-limit";
+
+/**
+ * Shared by both login routes: refuse with 429 while the email or IP is
+ * locked out, and otherwise hand back the IP for recording the outcome.
+ * The same limiter guards the sign-in forms' server actions, so the API is
+ * not a way around it.
+ */
+async function loginGate(request: Request, email: string) {
+  const ip = clientIpFrom(request.headers.get("x-forwarded-for"));
+  const gate = await checkLoginAllowed(email, ip);
+  if (gate.allowed) return { ip, refusal: null };
+  return {
+    ip,
+    refusal: NextResponse.json(
+      { error: lockedOutMessage(gate) },
+      { status: 429, headers: { "Retry-After": String(gate.retryAfterMinutes * 60) } },
+    ),
+  };
+}
 
 /**
  * POST /api/auth/employee-login
@@ -30,6 +56,9 @@ export async function employeeLogin(request: Request) {
     );
   }
 
+  const { ip, refusal } = await loginGate(request, email);
+  if (refusal) return refusal;
+
   const supabase = createClient();
   const { data: authData, error: authError } =
     await supabase.auth.signInWithPassword({
@@ -38,11 +67,13 @@ export async function employeeLogin(request: Request) {
     });
 
   if (authError || !authData.user) {
+    await recordLoginFailure(email, ip);
     return NextResponse.json(
       { error: authError?.message || "Invalid credentials." },
       { status: 401 }
     );
   }
+  await clearLoginFailures(email);
 
   // Verify the user exists in the employee table.
   const { data: employee, error: employeeError } = await supabase
@@ -107,6 +138,9 @@ export async function customerLogin(request: Request) {
     );
   }
 
+  const { ip, refusal } = await loginGate(request, email);
+  if (refusal) return refusal;
+
   const supabase = createClient();
   const { data: authData, error: authError } =
     await supabase.auth.signInWithPassword({
@@ -115,11 +149,13 @@ export async function customerLogin(request: Request) {
     });
 
   if (authError || !authData.user) {
+    await recordLoginFailure(email, ip);
     return NextResponse.json(
       { error: authError?.message || "Invalid credentials." },
       { status: 401 }
     );
   }
+  await clearLoginFailures(email);
 
   // Verify the user exists in the customer table.
   const { data: customer, error: customerError } = await supabase

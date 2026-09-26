@@ -34,7 +34,7 @@ function KdsInner() {
     });
 
     if (result.error) {
-      showToast(`Failed to load orders: ${result.error}`);
+      showToast(`Failed to load orders: ${result.error}`, "error");
     }
 
     if (result.data) {
@@ -81,9 +81,9 @@ function KdsInner() {
     const result = await updateOrderStatus(order.id, newDbStatus);
 
     if (result.error) {
-      showToast(`Failed: ${result.error}`);
+      showToast(`Failed: ${result.error}`, "error");
     } else {
-      showToast(actionCopy(type, order.orderNumber).done);
+      showToast(actionCopy(type, order.orderNumber).done, "success");
       await fetchOrders();
     }
   };

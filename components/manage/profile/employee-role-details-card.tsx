@@ -16,6 +16,7 @@
  */
 
 import { useState } from "react";
+import { DROPDOWN_FOCUS_RING, useDropdown } from "@/lib/hooks/use-dropdown";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { ChevronDown, ChevronRight } from "lucide-react";
@@ -62,6 +63,8 @@ export function EmployeeRoleDetailsCard({
 
   const [roleOpen, setRoleOpen] = useState(false);
   const [shiftOpen, setShiftOpen] = useState(false);
+  const roleMenu = useDropdown({ open: roleOpen, onOpenChange: setRoleOpen });
+  const shiftMenu = useDropdown({ open: shiftOpen, onOpenChange: setShiftOpen });
   const [roleValue, setRoleValue] = useState(roleMap[profile.role] ?? profile.role);
   const [shiftValue, setShiftValue] = useState(profile.shift);
 
@@ -85,14 +88,14 @@ export function EmployeeRoleDetailsCard({
         const json = await res.json();
 
         if (!res.ok) {
-          showToast(json.error ?? "Could not save employee details.");
+          showToast(json.error ?? "Could not save employee details.", "error");
           return json.fieldErrors ? { fieldErrors: json.fieldErrors } : false;
         }
 
-        showToast("Employee details saved.");
+        showToast("Employee details saved.", "success");
         router.refresh();
       } catch {
-        showToast("Could not save employee details. Check your connection.");
+        showToast("Could not save employee details. Check your connection.", "error");
         return false;
       }
     },
@@ -123,8 +126,10 @@ export function EmployeeRoleDetailsCard({
               <input type="hidden" name="role" value={roleValue} />
               <div className="relative">
                 <button
-                  type="button"
-                  onClick={() => setRoleOpen(!roleOpen)}
+                  {...roleMenu.triggerProps}
+                  // The card's <label htmlFor="role"> names the button.
+                  id="role"
+                  aria-labelledby={undefined}
                   className={cn(
                     "flex w-full items-center justify-between rounded-sm bg-card px-[12px] py-[13px] text-[15px] md:py-[11px] md:text-[14px]",
                     "border border-input transition-colors hover:bg-background focus:outline-none focus:ring-2 focus:ring-ring/40",
@@ -132,19 +137,19 @@ export function EmployeeRoleDetailsCard({
                   )}
                 >
                   <span>{roleValue}</span>
-                  {roleOpen ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+                  {roleOpen ? <ChevronDown aria-hidden="true" className="w-5 h-5" /> : <ChevronRight aria-hidden="true" className="w-5 h-5" />}
                 </button>
                 {roleOpen && (
                   <>
-                    <div className="fixed inset-0 z-10" onClick={() => setRoleOpen(false)} />
-                    <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 bg-card border border-input rounded-[8px] p-1 shadow-lg max-h-[160px] overflow-y-auto">
+                    <div {...roleMenu.listProps} aria-labelledby={undefined} aria-label="Role" className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 bg-card border border-input rounded-[8px] p-1 shadow-lg max-h-[160px] overflow-y-auto">
                       {ROLES.map(r => (
                         <button
                           key={r}
-                          type="button"
-                          onClick={() => { setRoleValue(r); setRoleOpen(false); }}
+                          {...roleMenu.optionProps(roleValue === r)}
+                          onClick={() => { setRoleValue(r); roleMenu.close(); }}
                           className={cn(
                             "w-full text-left px-3 py-2 rounded-md text-[14px] transition-colors",
+                            DROPDOWN_FOCUS_RING,
                             roleValue === r ? "bg-accent/50 font-bold" : "hover:bg-background"
                           )}
                         >
@@ -161,8 +166,10 @@ export function EmployeeRoleDetailsCard({
               <input type="hidden" name="shift" value={shiftValue} />
               <div className="relative">
                 <button
-                  type="button"
-                  onClick={() => setShiftOpen(!shiftOpen)}
+                  {...shiftMenu.triggerProps}
+                  // The card's <label htmlFor="shift"> names the button.
+                  id="shift"
+                  aria-labelledby={undefined}
                   className={cn(
                     "flex w-full items-center justify-between rounded-sm bg-card px-[12px] py-[13px] text-[15px] md:py-[11px] md:text-[14px]",
                     "border border-input transition-colors hover:bg-background focus:outline-none focus:ring-2 focus:ring-ring/40",
@@ -170,19 +177,19 @@ export function EmployeeRoleDetailsCard({
                   )}
                 >
                   <span>{shiftValue}</span>
-                  {shiftOpen ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+                  {shiftOpen ? <ChevronDown aria-hidden="true" className="w-5 h-5" /> : <ChevronRight aria-hidden="true" className="w-5 h-5" />}
                 </button>
                 {shiftOpen && (
                   <>
-                    <div className="fixed inset-0 z-10" onClick={() => setShiftOpen(false)} />
-                    <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 bg-card border border-input rounded-[8px] p-1 shadow-lg max-h-[160px] overflow-y-auto">
+                    <div {...shiftMenu.listProps} aria-labelledby={undefined} aria-label="Shift" className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 bg-card border border-input rounded-[8px] p-1 shadow-lg max-h-[160px] overflow-y-auto">
                       {SHIFTS.map(s => (
                         <button
                           key={s}
-                          type="button"
-                          onClick={() => { setShiftValue(s); setShiftOpen(false); }}
+                          {...shiftMenu.optionProps(shiftValue === s)}
+                          onClick={() => { setShiftValue(s); shiftMenu.close(); }}
                           className={cn(
                             "w-full text-left px-3 py-2 rounded-md text-[14px] transition-colors",
+                            DROPDOWN_FOCUS_RING,
                             shiftValue === s ? "bg-accent/50 font-bold" : "hover:bg-background"
                           )}
                         >

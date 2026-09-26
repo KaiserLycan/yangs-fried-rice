@@ -6,6 +6,7 @@ import { compressImage } from "@/lib/image/compress";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
+import { setEmployeePhoto } from "@/lib/actions/admin";
 
 export function EmployeeAvatarCard({
   initials,
@@ -27,15 +28,19 @@ export function EmployeeAvatarCard({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const previousPreview = avatarPreview;
     try {
-      let uploadFile: File | Blob = file;
+      // Refuse rather than fall back to the raw file: a photo the browser
+      // can't decode is not one it should upload, and the raw original can
+      // be tens of megabytes.
+      let compressed: File;
       try {
-        const compressed = await compressImage(file, 400);
-        setAvatarPreview(URL.createObjectURL(compressed));
-        uploadFile = compressed;
+        compressed = await compressImage(file, 400);
       } catch {
-        setAvatarPreview(URL.createObjectURL(file));
+        showToast("Could not read that photo. Try a JPEG, PNG, or WebP image.", "error");
+        return;
       }
+      setAvatarPreview(URL.createObjectURL(compressed));
 
       const supabase = createClient();
       const {
@@ -44,40 +49,27 @@ export function EmployeeAvatarCard({
       } = await supabase.auth.getUser();
 
       if (userError || !user) {
-        showToast("You must be signed in to upload a profile photo.");
+        setAvatarPreview(previousPreview);
+        showToast("You must be signed in to upload a profile photo.", "error");
         return;
       }
 
-      const fileExt = file.name.split(".").pop() || "png";
-      const filePath = `employee-${user.id}-${Date.now()}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage
-        .from("emp-pfp")
-        .upload(filePath, uploadFile, { upsert: true, contentType: uploadFile.type });
+      const formData = new FormData();
+      formData.append("file", compressed);
+      const result = await setEmployeePhoto(user.id, formData);
 
-      if (uploadError) {
-        showToast(uploadError.message || "Could not upload your profile photo.");
+      if (result.error !== null) {
+        setAvatarPreview(previousPreview);
+        showToast(result.error || "Could not upload your profile photo.", "error");
         return;
       }
 
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("emp-pfp").getPublicUrl(filePath);
-
-      const { error: profileError } = await supabase
-        .from("employee")
-        .update({ profileImage_URL: publicUrl })
-        .eq("employee_id", user.id);
-
-      if (profileError) {
-        showToast(profileError.message || "Could not save your profile photo.");
-        return;
-      }
-
-      setAvatarPreview(publicUrl);
+      setAvatarPreview(result.data.imageUrl);
       router.refresh();
-      showToast("Profile photo updated.");
+      showToast("Profile photo updated.", "success");
     } catch {
-      showToast("Could not upload your profile photo. Please try again.");
+      setAvatarPreview(previousPreview);
+      showToast("Could not upload your profile photo. Please try again.", "error");
     } finally {
       if (e.target) e.target.value = "";
     }

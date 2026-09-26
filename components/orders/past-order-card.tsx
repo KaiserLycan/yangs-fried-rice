@@ -74,7 +74,7 @@ export function PastOrderCard({ order }: { order: PastOrder }) {
   // star row — a cancelled order has neither — draws visibly shorter than the
   // two beside it.
   return (
-    <article className="flex flex-col gap-[8px] rounded-lg border border-rule bg-white p-[14px] md:h-full md:gap-[9px] md:p-[18px]">
+    <article className="flex flex-col gap-[8px] rounded-lg border border-field-border bg-white p-[14px] md:h-full md:gap-[9px] md:p-[18px]">
       <div className="order-1 flex items-start justify-between gap-[12px]">
         <span className="text-[12px] font-bold text-muted-foreground">
           {formatPlacedAt(order.placedAt)}
