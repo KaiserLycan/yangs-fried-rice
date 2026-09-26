@@ -14,9 +14,9 @@ are marked **(L#)** or **(lacking)** instead of being repeated in full.
 
 | # | Finding | Who hits it | Severity |
 |---|---|---|---|
-| 0a | **Any signed-in customer can make themselves a manager**: RLS is off on `employee` and `rider` in the live database (confirmed read-only, persona 13) | Security analyst, DBA | 🔴 Critical |
+| 0a | **Any signed-in customer can make themselves a manager**: RLS is off on `employee` in the live database (confirmed read-only, persona 13) | Security analyst, DBA | 🔴 Critical |
 | 0b | **Pay-in-store sales are counted as ₱0 in reports**, and payment values are spelled five different ways in the live data (persona 14) | Accountant, owner | 🔴 High |
-| 1 | **A signed-in customer can create orders directly in the database**, choosing their own status, delivery fee and item prices | QA, developer, owner, DBA | 🔴 Critical |
+| 1 | **A signed-in customer can create orders directly in the database**, choosing their own status, order fee and item prices | QA, developer, owner, DBA | 🔴 Critical |
 | 2 | Double-clicking "Place order" can create two orders | New, young, old customer | 🔴 High (L15) |
 | 3 | Guests can tap "Add" but only get "You must be signed in." with no link, and their pick is lost | New, old customer | 🟠 High |
 | 4 | No way to contact the store anywhere (no phone, email or chat) | Every customer, owner | 🟠 High |
@@ -30,7 +30,7 @@ are marked **(L#)** or **(lacking)** instead of being repeated in full.
 | 12 | Reports only export as PDF, with no CSV or raw data | Data analyst | 🟠 Medium |
 | 13 | GCash and Maya are both saved as `paymongo` | Data analyst, owner | 🟡 Medium |
 | 14 | Report dates use UTC midnight, not Manila midnight. It only works because the store opens at 8 AM Manila (00:00 UTC) | Data analyst, developer | 🟡 Low (latent) |
-| 15 | Delivery addresses have no saved coordinates, so demand can't be mapped without geocoding every address again | Data scientist | 🟡 Low |
+| 15 | (Removed) | Data scientist | 🟡 Low |
 
 Finding 1 is new and more serious than anything in `limitations.md`, so it has been added there as **L21**.
 
@@ -46,8 +46,8 @@ Finding 1 is new and more serious than anything in `limitations.md`, so it has b
   "Sign in" button in the toast, and nothing is remembered, so after signing up she has to find the dish again.
 - Sign-up asks for 6 fields plus a terms checkbox, then an **email confirmation**, which sends her to `/login`,
   not back to the menu (`app/(auth)/actions.ts`). Four steps before she can add one item.
-- She can't see the delivery fee until checkout, because it depends on her address. "₱50 + ₱10/km" isn't shown on the menu.
-- There's no phone number or email to ask "Do you deliver to Pasig?" The footer hides contact details because
+- She can't see the order fee until checkout, because it depends on her address. "₱50 + ₱10/km" isn't shown on the menu.
+- There's no phone number or email to contact the store. The footer hides contact details because
   none are set (`lib/site/site-info.ts`).
 - If she opens the site at 6:30 PM she sees "Store is currently closed. Restaurant hours are 8am - 6pm."
   She can't order ahead for tomorrow (lacking: scheduled orders).
@@ -55,7 +55,7 @@ Finding 1 is new and more serious than anything in `limitations.md`, so it has b
 **Features she'd want**
 - Let guests build a cart, then ask them to sign in at checkout (cart saved in the browser, moved to the account on login).
 - A "Sign in to add this" button in the toast that returns her to the same dish.
-- "Delivery from ₱50" shown on the menu, plus a "Check if we deliver to you" address box.
+- 
 - Contact details and store hours in the footer (L13).
 
 **Queries needed**
@@ -85,7 +85,7 @@ GROUP BY oi.product_id ORDER BY sold DESC LIMIT 3;
 - If a price changed since last time, checkout doesn't point it out; it just charges the new price (L2).
 - He wants to pay GCash, but if the payment page times out he has to retry from the order page.
   That flow exists and works (`switch-to-cod-button.tsx`), but wallet orders that are never paid pile up in his history (L3).
-- No notifications: he has to keep the tracking page open to know the rider is near (L10).
+- No notifications: he has to keep the tracking page open to know the customer/courier is near (L10).
 
 **Features he'd want**
 - "Order again" at the top of the menu, favourites (heart icon), and a saved default payment method.
@@ -125,13 +125,13 @@ WHERE customer_id = auth.uid() AND order_status = 'completed'
   on `order_item` only checks that the order is his (`:542`). The Supabase URL and anon key are public by design, and his
   login token is in the browser. With those three, he can call the REST API directly and:
   - insert an order with `order_status = 'preparing'`, skipping payment,
-  - set `delivery_fee = 0` and deliver to any address, skipping the NCR/15 km check,
+  - set `order_fee = 0` and deliver to any address, skipping the NCR/15 km check,
   - insert `order_item` rows with `unit_price = 1`.
   No `transaction` row is created, so the order has no payment record. The kitchen queue only hides
   `awaiting_payment` and `payment_failed` (`lib/orders/kitchen-queue.ts`), so an order inserted as `preparing` would
   show up for the cooks. This hasn't been run against the live database. Confirm with one test request, then fix (**L21**).
 - 🔴 The cancel rule `customer_cancel_own_orders` (`:514`) checks that the new status is `cancelled`, but not the other
-  columns. In the same update he can also change `delivery_fee` or `delivery_address` on a pending order. Low impact,
+  columns. In the same update he can also change `order_fee` or `` on a pending order. Low impact,
   because the order is cancelled, but reports that add up fees will be off.
 - 🔴 Two fast clicks on "Place order" → two orders (L15).
 - 🟠 Server allows 99 per item, the screen only 20 (L2).
@@ -177,7 +177,7 @@ SELECT order_status, order_type, count(*) FROM "order" GROUP BY 1, 2 ORDER BY 3 
 - Setup is well documented in the README. But `supabase/profile-rls-and-triggers.sql` must be run **by hand** after the
   migrations. That's easy to miss, and then new emails never reach `customer.email`.
 - `types/database.types.ts` is out of date: `order.employee_id` was dropped in
-  `20260926000002_drop_order_employee_id_and_rider_queue_realtime.sql` but is still in the types. Code that uses it
+  `20260926000002_drop_order_employee_id_and_customer/courier_queue_realtime.sql` but is still in the types. Code that uses it
   compiles, then fails at runtime.
 - `submitCart` calls a database function `submit_cart_to_order` that **isn't in any migration**, so the code always falls
   back to a longer path. Two ways to place an order means two places to fix bugs (L15).
@@ -219,7 +219,7 @@ WHERE n.nspname = 'public' AND c.relkind = 'r' AND NOT c.relrowsecurity;
 
 **Features she'd want**
 - A shareable tracking link (read-only, no login), a shared cart link, student or barkada bundles, dark mode,
-  and a push notification when the rider is near.
+  and a push notification when the customer/courier is near.
 
 **Queries needed**
 ```sql
@@ -241,7 +241,7 @@ SELECT order_status, created_at FROM "order" WHERE share_token = :token;
 - Small text: about 170 text styles are 12px or smaller, 3 are 9px (`grep text-\[9px\]`). Order numbers like `#69403b15` are hard
   to read aloud over the phone.
 - Email confirmation: he may not know where the email went, and there's no "resend" button on the login page.
-- GCash/Maya: he'll likely use cash, but there's no "change for ₱1,000" field, so the rider may not have change (L8).
+- GCash/Maya: he'll likely use cash, but there's no "change for ₱1,000" field, so the customer/courier may not have change (L8).
 - Icons without words (cart, profile avatar) are hard for him to guess.
 - Password rules (strength meter) are strict. "Forgot password" works, but only by email.
 
@@ -275,7 +275,7 @@ GROUP BY 1, 2 ORDER BY 1 DESC;
 - **Staff can change prices.** `is_menu_manager()` returns true for `STAFF` as well as `MANAGER`
   (`20260921000004_lock_down_public_tables.sql:52`), and nothing records who changed what. A staff member could lower a price,
   order for a friend, and raise it back.
-- He can't see how much cash each rider collected today (L19).
+- He can't see how much cash the counter collected today (L19).
 - GCash and Maya are one option, "GCash / Maya wallet", and both are saved as `payment_method = 'paymongo'`
   (`lib/actions/cart.ts:852`). Reports can't tell them apart, even though the fees differ (see persona 12).
 - Paid orders that staff cancel aren't refunded automatically (lacking), and there's no "refunds owed" list.
@@ -284,7 +284,7 @@ GROUP BY 1, 2 ORDER BY 1 DESC;
 
 **Features he'd want**
 - Price changes for managers only, plus a price history.
-- An hour-by-day sales heat map, a rider cash-to-remit report (L19), a refunds-owed list, and cost per dish for profit.
+- An hour-by-day sales heat map, a counter cash-to-remit report (L19), a refunds-owed list, and cost per dish for profit.
 
 **Queries needed**
 ```sql
@@ -295,10 +295,10 @@ SELECT extract(isodow FROM created_at AT TIME ZONE 'Asia/Manila') AS weekday,
 FROM "order" WHERE order_status = 'completed'
 GROUP BY 1, 2 ORDER BY 1, 2;
 
--- Cash each rider should hand over today (L19)
-SELECT e.name AS rider, count(*) AS cash_orders, sum(t.total_paid) AS cash_to_remit
+-- Cash each customer/courier should hand over today (L19)
+SELECT e.name AS customer/courier, count(*) AS cash_orders, sum(t.total_paid) AS cash_to_remit
 FROM delivery d
-JOIN rider r ON r.rider_id = d.rider_id
+JOIN customer/courier r ON r.customer/courier_id = d.customer/courier_id
 JOIN employee e ON e.employee_id = r.employee_id
 JOIN "transaction" t ON t.order_id = d.order_id
 WHERE t.payment_method = 'cash_on_delivery' AND d.delivery_status = 'delivered'
@@ -330,7 +330,7 @@ CREATE TABLE product_price_log (
   "gate it in app/manage/layout.tsx". She'll find them by URL or bookmark and think the system is broken.
 - The Employees page shows a default shift `"MWF – 12-3PM"` when none is set (`app/manage/employee/page.tsx:109`), so it
   looks like everyone has the same shift.
-- She can't reassign a delivery from a rider who went offline (lacking, "real-world scenarios").
+- (Removed)
 - Once cancelled, an order can't be undone. A misclick means the customer has to reorder.
 - No record of what the previous manager changed (lacking: audit log).
 
@@ -348,11 +348,8 @@ WHERE order_status IN ('pending', 'received', 'preparing', 'ready')
   AND created_at < now() - interval '45 minutes'
 ORDER BY created_at;
 
--- Riders and their active load
-SELECT e.name, count(d.delivery_id) FILTER (WHERE d.delivery_status IN ('pending', 'delivering')) AS active
-FROM rider r JOIN employee e USING (employee_id)
-LEFT JOIN delivery d ON d.rider_id = r.rider_id
-WHERE r.is_active GROUP BY e.name ORDER BY active DESC;
+-- (Removed customer/courier tracking queries)
+
 ```
 
 ---
@@ -402,7 +399,7 @@ ORDER BY created_at;
 - 🔴 The insert rules on `"order"` and `order_item` are too loose (finding 1, **L21**).
 - **Missing indexes.** Postgres doesn't index foreign keys automatically. There's no index on `"order"(customer_id)`,
   `"order"(order_status)`, `"order"(created_at)`, `order_item(order_id)`, `"transaction"(order_id)` or
-  `delivery(rider_id)`. The migrations only index reviews, addresses, carts, login attempts and one on
+  ``. The migrations only index reviews, addresses, carts, login attempts and one on
   `transaction.provider_reference_id`. Every order list, KDS refresh and report is a full table scan. Fine at 1,000 rows,
   slow at 100,000.
 - **No allowed-values checks** on `order_status`, `order_type`, `payment_method`, `payment_status` or
@@ -424,7 +421,7 @@ CREATE INDEX IF NOT EXISTS order_customer_created_idx ON "order" (customer_id, c
 CREATE INDEX IF NOT EXISTS order_status_created_idx   ON "order" (order_status, created_at);
 CREATE INDEX IF NOT EXISTS order_item_order_idx       ON order_item (order_id);
 CREATE INDEX IF NOT EXISTS transaction_order_idx      ON "transaction" (order_id);
-CREATE INDEX IF NOT EXISTS delivery_rider_status_idx  ON delivery (rider_id, delivery_status);
+CREATE INDEX IF NOT EXISTS delivery_customer/courier_status_idx  ON delivery (customer/courier_id, delivery_status);
 
 -- Allowed values (clean up old spellings first, then add NOT VALID + VALIDATE)
 ALTER TABLE "order" ADD CONSTRAINT order_status_check CHECK (order_status IN
@@ -496,7 +493,7 @@ CREATE VIEW analytics_order_lines AS
 SELECT o.order_id,
        (o.created_at AT TIME ZONE 'Asia/Manila')::date            AS business_day,
        extract(hour FROM o.created_at AT TIME ZONE 'Asia/Manila') AS hour,
-       o.order_type, o.order_status, o.delivery_fee,
+       o.order_type, o.order_status, o.order_fee,
        t.payment_method, t.payment_status, t.discount_amount,
        oi.product_id, oi.product_name, c.category_name,
        oi.quantity, oi.unit_price, oi.subtotal,
@@ -510,7 +507,7 @@ LEFT JOIN "transaction" t ON t.order_id = o.order_id;
 -- Daily sales in Manila time, completed orders only
 SELECT (o.created_at AT TIME ZONE 'Asia/Manila')::date AS day,
        count(*) AS orders,
-       sum(s.items_total + coalesce(o.delivery_fee, 0)) AS gross
+       sum(s.items_total + coalesce(o.order_fee, 0)) AS gross
 FROM "order" o
 JOIN (SELECT order_id, sum(subtotal) AS items_total FROM order_item GROUP BY order_id) s USING (order_id)
 WHERE o.order_status = 'completed'
@@ -631,7 +628,7 @@ JOIN customer_address ca ON ca.customer_id = o.customer_id AND ca.is_default
 WHERE o.order_type = 'delivery' AND o.order_status = 'completed'
 GROUP BY 1, 2 ORDER BY orders DESC;
 -- Caveat: uses the customer's *default* address, not the address on the order,
--- because order.delivery_address is one text field.
+-- because order. is one text field.
 
 -- 6. Did a price change affect sales? (needs product_price_log)
 SELECT l.product_id, l.changed_at, l.old_price, l.new_price,
@@ -660,8 +657,8 @@ attempted. Every finding below says whether it was **confirmed on the live datab
 
 | # | Finding | Evidence | Severity |
 |---|---|---|---|
-| S1 | **Any signed-in customer can make themselves a manager.** Row-level security is **off** on `employee` and `rider`, and the `authenticated` role has SELECT, INSERT, UPDATE and DELETE rights on both, so any customer can also read every employee's and rider's email, birth date, phone and licence number. A customer could insert an `employee` row with their own user id and `role = 'MANAGER'`, or change any employee's role or `is_account_disabled`. The app's guards (`requireManageAccess`, middleware) only check that an `employee` row exists, so that row opens `/manage`. | **Live DB:** advisor `rls_disabled_in_public` (ERROR) on both tables; `has_table_privilege('authenticated', …, 'INSERT')` = true; 0 policies | 🔴 Critical |
-| S2 | **The live database is behind the repo.** `supabase_migrations.schema_migrations` stops at `20260924000000`. Five newer migrations aren't recorded, including `20260925000001_restore_employee_rider_rls.sql`, which is the fix for S1. The `login_attempt` table exists, so some were run by hand, but S1 proves the RLS one wasn't. | **Live DB** | 🔴 Critical |
+| S1 | **Any signed-in customer can make themselves a manager.** Row-level security is **off** on `employee` and `customer/courier`, and the `authenticated` role has SELECT, INSERT, UPDATE and DELETE rights on both, so any customer can also read every employee's email, birth date, phone and licence number. A customer could insert an `employee` row with their own user id and `role = 'MANAGER'`, or change any employee's role or `is_account_disabled`. The app's guards (`requireManageAccess`, middleware) only check that an `employee` row exists, so that row opens `/manage`. | **Live DB:** advisor `rls_disabled_in_public` (ERROR) on both tables; `has_table_privilege('authenticated', …, 'INSERT')` = true; 0 policies | 🔴 Critical |
+| S2 | **The live database is behind the repo.** `supabase_migrations.schema_migrations` stops at `20260924000000`. Five newer migrations aren't recorded, including `20260925000001_restore_employee_customer/courier_rls.sql`, which is the fix for S1. The `login_attempt` table exists, so some were run by hand, but S1 proves the RLS one wasn't. | **Live DB** | 🔴 Critical |
 | S3 | **Customers can write orders straight into the database** with their own status, fee and prices (L21). | Code: `000_remote_schema.sql:520`, `:542` | 🔴 High |
 | S4 | **Disabling an account doesn't lock out a signed-in user.** `is_account_disabled` is checked at login and in `lib/auth/api-guard.ts`, but not in the server-action guards (`requireCustomer`, `requireManageAccess`, `requireRole`, `requireEmployee`, `requireReportAccess`) or in middleware. The admin action only flips the flag and doesn't end sessions. A fired employee keeps working until their session expires. | Code | 🟠 High |
 | S5 | **The customer guard trusts an unverified session.** `requireCustomer` (`lib/actions/cart.ts:60`) uses `supabase.auth.getSession()`, which reads the cookie without checking it with Supabase Auth. Supabase's docs say to use `getUser()` in server code. Database calls still verify the token, which limits the damage, but the `transaction` insert uses the service-role client. | Code | 🟠 Medium |
@@ -674,11 +671,11 @@ attempted. Every finding below says whether it was **confirmed on the live datab
 | S12 | **The API docs are public.** `/api-docs` (Swagger) and `public/openapi.json` list every endpoint. That's fine for a school project, but hide it in production. | Code | 🟢 Info |
 
 **What's already done well:** login rate limiting (5 per email, 30 per IP), hashed emails in `login_attempt`, signed and
-constant-time webhook checks, HttpOnly session cookies, server-side delivery fee, a separate employee login with no staff
+constant-time webhook checks, HttpOnly session cookies, server-side order fee, a separate employee login with no staff
 sign-up, zod validation on every input, XSS and injection tests in `__tests__/security/`, and the Phase 4 security report.
 
 **What she'd want**
-1. **Today:** apply the pending migrations (`npx supabase db push`), then run the advisor again and confirm RLS is on for `employee` and `rider`.
+1. **Today:** apply the pending migrations (`npx supabase db push`), then run the advisor again and confirm RLS is on for `employee` and `customer/courier`.
 2. Fix S3 and L15 together: drop the customer insert policies and create orders through one server-side function.
 3. Check `is_account_disabled` in every guard, and sign the user out when they're disabled.
 4. Make `proof-of-delivery` private and serve photos with short-lived signed URLs.
@@ -698,7 +695,7 @@ SELECT c.relname,
        has_table_privilege('authenticated', c.oid, 'UPDATE') AS can_update,
        c.relrowsecurity AS rls_on
 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-WHERE n.nspname = 'public' AND c.relname IN ('employee', 'rider', 'order', 'order_item', 'transaction');
+WHERE n.nspname = 'public' AND c.relname IN ('employee', 'customer/courier', 'order', 'order_item', 'transaction');
 
 -- Signs of S1 being used: employee rows created recently, or managers not created by the seed or admin
 SELECT e.employee_id, e.email, e.role, u.created_at, u.raw_user_meta_data->>'seeded' AS seeded
@@ -736,7 +733,7 @@ give to the BIR.
 
 **Difficulties**
 - 🔴 **Pay-in-store sales are never recorded as money in.** `submitCart` saves every transaction with `total_paid = 0`
-  (`lib/actions/cart.ts:866`). Cash-on-delivery is set to paid when the rider completes the delivery
+  (`lib/actions/cart.ts:866`). Cash-on-delivery is set to paid when the customer/courier completes the delivery
   (`lib/actions/delivery.ts:616`), and wallet payments when PayMongo's webhook arrives. But **nothing** updates a pay-in-store
   transaction when a pickup order is completed. Reports add up `total_paid` (`lib/actions/reports.ts:189`, `:354`), so every
   pay-in-store sale counts as ₱0. **Live DB:** 2 completed pay-in-store orders show `paid` with `total_paid = 0.00`.
@@ -749,7 +746,7 @@ give to the BIR.
 - 🟠 **Orders without exactly one transaction.** **Live DB:** 7 orders have no transaction and 7 have more than one.
   A missing row means lost revenue in reports. A duplicate can mean double counting.
 - 🟠 **Paid amount doesn't match the order.** **Live DB:** 6 completed, paid orders have a `total_paid` that differs from
-  items + order add-ons + delivery fee.
+  items + order add-ons + order fee.
 - 🟠 **No VAT.** `tax_amount` is 0 on every transaction (**Live DB:** 0 rows with tax). Prices are presumably VAT-inclusive,
   but the system never splits out the 12%. The `reports` table stores `total_gross_sales = total_net_sales`
   (`lib/actions/reports.ts:1126-1127`). For a VAT-registered business, she has to compute VAT by hand.
@@ -759,7 +756,7 @@ give to the BIR.
   Partial refunds can't be recorded at all.
 - 🟠 **PayMongo fees aren't recorded.** The shop receives the payout minus PayMongo's fee, but the system only stores the
   gross amount. She can't reconcile the bank deposit without PayMongo's own report.
-- 🟡 **Cash from riders isn't reconciled** (L19). There's a "cash collected" tick, but no daily total per rider and no "handed over" step.
+- 🟡 **Cash from customer/couriers isn't reconciled** (L19). There's a "cash collected" tick, but no daily total per customer/courier and no "handed over" step.
 - 🟡 **Day boundaries are in UTC** in reports (see persona 11). Month-end cut-off works only because the store opens at 8 AM Manila.
 - 🟡 **No official receipt or invoice numbering.** Order numbers are the first 8 characters of a UUID: not sequential, not
   gap-free. The BIR expects serially numbered receipts or invoices (lacking).
@@ -815,18 +812,18 @@ GROUP BY o.order_id HAVING count(t.transaction_id) <> 1;
 
 -- 6. Paid amount vs what the order adds up to
 SELECT o.order_id, t.total_paid,
-       coalesce(i.items, 0) + coalesce(a.addons, 0) + coalesce(o.delivery_fee, 0) AS expected
+       coalesce(i.items, 0) + coalesce(a.addons, 0) + coalesce(o.order_fee, 0) AS expected
 FROM "order" o
 JOIN "transaction" t USING (order_id)
 LEFT JOIN (SELECT order_id, sum(subtotal) AS items  FROM order_item   GROUP BY order_id) i USING (order_id)
 LEFT JOIN (SELECT order_id, sum(price)    AS addons FROM order_add_on GROUP BY order_id) a USING (order_id)
 WHERE o.order_status = 'completed' AND t.payment_status = 'paid'
-  AND abs(t.total_paid - (coalesce(i.items, 0) + coalesce(a.addons, 0) + coalesce(o.delivery_fee, 0))) > 0.01;
+  AND abs(t.total_paid - (coalesce(i.items, 0) + coalesce(a.addons, 0) + coalesce(o.order_fee, 0))) > 0.01;
 
--- 7. Cash each rider should hand over for a day (L19)
+-- 7. Cash each customer/courier should hand over for a day (L19)
 SELECT e.name, count(*) AS cash_orders, sum(t.total_paid) AS cash_to_remit
 FROM delivery d
-JOIN rider r ON r.rider_id = d.rider_id
+JOIN customer/courier r ON r.customer/courier_id = d.customer/courier_id
 JOIN employee e ON e.employee_id = r.employee_id
 JOIN "transaction" t ON t.order_id = d.order_id
 WHERE t.payment_method = 'cash_on_delivery' AND t.payment_status = 'paid'
@@ -855,7 +852,7 @@ read-only checks in persona 13.
 
 | # | Issue | Law | Risk |
 |---|---|---|---|
-| J1 | Employee and rider personal data can be read, changed and deleted by any signed-in customer | Data Privacy Act (RA 10173), Sec. 20 (security of personal information); NPC Circular 16-03 (breach notification) | 🔴 High |
+| J1 | Employee and customer/courier personal data can be read, changed and deleted by any signed-in customer | Data Privacy Act (RA 10173), Sec. 20 (security of personal information); NPC Circular 16-03 (breach notification) | 🔴 High |
 | J2 | No Senior Citizen / PWD discount online | RA 9994, RA 10754; DTI-DOH-DA-DSWD JMC (May 2022) | 🔴 High |
 | J3 | Terms promise card payments and refunds that don't exist | Consumer Act (RA 7394), deceptive sales acts; Internet Transactions Act (RA 11967) | 🟠 Medium |
 | J4 | No seller identity or contact details on the site | Internet Transactions Act (RA 11967), enforced since 20 June 2025 | 🟠 Medium |
@@ -870,7 +867,7 @@ read-only checks in persona 13.
 
 **J1. Personal data exposure (🔴, confirmed on the live database)**
 - With row-level security off, the `authenticated` role can `SELECT`, `INSERT`, `UPDATE` and `DELETE` on `employee` and
-  `rider`. Those tables hold names, emails, birth dates, phone numbers, driver's licence numbers and licence expiry dates.
+  `customer/courier`. Those tables hold names, emails, birth dates, phone numbers, driver's licence numbers and licence expiry dates.
   Any customer who signs up can read all of it through the public API.
 - The Data Privacy Act requires "reasonable and appropriate" security measures. Government-issued ID numbers, like a driver's
   licence number, may count as **sensitive** personal information, which carries heavier penalties.
@@ -905,7 +902,7 @@ read-only checks in persona 13.
 **J5. Privacy notice (🟠)**
 - The current notice says what is collected and that data isn't sold. A Data Privacy Act notice also needs:
   - who the personal information controller is and how to reach them (a data protection officer or contact person);
-  - the purpose and legal basis for each kind of data (orders, delivery, rider tracking, reviews, photos);
+  - the purpose and legal basis for each kind of data (orders, delivery, customer/courier tracking, reviews, photos);
   - **who else receives the data:** Supabase (hosting), PayMongo (payments), LocationIQ or OpenStreetMap Nominatim
     (addresses sent for lookup), and the map tile providers. Some of these are outside the Philippines, which is a
     cross-border transfer that should be disclosed;
@@ -936,7 +933,7 @@ read-only checks in persona 13.
   project, label receipts "This is not an official receipt / invoice" (L12) and say so in the paper.
 
 **J9. Licences for maps and routing (🟡)**
-- The rider map sets `attributionControl={false}` (`components/deliver/map-content.tsx:167`), which hides the
+- The customer/courier map sets `attributionControl={false}` (`components/deliver/map-content.tsx:167`), which hides the
   "© OpenStreetMap contributors" credit the OpenStreetMap licence requires. When there's no LocationIQ key, the map uses
   ArcGIS tiles but still shows the LocationIQ credit, and Esri's terms require their own.
 - Routes use `leaflet-routing-machine` with no `router` set, so they go to OSRM's public demo server. Its usage policy says
@@ -945,7 +942,7 @@ read-only checks in persona 13.
 - **Fix:** turn attribution back on and show the right credit for whichever tiles are loaded. That's a few lines.
 
 **J10. Evidence in disputes (🟡)**
-- If a customer says "I never received my food" or "the rider was 2 hours late", the shop can show the proof-of-delivery
+- If a customer says "I never received my food" or "the customer/courier was 2 hours late", the shop can show the proof-of-delivery
   photo, which is good. But it can't show when each status changed or who changed it (L9), and the ETA promised at checkout
   is overwritten (persona 12). Electronic records are admissible if they're shown to be reliable, and an audit trail helps prove that.
 
@@ -978,7 +975,7 @@ WHERE proof_of_delivery IS NOT NULL AND completed_at < now() - interval '90 days
 
 -- Personal data left on orders after an account was deleted (J5)
 SELECT count(*) AS orders_with_address_no_customer
-FROM "order" WHERE customer_id IS NULL AND delivery_address IS NOT NULL;
+FROM "order" WHERE customer_id IS NULL AND  IS NOT NULL;
 
 -- Paid orders cancelled by the store with no refund recorded (J3)
 SELECT o.order_id, o.cancelled_at, o.cancellation_reason, t.total_paid
@@ -1011,7 +1008,7 @@ Checked in the code. "Server" means the query runs in the database; "browser" me
 
 **What reports contain:** revenue and orders per day, average order value, top products by quantity, change vs the previous
 period, completion and cancellation rates, and the rating distribution. **What they don't:** any breakdown by payment method,
-order type, hour, category, customer, rider or cancellation reason.
+order type, hour, category, customer, customer/courier or cancellation reason.
 
 **Hidden from every staff screen:** orders in `awaiting_payment` and `payment_failed`. That's deliberate for the kitchen, but no
 screen at all shows them.
@@ -1089,11 +1086,11 @@ WHERE o.order_status = 'completed'
 GROUP BY 1 ORDER BY 2 DESC LIMIT 5;
 ```
 
-### Q6. Manager: "Which rider had the most late deliveries this week?"
-- **Steps:** Employees → riders can be filtered by role, but there's no delivery count or timing → Orders → no rider filter
-  or column → Rider screens only show each rider's own deliveries.
+### Q6. Manager: "Which customer/courier had the most late deliveries this week?"
+- **Steps:** Employees → customer/couriers can be filtered by role, but there's no delivery count or timing → Orders → no customer/courier filter
+  or column → Rider screens only show each staff's own deliveries.
 - **Result:** ❌ "Late" can't be defined anyway, because the first ETA is overwritten (persona 12).
-- **Needs:** `promised_at`, and a rider performance table in Reports (deliveries, average time, % late, cash collected).
+- **Needs:** `promised_at`, and a customer/courier performance table in Reports (deliveries, average time, % late, cash collected).
 
 ### Q7. Staff: "A customer at the counter says 'Order for Liza, pickup'."
 - **Steps:** Orders → Delivering tab (which also holds `ready` pickup orders) → no search by name, and pickup and delivery are
@@ -1127,7 +1124,7 @@ GROUP BY 1 ORDER BY 2 DESC LIMIT 5;
 SELECT o.order_id, c.name, o.created_at, t.total_paid
 FROM "order" o JOIN customer c USING (customer_id) JOIN "transaction" t USING (order_id)
 WHERE t.payment_method = 'cash_on_delivery' AND o.created_at >= date_trunc('month', now())
-  AND (SELECT sum(subtotal) FROM order_item WHERE order_id = o.order_id) + coalesce(o.delivery_fee, 0) > 2000;
+  AND (SELECT sum(subtotal) FROM order_item WHERE order_id = o.order_id) + coalesce(o.order_fee, 0) > 2000;
 ```
 
 ### Q12. Manager at 10,000 customers: "Find the customer with phone ending 4567."
@@ -1144,8 +1141,8 @@ WHERE t.payment_method = 'cash_on_delivery' AND o.created_at >= date_trunc('mont
    (Q1, Q2, Q4, Q6, Q7, Q8, Q11) would be much easier with filters for **date, customer name/phone, payment method, order type
    and amount**. Date filtering already works on the server; only the page is missing it.
 2. **Screens don't link to each other.** A customer can't be opened to see their orders, a menu item doesn't show how much it sold,
-   and a rider doesn't show their deliveries. Every "who / which" question is a dead end.
-3. **Reports have one dimension: time.** There's no split by payment, order type, hour, category, rider, customer or cancellation reason.
+   and a customer/courier doesn't show their deliveries. Every "who / which" question is a dead end.
+3. **Reports have one dimension: time.** There's no split by payment, order type, hour, category, customer/courier, customer or cancellation reason.
 4. **Nothing can be exported except PDF.** Anything the UI can't answer can't be taken to Excel either (persona 11).
 5. **Some numbers the UI shows are wrong:** pay-in-store revenue is ₱0 (L27), and day boundaries are UTC. A manager would trust the screen.
 6. **Two lists download everything** (Customers, Employees). Fine now, slow and more exposed later.
@@ -1215,7 +1212,7 @@ The same thing is named differently depending on the screen:
 | First order | Tap Add as a guest → "You must be signed in." with no button. Sign-up has 6 fields plus email confirmation, then lands on `/login`, not back on the menu | "Sign in to add" button that returns to the dish; keep the guest cart |
 | Customising | Add-ons can't be changed from the cart (L23) | "Edit" on each cart line |
 | Checkout | Good: fee visible in the cart, payment options match pickup or delivery, clear failed-payment recovery | Keep |
-| Tracking | Good: live status, rider card, ETA | Add a notification when the status changes (L10) |
+| Tracking | Good: live status, customer/courier card, ETA | Add a notification when the status changes (L10) |
 | After delivery | Only a star rating | "Report a problem" (L24), "Order again" |
 | Staff: Orders → KDS | KDS isn't in the sidebar; reached only by a button on Orders | Put KDS in the sidebar; land cooks on KDS |
 | Manager: find a customer's order | Order-number search only (Part 2, Q1) | Search by name or phone (L30) |
@@ -1288,7 +1285,7 @@ stateDiagram-v2
 - **The rules are only enforced in the app.** `updateOrderStatus` checks `isValidTransition`, but the database has no CHECK
   constraint or trigger. Any path that writes directly (L21, S1, the service-role client, the SQL editor) can skip steps,
   for example `awaiting_payment → completed`. The live data already shows failed payments in `ready` and `out_for_delivery` (persona 14).
-- **`out_for_delivery → cancelled` is allowed** after the food has left with the rider. That's the case the House and Senate
+- **`out_for_delivery → cancelled` is allowed** after the food has left with the customer/courier. That's the case the House and Senate
   bills worry about. Require a reason and a manager, or record who pays for the food.
 - **`preparing → out_for_delivery` skips `ready`.** It's allowed on purpose, but it means "time ready" can't be measured for those orders.
 
@@ -1321,7 +1318,7 @@ stateDiagram-v2
 |---|---|---|
 | Browsing numbering | Browsing1–6, 8–16 | **Browsing7 is missing.** Either it was dropped or the list is incomplete. Confirm with the original proposal |
 | "Search, Filters, and **Recommendations**" | SFR1 search ✅, SFR2 filter ✅ | **No recommendation requirement or feature.** Best sellers (L14) or "Order again" (L20) would fill it |
-| Order5–7 (rider flow) | ✅ | ✅ Confirmed, the strongest part of the system |
+| Order5–7 (customer/courier flow) | ✅ | ✅ Confirmed, the strongest part of the system |
 | SAS2 reports | ✅ | ◐ Built, but revenue is wrong for pay-in-store (L27) and there are no breakdowns (L32) |
 | PP1 online payments | ✅ | ✅ GCash/Maya. Cards are advertised in the Terms but disabled (L29) |
 | OHF1 order history and receipts | ✅ | ◐ Limited to the last 30 orders; receipts aren't printable (L12) |

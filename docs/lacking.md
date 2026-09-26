@@ -19,14 +19,14 @@ is too large for that time or needs outside services, accounts or money. List it
 
 | Feature | Big apps | Us |
 |---|---|---|
-| Delivery and pickup | All | ✅ |
+| Pickup only | All | ✅ (Delivery removed) |
 | GCash / Maya | All | ✅ (PayMongo) |
-| Cash on delivery | Jollibee, McDo, Chowking | ✅ |
+| Pay in store | Jollibee, McDo, Chowking | ✅ |
 | Live order tracking | All | ✅ (Supabase realtime) |
 | Reorder past orders | Jollibee ("re-order must-have bites") | ✅ |
 | Sold-out items | GrabFood, foodpanda | ✅ (`is_available`) |
 | Ratings | Grab, foodpanda | ✅ |
-| Proof of delivery photo | Grab, foodpanda riders | ✅ |
+| Proof of delivery photo | Grab, foodpanda riders | ❌ (Removed) |
 | Login rate limiting, signed webhooks, terms consent | Standard | ✅ |
 
 ---
@@ -35,17 +35,17 @@ is too large for that time or needs outside services, accounts or money. List it
 
 | Feature | Seen in | Why it's not a 1.5-day job |
 |---|---|---|
-| **Scheduled / advance orders** | foodpanda (up to 7 days ahead), Jollibee (up to 24 hours ahead) | Touches store hours, the ETA engine, KDS ordering, the rider queue and payment timing. Around 1–2 days by itself. |
+| **Scheduled / advance orders** | foodpanda (up to 7 days ahead), Jollibee (up to 24 hours ahead) | Touches store hours, the ETA engine, KDS ordering, and payment timing. Around 1–2 days by itself. |
 | **Vouchers / promo codes** | Mang Inasal, Chowking, McDo, foodpanda | Needs a promo table, rules (expiry, usage limit, minimum spend, per-user limit), manager screens and abuse checks. |
 | **Loyalty points / birthday treats** | Chowking (free Halo-Halo on birthday), Jollibee rewards | Needs a points ledger, earning and redeeming rules, and fraud rules. |
-| **Rider tipping** | foodpanda (card/e-wallet, 100% to rider) | Changes the PayMongo amount, rider payouts and reports. |
-| **In-app chat (customer ↔ rider / support)** | McDelivery live chat, foodpanda help chat | Needs realtime messages, moderation and staff inbox. Tap-to-call (in `limitations.md`) covers most of the need. |
+| **Staff tipping** | foodpanda (card/e-wallet) | Changes the PayMongo amount and reports. |
+| **In-app chat (customer ↔ support)** | McDelivery live chat, foodpanda help chat | Needs realtime messages, moderation and staff inbox. |
 | **Card payments** | McDo, Chowking, Jollibee | PayMongo supports cards, but they need 3-D Secure handling and a separate test flow. |
 | **Automatic refunds** | All apps with online payment | When staff cancel a GCash/Maya order that was already paid, nothing returns the money. PayMongo has a Refunds API, but it needs a refund table, partial refunds and reporting. For now, list it as a manual process. |
-| **Failed delivery flow** (customer not home, wrong address, refuses order) | Grab, foodpanda | Needs a new status, return-to-store handling, and rules on charging. |
-| **Live rider GPS on the customer map** | Grab, foodpanda | Needs the rider's browser to share location in the background, which phones limit. Battery and privacy concerns. |
+| **Failed pickup flow** (customer no-show) | Grab, foodpanda | Needs a new status, and rules on charging. |
+| **Live rider GPS** | Grab, foodpanda | N/A - pickup only. |
 | **Multiple branches / store picker** | Jollibee, McDo, Mang Inasal | Every table needs a `branch_id`. Too large a schema change. |
-| **Send to several addresses in one order** | McDelivery | Rare need. Splits one order into several deliveries. |
+| **Send to several addresses in one order** | McDelivery | N/A - pickup only. |
 | **Inventory / ingredients** | Restaurant back offices | `/manage/inventory` is a placeholder. Needs recipes, stock movements and deductions per order. |
 | **Phone number OTP verification** | Jollibee, Grab, foodpanda | SMS costs money (Semaphore, Twilio). Email verification is the free substitute. |
 | **Push notifications / installable app (PWA)** | All (native apps) | Needs a service worker, VAPID keys and permission prompts. |
@@ -78,14 +78,11 @@ is too large for that time or needs outside services, accounts or money. List it
 ## Real-world scenarios still not handled
 
 - **Customer paid, then the store cancels.** No automatic refund (see above).
-- **Customer not home or unreachable.** There is no "failed delivery" outcome. The rider can only complete it.
-- **Rider has an accident or their phone dies mid-delivery.** Riders can hand a delivery back themselves, but check whether a manager can take it off an unreachable rider. If not, the order is stuck with that rider.
+- **Customer no-show.** There is no "failed pickup" outcome. The staff can only complete it.
 - **Kitchen is overwhelmed.** No throttling beyond the ETA growing. Busy mode (in `limitations.md`) is the quick fix. Real capacity limits per time slot are bigger.
 - **Bad weather / surge.** Mang Inasal advertises a fixed ₱49 fee with no surge pricing, which is what we do, so this is fine as is.
 - **Two customers share one address, or one phone number is used on several accounts.** No duplicate checks. Low risk.
-- **Customer cancels once the food is with the rider.** Already handled: customers can only cancel while the order is
-  `pending`. This matches the House and Senate bills against unjust cancellations, which protect riders from losing money
-  on food already picked up. Worth saying in the paper.
+- **Customer cancels once the food is prepared.** Already handled: customers can only cancel while the order is `pending`. This protects the store from losing money on food already prepared.
 
 ---
 
@@ -98,13 +95,13 @@ reports of viral posts (GMA News, Esquire PH, Inquirer, 8List), app-store review
 
 | Complaint | Where it was seen | Yang's today |
 |---|---|---|
-| Waited up to an hour with no confirmation, then cancelled because the address was "outside coverage" | Mang Inasal app reviews | ✅ **Better.** The address is checked for NCR and 15 km **before** payment. ◐ But an unaccepted order still waits forever (**L22**) |
+| Waited up to an hour with no confirmation | Mang Inasal app reviews | ◐ But an unaccepted order still waits forever (**L22**) |
 | App said the order was successful but it had failed; card charged twice | Jollibee app reviews (Google Play, 2025) | ✅ **Better.** Wallet orders stay `awaiting_payment` until PayMongo's signed webhook confirms, and failures show a retry or switch-to-cash option |
 | Refund not received after a cancelled online payment, or given only as store credit | Mang Inasal reviews, foodpanda complaints | ❌ No refund flow (see Features table above) |
 | Missing, wrong or damaged items with nowhere to report them | foodpanda complaints, PissedConsumer, DoorDash/Uber Eats help flows | ❌ No report flow (**L24**) |
 | App's ready time didn't match the store's text message | Jollibee app reviews | ◐ The ETA updates live, but the first promise isn't saved (see `user-simulation.md`, persona 12) |
 | Fees that only appear at the last step | Consumer Reports, US FTC settlements with Grubhub (2024) and Instacart (2025), UX case studies | ✅ **Good.** The cart shows the delivery fee, calculated from distance, before checkout |
-| Fake cash-on-delivery orders (₱1,700–₱15,000) left riders paying out of pocket | GMA News, Esquire PH, Coconuts, 8List; Senate and House bills | ◐ COD cap and no-show guard planned (**L6**, **L18**, first-order cap added to L18) |
+| Fake cash orders (₱1,700–₱15,000) | GMA News, Esquire PH | ◐ Cash cap and no-show guard planned (**L6**, **L18**, first-order cap added to L18) |
 | Can't cancel once the restaurant has accepted | foodpanda terms | ✅ **Same rule.** Customers can cancel only while `pending` |
 
 ### UX findings from articles and case studies
@@ -112,7 +109,7 @@ reports of viral posts (GMA News, Esquire PH, Inquirer, 8List), app-store review
 - **Editing a customised item from the cart** is a top abandonment cause in Baymard's testing. We only allow quantity changes (**L23**).
 - **Back button emptying the cart** caused abandonments on tested sites. ✅ Our cart is saved on the server, so going back never empties it.
 - **"Order again" for returning customers** should be on the home page (**L20**).
-- **Pickup instructions and a "ready" alert** matter as much as delivery tracking (**L10** extended).
+- **Pickup instructions and a "ready" alert** matter a lot (**L10** extended).
 - **Aggressive "Install our app" banners** annoy mobile users. ✅ We don't have any.
 - **Accessibility:** small touch targets, low contrast and unlabeled "+"/"−" buttons are the most common failures.
   ✅ Our quantity buttons are labeled and photos have alt text. ◐ Text size and contrast still need an audit (**L25**).

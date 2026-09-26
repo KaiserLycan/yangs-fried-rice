@@ -25,23 +25,23 @@ Each point from the feedback was checked in the code (branch `more-things-to-upd
 | F6 | Minimum number of items | ❌ | No | ⚡ |
 | F7 | Stepper: allow typing the quantity | ❌ | No | ⚡ |
 | F8 | How the customer feels when the order is rejected | ◐ | Partly (L10, L24) | 🕐 |
-| F9 | Bulk orders: cap by weight/number for a motorcycle, or schedule them | ◐ | No | ⚡ cap / 🧱 scheduling |
+| F9 | Bulk orders: cap by number, or schedule them | ◐ | No | ⚡ cap / 🧱 scheduling |
 | F10 | Bulk orders: separate page, reserve 1–2 days ahead | ❌ | Scheduled orders (lacking) | 🧱 |
 | F11 | High demand: pause ordering, auto-reopen in 5 min, smart restriction (**repeated by Ma'am**) | ❌ | Yes (L7, extended) | 🕐 |
 | F12 | Unavailable items: grey picture | ◐ | No | ⚡ |
 | F13 | Fake accounts: CAPTCHA | ❌ | Yes (lacking) | 🕐 |
-| F14 | Food not delivered: rider option, or ban the account | ❌ | Yes (lacking, L18) | 🕐 |
-| F15 | All riders busy: allow pickup only | ❌ | No | 🕐 |
+| F14 | Customer no-show: staff option, or ban the account | ❌ | Yes (lacking, L18) | 🕐 |
+| F15 | (Removed) | | | |
 | F16 | Sign-up: go to login, password strength, remove birthday | ◐ | Partly (persona 1, lawyer J6) | ⚡ |
 | F17 | Checkout: show tax | ❌ | Yes (persona 14) | ⚡ |
-| F18 | Delivery time should grow with items; per-item prep time; checkout and tracking consistent | ◐ | Partly (lacking round 3) | 🕐 |
-| F19 | Tips with preset amounts | ❌ | Yes (lacking) | 🕐 |
+| F18 | Prep time should grow with items; per-item prep time; checkout and tracking consistent | ◐ | Partly (lacking round 3) | 🕐 |
+| F19 | Staff tips with preset amounts | ❌ | Yes (lacking) | 🕐 |
 | F20 | Audit log: who created or cancelled an order | ◐ | Yes (L9) | 🕐 |
-| F21 | Pickup: KDS should show it; riders shouldn't get pickup orders | ◐ | No | ⚡ |
+| F21 | 3rd party courier vs self pickup indicator on KDS | ◐ | No | ⚡ |
 | F22 | Cancel reason: grey out the button until a reason is typed | ❌ | Partly (persona 9) | ⚡ |
 | F23 | Email the customer when an order is cancelled | ❌ | Partly (L10) | 🕐 |
 | F24 | KDS: newest/oldest sort, list view, cancelled filter | ❌ | Partly (L17) | 🕐 |
-| F25 | Ratings: separate food and delivery; per item; "rate all the same" | ◐ | No | 🕐 |
+| F25 | Ratings: separate food and service; per item; "rate all the same" | ◐ | No | 🕐 |
 
 **Count:** 0 fully done, 10 partly, 15 missing. 9 are ⚡ quick fixes (about 3 hours together).
 

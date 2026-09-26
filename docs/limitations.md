@@ -13,10 +13,10 @@ Priority: **P1** = do first (legal, security or a real bug). **P2** = do if time
 | 3 | Unpaid GCash/Maya orders never expire | P1 | 1 h |
 | 4 | No Senior Citizen / PWD discount | P1 | 3–4 h |
 | 5 | No security headers | P1 | 1 h |
-| 6 | No minimum order or COD cap | P1 | 0.5 h |
-| 26 | **Live database is missing 5 migrations; RLS is off on `employee` and `rider`** (any customer can become a manager) | **P0 — today, before anything else** | 0.5 h |
+| 6 | No minimum order amount | P1 | 0.5 h |
+| 26 | **Live database is missing 5 migrations; RLS is off on `employee`** (any customer can become a manager) | **P0 — today, before anything else** | 0.5 h |
 | 27 | Pay-in-store sales never marked paid; payment values in 5 spellings | P1 | 1 h |
-| 28 | Disabled accounts stay signed in; proof-of-delivery photos are public | P1 | 1.5 h |
+| 28 | Disabled accounts stay signed in; senior/PWD ID photos are public | P1 | 1.5 h |
 | 29 | Terms promise card payments and refunds that don't exist; map credits hidden | P1 | 1 h |
 | 30 | Orders page can't filter by date, customer, payment or type | P2 (high) | 2 h |
 | 31 | Customer list has no order totals or order history; loads every customer | P2 | 2 h |
@@ -24,18 +24,18 @@ Priority: **P1** = do first (legal, security or a real bug). **P2** = do if time
 | 33 | No error pages; `received` status is unreachable; real types live in "mock" files | P2 | 1 h |
 | 21 | **Customers can write orders straight into the database** (own status, fee and prices) | P1 — do first | 1 h (with #15) |
 | 15 | Placing an order is not atomic (double orders, half-saved orders) | P1 | 1.5 h |
-| 16 | A customer can delete their account mid-delivery | P1 | 0.5 h |
+| 16 | A customer can delete their account before picking up | P1 | 0.5 h |
 | 7 | No "pause store" / busy mode | P2 | 1.5 h |
-| 8 | No "change for ₱___" on cash on delivery | P2 | 1 h |
+| 8 | No "change for ₱___" on cash payments | P2 | 1 h |
 | 9 | No order status history (who changed what, when) | P2 | 1.5 h |
 | 10 | Notifications table exists but nothing writes to it | P2 | 2 h |
-| 11 | No tap-to-call between rider and customer | P2 | 0.5 h |
+| 11 | (Removed - Delivery disabled) | | |
 | 12 | No printable receipt | P2 | 1 h |
 | 13 | No separate privacy notice or business details | **P1** (raised: the Internet Transactions Act has been enforced since June 2025) | 0.5 h |
 | 14 | No "Best seller" labels on the menu | P2 | 1 h |
 | 17 | KDS has no late-order warning or new-order sound | P2 | 1 h |
-| 18 | Nothing stops repeat cash-on-delivery no-shows | P2 | 1 h |
-| 19 | No end-of-day cash summary per rider | P2 | 1.5 h |
+| 18 | Nothing stops repeat pickup no-shows | P2 | 1 h |
+| 19 | No end-of-day cash summary at the counter | P2 | 1.5 h |
 | 20 | No "Order again" row on the menu | P2 | 1 h |
 | 22 | Nothing happens when staff don't accept an order | P2 (do first in P2) | 1 h |
 | 23 | Add-ons can't be changed from the cart | P2 | 1.5 h |
@@ -91,7 +91,7 @@ Philippine news and social media reports); see [`lacking.md`](lacking.md#round-3
      (reuse the proof-of-delivery upload, 2MB limit).
   2. Server computes it. Take the item total, remove the 12% VAT (divide by 1.12), then take 20% off.
      For simplicity, apply it to one person's share: the item total divided by party size, or the single most expensive meal.
-  3. Staff see a "Verify ID" badge on the order. The rider sees "Check senior/PWD ID on handover".
+  3. Staff see a "Verify ID" badge on the order. Staff check the ID on handover to the customer or their 3rd party courier (Lalamove).
   4. Delete the ID photo after the order is done, like Jollibee does (Data Privacy Act).
 
 ### 5. No security headers
@@ -103,9 +103,9 @@ Philippine news and social media reports); see [`lacking.md`](lacking.md#round-3
   Check the map, image uploads and PayMongo redirect still work afterwards.
 
 ### 6. No minimum order or cash-on-delivery cap
-- **Now:** a ₱15 delivery order is allowed, and so is a ₱20,000 cash-on-delivery order. The second is
-  a common prank or fraud pattern: a rider carries food nobody pays for.
-- **Fix:** in `submitCart`, refuse delivery orders under ₱150 and cash-on-delivery orders over ₱3,000
+- **Now:** a ₱15 order is allowed, and so is a ₱20,000 cash order. The second is
+  a common prank or fraud pattern: staff cook food nobody pays for.
+- **Fix:** in `submitCart`, refuse orders under ₱150
   (placeholders next to the fee constants in `lib/eta/engine.ts`). Show the rule in the cart before the customer reaches checkout.
 
 ### 15. Placing an order is not atomic
@@ -125,8 +125,7 @@ Philippine news and social media reports); see [`lacking.md`](lacking.md#round-3
 - **Now:** the database rule `customer_insert_own_orders` on `"order"` (`000_remote_schema.sql:520`) only checks
   `customer_id = auth.uid()`. `customer_insert_own_order_items` on `order_item` only checks that the order is theirs.
   The Supabase URL and anon key are public by design, and the customer's login token is in their browser. So a customer
-  can skip the app and call the Supabase REST API directly to create an order that is already `preparing`, with a ₱0 delivery
-  fee, an address outside NCR, and ₱1 item prices. The kitchen queue would show it, because it only hides
+  can skip the app and call the Supabase REST API directly to create an order that is already `preparing`, with ₱1 item prices. The kitchen queue would show it, because it only hides
   `awaiting_payment` and `payment_failed`. `order_add_on` and `order_item_add_on` have the same kind of insert rule.
 - **Found by:** the QA and DBA walkthroughs in [`user-simulation.md`](user-simulation.md). Not yet tried against the live
   database. Confirm it with one request from a test customer before and after the fix.
@@ -134,10 +133,9 @@ Philippine news and social media reports); see [`lacking.md`](lacking.md#round-3
   orders only through the server (the atomic `submit_cart_to_order` function from #15, or the service-role client).
   Also tighten `customer_cancel_own_orders` so the update can't change anything except the status and cancellation fields.
 
-### 16. A customer can delete their account mid-delivery
+### 16. A customer can delete their account before picking up
 - **Now:** `deleteMyAccount` (`lib/actions/profile.ts`) detaches the customer from their orders and deletes
-  the account without looking at order status. A rider can be on the way to a customer who no longer exists,
-  with no name or phone to call.
+  the account without looking at order status. A customer might delete their account while their food is being prepared, leaving an uncollectable order.
 - **Fix:** refuse deletion while any order is not `completed` or `cancelled`:
   "You have an order in progress. You can delete your account once it's done."
 
@@ -156,7 +154,7 @@ Philippine news and social media reports); see [`lacking.md`](lacking.md#round-3
 - **Move store hours into the same table.** Hours are hardcoded in `lib/store-hours.ts`, so a manager can't change them for
   a holiday or a longer day without a developer.
 
-### 8. No "change for ₱___" on cash on delivery
+### 8. No "change for ₱___" on cash payments
 - Riders need to know how much change to bring. Without it, the rider either carries a lot of cash or the customer waits while they find change.
 - **Fix:** an optional amount field when cash on delivery is picked (it must be at least the total).
   Store it on the order or transaction and show "Bring ₱X change" on the rider's delivery screen.
@@ -174,9 +172,7 @@ Philippine news and social media reports); see [`lacking.md`](lacking.md#round-3
 - **Pickup orders need this most.** A pickup customer only learns the order is ready if the tracking page is open. Send
   "Your order is ready for pickup" and show where to go ("Counter 1, say your order number"), as pickup-ordering guides recommend.
 
-### 11. No tap-to-call between rider and customer
-- Riders can already see the customer's phone. Make it a `tel:` link. "Call rider" still waits on the
-  missing `employee.phone_number` column (see `docs/unimplemented_issues.md`). Add the column in the same change.
+### 11. (Removed)
 
 ### 12. No printable receipt
 - Add a "Print / Save as PDF" button on the order details page with a print stylesheet listing items, add-ons, fee,
@@ -200,7 +196,7 @@ Philippine news and social media reports); see [`lacking.md`](lacking.md#round-3
   so add an "Enable sound" button.
 - **Seen in:** the GitHub KDS projects all have an elapsed timer with late-order warnings.
 
-### 18. Nothing stops repeat cash-on-delivery no-shows
+### 18. Nothing stops repeat pickup no-shows
 - **Why:** fake and no-show cash orders are a known problem in the Philippines. Grab PH has looked at ways to protect
   riders from no-show customers, and a Senate bill targets fake orders and unjust cancellations.
 - **Fix:** count a customer's cash-on-delivery orders that were cancelled after cooking started. After 2, hide
@@ -209,7 +205,7 @@ Philippine news and social media reports); see [`lacking.md`](lacking.md#round-3
 - **Also cap the first order.** Viral Philippine cases show fake COD orders worth ₱1,700–₱15,000 sent to strangers' addresses.
   A brand-new account's first cash-on-delivery order should have a lower cap (for example ₱1,000). Larger first orders pay by GCash or Maya.
 
-### 19. No end-of-day cash summary per rider
+### 19. No end-of-day cash summary at the counter
 - **Now:** riders tick "cash collected", but nobody can see how much cash each rider should hand over at the end of the day.
 - **Fix:** a "Cash to remit" table on the reports page: rider, number of cash orders, total collected, for a chosen day.
   It is a simple sum over completed cash-on-delivery orders.
@@ -264,7 +260,7 @@ Philippine news and social media reports); see [`lacking.md`](lacking.md#round-3
 These were confirmed with **read-only** checks on the live Supabase project (`mnrrfhhqcmutiuljmalu`): the security advisor
 and `SELECT` queries. Nothing was changed. Details and SQL are in [`user-simulation.md`](user-simulation.md), personas 13 and 14.
 
-### 26. Live database is missing 5 migrations — RLS is off on `employee` and `rider` (P0)
+### 26. Live database is missing 5 migrations — RLS is off on `employee` (P0)
 - **Now:** `supabase_migrations.schema_migrations` on the live project stops at `20260924000000`. The advisor reports
   **RLS disabled** on `employee` and `rider` (level ERROR), with 0 policies, and signed-in users have INSERT and UPDATE rights.
   A customer can insert an `employee` row for themselves with `role = 'MANAGER'` and open `/manage`, or change any employee's role.
@@ -274,7 +270,7 @@ and `SELECT` queries. Nothing was changed. Details and SQL are in [`user-simulat
   editor), then run the advisor again. `20260925000001_restore_employee_rider_rls.sql` is the one that closes this.
   Check for misuse with the "managers" query in persona 13 afterwards.
 - **Also, while there:** turn on leaked-password protection (Auth settings), and revoke `EXECUTE` on
-  `create_delivery_for_ready_order()` and `handle_password_timestamp_update()` from `anon` and `authenticated`.
+  `handle_password_timestamp_update()` from `anon` and `authenticated`.
 
 ### 27. Pay-in-store sales never marked paid; payment values in 5 spellings (P1)
 - **Now:** every transaction starts with `total_paid = 0` (`lib/actions/cart.ts:866`). Cash on delivery and wallet payments
@@ -284,24 +280,22 @@ and `SELECT` queries. Nothing was changed. Details and SQL are in [`user-simulat
   total (same pattern as `lib/actions/delivery.ts:616`). Clean up the spellings, then add CHECK constraints
   (queries in persona 14).
 
-### 28. Disabled accounts stay signed in; proof-of-delivery photos are public (P1)
+### 28. Disabled accounts stay signed in; senior/PWD ID photos are public (P1)
 - **Now:** `is_account_disabled` is checked at login and in `lib/auth/api-guard.ts`, but not in the server-action guards or
   middleware, so a disabled user who is already signed in keeps working. `requireCustomer` also uses `getSession()`, which
-  Supabase says not to trust on the server. All four storage buckets are public, including `proof-of-delivery`, which holds
+  Supabase says not to trust on the server. Storage buckets are public, including `senior-pwd-ids`, which holds
   photos of customers' homes.
 - **Fix:** check `is_account_disabled` in `requireCustomer`, `requireManageAccess`, `requireRole`, `requireEmployee` and
-  `requireReportAccess`, and switch `requireCustomer` to `getUser()`. Make `proof-of-delivery` private and show photos with
+  `requireReportAccess`, and switch `requireCustomer` to `getUser()`. Make `senior-pwd-ids` private and show photos with
   `createSignedUrl` (valid for a few minutes). Keep the Senior/PWD ID photos from L4 in a private bucket from the start.
 
 ### 29. Terms promise card payments and refunds that don't exist; map credits hidden (P1)
 - **Found by:** the lawyer walkthrough (persona 15, J3 and J9).
 - **Now:** `app/terms/page.tsx` says the shop accepts credit/debit cards (they're commented out) and that refunds follow the
   payment gateway's timelines (there's no refund process). It has no "last updated" date, governing law or complaints contact.
-  The rider map hides the OpenStreetMap credit (`attributionControl={false}` in `components/deliver/map-content.tsx:167`)
-  and shows the LocationIQ credit even when ArcGIS tiles are loaded.
+  The system still has unused map components that can be removed.
 - **Fix:** rewrite the Terms to match what the system does: payment methods, who can cancel and when, what happens when the
-  store cancels a paid order, how to report missing items, a complaints contact, and the date. Turn attribution back on
-  and show the right credit for each tile source.
+  store cancels a paid order, how to report missing items, a complaints contact, and the date. Remove the map components entirely.
 
 ---
 
@@ -357,19 +351,19 @@ The panel's 25 points were checked against the code. The ones not already covere
 | F12 | Grey out photos of unavailable items | **P1 (panel)** | 0.25 h |
 | F16 | Password strength on sign-up; remove birthday (add an age checkbox) | **P1 (panel)** | 0.5 h |
 | F17 | Show VAT at checkout and save `tax_amount` | **P1 (panel)** | 0.5 h |
-| F21 | PICKUP / DELIVERY badge on KDS and order cards | **P1 (panel)** | 0.25 h |
+| F21 | 3RD PARTY COURIER / SELF PICKUP badge on KDS and order cards | **P1 (panel)** | 0.25 h |
 | F22 | Cancel button disabled until a reason is given; preset reasons | **P1 (panel)** | 0.25 h |
 | F6, F9 | Minimum item count and max items per delivery (with L6) | **P1 (panel)** | 0.25 h |
 | F11, F15 | Timed pause with countdown, automatic busy mode, pickup-only when riders are full (extends L7) | **P1 (repeated by Ma'am)** | 3 h |
-| F14 | "Couldn't deliver" status for riders; strikes lead to COD block, then manager review | P2 | 2 h |
+| F14 | "Customer no-show" status; strikes lead to cash block, then manager review | P2 | 2 h |
 | F24 | KDS sort toggle, list view, cancelled tab | P2 | 1.5 h |
-| F25 | Separate food and delivery ratings; per-item ratings with "rate all the same" | P2 | 2 h |
+| F25 | Separate food and service ratings; per-item ratings with "rate all the same" | P2 | 2 h |
 | F23 | Email on cancellation (with refund note for paid orders) | P2 | 1.5 h |
 | F4 | "Find a store" page | P2 | 1 h |
 | F18 | Per-item prep time in the ETA; keep the promised time | P2 | 2 h |
 | F1 | Promo banner managed by the manager | P2 | 2.5 h |
 | F13 | CAPTCHA on sign-up and login (moved from `lacking.md`) | P2 | 1.5 h |
-| F19 | Rider tips with preset amounts (moved from `lacking.md`) | P2 | 2 h |
+| F19 | Staff tips with preset amounts (moved from `lacking.md`) | P2 | 2 h |
 | F20 | Record who created and cancelled each order (extends L9) | P2 | 0.5 h on top of L9 |
 
 Panel P1 items add about 6 hours. Future work for the paper: group orders (F2), bulk and advance orders (F10), vouchers and games (F1).
