@@ -48,9 +48,19 @@ export default async function CheckoutConfirmationPage({
   // estimated properly — the same engine, and the same call, the tracking
   // screen makes one step later. The receipt used to print the fixed string
   // "35–45 min" here instead (issue #106).
-  const arrivalWindow = arrivalWindowFrom(
-    await getOrderEtaAction(order.orderId),
-  );
+  //
+  // Guarded, unlike the tracking page's identical call. This is where a
+  // customer lands the moment they have paid, and the action reaches the
+  // database and the geocoder without an error boundary of its own. An
+  // estimate is worth a line of text; it is not worth a 500 on the one page
+  // that confirms someone's money arrived. Losing it falls back to
+  // "Arrival time to be confirmed".
+  let arrivalWindow: string | null = null;
+  try {
+    arrivalWindow = arrivalWindowFrom(await getOrderEtaAction(order.orderId));
+  } catch {
+    arrivalWindow = null;
+  }
 
   return (
     <ToastProvider>
