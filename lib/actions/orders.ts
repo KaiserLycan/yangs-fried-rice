@@ -11,6 +11,7 @@ import {
   type OrderFilters,
 } from "@/lib/validation/orders";
 import { ensureDeliveryRow } from "@/lib/orders/order-side-effects";
+import { isPickupOrder } from "@/lib/orders/format";
 import type { Tables, TablesUpdate } from "@/types/database.types";
 
 // ---------------------------------------------------------------------------
@@ -407,12 +408,22 @@ export async function updateOrderStatus(
   // Fetch current status.
   const { data: order, error: lookupError } = await supabase
     .from("order")
-    .select("order_id, order_status")
+    .select("order_id, order_status, order_type")
     .eq("order_id", orderId)
     .single();
 
   if (lookupError || !order) {
     return { data: null, error: "Order not found." };
+  }
+
+  // A take-out order never goes out with a rider, so no rider queue will
+  // ever show it. Letting it reach out_for_delivery left staff seeing
+  // "delivering" for an order no rider could find (P52).
+  if (validatedNewStatus === "out_for_delivery" && isPickupOrder(order.order_type)) {
+    return {
+      data: null,
+      error: "Take-out orders can't go out for delivery. Mark it ready for pick up instead.",
+    };
   }
 
   const currentStatus = order.order_status as OrderStatus | null;
