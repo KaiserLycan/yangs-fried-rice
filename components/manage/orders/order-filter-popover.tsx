@@ -40,9 +40,16 @@ export function OrderFilterPopover({ filters, onFilterChange }: OrderFilterPopov
   const [draft, setDraft] = useState<OrderFilterState>(filters);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Kept as text so a half-typed amount isn't wiped mid-keystroke.
+  const [minTotalText, setMinTotalText] = useState("");
+  const [maxTotalText, setMaxTotalText] = useState("");
+
   // Start every opening from what is actually applied, not a stale draft.
   useEffect(() => {
-    if (open) setDraft(filters);
+    if (!open) return;
+    setDraft(filters);
+    setMinTotalText(filters.min_total?.toString() ?? "");
+    setMaxTotalText(filters.max_total?.toString() ?? "");
   }, [open, filters]);
 
   useEffect(() => {
