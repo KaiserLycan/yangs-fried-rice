@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 
 import type { OrderData } from "@/types/staff-order";
 import { useKdsTimer } from "@/hooks/use-kds-timer";
+import { FulfillmentBadge } from "@/components/manage/orders/fulfillment-badge";
 import { canCancel, primaryActionFor, statusLabelFor, type StaffAction } from "@/lib/orders/staff-actions";
 
 interface OrderCardProps {
@@ -88,21 +89,10 @@ export function OrderCard({ order, onClick, onAction }: OrderCardProps) {
         </div>
       </div>
 
-      {/* Fulfillment Badge */}
-      {order.fulfillmentMethod && (
-        <div className="px-4 pt-2">
-          <span
-            className={cn(
-              "inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider",
-              order.fulfillmentMethod === "3rd_party_courier"
-                ? "bg-indigo-100 text-indigo-700"
-                : "bg-teal-100 text-teal-700"
-            )}
-          >
-            {order.fulfillmentMethod === "3rd_party_courier" ? "3rd Party Courier" : "Self Pickup"}
-          </span>
-        </div>
-      )}
+      {/* Who collects it: the customer or their courier */}
+      <div className="px-4 pt-2">
+        <FulfillmentBadge method={order.fulfillmentMethod} />
+      </div>
 
       {/* Body */}
       <div className="p-4 flex-1 overflow-y-auto min-h-0">
