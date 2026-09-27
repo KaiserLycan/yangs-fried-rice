@@ -85,6 +85,11 @@ function ReportsContent({ isManager }: { isManager: boolean }) {
               startDate={startDate}
               endDate={endDate}
             />
+
+            {/* Daily counter cash */}
+            {reportType === SALES_REPORT && isManager && (
+              <CashRemittedTable startDate={startDate} endDate={endDate} />
+            )}
           </>
         )}
       </div>
