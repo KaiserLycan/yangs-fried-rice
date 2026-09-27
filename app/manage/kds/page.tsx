@@ -92,8 +92,15 @@ function KdsInner() {
         activeTab === "active"
           ? { status: ["pending", "preparing"], limit: 100, offset: 0 }
           : activeTab === "for_pickup"
-          ? // Take-out (and legacy "pickup") orders waiting at the counter.
-            { status: ["ready"], order_type: "take_out", limit: 100, offset: 0 }
+          ? // Everything waiting at the counter, marked ready within the last
+            // FAILED_PICKUP_MINUTES. Older ones are on Failed Pick-up; they
+            // used to sort to the top here and bury the orders just made.
+            {
+              status: ["ready"],
+              ready_from: new Date(Date.now() - FAILED_PICKUP_MINUTES * 60000).toISOString(),
+              limit: 100,
+              offset: 0,
+            }
           : { status: ["cancelled"], cancelled_from: startOfToday(), limit: 100, offset: 0 },
       );
 
