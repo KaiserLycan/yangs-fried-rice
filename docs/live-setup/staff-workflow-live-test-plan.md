@@ -430,6 +430,15 @@ Expected file `yangs-sales-and-order-<start>-to-<end>.csv` (same name as the PDF
 - **Cancellations by reason** — your preset reason and `Rain, store flooded` as one cell
 - [ ] Pass - [ ] Fail — notes: ______
 
+**TC-04-02b Menu & Customer Satisfaction CSV** · M
+1. Switch to **Menu & Customer Satisfaction**, same range → **Export CSV**.
+
+Expected file `yangs-menu-customer-satisfaction-<start>-to-<end>.csv` with:
+- **Overview** — registered customers, orders placed, completed / cancelled, completion and cancellation rate (%), revenue, average order value, previous period revenue and change (%), dishes on the menu; each matches the cards on screen
+- **Top selling dishes** — rank, dish, quantity sold (up to 10), same order as the page's chart
+- **Customer satisfaction** — average rating (or "No ratings"), number of reviews, then one row per star 5 → 1
+- [ ] Pass - [ ] Fail — notes: ______
+
 **TC-04-03 Manila hours** · setup: helper **B5** on one completed test order (19:30 Manila, Saturday 2026-09-26)
 1. Export CSV for 2026-09-26 → 2026-09-26.
 
