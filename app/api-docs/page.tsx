@@ -289,7 +289,7 @@ export default function ApiDocsPage() {
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 text-xs leading-4 text-muted-foreground">
           <div className="flex flex-wrap items-center gap-2 sm:gap-4 font-medium">
             <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
               <strong className="text-foreground">Live Development API</strong>
             </span>
             <span>•</span>
@@ -308,12 +308,12 @@ export default function ApiDocsPage() {
       {/* Swagger UI Container */}
       <main className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
         {error && (
-          <div className="my-8 rounded-lg border border-red-300 bg-red-50 p-5 text-red-800 shadow-sm">
+          <div className="my-8 rounded-lg border border-error-border bg-error-surface p-5 text-destructive shadow-sm">
             <h2 className="font-semibold text-base leading-6">Unable to load API Documentation</h2>
             <p className="mt-1 text-sm leading-5">{error}</p>
             <Button variant="unstyled"
               onClick={() => window.location.reload()}
-              className="mt-3 rounded-sm bg-red-600 px-4 py-2 text-xs leading-4 font-semibold text-white hover:bg-red-700 shadow-sm transition-all"
+              className="mt-3 rounded-sm bg-destructive px-4 py-2 text-xs leading-4 font-semibold text-white hover:bg-destructive/90 shadow-sm transition-all"
             >
               Retry
             </Button>
@@ -321,8 +321,8 @@ export default function ApiDocsPage() {
         )}
 
         {!initialized && !error && (
-          <div className="flex flex-col items-center justify-center py-28 text-gray-500 space-y-4">
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-300 border-t-primary" />
+          <div className="flex flex-col items-center justify-center py-28 text-muted-foreground space-y-4">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-field-border border-t-primary" />
             <p className="font-medium text-sm leading-5 text-muted-foreground">
               Loading Swagger UI interactive console...
             </p>

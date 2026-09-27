@@ -16,9 +16,9 @@ interface CustomerFilterPopoverProps {
   onFilterChange: (filters: CustomerFilters) => void;
 }
 
-const FIELD_LABEL = "text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]";
+const FIELD_LABEL = "text-xs font-bold uppercase tracking-[1.32px] text-muted-foreground";
 const SELECT_CLASS =
-  "flex h-10 w-full rounded-md border border-[#DDCDB8] bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8541F]";
+  "flex h-10 w-full rounded-md border border-field-border bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";
 
 /** "2026-09-01" in the browser's time zone (the store's, for its staff). */
 function isoDay(date: Date): string {
@@ -114,26 +114,26 @@ export function CustomerFilterPopover({ filters, onFilterChange }: CustomerFilte
         variant="outline"
         onClick={() => setOpen(!open)}
         aria-expanded={open}
-        className="h-[45px] w-full md:w-auto gap-2 rounded-xl border-[#DDCDB8] text-[#1a1210]"
+        className="h-[45px] w-full md:w-auto gap-2 rounded-md border-field-border text-foreground"
       >
         <Filter className="h-4 w-4" />
         Filter
         {activeCount > 0 && (
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#E8541F] text-[11px] text-white">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent text-xs text-white">
             {activeCount}
           </span>
         )}
       </Button>
 
       {open && (
-        <div className="absolute top-full left-0 md:left-auto md:right-0 mt-2 w-[min(380px,calc(100vw-32px))] max-h-[75vh] overflow-y-auto rounded-xl border border-[#DDCDB8] bg-white p-4 shadow-lg z-50">
+        <div className="absolute top-full left-0 md:left-auto md:right-0 mt-2 w-[min(380px,calc(100vw-32px))] max-h-[75vh] overflow-y-auto rounded-md border border-field-border bg-white p-4 shadow-lg z-50">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h4 className="font-semibold text-[#1a1210]">Filter customers</h4>
+              <h4 className="font-semibold text-foreground">Filter customers</h4>
               {activeCount > 0 && (
-                <button onClick={handleClear} className="flex items-center text-sm text-[#bf4342] hover:underline">
+                <Button variant="unstyled" onClick={handleClear} className="flex items-center text-sm text-destructive hover:underline">
                   <X className="h-4 w-4 mr-1" /> Clear
-                </button>
+                </Button>
               )}
             </div>
 
@@ -144,7 +144,7 @@ export function CustomerFilterPopover({ filters, onFilterChange }: CustomerFilte
                 {periodPresets().map((preset) => {
                   const selected = (draft.from ?? undefined) === preset.from && (draft.to ?? undefined) === preset.to;
                   return (
-                    <button
+                    <Button variant="unstyled"
                       key={preset.label}
                       type="button"
                       onClick={() => setDraft({ ...draft, from: preset.from, to: preset.to })}
@@ -152,18 +152,18 @@ export function CustomerFilterPopover({ filters, onFilterChange }: CustomerFilte
                       className={cn(
                         "rounded-full border px-3 py-1 text-xs font-semibold transition-colors",
                         selected
-                          ? "border-[#E8541F] bg-[#fff1e8] text-[#b8352a]"
-                          : "border-[#DDCDB8] text-[#5c4d44] hover:bg-[#faf7f0]",
+                          ? "border-accent bg-warning-surface text-backoffice"
+                          : "border-field-border text-muted-strong hover:bg-background",
                       )}
                     >
                       {preset.label}
-                    </button>
+                    </Button>
                   );
                 })}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label htmlFor="cust-filter-from" className="text-xs text-[#7a6a60]">From</label>
+                  <label htmlFor="cust-filter-from" className="text-xs text-muted-foreground">From</label>
                   <Input
                     id="cust-filter-from"
                     type="date"
@@ -172,7 +172,7 @@ export function CustomerFilterPopover({ filters, onFilterChange }: CustomerFilte
                   />
                 </div>
                 <div className="space-y-1">
-                  <label htmlFor="cust-filter-to" className="text-xs text-[#7a6a60]">To</label>
+                  <label htmlFor="cust-filter-to" className="text-xs text-muted-foreground">To</label>
                   <Input
                     id="cust-filter-to"
                     type="date"
@@ -182,13 +182,13 @@ export function CustomerFilterPopover({ filters, onFilterChange }: CustomerFilte
                   />
                 </div>
               </div>
-              <p className="text-[12px] text-[#7a6a60]">
+              <p className="text-xs text-muted-foreground">
                 {hasPeriod
                   ? "Orders and Spent count only completed orders in this period."
                   : "No period: Orders and Spent are lifetime totals."}
               </p>
               {periodInvalid && (
-                <p className="text-[13px] text-red-600">The period can&apos;t end before it starts.</p>
+                <p className="text-sm text-destructive">The period can&apos;t end before it starts.</p>
               )}
             </fieldset>
 
@@ -215,7 +215,7 @@ export function CustomerFilterPopover({ filters, onFilterChange }: CustomerFilte
               </div>
             </div>
             {numbersInvalid && (
-              <p className="text-[13px] text-red-600">Minimums must be numbers of 0 or more.</p>
+              <p className="text-sm text-destructive">Minimums must be numbers of 0 or more.</p>
             )}
 
             <div className="space-y-1">
@@ -236,7 +236,7 @@ export function CustomerFilterPopover({ filters, onFilterChange }: CustomerFilte
               <legend className={FIELD_LABEL}>Joined</legend>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label htmlFor="cust-filter-joined-from" className="text-xs text-[#7a6a60]">From</label>
+                  <label htmlFor="cust-filter-joined-from" className="text-xs text-muted-foreground">From</label>
                   <Input
                     id="cust-filter-joined-from"
                     type="date"
@@ -245,7 +245,7 @@ export function CustomerFilterPopover({ filters, onFilterChange }: CustomerFilte
                   />
                 </div>
                 <div className="space-y-1">
-                  <label htmlFor="cust-filter-joined-to" className="text-xs text-[#7a6a60]">To</label>
+                  <label htmlFor="cust-filter-joined-to" className="text-xs text-muted-foreground">To</label>
                   <Input
                     id="cust-filter-joined-to"
                     type="date"
@@ -256,7 +256,7 @@ export function CustomerFilterPopover({ filters, onFilterChange }: CustomerFilte
                 </div>
               </div>
               {joinedInvalid && (
-                <p className="text-[13px] text-red-600">The joined range can&apos;t end before it starts.</p>
+                <p className="text-sm text-destructive">The joined range can&apos;t end before it starts.</p>
               )}
             </fieldset>
 
@@ -264,7 +264,7 @@ export function CustomerFilterPopover({ filters, onFilterChange }: CustomerFilte
               onClick={handleApply}
               disabled={invalid}
               variant="primary"
-              className="w-full bg-[#CD7D39] hover:bg-orange-600 text-white"
+              className="w-full bg-status-preparing hover:bg-accent/90 text-white"
             >
               Apply filters
             </Button>

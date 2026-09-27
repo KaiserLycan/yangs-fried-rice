@@ -31,7 +31,7 @@ export function EmployeeBrandPanel() {
       </div>
 
       <p className="relative font-display text-lg tracking-[0.8px] text-on-brand md:text-2xl md:tracking-[0.88px]">
-        YANG&apos;S <span className="text-accent">EMPLOYEE CONSOLE</span>
+        YANG&apos;S <span className="text-on-brand-accent">EMPLOYEE CONSOLE</span>
       </p>
 
       <div className="relative flex flex-col gap-3 pt-[19px] md:mb-9 md:gap-[18px] md:pt-[262px]">
@@ -40,7 +40,7 @@ export function EmployeeBrandPanel() {
           <br />
           SERVICE FROM
           <br />
-          <span className="text-accent">ONE SCREEN.</span>
+          <span className="text-on-brand-accent">ONE SCREEN.</span>
         </h1>
         <p className="max-w-[360px] text-sm leading-[19.5px] text-on-console-muted md:text-base md:leading-[22.5px]">
           {/* COPY: "Manager and owner accounts only" names two roles that do
@@ -82,7 +82,7 @@ export function EmployeeBrandPanel() {
 function Stat({ value, label }: { value: string; label: string }) {
   return (
     <div className="flex flex-col">
-      <p className="font-display text-2xl text-accent">{value}</p>
+      <p className="font-display text-2xl text-on-brand-accent">{value}</p>
       <p className="text-sm text-on-console-subtle">{label}</p>
     </div>
   );

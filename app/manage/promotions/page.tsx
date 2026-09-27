@@ -199,7 +199,7 @@ export default function ManagePromotionsPage() {
                     {new Date(promo.starts_at).toLocaleDateString()} - {new Date(promo.ends_at).toLocaleDateString()}
                   </div>
                   <div className="text-sm md:flex md:items-center">
-                    <span className={`px-2 py-1 rounded-md text-xs font-bold ${promo.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                    <span className={`px-2 py-1 rounded-md text-xs font-bold ${promo.is_active ? 'bg-success/10 text-success' : 'bg-track text-foreground'}`}>
                       {promo.is_active ? "Active" : "Inactive"}
                     </span>
                   </div>

@@ -5,6 +5,7 @@ import { useKdsTimer } from "@/hooks/use-kds-timer";
 import { FulfillmentBadge } from "@/components/manage/orders/fulfillment-badge";
 import { canCancel, primaryActionFor, statusLabelFor, type StaffAction } from "@/lib/orders/staff-actions";
 
+import { Button } from "@/components/ui/button";
 interface OrderCardProps {
   order: OrderData;
   // The onClick handler allows the parent to open the OrderDetailModal when the card itself is clicked.
@@ -16,27 +17,27 @@ interface OrderCardProps {
 
 const statusConfig = {
   UNPAID: {
-    headerBg: "bg-[#6B3A5B]",
+    headerBg: "bg-status-unpaid",
     label: "UNPAID",
   },
   QUEUE: {
-    headerBg: "bg-[#C73926]",
+    headerBg: "bg-status-received",
     label: "QUEUE",
   },
   PREP: {
-    headerBg: "bg-[#CD7D39]",
+    headerBg: "bg-status-preparing",
     label: "PREP",
   },
   DELIVERY: {
-    headerBg: "bg-[#507A9D]",
+    headerBg: "bg-status-ready",
     label: "DELIVERING",
   },
   COMPLETED: {
-    headerBg: "bg-[#48995F]",
+    headerBg: "bg-status-done",
     label: "COMPLETED",
   },
   CANCELED: {
-    headerBg: "bg-[#797167]",
+    headerBg: "bg-status-cancelled",
     label: "CANCELED",
   },
 };
@@ -49,9 +50,9 @@ export function OrderCard({ order, onClick, onAction }: OrderCardProps) {
   // Timer overrides colors only for active orders (QUEUE/PREP)
   let headerBg = config.headerBg;
   if ((order.status === "QUEUE" || order.status === "PREP") && timerColor === "red") {
-    headerBg = "bg-red-700 animate-pulse";
+    headerBg = "bg-destructive animate-pulse";
   } else if ((order.status === "QUEUE" || order.status === "PREP") && timerColor === "amber") {
-    headerBg = "bg-amber-600";
+    headerBg = "bg-warning";
   }
 
   return (
@@ -65,20 +66,20 @@ export function OrderCard({ order, onClick, onAction }: OrderCardProps) {
           onClick?.();
         }
       }}
-      className="flex flex-col text-left w-full rounded-xl overflow-hidden shadow-sm bg-[#FAF7F0] border border-field-border h-full transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CD7D39]"
+      className="flex flex-col text-left w-full rounded-md overflow-hidden shadow-sm bg-background border border-field-border h-full transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-status-preparing"
     >
       {/* Header */}
       <div className={cn("flex justify-between items-start p-4 text-white", headerBg)}>
         <div>
           {/* The same eight characters the customer sees since issue
               #106 — this used to be the id's first four. */}
-          <div className="text-xl font-bold tracking-wider leading-none mb-1">
+          <div className="text-lg font-bold tracking-wider leading-none mb-1">
             #{order.orderNumber}
           </div>
           <div className="text-xs font-medium tracking-wide opacity-90">{order.time}</div>
         </div>
         <div className="text-right flex flex-col items-end">
-          <div className="text-[10px] font-bold uppercase tracking-widest leading-none mb-1">
+          <div className="text-xs font-bold uppercase tracking-widest leading-none mb-1">
             {statusLabelFor(order)}
           </div>
           {(order.status === "QUEUE" || order.status === "PREP") && (
@@ -98,17 +99,17 @@ export function OrderCard({ order, onClick, onAction }: OrderCardProps) {
       <div className="p-4 flex-1 overflow-y-auto min-h-0">
         {order.items.map((item, index) => (
           <div key={index} className="mb-4 last:mb-0">
-            <div className="font-semibold text-sm text-gray-900">
+            <div className="font-semibold text-sm text-foreground">
               <span className="font-bold">{item.quantity}x</span> {item.name}
             </div>
             {/* Add-ons and the line's note on separate rows (P30). */}
             {item.addons && (
-              <div className="text-[#C73926] text-xs italic mt-1 pl-5">
+              <div className="text-status-received text-xs italic mt-1 pl-5">
                 + {item.addons}
               </div>
             )}
             {item.instructions && (
-              <div className="text-gray-800 text-xs mt-1 pl-5">
+              <div className="text-foreground text-xs mt-1 pl-5">
                 <span className="font-bold">Note:</span> {item.instructions}
               </div>
             )}
@@ -120,7 +121,7 @@ export function OrderCard({ order, onClick, onAction }: OrderCardProps) {
       {(canCancel(order) || primary) && (
         <div className="flex w-full mt-auto">
           {canCancel(order) && (
-            <button 
+            <Button variant="unstyled" 
               onClick={(e) => {
                 // e.stopPropagation() prevents the click event from bubbling up to the card's main container.
                 // This ensures that clicking "Cancel" only triggers the onAction callback (opening the confirmation dialog),
@@ -128,22 +129,22 @@ export function OrderCard({ order, onClick, onAction }: OrderCardProps) {
                 e.stopPropagation();
                 onAction?.("Cancel", order);
               }}
-              className="flex-1 py-3 bg-[#C73926] hover:bg-red-800 transition-colors text-white text-sm font-semibold text-center"
+              className="flex-1 py-3 bg-status-received hover:bg-destructive/90 transition-colors text-white text-sm font-semibold text-center"
             >
               Cancel
-            </button>
+            </Button>
           )}
           {primary && (
-            <button 
+            <Button variant="unstyled" 
               onClick={(e) => {
                 // StopPropagation logic isolates button clicks from card clicks.
                 e.stopPropagation();
                 onAction?.(primary.type, order);
               }}
-              className="flex-1 py-3 bg-[#48995F] hover:bg-green-700 transition-colors text-white text-sm font-semibold text-center"
+              className="flex-1 py-3 bg-status-done hover:bg-success/90 transition-colors text-white text-sm font-semibold text-center"
             >
               {primary.label}
-            </button>
+            </Button>
           )}
         </div>
       )}

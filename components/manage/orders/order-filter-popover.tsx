@@ -31,9 +31,9 @@ interface OrderFilterPopoverProps {
   onFilterChange: (filters: OrderFilterState) => void;
 }
 
-const FIELD_LABEL = "text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]";
+const FIELD_LABEL = "text-xs font-bold uppercase tracking-[1.32px] text-muted-foreground";
 const SELECT_CLASS =
-  "flex h-10 w-full rounded-md border border-[#DDCDB8] bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8541F]";
+  "flex h-10 w-full rounded-md border border-field-border bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";
 
 export function OrderFilterPopover({ filters, onFilterChange }: OrderFilterPopoverProps) {
   const [open, setOpen] = useState(false);
@@ -102,29 +102,29 @@ export function OrderFilterPopover({ filters, onFilterChange }: OrderFilterPopov
         variant="outline"
         onClick={() => setOpen(!open)}
         aria-expanded={open}
-        className="h-[45px] w-full sm:w-auto gap-2 rounded-xl border-[#DDCDB8] text-[#1a1210]"
+        className="h-[45px] w-full sm:w-auto gap-2 rounded-md border-field-border text-foreground"
       >
         <Filter className="h-4 w-4" />
         Filter
         {activeCount > 0 && (
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#E8541F] text-[11px] text-white">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent text-xs text-white">
             {activeCount}
           </span>
         )}
       </Button>
 
       {open && (
-        <div className="absolute top-full left-0 sm:left-auto sm:right-0 mt-2 w-[min(340px,calc(100vw-32px))] rounded-xl border border-[#DDCDB8] bg-white p-4 shadow-lg z-50">
+        <div className="absolute top-full left-0 sm:left-auto sm:right-0 mt-2 w-[min(340px,calc(100vw-32px))] rounded-md border border-field-border bg-white p-4 shadow-lg z-50">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h4 className="font-semibold text-[#1a1210]">Filter orders</h4>
+              <h4 className="font-semibold text-foreground">Filter orders</h4>
               {activeCount > 0 && (
-                <button
+                <Button variant="unstyled"
                   onClick={handleClear}
-                  className="flex items-center text-sm text-[#bf4342] hover:underline"
+                  className="flex items-center text-sm text-destructive hover:underline"
                 >
                   <X className="h-4 w-4 mr-1" /> Clear
-                </button>
+                </Button>
               )}
             </div>
 
@@ -152,7 +152,7 @@ export function OrderFilterPopover({ filters, onFilterChange }: OrderFilterPopov
               </div>
             </div>
             {rangeInvalid && (
-              <p className="text-[13px] text-red-600">The end date can&apos;t be before the start date.</p>
+              <p className="text-sm text-destructive">The end date can&apos;t be before the start date.</p>
             )}
 
             <div className="space-y-1">
@@ -242,17 +242,17 @@ export function OrderFilterPopover({ filters, onFilterChange }: OrderFilterPopov
               </div>
             </div>
             {amountUnreadable && (
-              <p className="text-[13px] text-red-600">Totals must be amounts of 0 or more.</p>
+              <p className="text-sm text-destructive">Totals must be amounts of 0 or more.</p>
             )}
             {amountBackwards && (
-              <p className="text-[13px] text-red-600">&quot;Up to&quot; can&apos;t be less than &quot;from&quot;.</p>
+              <p className="text-sm text-destructive">&quot;Up to&quot; can&apos;t be less than &quot;from&quot;.</p>
             )}
 
             <Button
               onClick={handleApply}
               disabled={invalid}
               variant="primary"
-              className="w-full bg-[#CD7D39] hover:bg-orange-600 text-white"
+              className="w-full bg-status-preparing hover:bg-accent/90 text-white"
             >
               Apply filters
             </Button>

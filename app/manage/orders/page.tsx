@@ -177,19 +177,19 @@ function ManageOrdersInner() {
     <div className="flex flex-col h-full gap-4 md:gap-0">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-[10px] md:mb-8 gap-4 sm:gap-0">
-        <h1 className="font-display text-[24px] md:text-[30px] leading-normal text-[#1a1210]">
+        <h1 className="font-display text-2xl md:text-3xl leading-normal text-foreground">
           ORDER MANAGEMENT
         </h1>
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
           <div className="relative w-full sm:w-auto">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-[#A2938A]" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-placeholder" />
             <input
               type="search"
               aria-label="Search by order number"
               placeholder="Search order #"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className="w-full sm:w-[260px] h-[45px] pl-11 pr-4 rounded-xl border border-[#DDCDB8] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#E8541F] placeholder:text-[#A2938A]"
+              className="w-full sm:w-[260px] h-[45px] pl-11 pr-4 rounded-md border border-field-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-placeholder"
             />
           </div>
           <OrderFilterPopover
@@ -199,7 +199,7 @@ function ManageOrdersInner() {
               setCurrentPage(1);
             }}
           />
-          <Link href="/manage/kds" className="bg-[#CD7D39] hover:bg-orange-600 text-white px-6 py-2.5 rounded-lg font-semibold shadow-sm transition-colors text-center w-full sm:w-auto">
+          <Link href="/manage/kds" className="bg-status-preparing hover:bg-accent/90 text-white px-6 py-2.5 rounded-lg font-semibold shadow-sm transition-colors text-center w-full sm:w-auto">
             View KDS
           </Link>
         </div>
@@ -222,38 +222,38 @@ function ManageOrdersInner() {
             {isLoading ? (
               <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="flex flex-col text-left w-full rounded-xl overflow-hidden shadow-sm bg-[#FAF7F0] border border-gray-200/50 h-[280px]">
+                  <div key={i} className="flex flex-col text-left w-full rounded-md overflow-hidden shadow-sm bg-background border border-rule/50 h-[280px]">
                     {/* Header Skeleton */}
-                    <div className="flex justify-between items-start p-4 bg-[#efe6d8]">
+                    <div className="flex justify-between items-start p-4 bg-track">
                       <div>
-                        <div className="h-5 w-16 bg-[#e3d6c3] rounded-full animate-pulse mb-2" />
-                        <div className="h-3 w-12 bg-[#e3d6c3] rounded-full animate-pulse" />
+                        <div className="h-5 w-16 bg-rule rounded-full animate-pulse mb-2" />
+                        <div className="h-3 w-12 bg-rule rounded-full animate-pulse" />
                       </div>
                       <div className="flex flex-col items-end">
-                        <div className="h-3 w-14 bg-[#e3d6c3] rounded-full animate-pulse mb-2" />
-                        <div className="h-5 w-12 bg-[#e3d6c3] rounded-full animate-pulse" />
+                        <div className="h-3 w-14 bg-rule rounded-full animate-pulse mb-2" />
+                        <div className="h-5 w-12 bg-rule rounded-full animate-pulse" />
                       </div>
                     </div>
                     {/* Body Skeleton */}
                     <div className="p-4 flex-1 flex flex-col gap-4">
                       <div>
-                        <div className="h-4 w-3/4 bg-[#efe6d8] rounded-full animate-pulse mb-2" />
-                        <div className="h-3 w-1/2 bg-[#efe6d8] rounded-full animate-pulse ml-5" />
+                        <div className="h-4 w-3/4 bg-track rounded-full animate-pulse mb-2" />
+                        <div className="h-3 w-1/2 bg-track rounded-full animate-pulse ml-5" />
                       </div>
                       <div>
-                        <div className="h-4 w-2/3 bg-[#efe6d8] rounded-full animate-pulse" />
+                        <div className="h-4 w-2/3 bg-track rounded-full animate-pulse" />
                       </div>
                     </div>
                     {/* Footer Actions Skeleton */}
                     <div className="flex w-full mt-auto h-[44px]">
-                      <div className="flex-1 bg-[#efe6d8] border-r border-[#e3d6c3] animate-pulse" />
-                      <div className="flex-1 bg-[#efe6d8] animate-pulse" />
+                      <div className="flex-1 bg-track border-r border-rule animate-pulse" />
+                      <div className="flex-1 bg-track animate-pulse" />
                     </div>
                   </div>
                 ))}
               </div>
             ) : orders.length === 0 ? (
-              <div className="p-8 text-center text-[#7A6A60] bg-white rounded-xl border border-[#F0E6D8]">
+              <div className="p-8 text-center text-muted-foreground bg-white rounded-md border border-track">
                 {search
                   ? `No orders starting with #${search.replace(/^#/, "")}.`
                   : Object.keys(advancedFilters).some((k) => advancedFilters[k as keyof OrderFilterState])

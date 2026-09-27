@@ -5,8 +5,8 @@ export default function TrackOrderLoading() {
     <div className="flex min-h-screen flex-col bg-background">
       {/* Mock Nav Bar */}
       <nav className="hidden h-[58px] items-center gap-[26px] bg-primary px-[22px] md:flex">
-        <div className="font-display text-lg tracking-[0.57px] text-rule">
-          YANG&apos;S <span className="text-white">FRIED RICE</span>
+        <div className="font-display text-lg tracking-[0.57px]">
+          <span className="text-on-brand-accent">YANG&apos;S</span>{" "}<span className="text-background">FRIED RICE</span>
         </div>
         <ul className="flex items-start gap-[20px]">
           {["Menu", "My orders", "Account"].map((label, i) => (

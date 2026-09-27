@@ -68,7 +68,7 @@ export function PromotionModal({
             <Button
               type="button"
               variant="outline"
-              className="text-red-600 border-red-200 hover:bg-red-50"
+              className="text-destructive border-error-surface hover:bg-error-surface/90"
               onClick={() => onDelete(promotion)}
             >
               Delete

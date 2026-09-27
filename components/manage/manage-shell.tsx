@@ -25,7 +25,7 @@ export function ManageShell({
     <div className="flex h-screen bg-background">
       {!isKds && <Sidebar role={role} />}
       <main
-        className={`min-w-0 flex-1 overflow-y-auto ${isKds ? "" : "px-[30px] py-[26px]"}`}
+        className={`min-w-0 flex-1 overflow-y-auto ${isKds ? "" : "px-4 py-5 md:px-[30px] md:py-[26px]"}`}
         style={{ scrollbarGutter: "stable" }}
       >
         {children}

@@ -20,7 +20,7 @@ export function Alert({
       className={cn(
         "flex w-full items-start gap-[10px] rounded-md border px-[14px] py-[11px]",
         isSuccess
-          ? "border-green-700/30 bg-green-50 text-green-800"
+          ? "border-success/30 bg-success/10 text-success"
           : "border-error-border bg-error-surface text-error-border",
         className,
       )}

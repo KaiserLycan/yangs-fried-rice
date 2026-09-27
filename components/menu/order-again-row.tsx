@@ -82,7 +82,7 @@ export function OrderAgainRow({ ordersPromise }: { ordersPromise: Promise<Recent
       >
         Order again
       </h2>
-      <ul className="mt-[10px] flex snap-x gap-[12px] overflow-x-auto pb-[6px] md:grid md:grid-cols-3 md:overflow-visible">
+      <ul className="relative mt-[10px] flex snap-x gap-[12px] overflow-x-auto pb-[6px] md:grid md:grid-cols-3 md:overflow-visible">
         {orders.map((order) => (
           <li
             key={order.orderId}

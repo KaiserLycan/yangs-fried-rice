@@ -96,7 +96,7 @@ export function RefundsPanel({ refunds }: { refunds: RefundRow[] }) {
 function StatusBadge({ status }: { status: RefundRow["status"] }) {
   const style = {
     refund_failed: "bg-destructive text-white",
-    refund_pending: "bg-amber-100 text-amber-900",
+    refund_pending: "bg-warning-surface text-warning-text",
     refunded: "bg-success/20 text-success",
   }[status];
   const label = {

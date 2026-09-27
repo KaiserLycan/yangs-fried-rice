@@ -282,7 +282,7 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
       >
         {/* Header. Full-bleed ink panel on mobile, plain copy on cream on
             desktop — same element, different clothes. */}
-        <header className="flex flex-col gap-[4px] bg-foreground p-[20px] md:col-start-1 md:row-start-1 md:gap-[3px] md:bg-transparent md:p-0">
+        <header className="flex flex-col gap-[4px] bg-primary p-[20px] md:col-start-1 md:row-start-1 md:gap-[3px] md:bg-transparent md:p-0">
           <Link
             href="/orders"
             className="group mb-1 flex w-fit items-center gap-[4px] text-sm uppercase tracking-[1.76px] text-on-ink-faint transition-colors hover:text-white md:mb-2 md:text-sm md:tracking-[1.92px] md:text-muted-foreground md:hover:text-foreground"
@@ -342,7 +342,7 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
           {pendingPrompt === "cancel-free" && (
             <div
               role="alert"
-              className="mt-4 rounded-md border border-amber-500/60 bg-amber-50 px-[14px] py-[11px] text-sm font-bold leading-snug text-amber-900"
+              className="mt-4 rounded-md border border-warning/60 bg-warning-surface px-[14px] py-[11px] text-sm font-bold leading-snug text-warning-text"
             >
               The store hasn&apos;t confirmed yet. You can cancel for free.
             </div>

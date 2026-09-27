@@ -8,6 +8,7 @@ import { primaryActionFor, canCancel, type StaffAction } from "@/lib/orders/staf
 import { FulfillmentBadge } from "@/components/manage/orders/fulfillment-badge";
 import { cn } from "@/lib/utils";
 
+import { Button } from "@/components/ui/button";
 interface KdsOrderCardProps {
   order: OrderData;
   onAction?: (type: StaffAction, order: OrderData) => void;
@@ -58,19 +59,19 @@ export function KdsOrderCard({
   // one being cooked.
   const headerBg =
     order.status === "CANCELED"
-      ? "bg-[#797167]"
+      ? "bg-status-cancelled"
       : isActive && timerColor === "red"
-      ? "bg-red-700 animate-pulse"
+      ? "bg-destructive animate-pulse"
       : isActive && timerColor === "amber"
-      ? "bg-amber-600"
+      ? "bg-warning"
       : isConfirmed
-      ? "bg-[#ca762d]"
-      : "bg-[#c0392b]";
+      ? "bg-status-preparing"
+      : "bg-error-border";
 
   return (
     <div
       className={cn(
-        "bg-[#fbf6ec] border border-field-border flex overflow-hidden rounded-[14px] w-full h-full shadow-sm",
+        "bg-background border border-field-border flex overflow-hidden rounded-lg w-full h-full shadow-sm",
         isList ? "flex-col md:flex-row md:min-h-[120px]" : "flex-col min-h-[320px]",
       )}
     >
@@ -84,21 +85,21 @@ export function KdsOrderCard({
             {/* The same eight characters the customer and the rider see
                 since issue #106 — this used to be the id's *first* four
                 while the customer was shown its *last* four. */}
-            <span className="font-display text-[#fbf6ec] text-[22px] leading-none mb-1">
+            <span className="font-display text-background text-2xl leading-none mb-1">
               #{order.orderNumber}
             </span>
-            <span className="font-bold text-[#fbf6ec] text-[11px] tracking-[0.88px] uppercase">
+            <span className="font-bold text-background text-sm tracking-[0.88px] uppercase">
               {order.time}
             </span>
           </div>
 
           {/* Status & Prep Time */}
           <div className={cn("flex flex-col text-right items-end gap-1", isList && "md:items-start md:text-left")}>
-            <span className="font-bold text-[#fbf6ec] text-[11px] tracking-[0.88px] uppercase mb-1">
+            <span className="font-bold text-background text-sm tracking-[0.88px] uppercase mb-1">
               {order.status}
             </span>
             {!hideTimer && (
-              <span className="font-display text-[#fbf6ec] text-[22px] leading-none">
+              <span className="font-display text-background text-2xl leading-none">
                 {order.status === "CANCELED" ? "-" : timerString}
               </span>
             )}
@@ -114,7 +115,7 @@ export function KdsOrderCard({
             {fixedBadge && (
               <span
                 className={cn(
-                  "inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider",
+                  "inline-block px-2 py-0.5 rounded-sm text-sm font-bold uppercase tracking-wider",
                   fixedBadge.bgClass,
                   fixedBadge.textClass,
                 )}
@@ -133,28 +134,28 @@ export function KdsOrderCard({
           >
             {order.items.map((item, index) => (
               <div key={index} className="flex flex-col w-full">
-                <div className="flex gap-[10px] items-start text-[#1a1210]">
-                  <span className="font-bold text-[14px] shrink-0">
+                <div className="flex gap-[10px] items-start text-foreground">
+                  <span className="font-bold text-sm shrink-0">
                     {item.quantity}x
                   </span>
-                  <span className="font-bold text-[14px] leading-tight flex-1">
+                  <span className="font-bold text-sm leading-tight flex-1">
                     {item.name}
                   </span>
                 </div>
                 {/* Add-ons and the line's note on separate rows (P30). */}
                 {item.addons && (
-                  <span className="pl-[28px] mt-1 text-[12px] text-[#c0392b] italic">+ {item.addons}</span>
+                  <span className="pl-[28px] mt-1 text-sm text-error-border italic">+ {item.addons}</span>
                 )}
                 {/* A request the cook must not miss: its own callout, not
                     another grey line under the item. */}
                 {item.instructions && (
                   <div
                     role="note"
-                    className="ml-[28px] mt-1.5 flex gap-1.5 items-start rounded-md border-l-4 border-[#d89a00] bg-[#fff1b8] px-2 py-1.5 text-[13px] font-bold leading-snug text-[#3d2a00]"
+                    className="ml-[28px] mt-1.5 flex gap-1.5 items-start rounded-md border-l-4 border-warning bg-warning-surface px-2 py-1.5 text-sm font-bold leading-snug text-foreground"
                   >
-                    <AlertTriangle className="h-4 w-4 shrink-0 mt-[1px] text-[#b37d00]" aria-hidden />
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-[1px] text-warning-text" aria-hidden />
                     <span>
-                      <span className="uppercase tracking-wide text-[10px] block text-[#8a6100]">Special instructions</span>
+                      <span className="uppercase tracking-wide text-sm block text-warning-text">Special instructions</span>
                       {item.instructions}
                     </span>
                   </div>
@@ -168,40 +169,40 @@ export function KdsOrderCard({
         {(canCancel(order) || primary) && (
           <div className={cn("flex shrink-0 mt-auto", isList ? "w-full md:w-[160px] md:flex-col md:mt-0" : "w-full")}>
             {canCancel(order) && (
-              <button
+              <Button variant="unstyled"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleAction("Cancel");
                 }}
                 disabled={isProcessing}
-                className="bg-[#c0392b] flex-1 flex justify-center items-center py-[13px] hover:brightness-110 transition-all border-t border-[#3a2e2c]/20 disabled:opacity-60"
+                className="bg-error-border flex-1 flex justify-center items-center py-[13px] hover:brightness-110 transition-all border-t border-console/20 disabled:opacity-60"
               >
                 {isProcessing ? (
                   <Loader2 className="h-4 w-4 animate-spin text-white" />
                 ) : (
-                  <span className="font-bold text-[13px] text-white tracking-[0.52px] uppercase">
+                  <span className="font-bold text-sm text-white tracking-[0.52px] uppercase">
                     Cancel
                   </span>
                 )}
-              </button>
+              </Button>
             )}
             {primary && (
-              <button
+              <Button variant="unstyled"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleAction(primary.type);
                 }}
                 disabled={isProcessing}
-                className="bg-[#4c9a5e] flex-1 flex justify-center items-center py-[13px] hover:brightness-110 transition-all border-t border-l border-[#3a2e2c]/20 disabled:opacity-60"
+                className="bg-status-done flex-1 flex justify-center items-center py-[13px] hover:brightness-110 transition-all border-t border-l border-console/20 disabled:opacity-60"
               >
                 {isProcessing ? (
                   <Loader2 className="h-4 w-4 animate-spin text-white" />
                 ) : (
-                  <span className="font-bold text-[13px] text-white tracking-[0.52px] uppercase">
+                  <span className="font-bold text-sm text-white tracking-[0.52px] uppercase">
                     {primary.label}
                   </span>
                 )}
-              </button>
+              </Button>
             )}
           </div>
         )}

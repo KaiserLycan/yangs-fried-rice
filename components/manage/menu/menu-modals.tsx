@@ -224,14 +224,14 @@ export function MenuItemModal({
       open={isOpen}
       onClose={onClose}
       dirty={isDirty && !isProcessing}
-      className="w-full max-w-[440px] md:max-w-3xl overflow-hidden rounded-[20px] bg-[#fbf6ec] shadow-[0px_30px_35px_rgba(26,18,16,0.26)]"
+      className="w-full max-w-[440px] md:max-w-3xl overflow-hidden rounded-lg bg-background shadow-[0px_30px_35px_rgba(26,18,16,0.26)]"
     >
       <div className="flex flex-col md:flex-row w-full md:h-[650px] max-h-[90vh] overflow-y-auto md:overflow-hidden">
         {/* LEFT COLUMN */}
-        <div className="flex w-full md:w-1/2 flex-col md:border-r border-[#ddcdb8] md:overflow-y-auto">
+        <div className="flex w-full md:w-1/2 flex-col md:border-r border-field-border md:overflow-y-auto">
           {/* ──────────────────────────────────── Image upload area */}
         <div className="group relative w-full">
-          <div className="relative h-[220px] w-full overflow-hidden bg-[#e7d7c1]">
+          <div className="relative h-[220px] w-full overflow-hidden bg-secondary">
             {imagePreview ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -240,30 +240,30 @@ export function MenuItemModal({
                 className="h-full w-full object-cover"
               />
             ) : (
-              <button
+              <Button variant="unstyled"
                 type="button"
                 onClick={handleImageClick}
                 className="flex h-full w-full cursor-pointer flex-col items-center justify-center gap-2"
               >
-                <Camera className="h-10 w-10 text-[#a2938a]" />
-                <span className="text-[14px] font-bold text-[#7a6a60]">
+                <Camera className="h-10 w-10 text-placeholder" />
+                <span className="text-sm font-bold text-muted-foreground">
                   Upload Image
                 </span>
-              </button>
+              </Button>
             )}
 
             {/* Hover overlay — only when an image is already picked */}
             {imagePreview && (
-              <button
+              <Button variant="unstyled"
                 type="button"
                 onClick={handleImageClick}
                 className="absolute inset-0 flex cursor-pointer flex-col items-center justify-center gap-2 bg-black/0 transition-colors duration-200 group-hover:bg-black/40"
               >
                 <Camera className="h-8 w-8 text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
-                <span className="text-[13px] font-bold text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                <span className="text-sm font-bold text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                   Change Photo
                 </span>
-              </button>
+              </Button>
             )}
           </div>
 
@@ -282,10 +282,10 @@ export function MenuItemModal({
           {/* Product Name */}
           <div className="flex flex-col gap-1.5">
             <div className="flex justify-between items-end">
-              <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
-                Product Name <span className="text-[#bf4342]">*</span>
+              <label className="text-xs font-bold uppercase tracking-[1.32px] text-muted-foreground">
+                Product Name <span className="text-destructive">*</span>
               </label>
-              <span className="text-[11px] text-[#a2938a]">{name.length}/{FIELD_LIMITS.productName.max}</span>
+              <span className="text-xs text-placeholder">{name.length}/{FIELD_LIMITS.productName.max}</span>
             </div>
             <input
               value={name}
@@ -298,39 +298,39 @@ export function MenuItemModal({
               {...lengthProps("productName")}
               aria-invalid={itemErrors.name ? true : undefined}
               className={cn(
-                  "w-full rounded-[12px] border bg-white px-4 py-3 text-[15px] text-[#1a1210] outline-none placeholder:text-[#a2938a]",
-                  !isManager ? "bg-gray-100 cursor-not-allowed opacity-70" : "",
-                itemErrors.name ? "border-[#bf4342]" : "border-[#ddcdb8]",
+                  "w-full rounded-md border bg-white px-4 py-3 text-base text-foreground outline-none placeholder:text-placeholder",
+                  !isManager ? "bg-track cursor-not-allowed opacity-70" : "",
+                itemErrors.name ? "border-destructive" : "border-field-border",
               )}
             />
-            {itemErrors.name ? <p className="text-[12px] text-[#bf4342]">{itemErrors.name}</p> : null}
+            {itemErrors.name ? <p className="text-xs text-destructive">{itemErrors.name}</p> : null}
           </div>
 
           {/* Category — custom dropdown */}
           <div className="flex flex-col gap-1.5">
-            <label {...categoryMenu.labelProps} className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
-              Category <span className="text-[#bf4342]">*</span>
+            <label {...categoryMenu.labelProps} className="text-xs font-bold uppercase tracking-[1.32px] text-muted-foreground">
+              Category <span className="text-destructive">*</span>
             </label>
             <div className="relative">
-              <button
+              <Button variant="unstyled"
                 {...categoryMenu.triggerProps}
                 className={cn(
-                  "flex w-full items-center justify-between rounded-[12px] border border-[#ddcdb8] bg-white px-4 py-3 text-[15px] text-[#1a1210] transition-colors hover:bg-[#faf5eb]",
+                  "flex w-full items-center justify-between rounded-md border border-field-border bg-white px-4 py-3 text-base text-foreground transition-colors hover:bg-background",
                   DROPDOWN_FOCUS_RING,
                 )}
               >
                 <span>{displayCategory}</span>
                 {categoryOpen ? (
-                  <ChevronDown aria-hidden="true" className="h-4 w-4 text-[#7a6a60] transition-transform" />
+                  <ChevronDown aria-hidden="true" className="h-4 w-4 text-muted-foreground transition-transform" />
                 ) : (
-                  <ChevronRight aria-hidden="true" className="h-4 w-4 text-[#7a6a60] transition-transform" />
+                  <ChevronRight aria-hidden="true" className="h-4 w-4 text-muted-foreground transition-transform" />
                 )}
-              </button>
+              </Button>
 
               {categoryOpen && (
-                <div {...categoryMenu.listProps} className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 rounded-[12px] border border-[#ddcdb8] bg-white p-[5px] shadow-[0px_8px_20px_rgba(26,18,16,0.12)]">
+                <div {...categoryMenu.listProps} className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 rounded-md border border-field-border bg-white p-[5px] shadow-[0px_8px_20px_rgba(26,18,16,0.12)]">
                   {selectableCategories.map((cat) => (
-                    <button
+                    <Button variant="unstyled"
                       key={cat}
                       {...categoryMenu.optionProps(displayCategory === cat)}
                       onClick={() => {
@@ -338,15 +338,15 @@ export function MenuItemModal({
                         categoryMenu.close();
                       }}
                       className={cn(
-                        "flex w-full items-center rounded-[8px] px-3 py-2.5 text-left text-[14px] transition-colors",
+                        "flex w-full items-center rounded-sm px-3 py-2.5 text-left text-sm transition-colors",
                         DROPDOWN_FOCUS_RING,
                         displayCategory === cat
-                          ? "bg-[#f6e9d9] font-bold text-[#8c1c13]"
-                          : "text-[#1a1210] hover:bg-[#faf5eb]"
+                          ? "bg-highlight font-bold text-primary"
+                          : "text-foreground hover:bg-background"
                       )}
                     >
                       {cat}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               )}
@@ -356,10 +356,10 @@ export function MenuItemModal({
           {/* Product Details */}
           <div className="flex flex-col gap-1.5">
             <div className="flex justify-between items-end">
-              <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
+              <label className="text-xs font-bold uppercase tracking-[1.32px] text-muted-foreground">
                 Product Details
               </label>
-              <span className="text-[11px] text-[#a2938a]">{description.length}/{FIELD_LIMITS.productDetails.max}</span>
+              <span className="text-xs text-placeholder">{description.length}/{FIELD_LIMITS.productDetails.max}</span>
             </div>
             <textarea
               value={description}
@@ -372,11 +372,11 @@ export function MenuItemModal({
               maxLength={FIELD_LIMITS.productDetails.max}
               aria-invalid={itemErrors.description ? true : undefined}
               className={cn(
-                "w-full resize-none rounded-[12px] border bg-white px-4 py-3 text-[15px] leading-[22px] text-[#1a1210] outline-none placeholder:text-[#a2938a]",
-                itemErrors.description ? "border-[#bf4342]" : "border-[#ddcdb8]",
+                "w-full resize-none rounded-md border bg-white px-4 py-3 text-base leading-[22px] text-foreground outline-none placeholder:text-placeholder",
+                itemErrors.description ? "border-destructive" : "border-field-border",
               )}
             />
-            <p className={cn("text-[12px]", itemErrors.description ? "text-[#bf4342]" : "text-[#a2938a]")}>
+            <p className={cn("text-xs", itemErrors.description ? "text-destructive" : "text-placeholder")}>
               {itemErrors.description ?? `Optional. ${description.length}/${FIELD_LIMITS.productDetails.max} characters.`}
             </p>
           </div>
@@ -385,11 +385,11 @@ export function MenuItemModal({
         </div>
 
         {/* RIGHT COLUMN */}
-        <div className="flex w-full md:w-1/2 flex-col gap-[18px] p-[26px] md:overflow-y-auto border-t md:border-t-0 border-[#ddcdb8]">
+        <div className="flex w-full md:w-1/2 flex-col gap-[18px] p-[26px] md:overflow-y-auto border-t md:border-t-0 border-field-border">
           {/* Price */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
-              Price ₱ <span className="text-[#bf4342]">*</span>
+            <label className="text-xs font-bold uppercase tracking-[1.32px] text-muted-foreground">
+              Price ₱ <span className="text-destructive">*</span>
             </label>
             <input
                 disabled={!isManager}
@@ -408,40 +408,40 @@ export function MenuItemModal({
               placeholder="0.00"
               aria-invalid={itemErrors.price ? true : undefined}
               className={cn(
-                "w-full rounded-[12px] border bg-white px-4 py-3 text-[15px] text-[#1a1210] outline-none placeholder:text-[#a2938a]",
-                itemErrors.price ? "border-[#bf4342]" : "border-[#ddcdb8]",
+                "w-full rounded-md border bg-white px-4 py-3 text-base text-foreground outline-none placeholder:text-placeholder",
+                itemErrors.price ? "border-destructive" : "border-field-border",
               )}
             />
-            {itemErrors.price ? <p className="text-[12px] text-[#bf4342]">{itemErrors.price}</p> : null}
+            {itemErrors.price ? <p className="text-xs text-destructive">{itemErrors.price}</p> : null}
           </div>
 
           {/* Add-ons Configuration */}
-          <div className="flex flex-col gap-2 rounded-[12px] border border-[#ddcdb8] bg-[#fbf6ec] p-[16px]">
+          <div className="flex flex-col gap-2 rounded-md border border-field-border bg-background p-[16px]">
             <div className="flex justify-between items-end">
-              <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
+              <label className="text-xs font-bold uppercase tracking-[1.32px] text-muted-foreground">
                 Add-ons
               </label>
-              <span className="text-[11px] text-[#a2938a]">{tempAddonName.length}/100</span>
+              <span className="text-xs text-placeholder">{tempAddonName.length}/100</span>
             </div>
-            <p className="text-[12px] text-[#7a6a60] leading-snug">
+            <p className="text-xs text-muted-foreground leading-snug">
               Define add-ons available specifically for this item (e.g. Extra Egg).
             </p>
 
             <div className="flex flex-col gap-2 mt-2">
               <div className="flex flex-col gap-2 h-[150px] overflow-y-auto pr-1">
                 {newAddOns.map((addon, index) => (
-                <div key={index} className="flex items-center justify-between rounded-[8px] bg-white p-3 shadow-sm">
-                  <span className="text-[14px] font-medium text-[#1a1210]">{addon.name}</span>
+                <div key={index} className="flex items-center justify-between rounded-sm bg-white p-3 shadow-sm">
+                  <span className="text-sm font-medium text-foreground">{addon.name}</span>
                   <div className="flex items-center gap-3">
-                    <span className="text-[14px] text-[#7a6a60]">+₱{addon.price.toFixed(2)}</span>
-                    <button
+                    <span className="text-sm text-muted-foreground">+₱{addon.price.toFixed(2)}</span>
+                    <Button variant="unstyled"
                       type="button"
                       onClick={() => setNewAddOns(newAddOns.filter((_, i) => i !== index))}
-                      className="text-[#bf4342] hover:bg-[#fceeed] p-1 rounded transition-colors"
+                      className="text-destructive hover:bg-error-surface p-1 rounded-sm transition-colors"
                       aria-label="Remove add-on"
                     >
                       <Trash2 className="h-4 w-4" />
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -458,8 +458,8 @@ export function MenuItemModal({
                   {...lengthProps("addonName")}
                   aria-invalid={addOnForm.errors.addonName ? true : undefined}
                   className={cn(
-                    "flex-1 min-w-0 rounded-[10px] border bg-white px-3 py-2 text-[14px] text-[#1a1210] outline-none placeholder:text-[#a2938a]",
-                    addOnForm.errors.addonName ? "border-[#bf4342]" : "border-[#ddcdb8]",
+                    "flex-1 min-w-0 rounded-md border bg-white px-3 py-2 text-sm text-foreground outline-none placeholder:text-placeholder",
+                    addOnForm.errors.addonName ? "border-destructive" : "border-field-border",
                   )}
                 />
                 <input
@@ -476,25 +476,25 @@ export function MenuItemModal({
                   }}
                   aria-invalid={addOnForm.errors.addonPrice ? true : undefined}
                   className={cn(
-                    "w-[70px] shrink-0 rounded-[10px] border bg-white px-3 py-2 text-[14px] text-[#1a1210] outline-none placeholder:text-[#a2938a]",
-                      !isManager ? "bg-gray-100 cursor-not-allowed opacity-70" : "",
-                    addOnForm.errors.addonPrice ? "border-[#bf4342]" : "border-[#ddcdb8]",
+                    "w-[70px] shrink-0 rounded-md border bg-white px-3 py-2 text-sm text-foreground outline-none placeholder:text-placeholder",
+                      !isManager ? "bg-track cursor-not-allowed opacity-70" : "",
+                    addOnForm.errors.addonPrice ? "border-destructive" : "border-field-border",
                   )}
                 />
                 <Tooltip content={addOnForm.isValid ? "Add this add-on to the item" : "Enter an add-on name and price first"}>
-                  <button
+                  <Button variant="unstyled"
                     type="button"
                     onClick={handleAddAddOn}
                     disabled={!addOnForm.isValid}
                     aria-label="Add add-on"
-                    className="flex shrink-0 items-center justify-center rounded-[10px] bg-[#3f6b4a] px-3 py-2 transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex shrink-0 items-center justify-center rounded-md bg-success px-3 py-2 transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Plus className="h-5 w-5 text-white" />
-                  </button>
+                  </Button>
                 </Tooltip>
               </div>
               {addOnForm.errors.addonName || addOnForm.errors.addonPrice ? (
-                <p className="text-[12px] text-[#bf4342]">
+                <p className="text-xs text-destructive">
                   {addOnForm.errors.addonName ?? addOnForm.errors.addonPrice}
                 </p>
               ) : null}
@@ -503,7 +503,7 @@ export function MenuItemModal({
 
           {/* Available toggle */}
           <div className="flex items-center gap-3">
-            <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
+            <label className="text-xs font-bold uppercase tracking-[1.32px] text-muted-foreground">
               Available?
             </label>
             <Switch
@@ -519,18 +519,18 @@ export function MenuItemModal({
                 dialog is closed, so Cancel only has to ask to close. */}
             <DialogDismiss fallback={onClose}>
               {(requestClose) => (
-                <button
+                <Button variant="unstyled"
                   type="button"
                   onClick={() => {
                     if (!isProcessing) requestClose();
                   }}
                   disabled={isProcessing}
-                  className="flex flex-1 items-center justify-center rounded-[12px] border border-[#ddcdb8] bg-transparent p-[14px] transition-colors hover:bg-black/5 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex flex-1 items-center justify-center rounded-md border border-field-border bg-transparent p-[14px] transition-colors hover:bg-black/5 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <span className="text-[14px] font-bold leading-none text-[#1a1210]">
+                  <span className="text-sm font-bold leading-none text-foreground">
                     Cancel
                   </span>
-                </button>
+                </Button>
               )}
             </DialogDismiss>
             <Tooltip
@@ -538,17 +538,17 @@ export function MenuItemModal({
               shortcut={itemForm.isValid ? SHORTCUTS.submitForm.combo : undefined}
               className="flex-1"
             >
-              <button
+              <Button variant="unstyled"
                 type="button"
                 onClick={handleSave}
                 disabled={isProcessing || !itemForm.isValid}
-                className="flex w-full flex-1 items-center justify-center gap-2 rounded-[12px] bg-[#e8541f] px-[14px] py-[15px] transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex w-full flex-1 items-center justify-center gap-2 rounded-md bg-accent px-[14px] py-[15px] transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isProcessing && <Loader2 className="h-4 w-4 animate-spin text-white" />}
-                <span className="text-[14px] font-bold leading-none text-white">
+                <span className="text-sm font-bold leading-none text-white">
                   {isProcessing ? "Saving..." : "Add"}
                 </span>
-              </button>
+              </Button>
             </Tooltip>
           </div>
         </div>

@@ -15,11 +15,11 @@ export function FulfillmentBadge({
   className?: string;
 }) {
   const base =
-    "inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider";
+    "inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-bold uppercase tracking-wider";
 
   if (method === "3rd_party_courier") {
     return (
-      <span className={cn(base, "bg-indigo-600 text-white", className)}>
+      <span className={cn(base, "bg-status-ready text-white", className)}>
         <Bike className="h-3 w-3" aria-hidden />
         3rd party courier
       </span>
@@ -27,14 +27,14 @@ export function FulfillmentBadge({
   }
   if (method === "self_pickup") {
     return (
-      <span className={cn(base, "bg-teal-600 text-white", className)}>
+      <span className={cn(base, "bg-success text-white", className)}>
         <User className="h-3 w-3" aria-hidden />
         Self pickup
       </span>
     );
   }
   return (
-    <span className={cn(base, "bg-[#e3d6c3] text-[#5c4d44]", className)}>
+    <span className={cn(base, "bg-rule text-muted-strong", className)}>
       Pickup by: not specified
     </span>
   );

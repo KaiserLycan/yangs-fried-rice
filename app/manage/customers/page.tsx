@@ -138,12 +138,12 @@ function ManageCustomersInner() {
     <div className="flex flex-col h-full gap-4 md:gap-0">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between pb-[10px] md:mb-8 gap-4 md:gap-0">
-        <h1 className="font-display text-[24px] md:text-[30px] leading-normal text-[#1a1210]">
+        <h1 className="font-display text-2xl md:text-3xl leading-normal text-foreground">
           CUSTOMER MANAGEMENT
         </h1>
         <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
           <div className="relative w-full md:w-auto">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-[#A2938A]" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-placeholder" />
             <input
               type="text"
               placeholder="Search name, email or phone..."
@@ -153,7 +153,7 @@ function ManageCustomersInner() {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full md:w-[360px] h-[45px] pl-11 pr-4 rounded-xl border border-[#DDCDB8] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#E8541F] placeholder:text-[#A2938A]"
+              className="w-full md:w-[360px] h-[45px] pl-11 pr-4 rounded-md border border-field-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-placeholder"
             />
           </div>
           <CustomerFilterPopover
@@ -168,7 +168,7 @@ function ManageCustomersInner() {
 
       {/* What Orders / Spent mean right now, and what is filtered */}
       {activeCustomerFilterCount(filters) > 0 && (
-        <p className="-mt-2 md:-mt-5 mb-3 text-[13px] text-[#7A6A60]">
+        <p className="-mt-2 md:-mt-5 mb-3 text-sm text-muted-foreground">
           {hasPeriod
             ? `Orders and Spent: completed orders ${
                 filters.from && filters.to
@@ -185,9 +185,9 @@ function ManageCustomersInner() {
 
       {/* Table Container */}
       <div className="flex-1 flex flex-col min-h-0">
-        <div className="bg-white rounded-[12px] overflow-hidden flex flex-col min-h-0 border border-[#F0E6D8] shadow-[0_2px_10px_rgba(26,18,16,0.02)]">
+        <div className="bg-white rounded-md overflow-hidden flex flex-col min-h-0 border border-track shadow-[0_2px_10px_rgba(26,18,16,0.02)]">
           {/* Table Head - Hidden on Mobile */}
-          <div className="hidden md:grid grid-cols-[1.2fr_1fr_1fr_0.8fr_0.8fr_0.8fr] px-8 py-5 border-b border-[#F0E6D8] bg-[#EAE0D5] text-[12px] font-bold text-[#7A6A60] uppercase tracking-[1px]">
+          <div className="hidden md:grid grid-cols-[1.2fr_1fr_1fr_0.8fr_0.8fr_0.8fr] px-8 py-5 border-b border-track bg-track text-xs font-bold text-muted-foreground uppercase tracking-[1px]">
             <SortableHeader 
               label="Name" 
               currentSort={sortColumn === "name" ? sortDirection : "none"} 
@@ -217,18 +217,18 @@ function ManageCustomersInner() {
             {isLoading ? (
               <div className="flex flex-col">
                 {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="flex flex-col md:grid md:grid-cols-[1.2fr_1fr_1fr_0.8fr_0.8fr_0.8fr] px-5 md:px-8 py-4 md:py-5 border-b border-[#F0E6D8] gap-2 md:gap-0 items-start md:items-center">
-                    <div className="h-[18px] w-[140px] bg-[#efe6d8] rounded-full animate-pulse" />
-                    <div className="h-[18px] w-[180px] bg-[#efe6d8] rounded-full animate-pulse" />
-                    <div className="h-[18px] w-[120px] bg-[#efe6d8] rounded-full animate-pulse" />
-                    <div className="hidden md:block h-[18px] w-[80px] bg-[#efe6d8] rounded-full animate-pulse" />
-                    <div className="hidden md:block h-[18px] w-[60px] bg-[#efe6d8] rounded-full animate-pulse" />
-                    <div className="hidden md:block h-[18px] w-[80px] bg-[#efe6d8] rounded-full animate-pulse" />
+                  <div key={i} className="flex flex-col md:grid md:grid-cols-[1.2fr_1fr_1fr_0.8fr_0.8fr_0.8fr] px-5 md:px-8 py-4 md:py-5 border-b border-track gap-2 md:gap-0 items-start md:items-center">
+                    <div className="h-[18px] w-[140px] bg-track rounded-full animate-pulse" />
+                    <div className="h-[18px] w-[180px] bg-track rounded-full animate-pulse" />
+                    <div className="h-[18px] w-[120px] bg-track rounded-full animate-pulse" />
+                    <div className="hidden md:block h-[18px] w-[80px] bg-track rounded-full animate-pulse" />
+                    <div className="hidden md:block h-[18px] w-[60px] bg-track rounded-full animate-pulse" />
+                    <div className="hidden md:block h-[18px] w-[80px] bg-track rounded-full animate-pulse" />
                   </div>
                 ))}
               </div>
             ) : customers.length === 0 ? (
-              <div className="p-8 text-center text-[#7A6A60]">
+              <div className="p-8 text-center text-muted-foreground">
                 {activeCustomerFilterCount(filters) > 0
                   ? "No customers match these filters."
                   : "No customers found."}
@@ -238,17 +238,17 @@ function ManageCustomersInner() {
                 <div
                   key={customer.id}
                   onClick={() => setSelectedCustomer(customer)}
-                  className={`flex flex-col md:grid md:grid-cols-[1.2fr_1fr_1fr_0.8fr_0.8fr_0.8fr] px-5 md:px-8 py-4 md:py-5 cursor-pointer transition-colors hover:bg-[#FAF7F0] gap-1 md:gap-0 ${index !== customers.length - 1 ? "border-b border-[#F0E6D8]" : ""}`}
+                  className={`flex flex-col md:grid md:grid-cols-[1.2fr_1fr_1fr_0.8fr_0.8fr_0.8fr] px-5 md:px-8 py-4 md:py-5 cursor-pointer transition-colors hover:bg-background gap-1 md:gap-0 ${index !== customers.length - 1 ? "border-b border-track" : ""}`}
                 >
-                  <div className="font-bold text-[#1A1210] flex items-center justify-between text-[15px]">
+                  <div className="font-bold text-foreground flex items-center justify-between text-base">
                     {customer.name}
-                    <span className="md:hidden text-[11px] font-bold tracking-wide uppercase bg-[#f6e9d9] text-[#8c1c13] px-2 py-1 rounded-md">Since {customer.customerSince}</span>
+                    <span className="md:hidden text-xs font-bold tracking-wide uppercase bg-highlight text-primary px-2 py-1 rounded-md">Since {customer.customerSince}</span>
                   </div>
-                  <div className="text-[#7A6A60] md:font-bold md:text-[#1A1210] flex items-center text-[13px] md:text-[15px]">{customer.email}</div>
-                  <div className="text-[#7A6A60] md:font-bold md:text-[#1A1210] flex items-center text-[13px] md:text-[15px]">{customer.contact}</div>
-                  <div className="hidden md:flex font-bold text-[#1A1210] items-center text-[15px]">{customer.customerSince}</div>
-                  <div className="hidden md:flex font-bold text-[#1A1210] items-center text-[15px]">{customer.totalOrders}</div>
-                  <div className="hidden md:flex font-bold text-[#1A1210] items-center text-[15px]">₱{Number(customer.totalSpent).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                  <div className="text-muted-foreground md:font-bold md:text-foreground flex items-center text-sm md:text-base">{customer.email}</div>
+                  <div className="text-muted-foreground md:font-bold md:text-foreground flex items-center text-sm md:text-base">{customer.contact}</div>
+                  <div className="hidden md:flex font-bold text-foreground items-center text-base">{customer.customerSince}</div>
+                  <div className="hidden md:flex font-bold text-foreground items-center text-base">{customer.totalOrders}</div>
+                  <div className="hidden md:flex font-bold text-foreground items-center text-base">₱{Number(customer.totalSpent).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                 </div>
               ))
             )}

@@ -104,6 +104,7 @@ const config: Config = {
           ready: "hsl(var(--status-ready))",
           done: "hsl(var(--status-done))",
           cancelled: "hsl(var(--status-cancelled))",
+          unpaid: "hsl(var(--status-unpaid))",
         },
         backoffice: "hsl(var(--backoffice))",
         highlight: "hsl(var(--highlight))",

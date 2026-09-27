@@ -62,10 +62,10 @@ export function CashRemittedTable({ startDate, endDate }: CashRemittedTableProps
   const orderCount = days.reduce((sum, row) => sum + row.totalOrders, 0);
 
   return (
-    <section className="flex flex-col gap-3 rounded-2xl border border-[#e3d6c3] bg-white p-[18px]">
+    <section className="flex flex-col gap-3 rounded-lg border border-rule bg-white p-[18px]">
       <div className="flex flex-col gap-0.5">
-        <h3 className="text-[15px] font-bold text-[#1a1210]">Cash remitted</h3>
-        <p className="text-[12px] text-[#7a6a60]">
+        <h3 className="text-base font-bold text-foreground">Cash remitted</h3>
+        <p className="text-xs text-muted-foreground">
           Cash collected at the counter each day, from completed pay-in-store orders.
         </p>
       </div>
@@ -73,19 +73,19 @@ export function CashRemittedTable({ startDate, endDate }: CashRemittedTableProps
       {isLoading ? (
         <div className="flex flex-col gap-2" aria-busy="true">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-8 w-full rounded-lg bg-[#efe6d8] animate-pulse" />
+            <div key={i} className="h-8 w-full rounded-lg bg-track animate-pulse" />
           ))}
         </div>
       ) : error ? (
-        <p className="rounded-lg bg-[#f6e9d9] p-3 text-[13px] text-[#b8352a]">{error}</p>
+        <p className="rounded-lg bg-highlight p-3 text-sm text-backoffice">{error}</p>
       ) : days.length === 0 ? (
-        <p className="rounded-lg bg-[#faf7f0] p-4 text-center text-[13px] text-[#7a6a60]">
+        <p className="rounded-lg bg-background p-4 text-center text-sm text-muted-foreground">
           No cash was collected at the counter in this period.
         </p>
       ) : (
-        <div className="max-h-[360px] overflow-auto rounded-lg border border-[#efe6d8]">
-          <table className="w-full min-w-[360px] text-[13px]">
-            <thead className="sticky top-0 bg-[#eae0d5] text-[11px] font-bold uppercase tracking-[1px] text-[#7a6a60]">
+        <div className="max-h-[360px] overflow-auto rounded-lg border border-track">
+          <table className="w-full min-w-[360px] text-sm">
+            <thead className="sticky top-0 bg-track text-xs font-bold uppercase tracking-[1px] text-muted-foreground">
               <tr>
                 <th scope="col" className="px-3 py-2 text-left">Date</th>
                 <th scope="col" className="px-3 py-2 text-right">Orders</th>
@@ -94,20 +94,20 @@ export function CashRemittedTable({ startDate, endDate }: CashRemittedTableProps
             </thead>
             <tbody>
               {days.map((row) => (
-                <tr key={row.day} className="border-t border-[#efe6d8]">
-                  <td className="px-3 py-2 text-[#1a1210]">{formatDay(row.day)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-[#1a1210]">{row.totalOrders}</td>
-                  <td className="px-3 py-2 text-right tabular-nums font-semibold text-[#1a1210]">
+                <tr key={row.day} className="border-t border-track">
+                  <td className="px-3 py-2 text-foreground">{formatDay(row.day)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-foreground">{row.totalOrders}</td>
+                  <td className="px-3 py-2 text-right tabular-nums font-semibold text-foreground">
                     {formatPeso(row.cashTotal)}
                   </td>
                 </tr>
               ))}
             </tbody>
-            <tfoot className="sticky bottom-0 bg-[#faf7f0] font-bold text-[#1a1210]">
-              <tr className="border-t-2 border-[#ddcdb8]">
+            <tfoot className="sticky bottom-0 bg-background font-bold text-foreground">
+              <tr className="border-t-2 border-field-border">
                 <td className="px-3 py-2">Total</td>
                 <td className="px-3 py-2 text-right tabular-nums">{orderCount}</td>
-                <td className="px-3 py-2 text-right tabular-nums text-[#2f7a45]">{formatPeso(total)}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-success">{formatPeso(total)}</td>
               </tr>
             </tfoot>
           </table>

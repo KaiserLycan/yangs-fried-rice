@@ -17,7 +17,7 @@ export function CategoryChips({
   onSelect: (categoryName: string | null) => void;
 }) {
   return (
-    <div className="flex gap-[8px] overflow-x-auto px-[20px] py-[9px] md:hidden">
+    <div className="relative flex gap-[8px] overflow-x-auto px-[20px] py-[9px] md:hidden">
       <ChipButton
         label="All"
         isSelected={selected === null}

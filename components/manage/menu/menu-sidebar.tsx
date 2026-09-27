@@ -92,7 +92,7 @@ export function MenuSidebar({
   };
 
   return (
-    <div className="flex w-full md:w-[202px] shrink-0 flex-row md:flex-col gap-2 md:gap-[6px] overflow-x-auto md:overflow-hidden p-2 md:p-[10px] scrollbar-hide">
+    <div className="relative flex w-full md:w-[202px] shrink-0 flex-row md:flex-col gap-2 md:gap-[6px] overflow-x-auto md:overflow-hidden p-2 md:p-[10px] scrollbar-hide">
       {/* Header - Hidden on mobile to save horizontal space */}
       <div className="hidden md:flex w-full shrink-0 flex-col items-start justify-center rounded-md py-[5px]">
         <span className="text-sm font-bold text-muted-foreground">

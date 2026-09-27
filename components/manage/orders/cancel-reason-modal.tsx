@@ -80,8 +80,8 @@ export function CancelReasonModal({ order, isOpen, isProcessing, onClose, onConf
       }
     >
       <div className="flex flex-col gap-3 mt-4">
-        <label className="text-[11px] font-bold text-gray-500 tracking-wider uppercase">
-          Reason <span className="text-red-500">*</span>
+        <label className="text-xs font-bold text-muted-foreground tracking-wider uppercase">
+          Reason <span className="text-destructive">*</span>
         </label>
         
         <div className="flex flex-col gap-2">
@@ -89,8 +89,8 @@ export function CancelReasonModal({ order, isOpen, isProcessing, onClose, onConf
             <label 
               key={preset} 
               className={cn(
-                "flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors hover:bg-gray-50",
-                selectedPreset === preset ? "border-[#E8541F] bg-[#fffaf5]" : "border-gray-200"
+                "flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors hover:bg-background/90",
+                selectedPreset === preset ? "border-accent bg-card" : "border-rule"
               )}
             >
               <input 
@@ -102,9 +102,9 @@ export function CancelReasonModal({ order, isOpen, isProcessing, onClose, onConf
                   setSelectedPreset(preset);
                   setShowError(false);
                 }}
-                className="w-4 h-4 text-[#E8541F] focus:ring-[#E8541F]"
+                className="w-4 h-4 text-accent focus:ring-accent"
               />
-              <span className="text-sm font-medium text-gray-900">{preset}</span>
+              <span className="text-sm font-medium text-foreground">{preset}</span>
             </label>
           ))}
         </div>
@@ -119,15 +119,15 @@ export function CancelReasonModal({ order, isOpen, isProcessing, onClose, onConf
                 if (e.target.value.trim()) setShowError(false);
               }}
               className={cn(
-                "w-full min-h-[80px] p-3 rounded-lg border bg-white text-sm text-foreground focus:outline-none focus:ring-2 placeholder:text-[#A2938A] resize-none transition-colors",
-                showError && !otherReason.trim() ? "border-red-500 focus:ring-red-500" : "border-[#DDCDB8] focus:ring-[#E8541F]"
+                "w-full min-h-[80px] p-3 rounded-lg border bg-white text-sm text-foreground focus:outline-none focus:ring-2 placeholder:text-placeholder resize-none transition-colors",
+                showError && !otherReason.trim() ? "border-destructive focus:ring-destructive" : "border-field-border focus:ring-accent"
               )}
             />
           </div>
         )}
         
         {showError && (
-          <span className="text-[13px] text-red-500 font-medium mt-1">
+          <span className="text-sm text-destructive font-medium mt-1">
             {selectedPreset === "Other" 
               ? "Please type a specific reason for cancellation." 
               : "Please select a reason for cancellation."}

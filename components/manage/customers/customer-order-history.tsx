@@ -38,14 +38,14 @@ export function CustomerOrderHistory({ customerId }: { customerId: string }) {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center p-8 w-full mt-4">
-        <Loader2 className="animate-spin text-[#E8541F] size-8" />
+        <Loader2 className="animate-spin text-accent size-8" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-4 text-center text-[#B8352A] bg-[#f6e9d9] rounded-xl border border-[#ddcdb8] w-full mt-4">
+      <div className="p-4 text-center text-backoffice bg-highlight rounded-md border border-field-border w-full mt-4">
         Failed to load history: {error}
       </div>
     );
@@ -53,7 +53,7 @@ export function CustomerOrderHistory({ customerId }: { customerId: string }) {
 
   if (orders.length === 0) {
     return (
-      <div className="p-4 text-center text-[#7A6A60] bg-white rounded-xl border border-[#DDCDB8] w-full mt-4">
+      <div className="p-4 text-center text-muted-foreground bg-white rounded-md border border-field-border w-full mt-4">
         No orders found for this customer.
       </div>
     );
@@ -61,7 +61,7 @@ export function CustomerOrderHistory({ customerId }: { customerId: string }) {
 
   return (
     <div className="flex flex-col gap-4 w-full mt-4">
-      <h3 className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase">
+      <h3 className="font-bold text-muted-foreground text-xs tracking-[1.32px] uppercase">
         Recent Orders (Last 10)
       </h3>
       <div className="flex flex-col gap-4">

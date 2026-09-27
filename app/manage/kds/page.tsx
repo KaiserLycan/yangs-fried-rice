@@ -16,6 +16,7 @@ import { useKitchenOrderFeed } from "@/hooks/use-kitchen-order-feed";
 import { useToast, ToastProvider } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 
+import { Button } from "@/components/ui/button";
 type KdsTab = "active" | "payment_issues" | "for_pickup" | "failed_pickup" | "cancelled";
 type SortOrder = "oldest" | "newest";
 type ViewMode = "grid" | "list";
@@ -248,60 +249,60 @@ function KdsInner() {
       : "flex flex-col gap-[10px]";
 
   const toggleBase =
-    "flex items-center gap-1.5 px-3 h-9 text-xs font-bold uppercase tracking-wider transition-colors";
-  const toggleOn = "bg-[#b8352a] text-[#fbf6ec]";
-  const toggleOff = "bg-[#fbf6ec] text-[#5c4d44] hover:bg-white";
+    "flex items-center gap-1.5 px-3 h-9 text-sm font-bold uppercase tracking-wider transition-colors";
+  const toggleOn = "bg-backoffice text-background";
+  const toggleOff = "bg-background text-muted-strong hover:bg-white";
 
   return (
-    <div className="flex flex-col h-full w-full bg-[#efe6d8]">
+    <div className="flex flex-col h-full w-full bg-track">
       {/* Header */}
-      <div className="bg-[#b8352a] border-[#2e2523] border-b flex flex-wrap md:flex-nowrap gap-3 md:gap-[20px] items-center px-4 md:px-[24px] py-[12px] md:py-[18px] shrink-0 w-full z-10 shadow-sm">
+      <div className="bg-backoffice border-on-console-rule border-b flex flex-wrap md:flex-nowrap gap-3 md:gap-[20px] items-center px-4 md:px-[24px] py-[12px] md:py-[18px] shrink-0 w-full z-10 shadow-sm">
         <Link
           href="/manage/orders"
-          className="text-[#fbf6ec] hover:opacity-80 transition-opacity flex items-center justify-center"
+          className="text-background hover:opacity-80 transition-opacity flex items-center justify-center"
           title="Back to Orders"
         >
           <ArrowLeft className="w-5 h-5 md:w-6 md:h-6" />
         </Link>
 
         <div className="flex flex-col items-start ml-2 flex-1 md:flex-none">
-          <div className="font-display text-[18px] md:text-[22px] tracking-[0.44px] whitespace-nowrap leading-none">
-            <span className="text-[#f0b27a]">KITCHEN</span>
+          <div className="font-display text-lg md:text-2xl tracking-[0.44px] whitespace-nowrap leading-none">
+            <span className="text-on-brand-accent">KITCHEN</span>
             <span>{` `}</span>
-            <span className="text-[#fbf6ec]">DISPLAY</span>
+            <span className="text-background">DISPLAY</span>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="order-last md:order-none w-full md:w-auto flex-1 flex items-center md:justify-center gap-2 overflow-x-auto scrollbar-hide py-1">
+        <div className="relative order-last md:order-none w-full md:w-auto flex-1 flex items-center md:justify-center gap-2 overflow-x-auto scrollbar-hide py-1">
           {(Object.keys(TAB_LABELS) as KdsTab[]).map(tab => (
-            <button
+            <Button variant="unstyled"
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={cn(
-                "whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-colors",
-                activeTab === tab ? "bg-[#fbf6ec] text-[#b8352a]" : "text-[#fbf6ec] hover:bg-white/20"
+                "whitespace-nowrap px-3 py-1.5 rounded-full text-sm font-bold uppercase tracking-wider transition-colors",
+                activeTab === tab ? "bg-background text-backoffice" : "text-background hover:bg-white/20"
               )}
             >
               {TAB_LABELS[tab]}
-            </button>
+            </Button>
           ))}
         </div>
 
         <div className="flex flex-col items-end text-right justify-center ml-auto md:ml-0">
-          <p className="font-bold text-[#fbf6ec] text-[9px] md:text-[10px] tracking-[1.4px] leading-none mb-1">
+          <p className="font-bold text-background text-sm md:text-sm tracking-[1.4px] leading-none mb-1">
             IN QUEUE
           </p>
-          <p className="font-display text-[#f0b27a] text-[18px] md:text-[22px] leading-none">
+          <p className="font-display text-on-brand-accent text-lg md:text-2xl leading-none">
             {inQueue}
           </p>
         </div>
 
         <div className="flex flex-col items-end text-right justify-center ml-4 md:ml-2">
-          <p className="font-bold text-[#fbf6ec] text-[9px] md:text-[10px] tracking-[1.4px] leading-none mb-1">
+          <p className="font-bold text-background text-sm md:text-sm tracking-[1.4px] leading-none mb-1">
             PREPARING
           </p>
-          <p className="font-display text-[#f0b27a] text-[18px] md:text-[22px] leading-none">
+          <p className="font-display text-on-brand-accent text-lg md:text-2xl leading-none">
             {inPrep}
           </p>
         </div>
@@ -309,54 +310,54 @@ function KdsInner() {
 
       {/* Toolbar: sort, view, sound */}
       <div className="flex flex-wrap items-center gap-2 px-[10px] pt-[10px] shrink-0">
-        <div className="flex rounded-lg overflow-hidden border border-[#ddcdb8]" role="group" aria-label="Sort orders">
-          <button
+        <div className="flex rounded-lg overflow-hidden border border-field-border" role="group" aria-label="Sort orders">
+          <Button variant="unstyled"
             onClick={() => { setSortOrder("oldest"); writePref("kds-sort", "oldest"); }}
             aria-pressed={sortOrder === "oldest"}
             className={cn(toggleBase, sortOrder === "oldest" ? toggleOn : toggleOff)}
           >
             <ArrowUpNarrowWide className="h-4 w-4" aria-hidden /> Oldest
-          </button>
-          <button
+          </Button>
+          <Button variant="unstyled"
             onClick={() => { setSortOrder("newest"); writePref("kds-sort", "newest"); }}
             aria-pressed={sortOrder === "newest"}
-            className={cn(toggleBase, "border-l border-[#ddcdb8]", sortOrder === "newest" ? toggleOn : toggleOff)}
+            className={cn(toggleBase, "border-l border-field-border", sortOrder === "newest" ? toggleOn : toggleOff)}
           >
             <ArrowDownWideNarrow className="h-4 w-4" aria-hidden /> Newest
-          </button>
+          </Button>
         </div>
 
-        <div className="flex rounded-lg overflow-hidden border border-[#ddcdb8]" role="group" aria-label="Layout">
-          <button
+        <div className="flex rounded-lg overflow-hidden border border-field-border" role="group" aria-label="Layout">
+          <Button variant="unstyled"
             onClick={() => { setViewMode("grid"); writePref("kds-view", "grid"); }}
             aria-pressed={viewMode === "grid"}
             className={cn(toggleBase, viewMode === "grid" ? toggleOn : toggleOff)}
           >
             <LayoutGrid className="h-4 w-4" aria-hidden /> Grid
-          </button>
-          <button
+          </Button>
+          <Button variant="unstyled"
             onClick={() => { setViewMode("list"); writePref("kds-view", "list"); }}
             aria-pressed={viewMode === "list"}
-            className={cn(toggleBase, "border-l border-[#ddcdb8]", viewMode === "list" ? toggleOn : toggleOff)}
+            className={cn(toggleBase, "border-l border-field-border", viewMode === "list" ? toggleOn : toggleOff)}
           >
             <List className="h-4 w-4" aria-hidden /> List
-          </button>
+          </Button>
         </div>
 
-        <button
+        <Button variant="unstyled"
           onClick={handleToggleSound}
           aria-pressed={soundEnabled}
           className={cn(
             toggleBase,
             "ml-auto rounded-lg border",
             soundEnabled
-              ? "bg-[#4c9a5e] text-white border-[#3d7d4c]"
-              : "bg-[#fbf6ec] text-[#b8352a] border-[#b8352a] animate-pulse",
+              ? "bg-status-done text-white border-success"
+              : "bg-background text-backoffice border-backoffice animate-pulse",
           )}
         >
           {soundEnabled ? <Bell className="h-4 w-4" aria-hidden /> : <BellOff className="h-4 w-4" aria-hidden />}
           {soundEnabled ? "Sound on" : "Enable sound"}
-        </button>
+        </Button>
       </div>
 
       {/* Orders */}
@@ -367,25 +368,25 @@ function KdsInner() {
               <div
                 key={i}
                 className={cn(
-                  "bg-[#fbf6ec] border border-[#3a2e2c] flex flex-col overflow-hidden rounded-[14px] w-full shadow-sm",
+                  "bg-background border border-console flex flex-col overflow-hidden rounded-lg w-full shadow-sm",
                   viewMode === "grid" ? "min-h-[320px]" : "min-h-[120px]",
                 )}
               >
-                <div className="bg-[#efe6d8] p-[12px] flex justify-between">
+                <div className="bg-track p-[12px] flex justify-between">
                   <div className="flex flex-col gap-2">
-                    <div className="h-5 w-16 bg-[#e3d6c3] rounded-full animate-pulse" />
-                    <div className="h-3 w-12 bg-[#e3d6c3] rounded-full animate-pulse" />
+                    <div className="h-5 w-16 bg-rule rounded-full animate-pulse" />
+                    <div className="h-3 w-12 bg-rule rounded-full animate-pulse" />
                   </div>
                 </div>
                 <div className="p-[12px] flex flex-col gap-3 flex-1 justify-center items-center">
-                  <div className="w-8 h-8 rounded-full border-2 border-[#b8352a] border-t-transparent animate-spin" />
+                  <div className="w-8 h-8 rounded-full border-2 border-backoffice border-t-transparent animate-spin" />
                 </div>
               </div>
             ))}
           </div>
         ) : displayOrders.length === 0 ? (
           <div className="flex h-full items-center justify-center">
-            <p className="text-gray-500 font-bold uppercase tracking-widest">
+            <p className="text-muted-foreground font-bold uppercase tracking-widest">
               No orders in this view.
             </p>
           </div>
@@ -422,10 +423,10 @@ function KdsInner() {
                     fixedBadge={
                       activeTab === "payment_issues"
                         ? order.dbStatus === "payment_failed"
-                          ? { text: "Payment failed", bgClass: "bg-red-200", textClass: "text-red-900" }
-                          : { text: "Awaiting payment", bgClass: "bg-amber-100", textClass: "text-amber-900" }
+                          ? { text: "Payment failed", bgClass: "bg-error-surface", textClass: "text-destructive" }
+                          : { text: "Awaiting payment", bgClass: "bg-warning-surface", textClass: "text-warning-text" }
                         : isPickupTab && isCash
-                        ? { text: "Pay In-store", bgClass: "bg-blue-100", textClass: "text-blue-700" }
+                        ? { text: "Pay In-store", bgClass: "bg-status-ready/10", textClass: "text-status-ready" }
                         : undefined
                     }
                   />

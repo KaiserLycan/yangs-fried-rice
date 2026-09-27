@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 
+import { Button } from "@/components/ui/button";
 export type PickupBy = "self_pickup" | "3rd_party_courier";
 
 const OPTIONS: { id: PickupBy; label: string; hint: string }[] = [
@@ -36,27 +37,27 @@ export function PickupByPicker({
       {OPTIONS.map((option) => {
         const isSelected = option.id === value;
         return (
-          <button
+          <Button variant="unstyled"
             key={option.id}
             type="button"
             role="radio"
             aria-checked={isSelected}
             onClick={() => onChange(option.id)}
             className={cn(
-              "flex items-start justify-between gap-[10px] rounded-[13px] border p-[14px] text-left",
+              "flex items-start justify-between gap-[10px] rounded-md border p-[14px] text-left",
               isSelected ? "border-accent bg-secondary/50" : "border-rule bg-card",
             )}
           >
             <span className="flex flex-col gap-[2px]">
-              <span className="text-[14px] font-bold text-foreground">{option.label}</span>
-              <span className="text-[12px] text-muted-foreground">{option.hint}</span>
+              <span className="text-sm font-bold text-foreground">{option.label}</span>
+              <span className="text-sm text-muted-foreground">{option.hint}</span>
             </span>
             {isSelected ? (
-              <span aria-hidden="true" className="text-[14px] text-primary">
+              <span aria-hidden="true" className="text-sm text-primary">
                 ●
               </span>
             ) : null}
-          </button>
+          </Button>
         );
       })}
     </div>

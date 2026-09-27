@@ -22,6 +22,7 @@ import type {
 import { formatPeso } from "@/lib/menu/product-listing";
 import type { CartLine, CartTotals, Fulfilment } from "@/lib/menu/cart-totals";
 
+import { Button } from "@/components/ui/button";
 /**
  * Order summary (`133:1124` desktop, `132:424` mobile) — issue #22's
  * acceptance criteria read literally, in the order the frames draw them:
@@ -249,7 +250,7 @@ export function OrderSummaryCard({
 
   return (
     <section className="flex flex-col gap-[11px] rounded-lg border border-rule bg-card p-[20px]">
-      <h2 className="text-[14px] font-bold uppercase tracking-[1.54px] text-muted-foreground">
+      <h2 className="text-sm font-bold uppercase tracking-[1.54px] text-muted-foreground">
         Order summary
       </h2>
 
@@ -262,7 +263,7 @@ export function OrderSummaryCard({
         totals={totals}
       />
 
-      <p className="rounded-md bg-secondary/50 p-[12px] text-[14px] leading-[18px] text-muted-strong">
+      <p className="rounded-md bg-secondary/50 p-[12px] text-sm leading-[18px] text-muted-strong">
         {/* This sentence has always claimed the figure came from the queue
             and the distance. Since issue #106 it does. */}
         Estimated arrival <strong>{arrivalEstimate}</strong> — based on current
@@ -274,18 +275,18 @@ export function OrderSummaryCard({
         shortcut={pending || redirecting ? undefined : SHORTCUTS.placeOrder.combo}
         className="w-full"
       >
-        <button
+        <Button variant="unstyled"
           type="button"
           onClick={handlePlaceOrder}
           disabled={pending || redirecting}
-          className="w-full rounded-[13px] bg-accent p-[16px] text-[15px] font-bold text-accent-foreground disabled:opacity-60"
+          className="w-full rounded-md bg-accent p-[16px] text-base font-bold text-accent-foreground disabled:opacity-60"
         >
           {redirecting
             ? "Opening wallet…"
             : pending
               ? "Placing order…"
               : `Place order · ${formatPeso(totals.total)}`}
-        </button>
+        </Button>
       </Tooltip>
     </section>
   );

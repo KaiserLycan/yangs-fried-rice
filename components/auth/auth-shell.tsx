@@ -11,7 +11,7 @@ import Image from "next/image";
  * once inside BrandPanel for the desktop column — rather than moved around
  * with a single element.
  *
- * Both frames carry a rounded corner and a drop shadow in Figma. Those are
+ * Both frames carry a rounded-sm corner and a drop shadow in Figma. Those are
  * artboard presentation, not app chrome, so neither is reproduced: this
  * screen is full-bleed at every width.
  */

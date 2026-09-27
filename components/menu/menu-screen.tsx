@@ -292,7 +292,7 @@ export function MenuScreen({
           </Suspense>
         )}
 
-        <main className="flex-1 md:px-[28px] md:py-[26px]">
+        <main className="min-w-0 flex-1 md:px-[28px] md:py-[26px]">
           {/* Only on the unfiltered menu: searching means they are after
               something else. */}
           {recentOrdersPromise && !hasFilter ? (

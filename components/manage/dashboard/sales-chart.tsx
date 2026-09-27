@@ -5,7 +5,7 @@
  *
  * Uses recharts (already a project dependency) with custom bar rendering
  * to match the Figma design:
- *   - Bars have rounded top corners (6px radius)
+ *   - Bars have rounded-sm top corners (6px radius)
  *   - Mon–Thu use the destructive token (lighter red)
  *   - Fri–Sun use the primary token (darker red, "highlight" days)
  *   - Value labels sit above each bar in bold, and drop out when a bar is
