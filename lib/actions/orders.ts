@@ -333,6 +333,9 @@ export async function getDetailedOrders(
   if (filters.cancelled_from) {
     query = query.gte("cancelled_at", filters.cancelled_from);
   }
+  if (filters.ready_from) {
+    query = query.gte("ready_at", filters.ready_from);
+  }
   if (filters.search?.trim()) {
     const range = orderIdRangeFor(filters.search);
     if (!range) return { data: { data: [], totalCount: 0 }, error: null };
