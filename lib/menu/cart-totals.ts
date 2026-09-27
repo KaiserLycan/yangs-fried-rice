@@ -120,6 +120,33 @@ export function vatBreakdown(total: number): { vatableSales: number; vat: number
   };
 }
 
+/** Senior Citizen / PWD discount, in whole percent (issue #116). */
+export const SENIOR_PWD_DISCOUNT_PERCENT = 20;
+
+/**
+ * A Senior Citizen / PWD order (issue #116): VAT-exempt, then 20% off.
+ * ₱112 → ₱100 VAT-exempt sales, ₱20 discount, ₱80 due. Same rounding as
+ * `submit_cart_to_order`, which saves `vatExemptSales` as
+ * `transaction.subtotal` and `discount` as `transaction.discount_amount`.
+ */
+export function seniorPwdBreakdown(total: number): {
+  vatExemptSales: number;
+  discount: number;
+  total: number;
+} {
+  const exemptCentavos = Math.round(
+    (toCentavos(total) * 100) / (100 + VAT_PERCENT),
+  );
+  const discountCentavos = Math.round(
+    (exemptCentavos * SENIOR_PWD_DISCOUNT_PERCENT) / 100,
+  );
+  return {
+    vatExemptSales: toPesos(exemptCentavos),
+    discount: toPesos(discountCentavos),
+    total: toPesos(exemptCentavos - discountCentavos),
+  };
+}
+
 /** The per-line total shown beside each dish — quantity times unit price. */
 export function lineTotal(line: CartLine): number {
   return toPesos(toCentavos(line.unitPrice) * line.quantity);

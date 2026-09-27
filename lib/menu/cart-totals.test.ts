@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { computeCartTotals, vatBreakdown, type CartLine } from "./cart-totals";
+import {
+  computeCartTotals,
+  seniorPwdBreakdown,
+  vatBreakdown,
+  type CartLine,
+} from "./cart-totals";
 
 const line = (overrides: Partial<CartLine> = {}): CartLine => ({
   id: "1",
@@ -85,5 +90,24 @@ describe("vatBreakdown", () => {
   it("is carried on the cart totals", () => {
     const totals = computeCartTotals({ lines: [line({ unitPrice: 56, quantity: 2 })], fulfilment: "pickup" });
     expect(totals).toMatchObject({ total: 112, vatableSales: 100, vat: 12 });
+  });
+});
+
+describe("seniorPwdBreakdown", () => {
+  it("drops the VAT, then takes 20% off", () => {
+    expect(seniorPwdBreakdown(112)).toEqual({ vatExemptSales: 100, discount: 20, total: 80 });
+  });
+
+  it("always adds back: exempt sales minus discount is the total", () => {
+    for (const total of [0.14, 1, 99.99, 180, 459, 1234.56]) {
+      const { vatExemptSales, discount, total: due } = seniorPwdBreakdown(total);
+      expect(Math.round((vatExemptSales - discount) * 100)).toBe(Math.round(due * 100));
+    }
+  });
+
+  // Same rounding as round(total * 100 / 112, 2) in submit_cart_to_order.
+  it("rounds to the centavo, half up", () => {
+    expect(seniorPwdBreakdown(0.14).vatExemptSales).toBe(0.13); // 12.5 centavos
+    expect(seniorPwdBreakdown(459)).toEqual({ vatExemptSales: 409.82, discount: 81.96, total: 327.86 });
   });
 });
