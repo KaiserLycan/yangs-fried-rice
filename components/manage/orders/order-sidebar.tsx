@@ -5,17 +5,16 @@ export type OrderStatus = "All" | "Queue" | "Preparation" | "Delivering" | "Comp
 interface OrderSidebarProps {
   activeStatus: OrderStatus;
   onStatusChange: (status: OrderStatus) => void;
+  isManager?: boolean;
 }
 
-const statuses: OrderStatus[] = [
-  "Payment Issues",
-  "All",
-  "Queue",
-  "Preparation",
-  "Delivering",
-  "Completed",
-  "Canceled",
-];
+const getStatuses = (isManager: boolean): OrderStatus[] => {
+  const base: OrderStatus[] = ["All", "Queue", "Preparation", "Delivering", "Completed", "Canceled"];
+  if (isManager) {
+    base.splice(1, 0, "Payment Issues");
+  }
+  return base;
+};
 
 /** The tab holds delivery orders out with a rider AND take-out orders waiting for pick up. */
 const TAB_LABELS: Partial<Record<OrderStatus, string>> = {
@@ -23,6 +22,7 @@ const TAB_LABELS: Partial<Record<OrderStatus, string>> = {
 };
 
 export function OrderSidebar({ activeStatus, onStatusChange, isManager = false }: OrderSidebarProps) {
+  const statuses = getStatuses(isManager);
   return (
     <div className="w-full md:w-[200px] flex-shrink-0 flex flex-row md:flex-col gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0 scrollbar-hide">
       <div className="hidden md:block text-xs font-bold text-gray-500 mb-2 tracking-wider">ORDER STATUS</div>
