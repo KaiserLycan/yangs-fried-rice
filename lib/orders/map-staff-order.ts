@@ -26,6 +26,9 @@ export type StaffOrderRow = {
   /** The order-wide note from checkout, not any one line's. */
   special_instructions?: string | null;
   fulfillment_method?: string | null;
+  /** When the kitchen marked it ready — the pick-up clock starts here. */
+  ready_at?: string | null;
+  transaction?: One<{ payment_method: string | null }>;
   customer: One<{
     name: string | null;
     email: string | null;
