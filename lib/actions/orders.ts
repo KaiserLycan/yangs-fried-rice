@@ -349,7 +349,11 @@ export async function getDetailedOrders(
     query = query.ilike("customer.name", `%${filters.customer_name}%`);
   }
   if (filters.customer_phone) {
-    query = query.ilike("customer.phone_number", `%${filters.customer_phone}%`);
+    // Stored as "+639171234567"; people type "0917 123 4567" or "917-1234".
+    // Match on the digits after the country code / trunk 0 (mobiles start
+    // with 9, so a leading 63 or 0 is always a prefix, even in a partial).
+    const digits = filters.customer_phone.replace(/\D/g, "").replace(/^(63|0)/, "");
+    if (digits) query = query.ilike("customer.phone_number", `%${digits}%`);
   }
   if (filters.payment_method) {
     if (filters.payment_method === "wallet") {
