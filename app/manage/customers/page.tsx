@@ -20,6 +20,15 @@ export type EnhancedCustomerData = CustomerData & {
   totalSpent: number;
 };
 
+/** "2026-09-01" → "Sep 1, 2026". */
+function formatDay(day: string): string {
+  return new Date(`${day}T00:00:00`).toLocaleDateString("en-PH", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 // 1. Wrapper component to provide the Toast context
 export default function ManageCustomersPage() {
   return (
