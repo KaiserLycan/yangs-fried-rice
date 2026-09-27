@@ -67,26 +67,33 @@ function ManageOrdersInner() {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  // Fetch Orders on Mount and when Status/Page changes
-  // Fetch Orders on Mount and when Status/Page changes
-// Fetch Orders on Mount and when Status/Page changes
+  // Fetch orders whenever the tab, page, search or filters change.
   const fetchOrders = useCallback(async () => {
     setIsLoading(true);
-    
+
     // 1. Bulletproof Status Mapping (Fixed backend mismatch & casing issues)
     let dbStatus: string | string[] | undefined = undefined;
     const uiTab = activeStatus.toLowerCase();
-    
+    const isPaymentIssuesTab = uiTab === "payment issues";
+
     if (uiTab === "queue") dbStatus = "pending";
     else if (uiTab === "preparation" || uiTab === "prep") dbStatus = "preparing";
     else if (uiTab === "delivering" || uiTab === "delivery") dbStatus = ["ready", "out_for_delivery"];
     else if (uiTab === "completed") dbStatus = "completed";
     else if (uiTab === "canceled" || uiTab === "cancelled") dbStatus = "cancelled";
 
+    const { date_from, date_to, ...otherFilters } = advancedFilters;
+
     // 1. Fetch the summaries using server-side pagination & filtering
     const summaryResult = await getDetailedOrders({
       status: dbStatus as any,
+      payment_issues: isPaymentIssuesTab || undefined,
       search: search || undefined,
+      ...otherFilters,
+      // The picked days, as the start of the first and end of the last in
+      // the browser's time zone.
+      date_from: date_from ? new Date(`${date_from}T00:00:00`).toISOString() : undefined,
+      date_to: date_to ? new Date(`${date_to}T23:59:59.999`).toISOString() : undefined,
       limit: pageSize,
       offset: (currentPage - 1) * pageSize,
     });
