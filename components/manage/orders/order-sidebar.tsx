@@ -22,7 +22,7 @@ const TAB_LABELS: Partial<Record<OrderStatus, string>> = {
   Delivering: "Delivering / Pick Up",
 };
 
-export function OrderSidebar({ activeStatus, onStatusChange }: OrderSidebarProps) {
+export function OrderSidebar({ activeStatus, onStatusChange, isManager = false }: OrderSidebarProps) {
   return (
     <div className="w-full md:w-[200px] flex-shrink-0 flex flex-row md:flex-col gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0 scrollbar-hide">
       <div className="hidden md:block text-xs font-bold text-gray-500 mb-2 tracking-wider">ORDER STATUS</div>

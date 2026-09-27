@@ -74,6 +74,12 @@ type OrderStats = {
 // Auth helper
 // ---------------------------------------------------------------------------
 
+export async function getEmployeeAccess(): Promise<ActionResult<{ employee_id: string; role: string; isManager: boolean }>> {
+  const auth = await requireManageAccess();
+  if (!auth.data) return { data: null, error: auth.error };
+  return { data: { employee_id: auth.data.employee_id, role: auth.data.role, isManager: auth.data.role.toLowerCase() === 'manager' }, error: null };
+}
+
 async function requireManageAccess(): Promise<
   ActionResult<{ employee_id: string; role: EmployeeRole }>
 > {

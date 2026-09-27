@@ -14,7 +14,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast, ToastProvider } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
-import { getDetailedOrders, updateOrderStatus, getPaymentIssuesForAdmin, type PaymentIssueOrder } from "@/lib/actions/orders";
+import { getDetailedOrders, updateOrderStatus, getPaymentIssuesForAdmin, getEmployeeAccess, type PaymentIssueOrder } from "@/lib/actions/orders";
 import { mapStaffOrder, type StaffOrderRow } from "@/lib/orders/map-staff-order";
 import { actionCopy, dbStatusFor, type StaffAction } from "@/lib/orders/staff-actions";
 
@@ -35,6 +35,13 @@ function ManageOrdersInner() {
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isManager, setIsManager] = useState(false);
+  
+  useEffect(() => {
+    getEmployeeAccess().then(res => {
+      if (res.data) setIsManager(res.data.isManager);
+    });
+  }, []);
 
   // UI State
   const [activeStatus, setActiveStatus] = useState<OrderStatus>("All");
