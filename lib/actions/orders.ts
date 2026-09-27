@@ -12,7 +12,8 @@ import {
   isValidTransition,
   orderFilterSchema,
   UNPAID_ORDER_STATUSES,
-  STUCK_PAYMENT_MINUTES,
+  FAILED_PICKUP_MINUTES,
+  isUnpaidStatus,
   type OrderStatus,
   type OrderFilters,
 } from "@/lib/validation/orders";
