@@ -48,7 +48,7 @@ beforeEach(() => {
 
 describe("submitCart store check", () => {
   it("refuses when closed, without calling the database", async () => {
-    readStoreStatus.mockResolvedValue(open({ isOpen: false, openHour: 8 }));
+    readStoreStatus.mockResolvedValue(open({ isOpen: false, openTime: "08:00" }));
 
     const result = await submitCart({ cart_id: CART_ID } as never);
 

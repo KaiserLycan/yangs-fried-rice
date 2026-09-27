@@ -29,7 +29,7 @@ describe("readStoreStatus", () => {
 
   it("reads get_store_status()", async () => {
     rpc.mockResolvedValue({
-      data: { is_open: false, is_paused: false, is_busy: true, open_hour: 8, close_hour: 18 },
+      data: { is_open: false, is_paused: false, is_busy: true, open_time: "08:00", close_time: "18:00" },
       error: null,
     });
     vi.stubEnv("FORCE_STORE_OPEN", "");
@@ -56,7 +56,7 @@ describe("readStoreStatus", () => {
     const status = await readStoreStatus();
 
     expect(status.isPaused).toBe(false);
-    expect(status.openHour).toBe(8);
+    expect(status.openTime).toBe("08:00");
     spy.mockRestore();
   });
 });

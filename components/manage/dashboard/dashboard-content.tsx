@@ -6,6 +6,10 @@ import { ProductRanking } from "./product-ranking";
 import { StoreControlPanel } from "./store-control-panel";
 import { RefundsPanel } from "./refunds-panel";
 import type { RefundRow } from "@/lib/actions/refunds";
+import {
+  EMPTY_STATUS_COUNTS,
+  type OrderStatusCounts,
+} from "@/lib/orders/status-counts";
 import type { StoreStatus } from "@/lib/store/store-status";
 import type { DailySales, RankedProduct, DashboardStats } from "@/lib/actions/dashboard";
 
@@ -19,6 +23,8 @@ export interface DashboardContentProps {
   storeStatus: StoreStatus;
   /** Cancelled paid orders' refunds (issue #115); the panel hides when empty. */
   refunds?: RefundRow[];
+  /** Orders per stage for the store panel (issue #115 follow-up). */
+  orderCounts?: OrderStatusCounts;
 }
 
 /**
@@ -47,6 +53,7 @@ export function DashboardContent({
   branchName,
   storeStatus,
   refunds = [],
+  orderCounts = EMPTY_STATUS_COUNTS,
 }: DashboardContentProps) {
   return (
     <div className="flex flex-col gap-6">
@@ -64,7 +71,7 @@ export function DashboardContent({
         </div>
 
         {/* Pause / busy / hours (issue #115), above the numbers it affects. */}
-        <StoreControlPanel status={storeStatus} />
+        <StoreControlPanel status={storeStatus} counts={orderCounts} />
         <RefundsPanel refunds={refunds} />
 
         {/* KPI stat cards row */}

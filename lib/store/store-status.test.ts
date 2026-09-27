@@ -27,8 +27,8 @@ describe("parseStoreStatus", () => {
         is_busy: false,
         active_orders: 7,
         max_active_orders: 25,
-        open_hour: 9,
-        close_hour: 21,
+        open_time: "09:15",
+        close_time: "21:45",
         extra_prep_minutes: 10,
         is_force_open: false,
       },
@@ -42,8 +42,8 @@ describe("parseStoreStatus", () => {
       isBusy: false,
       activeOrders: 7,
       maxActiveOrders: 25,
-      openHour: 9,
-      closeHour: 21,
+      openTime: "09:15",
+      closeTime: "21:45",
       extraPrepMinutes: 10,
       isForceOpen: false,
     });
@@ -57,9 +57,9 @@ describe("parseStoreStatus", () => {
   });
 
   it("falls back field by field when a value has the wrong type", () => {
-    const parsed = parseStoreStatus({ is_open: "yes", open_hour: null }, NOON_MANILA);
+    const parsed = parseStoreStatus({ is_open: "yes", open_time: "8am" }, NOON_MANILA);
     expect(parsed.isOpen).toBe(true); // noon, default hours
-    expect(parsed.openHour).toBe(8);
+    expect(parsed.openTime).toBe("08:00");
   });
 });
 
@@ -69,9 +69,9 @@ describe("storeBlockFor", () => {
   });
 
   it("refuses when closed and says when it opens", () => {
-    expect(storeBlockFor(status({ isOpen: false, openHour: 9 }))).toEqual({
+    expect(storeBlockFor(status({ isOpen: false, openTime: "06:30" }))).toEqual({
       code: "STORE_CLOSED",
-      message: "We're closed right now. We open at 9:00 AM.",
+      message: "We're closed right now. We open at 6:30 AM.",
     });
   });
 
@@ -101,7 +101,7 @@ describe("storeBlockFor", () => {
 
 describe("formatStoreHours", () => {
   it("prints the hours as customers read them", () => {
-    expect(formatStoreHours({ openHour: 8, closeHour: 18 })).toBe("8:00 AM – 6:00 PM");
-    expect(formatStoreHours({ openHour: 0, closeHour: 24 })).toBe("12:00 AM – 12:00 AM");
+    expect(formatStoreHours({ openTime: "08:00", closeTime: "18:00" })).toBe("8:00 AM – 6:00 PM");
+    expect(formatStoreHours({ openTime: "06:30", closeTime: "19:31" })).toBe("6:30 AM – 7:31 PM");
   });
 });

@@ -826,37 +826,37 @@ export type Database = {
       }
       store_setting: {
         Row: {
-          close_hour: number
+          close_time: string
           extra_prep_minutes: number
           id: boolean
           is_force_open: boolean
           is_paused: boolean
           max_active_orders: number
-          open_hour: number
+          open_time: string
           paused_until: string | null
           updated_at: string
           updated_by: string | null
         }
         Insert: {
-          close_hour?: number
+          close_time?: string
           extra_prep_minutes?: number
           id?: boolean
           is_force_open?: boolean
           is_paused?: boolean
           max_active_orders?: number
-          open_hour?: number
+          open_time?: string
           paused_until?: string | null
           updated_at?: string
           updated_by?: string | null
         }
         Update: {
-          close_hour?: number
+          close_time?: string
           extra_prep_minutes?: number
           id?: boolean
           is_force_open?: boolean
           is_paused?: boolean
           max_active_orders?: number
-          open_hour?: number
+          open_time?: string
           paused_until?: string | null
           updated_at?: string
           updated_by?: string | null

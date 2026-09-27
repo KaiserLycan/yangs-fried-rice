@@ -1,7 +1,8 @@
 import {
   DEFAULT_STORE_HOURS,
-  formatHour,
+  formatTime,
   isRestaurantOpen,
+  isValidTime,
 } from "@/lib/store-hours";
 
 /**
@@ -27,8 +28,10 @@ export type StoreStatus = {
   isBusy: boolean;
   activeOrders: number;
   maxActiveOrders: number;
-  openHour: number;
-  closeHour: number;
+  /** "HH:MM", Manila. */
+  openTime: string;
+  /** "HH:MM", Manila; "24:00" means end of day. */
+  closeTime: string;
   extraPrepMinutes: number;
   /** The manager's "Force open" switch in `store_setting`. */
   isForceOpen: boolean;
@@ -53,8 +56,8 @@ export function fallbackStoreStatus(now: Date = new Date()): StoreStatus {
     isBusy: false,
     activeOrders: 0,
     maxActiveOrders: 20,
-    openHour: DEFAULT_STORE_HOURS.openHour,
-    closeHour: DEFAULT_STORE_HOURS.closeHour,
+    openTime: DEFAULT_STORE_HOURS.openTime,
+    closeTime: DEFAULT_STORE_HOURS.closeTime,
     extraPrepMinutes: 0,
     isForceOpen: false,
   };
@@ -73,6 +76,8 @@ export function parseStoreStatus(raw: unknown, now: Date = new Date()): StoreSta
   const bool = (v: unknown, d: boolean) => (typeof v === "boolean" ? v : d);
   const num = (v: unknown, d: number) =>
     typeof v === "number" && Number.isFinite(v) ? v : d;
+  const time = (v: unknown, d: string) =>
+    typeof v === "string" && isValidTime(v) ? v : d;
 
   return {
     isOpen: bool(r.is_open, base.isOpen),
@@ -81,8 +86,8 @@ export function parseStoreStatus(raw: unknown, now: Date = new Date()): StoreSta
     isBusy: bool(r.is_busy, false),
     activeOrders: num(r.active_orders, 0),
     maxActiveOrders: num(r.max_active_orders, base.maxActiveOrders),
-    openHour: num(r.open_hour, base.openHour),
-    closeHour: num(r.close_hour, base.closeHour),
+    openTime: time(r.open_time, base.openTime),
+    closeTime: time(r.close_time, base.closeTime),
     extraPrepMinutes: num(r.extra_prep_minutes, 0),
     isForceOpen: bool(r.is_force_open, false),
   };
@@ -99,7 +104,7 @@ export function storeBlockFor(
   if (!status.isOpen) {
     return {
       code: "STORE_CLOSED",
-      message: `We're closed right now. We open at ${formatHour(status.openHour)}.`,
+      message: `We're closed right now. We open at ${formatTime(status.openTime)}.`,
     };
   }
   if (status.isPaused) return { code: "STORE_PAUSED", message: BUSY_MESSAGE };
@@ -107,7 +112,7 @@ export function storeBlockFor(
   return null;
 }
 
-/** "8:00 AM – 6:00 PM", for the closed banner. */
-export function formatStoreHours(status: Pick<StoreStatus, "openHour" | "closeHour">): string {
-  return `${formatHour(status.openHour)} – ${formatHour(status.closeHour)}`;
+/** "6:30 AM – 7:31 PM", for the closed banner. */
+export function formatStoreHours(status: Pick<StoreStatus, "openTime" | "closeTime">): string {
+  return `${formatTime(status.openTime)} – ${formatTime(status.closeTime)}`;
 }
