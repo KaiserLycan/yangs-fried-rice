@@ -1,4 +1,4 @@
-import type { OrderData } from "@/lib/mock-orders";
+import type { OrderData } from "@/types/staff-order";
 
 /**
  * What staff see and can do with an order. The shop is pickup-only (issue

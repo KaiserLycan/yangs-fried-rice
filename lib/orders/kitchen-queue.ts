@@ -20,7 +20,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  */
 export const ACTIVE_KITCHEN_STATUSES = [
   "pending",
-  "received",
   "confirmed",
   "preparing",
 ] as const;

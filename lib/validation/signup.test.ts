@@ -12,6 +12,7 @@ const VALID = {
   barangay: "Barangay Poblacion",
   city: "Makati",
   zip: "1200",
+  ageConfirmed: true as const,
 };
 
 /** The message zod reports for one field, or undefined if that field passed. */
@@ -158,40 +159,22 @@ describe("signupSchema", () => {
     if (!result.success) {
       expect(
         new Set(result.error.issues.map((issue) => issue.path[0])),
-      ).toEqual(new Set(["firstName", "lastName", "email", "phone", "password", "buildingNo", "street", "barangay", "city", "zip"]));
+      ).toEqual(new Set(["firstName", "lastName", "email", "phone", "password", "buildingNo", "street", "barangay", "city", "zip", "ageConfirmed"]));
     }
   });
 });
 
-describe("signupSchema — date of birth", () => {
-  const base = {
-    firstName: "Liza",
-    lastName: "Reyes",
-    email: "liza@example.com",
-    phone: "+639171234567",
-    password: "Yangs!Pass2026",
-    buildingNo: "123",
-    street: "Mapúa Ave",
-    barangay: "San Andres",
-    city: "Manila",
-    zip: "1000",
-  };
-
-  it("does not require a date of birth", () => {
-    expect(signupSchema.safeParse(base).success).toBe(true);
-    expect(signupSchema.safeParse({ ...base, dateOfBirth: "" }).success).toBe(true);
+describe("signupSchema — age confirmation (F16)", () => {
+  it("requires the age box to be ticked", () => {
+    expect(errorFor({ ageConfirmed: false as unknown as true }, "ageConfirmed")).toBe(
+      "Confirm you are at least 18, or have a parent's permission.",
+    );
+    const { ageConfirmed: _omitted, ...withoutAge } = VALID;
+    expect(signupSchema.safeParse(withoutAge).success).toBe(false);
   });
 
-  it("accepts a real past birthdate", () => {
-    expect(signupSchema.safeParse({ ...base, dateOfBirth: "1996-06-14" }).success).toBe(true);
-  });
-
-  it("rejects a birthdate that has not happened yet", () => {
-    const result = signupSchema.safeParse({ ...base, dateOfBirth: "2999-01-01" });
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error.issues[0].path[0]).toBe("dateOfBirth");
-      expect(result.error.issues[0].message).toMatch(/future/i);
-    }
+  it("no longer asks for a date of birth", () => {
+    expect(signupSchema.safeParse(VALID).success).toBe(true);
+    expect("dateOfBirth" in signupSchema.shape).toBe(false);
   });
 });

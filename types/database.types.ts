@@ -368,25 +368,31 @@ export type Database = {
       }
       notification: {
         Row: {
-          created_at: string | null
+          created_at: string
           customer_id: string | null
-          is_read: boolean | null
+          is_read: boolean
+          kind: string | null
           message: string
           notification_id: string
+          order_id: string | null
         }
         Insert: {
-          created_at?: string | null
+          created_at?: string
           customer_id?: string | null
-          is_read?: boolean | null
+          is_read?: boolean
+          kind?: string | null
           message: string
           notification_id?: string
+          order_id?: string | null
         }
         Update: {
-          created_at?: string | null
+          created_at?: string
           customer_id?: string | null
-          is_read?: boolean | null
+          is_read?: boolean
+          kind?: string | null
           message?: string
           notification_id?: string
+          order_id?: string | null
         }
         Relationships: [
           {
@@ -395,6 +401,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "customer"
             referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "notification_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order"
+            referencedColumns: ["order_id"]
           },
         ]
       }
@@ -455,6 +468,60 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "customer"
             referencedColumns: ["customer_id"]
+          },
+        ]
+      }
+      order_issue: {
+        Row: {
+          created_at: string
+          customer_id: string | null
+          issue_id: string
+          issue_type: string
+          note: string | null
+          order_id: string
+          order_item_ids: string[]
+          photo_path: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          customer_id?: string | null
+          issue_id?: string
+          issue_type: string
+          note?: string | null
+          order_id: string
+          order_item_ids: string[]
+          photo_path?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string | null
+          issue_id?: string
+          issue_type?: string
+          note?: string | null
+          order_id?: string
+          order_item_ids?: string[]
+          photo_path?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_issue_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "order_issue_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "order"
+            referencedColumns: ["order_id"]
           },
         ]
       }

@@ -95,7 +95,7 @@ export function CheckoutScreen({
               Delivery and quietly re-add the ₱95 fee. */}
           <Link
             href={`/menu?fulfilment=${fulfilment}`}
-            className="rounded-sm border border-field-border bg-card px-[14px] pb-[11px] pt-[9px] text-[13px] font-bold text-foreground"
+            className="rounded-sm border border-field-border bg-card px-[14px] pb-[11px] pt-[9px] text-[14px] font-bold text-foreground"
           >
             ← Back to menu
           </Link>
@@ -126,7 +126,7 @@ export function CheckoutScreen({
               ) : null}
 
               <section className="flex flex-col gap-[12px] md:rounded-lg md:border md:border-rule md:bg-card md:p-[20px]">
-                <h2 className="text-[12px] font-bold uppercase tracking-[1.44px] text-muted-foreground md:text-[11px] md:tracking-[1.54px]">
+                <h2 className="text-[14px] font-bold uppercase tracking-[1.44px] text-muted-foreground md:text-[14px] md:tracking-[1.54px]">
                   Payment method
                 </h2>
                 <PaymentMethodPicker
@@ -173,7 +173,7 @@ function EmptyCart() {
       <p className="text-[14px] font-bold text-foreground">
         There is nothing to check out yet.
       </p>
-      <p className="text-[13px] text-muted-foreground">
+      <p className="text-[14px] text-muted-foreground">
         Add a dish to your cart and it will show up here for review.
       </p>
       <Link

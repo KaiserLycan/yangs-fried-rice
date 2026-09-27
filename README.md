@@ -41,7 +41,6 @@ A **disabled** account (`is_account_disabled`) is refused by every server guard 
 | Backend | Next.js server actions and API routes, Supabase (Postgres, Auth, Realtime, Storage, Edge Functions) |
 | Validation | `zod` |
 | Employee sessions | `jose` (signed session cookie) |
-| Maps | `leaflet`, `react-leaflet`, `leaflet-routing-machine` (tracking map only; being removed in #116) |
 | Charts and PDF | `recharts`, `jspdf`, `jspdf-autotable` |
 | Testing | Vitest, React Testing Library, jsdom |
 | Formatting | ESLint, Prettier (`prettier-plugin-tailwindcss`) |
@@ -52,9 +51,9 @@ A **disabled** account (`is_account_disabled`) is refused by every server guard 
 |---|---|---|
 | **Supabase** | Database, sign-in, live updates, image storage | `lib/supabase/` |
 | **PayMongo** | GCash and Maya payments | `supabase/functions/create-payment-intent`, `supabase/functions/payment-webhook`, `lib/checkout/paymongo.ts` |
-| **LocationIQ** | Address lookup and map tiles (when `LOCATIONIQ_API_KEY` is set) | `lib/address/validate-ncr.ts`, `components/deliver/map-content.tsx` |
+| **LocationIQ** | Address lookup (when `LOCATIONIQ_API_KEY` is set) | `lib/address/validate-ncr.ts` |
 | **OpenStreetMap Nominatim** | Free address lookup when there is no LocationIQ key | `lib/address/validate-ncr.ts` |
-| **ArcGIS World Street Map** | Free map tiles when there is no LocationIQ key | `components/deliver/map-content.tsx` |
+| **Resend** | "Your order was cancelled" email (when `RESEND_API_KEY` and `EMAIL_FROM` are set) | `lib/email/` |
 
 ---
 

@@ -11,7 +11,7 @@ export function MenuEmptyState({ hasFilter }: { hasFilter: boolean }) {
         No dishes match{hasFilter ? " your search" : ""}.
       </p>
       {hasFilter ? (
-        <p className="text-[13px] text-muted-foreground">
+        <p className="text-[14px] text-muted-foreground">
           Try a different keyword or category.
         </p>
       ) : null}

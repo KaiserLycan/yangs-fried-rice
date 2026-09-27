@@ -10,7 +10,7 @@ import { useDebounce } from "@/lib/hooks/use-debounce";
 import { MenuItemModal } from "@/components/manage/menu/menu-modals";
 import { MenuItemDetailModal } from "@/components/manage/menu/menu-item-detail-modal";
 import { useToast, ToastProvider } from "@/components/ui/toast";
-import type { MenuItem } from "@/components/manage/menu/mock-menu";
+import type { MenuItem } from "@/types/menu";
 
 // Import real backend Server Actions and Supabase client
 import {

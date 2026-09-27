@@ -49,7 +49,7 @@ function ChipButton({
       aria-pressed={isSelected}
       onClick={onClick}
       className={cn(
-        "shrink-0 whitespace-nowrap rounded-pill px-[15px] py-[9px] text-[13.5px]",
+        "min-h-[44px] shrink-0 whitespace-nowrap rounded-pill px-[15px] py-[9px] text-[14px]",
         isSelected
           ? "bg-primary text-primary-foreground"
           : "bg-secondary/40 text-foreground",

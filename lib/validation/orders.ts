@@ -11,11 +11,15 @@ import { z } from "zod";
 // Status vocabulary
 // ---------------------------------------------------------------------------
 
+/**
+ * `received` used to sit between `pending` and `preparing`, but nothing could
+ * ever move an order into it (issue #118). Staff accepting an order *is*
+ * `pending → preparing`, so the extra step was dropped rather than wired up.
+ */
 export const ORDER_STATUSES = [
   "awaiting_payment",
   "payment_failed",
   "pending",
-  "received",
   "preparing",
   "ready",
   "out_for_delivery",
@@ -75,8 +79,8 @@ export const orderStatusSchema = z.enum(ORDER_STATUSES, {
 export const VALID_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
   awaiting_payment: ["pending", "payment_failed", "cancelled"],
   payment_failed: ["pending", "cancelled"],
+  // `preparing` is "staff accepted it": the kitchen has started.
   pending: ["preparing", "cancelled"],
-  received: ["preparing", "cancelled"],
   // Pickup-only (issue #114): nothing new goes out for delivery. The status
   // stays in the vocabulary so legacy orders already there can be finished.
   preparing: ["ready", "cancelled"],

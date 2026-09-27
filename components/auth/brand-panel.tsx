@@ -40,14 +40,14 @@ export function BrandPanel() {
           TO ORDER.
           <br />
           <span className="text-on-brand-accent">
-            HOT AT YOUR
+            HOT AT THE
             <br />
-            DOOR.
+            COUNTER.
           </span>
         </h1>
         <p className="mt-5 max-w-[380px] text-[15px] leading-[22.5px] text-on-brand-muted">
-          Log in to reorder your usual in two taps, keep your delivery addresses
-          saved, and track live orders.
+          Log in to reorder your usual in one tap, get told the moment your
+          order is ready, and pick it up hot at the counter.
         </p>
       </div>
 
@@ -60,7 +60,7 @@ export function BrandPanel() {
           margin collapses to zero when there is no surplus and the gap would
           vanish at the drawn height. */}
       <div className="relative hidden gap-7 border-t border-on-brand-rule pt-[22px] md:mt-auto md:flex">
-        <Stat value="18 min" label="Avg. delivery" />
+        <Stat value="18 min" label="Avg. prep time" />
         <Stat value="4.8 ★" label="2,140 reviews" />
       </div>
     </div>

@@ -80,7 +80,7 @@ export async function registerCustomer(
       fieldErrors: fieldErrorsFromIssues(parsed.error.issues),
     };
   }
-  const { firstName, lastName, email, phone, dateOfBirth, password, buildingNo, street, barangay, city, zip } = parsed.data;
+  const { firstName, lastName, email, phone, password, buildingNo, street, barangay, city, zip } = parsed.data;
 
   // Kept in the auth user's metadata as a display fallback only; the
   // customer row stores the two parts.
@@ -112,7 +112,10 @@ export async function registerCustomer(
     email,
     password,
     options: {
-      data: { name },
+      // When they confirmed the age box (F16): the record that it was asked
+      // and answered, now that no birthday is taken at sign-up. The schema
+      // has already refused a sign-up without it.
+      data: { name, age_confirmed_at: new Date().toISOString() },
       ...(origin && { emailRedirectTo: `${origin}/login` }),
     },
   });
@@ -170,7 +173,6 @@ export async function registerCustomer(
     last_name: lastName,
     email,
     phone_number: toInternationalMobile(phone),
-    date_of_birth: dateOfBirth ? dateOfBirth : null,
   });
   if (customerError) {
     // Without a customer row the account can't sign in to the customer

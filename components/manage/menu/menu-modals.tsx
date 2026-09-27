@@ -1,7 +1,7 @@
 import { useState, useRef, useMemo, useEffect } from "react";
 import { Switch } from "@/components/ui/switch";
 import { z } from "zod";
-import { MenuItem, MenuCategory, MOCK_CATEGORIES } from "@/components/manage/menu/mock-menu";
+import type { MenuItem, MenuCategory } from "@/types/menu";
 import { cn } from "@/lib/utils";
 import { Camera, ChevronDown, ChevronRight, Trash2, Plus, Loader2 } from "lucide-react";
 import { compressImage } from "@/lib/image/compress";
@@ -150,7 +150,7 @@ export function MenuItemModal({
   }, { enabled: isOpen });
 
   // Derive the list of selectable categories (exclude "All").
-  const selectableCategories = (categories ?? MOCK_CATEGORIES).filter(
+  const selectableCategories = (categories ?? []).filter(
     (c) => c !== "All"
   );
 

@@ -16,6 +16,7 @@ import {
 } from "@/lib/validation/orders";
 import { isPickupOrder } from "@/lib/orders/format";
 import { orderIdRangeFor } from "@/lib/orders/order-number";
+import { notifyOrderCancelled } from "@/lib/email/notify-order-cancelled";
 import type { Tables, TablesUpdate } from "@/types/database.types";
 
 // ---------------------------------------------------------------------------
@@ -61,7 +62,7 @@ type OrderSummary = {
 };
 
 type OrderStats = {
-  received: number;
+  pending: number;
   preparing: number;
   out_for_delivery: number;
   completed: number;
@@ -382,7 +383,7 @@ export async function getOrderDetail(
 
 /**
  * Update an order's status through the pipeline:
- *   received → preparing → out_for_delivery → completed
+ *   pending → preparing → ready → completed
  *   (cancelled is allowed from any non-terminal status)
  *
  * Sets `completed_at` when transitioning to `completed`.
@@ -468,6 +469,12 @@ export async function updateOrderStatus(
 
   if (updateError) return { data: null, error: updateError.message };
 
+  // The in-app notification is written by a database trigger on this same
+  // update; the email goes from here (F23). It never fails the cancel.
+  if (validatedNewStatus === "cancelled") {
+    await notifyOrderCancelled(supabase, orderId, "store");
+  }
+
   return { data: updated, error: null };
 }
 
@@ -491,7 +498,7 @@ export async function getOrderStats(): Promise<ActionResult<OrderStats>> {
   if (error) return { data: null, error: error.message };
 
   const stats: OrderStats = {
-    received: 0,
+    pending: 0,
     preparing: 0,
     out_for_delivery: 0,
     completed: 0,

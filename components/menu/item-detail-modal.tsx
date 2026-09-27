@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { QuantityStepper } from "@/components/menu/quantity-stepper";
 import { ProductPhotoPlaceholder } from "@/components/menu/product-photo-placeholder";
-import { addCartItem } from "@/lib/actions/cart";
+import { addCartItem, updateCartItem } from "@/lib/actions/cart";
 import { useCartAction } from "@/lib/cart/use-cart-action";
 import { formatPeso, type ProductListing } from "@/lib/menu/product-listing";
 import { MIN_QUANTITY } from "@/lib/menu/quantity";
@@ -35,17 +36,36 @@ const SPECIAL_INSTRUCTIONS_PLACEHOLDER = "e.g. extra chili, no egg";
  * number to show. Ticket 03's own "dish's real name, description, price and
  * rating" acceptance criterion is stale on that point — decided in ticket 02,
  * carried over here rather than re-litigated.
+ *
+ * Two more modes (issue #118):
+ *
+ * - `editing`: opened from a cart line's "Edit" (limitations #23), pre-filled
+ *   with that line's quantity, note and add-ons, and saving through
+ *   `updateCartItem` instead of adding a second line.
+ * - `isGuest`: nobody is signed in, so the action is a "Sign in to order"
+ *   link back to this menu (panel F3) rather than an Add that can only fail.
  */
+export type CartLineEdit = {
+  cartItemId: string;
+  quantity: number;
+  specialInstructions: string | null;
+  addOnIds: string[];
+};
+
 export function ItemDetailModal({
   product,
   onClose,
   onAdd,
+  editing,
+  isGuest = false,
 }: {
   /** `null` closes the dialog — there is no separate `open` boolean to keep
    * in sync with which product it is showing. */
   product: ProductListing | null;
   onClose: () => void;
   onAdd?: (quantity: number, instructions: string) => void;
+  editing?: CartLineEdit;
+  isGuest?: boolean;
 }) {
   const { run, pending } = useCartAction();
   const ref = React.useRef<HTMLDialogElement>(null);
@@ -55,15 +75,22 @@ export function ItemDetailModal({
 
   const open = product !== null;
 
+  // Read through a ref so a new `editing` object each parent render does not
+  // re-run the reset below and wipe what the customer just changed.
+  const editingRef = React.useRef(editing);
+  editingRef.current = editing;
+
   // Resets on every open, including reopening the same dish a second time —
   // the acceptance criterion is "dismissing and reopening resets", not "a
   // different dish resets". Keying off `open` rather than `product.id` is
   // what catches the same-dish case.
+  // Editing a cart line starts from that line instead of from blank.
   React.useEffect(() => {
     if (open) {
-      setQuantity(MIN_QUANTITY);
-      setInstructions("");
-      setSelectedAddOns(new Set());
+      const line = editingRef.current;
+      setQuantity(line?.quantity ?? MIN_QUANTITY);
+      setInstructions(line?.specialInstructions ?? "");
+      setSelectedAddOns(new Set(line?.addOnIds ?? []));
     }
   }, [open]);
 
@@ -110,6 +137,49 @@ export function ItemDetailModal({
           special_instructions: inst || null,
           add_on_ids: Array.from(selectedAddOns),
         })
+    );
+  }
+
+  function handleSaveEdit() {
+    if (!editing) return;
+    const { cartItemId } = editing;
+    const payload = {
+      quantity,
+      special_instructions: instructions.trim() || null,
+      add_on_ids: Array.from(selectedAddOns),
+    };
+    onClose();
+    // The cart re-reads the page once this lands; the line shows the saved
+    // values, not a guess at them (`useCartAction`).
+    run(() => updateCartItem(cartItemId, payload));
+  }
+
+  const primaryLabel = !product.isAvailable
+    ? "Unavailable"
+    : editing
+    ? "Save changes"
+    : "Add to cart";
+
+  /** The dialog's one action, drawn at each breakpoint's size. */
+  function primaryAction(className: string) {
+    if (isGuest) {
+      return (
+        <Link href="/login?next=/menu" className={className}>
+          <span>Sign in to order</span>
+          <span>{lineTotal}</span>
+        </Link>
+      );
+    }
+    return (
+      <button
+        type="button"
+        onClick={editing ? handleSaveEdit : handleAddToCart}
+        disabled={pending || !product!.isAvailable}
+        className={`${className} disabled:cursor-not-allowed disabled:opacity-60`}
+      >
+        <span>{primaryLabel}</span>
+        <span>{lineTotal}</span>
+      </button>
     );
   }
 
@@ -164,10 +234,10 @@ export function ItemDetailModal({
           )}
           <button
             type="button"
-            aria-label="Back to menu"
+            aria-label={editing ? "Close without saving" : "Back to menu"}
             onClick={onClose}
             disabled={pending}
-            className="absolute left-[16px] top-[16px] flex size-[38px] items-center justify-center rounded-pill bg-background text-[16px] font-bold text-foreground disabled:opacity-60"
+            className="absolute left-[16px] top-[16px] flex size-[44px] items-center justify-center rounded-pill bg-background text-[16px] font-bold text-foreground disabled:opacity-60"
           >
             ←
           </button>
@@ -200,15 +270,9 @@ export function ItemDetailModal({
             />
           </LabelledSection>
 
-          <button
-            type="button"
-            onClick={handleAddToCart}
-            disabled={pending || !product.isAvailable}
-            className="flex items-center justify-between rounded-[14px] bg-accent p-[17px] text-[15px] font-bold text-white disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            <span>{product.isAvailable ? 'Add to cart' : 'Unavailable'}</span>
-            <span>{lineTotal}</span>
-          </button>
+          {primaryAction(
+            "flex items-center justify-between rounded-[14px] bg-accent p-[17px] text-[15px] font-bold text-white",
+          )}
         </div>
       </div>
 
@@ -253,15 +317,9 @@ export function ItemDetailModal({
             >
               Cancel
             </button>
-            <button
-              type="button"
-              onClick={handleAddToCart}
-              disabled={pending || !product.isAvailable}
-              className="flex items-center justify-between rounded-[13px] bg-accent p-[15px] text-[14px] font-bold text-white disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              <span>{product.isAvailable ? 'Add to cart' : 'Unavailable'}</span>
-              <span>{lineTotal}</span>
-            </button>
+            {primaryAction(
+              "flex items-center justify-between rounded-[13px] bg-accent p-[15px] text-[14px] font-bold text-white",
+            )}
           </div>
         </div>
       </div>
@@ -283,7 +341,7 @@ function ItemSummary({
       <h2 id={titleId} className={`font-display text-foreground ${titleClassName}`}>
         {product.name}
       </h2>
-      <p className="text-[13px] text-muted-foreground">{product.description}</p>
+      <p className="text-[14px] text-muted-foreground">{product.description}</p>
       <p className="pt-[5px] font-display text-[24px] text-primary">
         {formatPeso(product.price)}
       </p>
@@ -300,7 +358,7 @@ function LabelledSection({
 }) {
   return (
     <div className="flex flex-col gap-[8px]">
-      <span className="text-[12px] font-bold uppercase tracking-[1.44px] text-muted-foreground">
+      <span className="text-[14px] font-bold uppercase tracking-[1.2px] text-muted-foreground">
         {label}
       </span>
       {children}
@@ -339,12 +397,12 @@ export function AddOnsSection({
 }) {
   return (
     <div className="flex flex-col gap-[8px]">
-      <span className="text-[12px] font-bold uppercase tracking-[1.44px] text-muted-foreground">
+      <span className="text-[14px] font-bold uppercase tracking-[1.2px] text-muted-foreground">
         Add-ons
       </span>
       <div className="flex flex-col gap-[8px] max-h-[150px] overflow-y-auto pr-1">
         {!addOns || addOns.length === 0 ? (
-          <div className="text-[13px] text-muted-foreground italic px-1 py-2">No add-ons currently.</div>
+          <div className="px-1 py-2 text-[14px] italic text-muted-foreground">No add-ons for this dish.</div>
         ) : (
           addOns.map((addon) => (
             <label key={addon.addon_id} className="flex cursor-pointer items-center justify-between rounded-[12px] border border-field-border bg-card p-[14px]">

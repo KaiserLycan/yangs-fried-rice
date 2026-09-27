@@ -32,6 +32,7 @@ const SIGNUP = {
   barangay: "San Miguel",
   city: "Pasig",
   zip: "1600",
+  ageConfirmed: true,
 };
 
 function messageFor(schema: { safeParse: (v: unknown) => any }, value: unknown, field: string) {

@@ -10,7 +10,7 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { lengthProps } from "@/lib/validation/fields";
 import { ShowHideToggle } from "@/components/ui/show-hide-toggle";
 import { useToast } from "@/components/ui/toast";
-import { passwordStrength } from "@/lib/profile/password-strength";
+import { PasswordStrengthMeter } from "@/components/ui/password-strength-meter";
 import {
   passwordChangeSchema,
   type PasswordChangeField,
@@ -204,8 +204,6 @@ function PasswordFields({
   const [showConfirm, setShowConfirm] = React.useState(false);
   const [newPassword, setNewPassword] = React.useState("");
 
-  const strength = passwordStrength(newPassword);
-
   return (
     <div className="grid gap-[12px] md:grid-cols-3 md:gap-[14px]">
       <CardField
@@ -250,19 +248,7 @@ function PasswordFields({
           {...lengthProps("password")}
           invalid={Boolean(errors.newPassword)}
         />
-        {newPassword ? (
-          <div className="flex items-center gap-[8px] pt-[2px]">
-            <div className="h-[5px] flex-1 overflow-hidden rounded-pill bg-rule">
-              <div
-                className="h-full rounded-pill bg-[#3f6b4a] transition-[width]"
-                style={{ width: `${strength.percent}%` }}
-              />
-            </div>
-            <span className="whitespace-nowrap text-[11.5px] font-bold text-[#3f6b4a]">
-              {strength.label}
-            </span>
-          </div>
-        ) : null}
+        <PasswordStrengthMeter password={newPassword} />
       </CardField>
 
       <CardField

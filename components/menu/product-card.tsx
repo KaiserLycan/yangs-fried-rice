@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { formatPeso, type ProductListing } from "@/lib/menu/product-listing";
 import { ProductPhotoPlaceholder } from "@/components/menu/product-photo-placeholder";
+import { cn } from "@/lib/utils";
 
 /**
  * The desktop grid card (`133:791` and its siblings): photo, name,
@@ -13,67 +15,80 @@ import { ProductPhotoPlaceholder } from "@/components/menu/product-photo-placeho
  * fabricated, so it's left out rather than invented. See this ticket's
  * "Derived during implementation" note.
  *
- * Only "Add" is a click target here, not the whole card — the frame draws
- * it that way (the card itself is a plain `div`, only the Add control is
- * typed `button`), and it's also what keeps this a single `<button>` rather
- * than one nested inside a card that might itself become clickable later.
+ * The photo and text are one button that opens the dish; the action in the
+ * footer is its own control beside it, never nested inside. That is what
+ * lets a guest's action be a link: a guest sees "Sign in to order" instead
+ * of "Add" (panel F3), which goes to the login page and back to the menu,
+ * rather than an Add that only fails with "You must be signed in".
+ *
+ * An unavailable dish keeps its card but its photo is greyed out (F12), so
+ * it reads as off the menu for now at a glance, not only from the label.
  */
 export function ProductCard({
   product,
   onSelect,
+  isGuest = false,
 }: {
   product: ProductListing;
   onSelect: (product: ProductListing) => void;
+  /** True once we know nobody is signed in. Unknown reads as signed in. */
+  isGuest?: boolean;
 }) {
-
+  const unavailable = !product.isAvailable;
 
   return (
-    <button 
-      type="button"
-      onClick={() => onSelect(product)}
-      className="flex flex-col overflow-hidden rounded-md border border-field-border bg-card text-left transition-colors hover:border-accent group"
-    >
-      {product.imageUrl ? (
-        <img
-          src={product.imageUrl}
-          alt={product.name}
-          className="h-[138px] w-full object-cover"
-        />
-      ) : (
-        <ProductPhotoPlaceholder className="h-[138px] w-full" />
-      )}
+    <div className="group flex flex-col overflow-hidden rounded-md border border-field-border bg-card text-left transition-colors hover:border-accent">
+      <button
+        type="button"
+        onClick={() => onSelect(product)}
+        className="flex flex-1 flex-col text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/40"
+      >
+        {product.imageUrl ? (
+          <img
+            src={product.imageUrl}
+            alt={product.name}
+            className={cn("h-[138px] w-full object-cover", unavailable && "grayscale opacity-60")}
+          />
+        ) : (
+          <ProductPhotoPlaceholder
+            className={cn("h-[138px] w-full", unavailable && "grayscale opacity-60")}
+          />
+        )}
 
-      <div className="flex flex-1 flex-col gap-[10px] p-[14px]">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="text-[15px] font-bold text-foreground">
-            {product.name}
-          </h3>
-
-        </div>
-
-        <p className="line-clamp-2 flex-1 text-[13px] text-muted-foreground">
-          {product.description}
-        </p>
-
-        <div className="flex items-center justify-between">
-          <span className="font-display text-[22px] text-foreground">
-            {formatPeso(product.price)}
+        <span className="flex flex-1 flex-col gap-[10px] px-[14px] pt-[14px]">
+          <span className="text-[15px] font-bold text-foreground">{product.name}</span>
+          <span className="line-clamp-2 flex-1 text-[14px] text-muted-foreground">
+            {product.description}
           </span>
-          <div className="flex items-center gap-[10px]">
-            {!product.isAvailable ? (
-              <span className="rounded-md bg-secondary/50 px-[8px] py-[4px] text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                Unavailable
-              </span>
-            ) : (
-              <span
-                className="rounded-md bg-accent px-[16px] py-[9px] text-[13px] font-bold text-white transition-opacity group-hover:opacity-90"
-              >
-                Add
-              </span>
-            )}
-          </div>
-        </div>
+        </span>
+      </button>
+
+      <div className="flex items-center justify-between gap-[10px] p-[14px] pt-[10px]">
+        <span className="font-display text-[22px] text-foreground">
+          {formatPeso(product.price)}
+        </span>
+        {unavailable ? (
+          <span className="rounded-md bg-secondary/50 px-[8px] py-[4px] text-[14px] font-bold uppercase tracking-wider text-muted-foreground">
+            Unavailable
+          </span>
+        ) : isGuest ? (
+          <Link
+            href="/login?next=/menu"
+            className="flex min-h-[44px] items-center rounded-md bg-accent px-[14px] text-[14px] font-bold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          >
+            Sign in to order
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onSelect(product)}
+            className="flex min-h-[44px] items-center rounded-md bg-accent px-[16px] text-[14px] font-bold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          >
+            Add
+            <span className="sr-only"> {product.name}</span>
+          </button>
+        )}
       </div>
-    </button>
+    </div>
   );
 }

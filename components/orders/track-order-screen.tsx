@@ -20,8 +20,11 @@ import {
 import type { TrackedOrder } from "@/lib/orders/read-tracked-order";
 import { Alert } from "@/components/ui/alert";
 import { CancelOrderControl } from "@/components/orders/cancel-order-control";
-import { LiveMapPanel } from "@/components/orders/live-map-panel";
+import { OrderReceipt } from "@/components/orders/order-receipt";
+import { PickupPointPanel } from "@/components/orders/pickup-point-panel";
+import { ReportProblem } from "@/components/orders/report-problem";
 import { OrderTimeline } from "@/components/orders/order-timeline";
+import { canReportIssue } from "@/lib/validation/order-issue";
 import {
   OrderRatingDisplay,
   RateOrderButton,
@@ -29,10 +32,10 @@ import {
 
 /**
  * The tracking screen. Desktop (`133:1164`) is two columns — header, timeline
- * and cancel control on the left, map on the right. Mobile (`132:481`,
- * `132:543`) stacks them, and the order is header, then map, then timeline:
- * the map sits between the header and the timeline rather than below
- * everything.
+ * and cancel control on the left; where to pick up and the receipt on the
+ * right. Mobile (`132:481`, `132:543`) stacks them: header, pickup panel,
+ * timeline, receipt. The frames drew a delivery map where the pickup panel
+ * is; the shop is pickup-only (issue #114), so there is nothing to map.
  *
  * That reordering is done with grid placement rather than by rendering the
  * screen twice. Two copies would be the quicker way to write it and the wrong
@@ -47,13 +50,7 @@ import {
  * interactivity — the page around it stays a Server Component and does the
  * reading.
  */
-export function TrackOrderScreen({ 
-  order,
-  locationIqApiKey
-}: { 
-  order: TrackedOrder;
-  locationIqApiKey?: string;
-}) {
+export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
   const serverStatus = {
     orderStatus: order.orderStatus,
     cancelledAt: order.cancelledAt,
@@ -184,10 +181,16 @@ export function TrackOrderScreen({
       : etaPending && arrivalWindow === null
       ? "Updating arrival time…"
       : arrivalLineFor(arrivalWindow);
-  const destination = order.destination
-    ? `${order.orderType ?? "Delivery"} to ${order.destination}`
-    : null;
-  const subline = [arrival, destination].filter(Boolean).join(" · ");
+  const subline = arrival ?? "";
+  const delivered = progress.kind === "stage" && progress.stage === "delivered";
+  // Re-read against the live status, so the button appears the moment staff
+  // mark the order picked up. A status that arrived over realtime carries no
+  // completion time, so the check falls back to when the order was placed.
+  const canReport = canReportIssue({
+    orderStatus: status.orderStatus,
+    completedAt: order.completedAt,
+    placedAt: order.placedAt,
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -200,13 +203,13 @@ export function TrackOrderScreen({
         <header className="flex flex-col gap-[4px] bg-foreground p-[20px] md:col-start-1 md:row-start-1 md:gap-[3px] md:bg-transparent md:p-0">
           <Link
             href="/orders"
-            className="group mb-1 flex w-fit items-center gap-[4px] text-[11px] uppercase tracking-[1.76px] text-on-ink-faint transition-colors hover:text-white md:mb-2 md:text-[12px] md:tracking-[1.92px] md:text-muted-foreground md:hover:text-foreground"
+            className="group mb-1 flex w-fit items-center gap-[4px] text-[14px] uppercase tracking-[1.76px] text-on-ink-faint transition-colors hover:text-white md:mb-2 md:text-[14px] md:tracking-[1.92px] md:text-muted-foreground md:hover:text-foreground"
           >
             <ChevronLeft className="h-[14px] w-[14px] md:h-[16px] md:w-[16px]" />
             <span>Back to orders</span>
           </Link>
           <span
-            className="text-[11px] uppercase tracking-[1.76px] text-on-ink-faint md:text-[12px] md:tracking-[1.92px] md:text-muted-foreground"
+            className="text-[14px] uppercase tracking-[1.76px] text-on-ink-faint md:text-[14px] md:tracking-[1.92px] md:text-muted-foreground"
           >
             {/* The id renders in the case it is stored in — see the receipt's
                 own note, and `lib/orders/order-number.ts`. */}
@@ -216,7 +219,7 @@ export function TrackOrderScreen({
             {headlineFor(progress, fulfilment)}
           </h1>
           <p
-            className="pt-[2px] text-[13px] text-on-ink-muted md:pt-[3px] md:text-[14px] md:text-muted-strong"
+            className="pt-[2px] text-[14px] text-on-ink-muted md:pt-[3px] md:text-[14px] md:text-muted-strong"
             aria-busy={etaPending}
           >
             {subline}
@@ -244,12 +247,12 @@ export function TrackOrderScreen({
           })()}
         </header>
 
-        {/* Second on mobile, right-hand column on desktop. */}
-        <LiveMapPanel
-          riderName={null}
-          destinationCoordinates={order.destinationCoordinates}
-          className="md:col-start-2 md:row-start-1 md:row-span-full"
-          locationIqApiKey={locationIqApiKey}
+        {/* Second on mobile, right-hand column on desktop — where the
+            delivery map used to be. A pickup order has nowhere to route to;
+            what the customer needs is where to collect it (issue #118). */}
+        <PickupPointPanel
+          orderNumber={order.orderNumber}
+          className="md:col-start-2 md:row-start-1"
         />
 
         <div className="flex flex-col items-start p-[20px] md:col-start-1 md:row-start-2 md:rounded-lg md:border md:border-rule md:bg-white md:p-[20px]">
@@ -270,11 +273,11 @@ export function TrackOrderScreen({
           {/* One rating for the whole order, and none offered once given
               (P35, P37). The per-item modal that was here asked again after
               every rating and had a Submit per dish. */}
-          {progress.kind === "stage" && progress.stage === "delivered" && (
+          {delivered && (
             <div className="mt-4 flex w-full items-center justify-between gap-[12px] border-t border-rule pt-[14px]">
               {order.rating !== null ? (
                 <>
-                  <span className="text-[13px] font-bold text-muted-strong">
+                  <span className="text-[14px] font-bold text-muted-strong">
                     You rated this order
                   </span>
                   <OrderRatingDisplay
@@ -284,7 +287,7 @@ export function TrackOrderScreen({
                 </>
               ) : (
                 <>
-                  <span className="text-[13px] font-bold text-muted-strong">
+                  <span className="text-[14px] font-bold text-muted-strong">
                     How was your order?
                   </span>
                   <RateOrderButton
@@ -295,6 +298,24 @@ export function TrackOrderScreen({
               )}
             </div>
           )}
+          {/* Missing, wrong or damaged items, for 24 hours after pickup
+              (limitations #24). Also shows the state of a report once made. */}
+          {(canReport || order.issue) && (
+            <div className="mt-2 flex w-full items-center justify-between gap-[12px] border-t border-rule pt-[10px]">
+              <ReportProblem
+                orderId={orderId}
+                orderNumber={order.orderNumber}
+                items={order.items}
+                issue={order.issue}
+                canReport={canReport}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Below the timeline on mobile, under the pickup panel on desktop. */}
+        <div className="border-t border-rule p-[20px] md:col-start-2 md:row-start-2 md:rounded-lg md:border md:bg-white">
+          <OrderReceipt order={order} />
         </div>
       </div>
     </div>
@@ -302,12 +323,12 @@ export function TrackOrderScreen({
 }
 
 /**
- * Mobile is a plain stack in DOM order. Desktop becomes a two-column grid
- * whose second column holds the map across every row — header and
- * timeline — which is what lets the map move from
- * between the header and the timeline to beside them without the markup
- * changing. The row count is set at the call site, because an empty third
- * row would still carry the gap above it.
+ * Mobile is a plain stack in DOM order. Desktop becomes a two-column grid:
+ * header and timeline on the left, the pickup panel and the receipt on the
+ * right — which is what lets the pickup panel move from between the header
+ * and the timeline to beside them without the markup changing. The row count
+ * is set at the call site, because an empty third row would still carry the
+ * gap above it.
  */
 const cnGrid =
   "mx-auto flex w-full max-w-[1200px] flex-col md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] md:items-start md:gap-[26px] md:px-[26px] md:pb-[60px] md:pt-[30px]";

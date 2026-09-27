@@ -32,7 +32,7 @@ export function SwitchToCodButton({ orderId }: { orderId: string }) {
       return;
     }
 
-    showToast("Switched to cash on delivery — pay the rider when it arrives.");
+    showToast("Switched to paying at the counter — pay when you pick it up.");
     // Deliberately not clearing `pending`: the refresh replaces this button
     // with the Track link, and a button that woke up in between invites a
     // second switch on an order that has already moved.
@@ -46,7 +46,7 @@ export function SwitchToCodButton({ orderId }: { orderId: string }) {
       disabled={pending}
       className="rounded-[13px] border border-rule bg-card p-[16px] text-center text-[15px] font-bold text-foreground transition-colors hover:bg-black/5 disabled:opacity-60"
     >
-      {pending ? "Switching…" : "Switch to Cash on Delivery"}
+      {pending ? "Switching…" : "Pay at the counter instead"}
     </button>
   );
 }

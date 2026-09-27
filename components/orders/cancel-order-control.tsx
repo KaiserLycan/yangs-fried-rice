@@ -103,7 +103,7 @@ export function CancelOrderControl({
           type="button"
           disabled={pending}
           onClick={() => setOpen(true)}
-          className="w-full rounded-md border border-primary px-[18px] py-[13px] text-[13px] font-bold text-primary transition-colors hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-60 md:w-auto"
+          className="w-full rounded-md border border-primary px-[18px] py-[13px] text-[14px] font-bold text-primary transition-colors hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-60 md:w-auto"
         >
           Cancel order
         </button>
@@ -113,7 +113,7 @@ export function CancelOrderControl({
         // #C9B8AC is the frame's own value. The token collection has no rule
         // this dark for use on cream — `--rule` (#E3D6C3) is the hairline
         // divider and disappears at one dashed pixel.
-        <p className="w-full rounded-[14px] border border-dashed border-[#c9b8ac] p-[13px] text-[12px] leading-[18px] text-muted-strong">
+        <p className="w-full rounded-[14px] border border-dashed border-[#c9b8ac] p-[13px] text-[14px] leading-[18px] text-muted-strong">
           {KITCHEN_CONFIRMED_NOTE}
         </p>
       ) : null}
