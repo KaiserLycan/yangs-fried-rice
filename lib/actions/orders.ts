@@ -18,8 +18,9 @@ import {
   type OrderFilters,
 } from "@/lib/validation/orders";
 import { isPickupOrder } from "@/lib/orders/format";
-import { orderIdRangeFor } from "@/lib/orders/order-number";
+import { orderIdRangeFor, orderNumberSearch } from "@/lib/orders/order-number";
 import { notifyOrderCancelled } from "@/lib/email/notify-order-cancelled";
+import { discardSeniorPwdIdPhoto, signSeniorPwdIdUrl } from "@/lib/storage/senior-pwd-ids";
 import type { Tables, TablesUpdate } from "@/types/database.types";
 
 // ---------------------------------------------------------------------------
@@ -51,11 +52,18 @@ type OrderWithDetails = Order & { ready_at?: string | null;
     payment_method: string | null;
     payment_status: string | null;
     total_paid: number | null;
+    subtotal: number | null;
+    discount_amount: number | null;
+    discount_type: string | null;
+    discount_id_number: string | null;
+    name_on_id: string | null;
+    discount_id_photo_path: string | null;
   }[];
 };
 
 type OrderSummary = {
   order_id: string;
+  order_number: number | null;
   order_status: string | null;
   order_type: string | null;
   created_at: string | null;
@@ -190,6 +198,7 @@ export async function getAllOrders(
     .select(
       `
       order_id,
+      order_number,
       order_status,
       order_type,
       created_at,
@@ -235,6 +244,7 @@ export async function getAllOrders(
 
   const summaries: OrderSummary[] = (data ?? []).map((row: any) => ({
     order_id: row.order_id,
+    order_number: row.order_number ?? null,
     order_status: row.order_status,
     order_type: row.order_type,
     created_at: row.created_at,
@@ -278,8 +288,8 @@ export async function getDetailedOrders(
   const needTransactionInner =
     !!filters.payment_method || filters.min_total !== undefined || filters.max_total !== undefined;
   const transactionJoin = needTransactionInner
-    ? 'transaction!inner ( transaction_id, payment_method, payment_status, total_paid, subtotal )'
-    : 'transaction ( transaction_id, payment_method, payment_status, total_paid, subtotal )';
+    ? 'transaction!inner ( transaction_id, payment_method, payment_status, total_paid, subtotal, discount_amount, discount_type, discount_id_number, name_on_id, discount_id_photo_path )'
+    : 'transaction ( transaction_id, payment_method, payment_status, total_paid, subtotal, discount_amount, discount_type, discount_id_number, name_on_id, discount_id_photo_path )';
 
   let query = supabase
     .from("order")
@@ -339,9 +349,17 @@ export async function getDetailedOrders(
     query = query.gte("ready_at", filters.ready_from);
   }
   if (filters.search?.trim()) {
-    const range = orderIdRangeFor(filters.search);
-    if (!range) return { data: { data: [], totalCount: 0 }, error: null };
-    query = query.gte("order_id", range.from).lte("order_id", range.to);
+    // "1042" is an order number; "38206dc0" is an older id prefix (a
+    // reference printed before order numbers). Anything else matches nothing.
+    const number = orderNumberSearch(filters.search);
+    const range = number === null ? orderIdRangeFor(filters.search) : null;
+    if (number !== null) {
+      query = query.eq("order_number", number);
+    } else if (range) {
+      query = query.gte("order_id", range.from).lte("order_id", range.to);
+    } else {
+      return { data: { data: [], totalCount: 0 }, error: null };
+    }
   }
   
   if (filters.customer_id) {
@@ -425,7 +443,13 @@ export async function getOrderDetail(
         transaction_id,
         payment_method,
         payment_status,
-        total_paid
+        total_paid,
+        subtotal,
+        discount_amount,
+        discount_type,
+        discount_id_number,
+        name_on_id,
+        discount_id_photo_path
       )
     `,
     )
@@ -493,7 +517,7 @@ export async function updateOrderStatus(
   if (validatedNewStatus === "out_for_delivery" && isPickupOrder(order.order_type)) {
     return {
       data: null,
-      error: "Take-out orders can't go out for delivery. Mark it ready for pick up instead.",
+      error: "Take-out orders can't go out for delivery. Mark it ready for pickup instead.",
     };
   }
 
@@ -540,46 +564,11 @@ export async function updateOrderStatus(
 
   if (updateError) return { data: null, error: updateError.message };
 
-  
-  // Fix total_paid for pay-in-store orders upon completion (issue #27)
-  if (validatedNewStatus === "completed") {
-    const { data: txs } = await supabase
-      .from("transaction")
-      .select("transaction_id, payment_method, total_paid")
-      .eq("order_id", orderId);
-      
-    const tx = txs?.[0];
-    if (tx && (tx.payment_method === "pay_in_store" || tx.payment_method === "pay-in-store" || tx.payment_method === "cash") && tx.total_paid === 0) {
-      const { data: orderDetails } = await supabase
-        .from("order_item")
-        .select("subtotal")
-        .eq("order_id", orderId);
-      const { data: orderAddOns } = await supabase
-        .from("order_item_add_on")
-        .select("add_on(price)")
-        .eq("order_item_id", "some_join"); // Wait, we can just fetch order_item(subtotal), order_item_add_on(add_on(price))
-        
-      // A safer way is to fetch the full total via getOrderDetail
-      const fullOrder = await getOrderDetail(orderId);
-      if (fullOrder.data) {
-        const itemsTotal = fullOrder.data.order_item.reduce((acc, item) => acc + (item.subtotal || 0), 0);
-        const addOnsTotal = fullOrder.data.order_item.reduce((acc, item) => 
-          acc + (item.order_item_add_on || []).reduce((sum, ao) => sum + (ao.add_on?.price || 0), 0)
-        , 0);
-        const deliveryFee = updated.delivery_fee || 0;
-        const totalToPay = itemsTotal + addOnsTotal + deliveryFee;
-        
-        await supabase
-          .from("transaction")
-          .update({
-            payment_status: "paid",
-            total_paid: totalToPay
-          })
-          .eq("transaction_id", tx.transaction_id);
-      }
-    }
+  // Senior Citizen / PWD (issue #116): the ID photo was only for checking at
+  // release. Once the order is done it goes, in this same action.
+  if (validatedNewStatus === "completed" || validatedNewStatus === "cancelled") {
+    await discardSeniorPwdIdPhoto(supabase, orderId);
   }
-
 
   // The in-app notification is written by a database trigger on this same
   // update; the email goes from here (F23). It never fails the cancel.
@@ -588,6 +577,43 @@ export async function updateOrderStatus(
   }
 
   return { data: updated, error: null };
+}
+
+// ---------------------------------------------------------------------------
+// Senior Citizen / PWD ID photo
+// ---------------------------------------------------------------------------
+
+/**
+ * A five-minute link to an order's ID photo, for the "Verify ID" check
+ * before release (issue #116). Signed with the staff member's own session,
+ * so the bucket's staff-only policy decides. Asked for when staff open the
+ * photo, never put in the order list.
+ *
+ * Requires: manager or staff.
+ */
+export async function getSeniorPwdIdPhotoUrl(
+  orderId: string,
+): Promise<ActionResult<{ url: string }>> {
+  const auth = await requireManageAccess();
+  if (!auth.data) return { data: null, error: auth.error };
+
+  const supabase = createClient();
+  const { data: row } = await supabase
+    .from("transaction")
+    .select("discount_id_photo_path")
+    .eq("order_id", orderId)
+    .not("discount_id_photo_path", "is", null)
+    .limit(1)
+    .maybeSingle();
+
+  const url = row?.discount_id_photo_path
+    ? await signSeniorPwdIdUrl(supabase, row.discount_id_photo_path)
+    : null;
+
+  if (!url) {
+    return { data: null, error: "The ID photo is no longer available." };
+  }
+  return { data: { url }, error: null };
 }
 
 // ---------------------------------------------------------------------------

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Loader2, Search } from "lucide-react";
-import { OrderSidebar, OrderStatus } from "@/components/manage/orders/order-sidebar";
+import { OrderSidebar, OrderStatus, dbStatusForTab } from "@/components/manage/orders/order-sidebar";
 import { OrderCard } from "@/components/manage/orders/order-card";
 import type { OrderData } from "@/types/staff-order";
 import { OrderDetailModal } from "@/components/manage/orders/order-detail-modal";
@@ -15,6 +15,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast, ToastProvider } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+import { useNow } from "@/lib/hooks/use-now";
 import { getDetailedOrders, updateOrderStatus, getEmployeeAccess } from "@/lib/actions/orders";
 import { mapStaffOrder, type StaffOrderRow } from "@/lib/orders/map-staff-order";
 import { actionCopy, dbStatusFor, type StaffAction } from "@/lib/orders/staff-actions";
@@ -44,6 +45,11 @@ function ManageOrdersInner() {
     });
   }, []);
 
+  // This page does not refetch on a timer, so without a tick a card could
+  // never *start* flashing. Every 30s the cards re-check how long each
+  // unaccepted order has waited (issue #115).
+  const now = useNow(30_000);
+
   // UI State
   const [activeStatus, setActiveStatus] = useState<OrderStatus>("All");
   const [currentPage, setCurrentPage] = useState(1);
@@ -71,16 +77,10 @@ function ManageOrdersInner() {
   const fetchOrders = useCallback(async () => {
     setIsLoading(true);
 
-    // 1. Bulletproof Status Mapping (Fixed backend mismatch & casing issues)
-    let dbStatus: string | string[] | undefined = undefined;
-    const uiTab = activeStatus.toLowerCase();
-    const isPaymentIssuesTab = uiTab === "payment issues";
-
-    if (uiTab === "queue") dbStatus = "pending";
-    else if (uiTab === "preparation" || uiTab === "prep") dbStatus = "preparing";
-    else if (uiTab === "delivering" || uiTab === "delivery") dbStatus = ["ready", "out_for_delivery"];
-    else if (uiTab === "completed") dbStatus = "completed";
-    else if (uiTab === "canceled" || uiTab === "cancelled") dbStatus = "cancelled";
+    // Each tab knows the order_status value(s) it lists. Payment issues is
+    // not one status but the unpaid ones, handled below.
+    const isPaymentIssuesTab = activeStatus === "PaymentIssues";
+    const dbStatus = isPaymentIssuesTab ? undefined : dbStatusForTab(activeStatus);
 
     const { date_from, date_to, ...otherFilters } = advancedFilters;
 
@@ -186,10 +186,10 @@ function ManageOrdersInner() {
             <input
               type="search"
               aria-label="Search by order number"
-              placeholder="Search order #"
+              placeholder="Order number, e.g. 1042"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className="w-full sm:w-[260px] h-[45px] pl-11 pr-4 rounded-md border border-field-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-placeholder"
+              className="w-full sm:w-[260px] h-[45px] pl-11 pr-4 rounded-md border border-field-border bg-white text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-placeholder"
             />
           </div>
           <OrderFilterPopover
@@ -258,7 +258,7 @@ function ManageOrdersInner() {
                   ? `No orders starting with #${search.replace(/^#/, "")}.`
                   : Object.keys(advancedFilters).some((k) => advancedFilters[k as keyof OrderFilterState])
                   ? "No orders match these filters."
-                  : activeStatus === "Payment Issues"
+                  : activeStatus === "PaymentIssues"
                   ? "No stuck or failed payments right now."
                   : "No orders found for this status."}
               </div>
@@ -268,6 +268,7 @@ function ManageOrdersInner() {
                   <div key={order.id} className="h-[280px]">
                     <OrderCard 
                       order={order} 
+                      now={now}
                       onClick={() => setSelectedOrder(order)} 
                       onAction={(type, order) => setConfirmAction({ type, order })}
                     />

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
+import { tableSql } from "@/__tests__/helpers/schema";
 import {
   FIELD_LIMITS,
   emailSchema,
@@ -9,10 +9,8 @@ import {
 } from "./fields";
 import { fieldErrorFromDbError } from "./field-errors";
 
-const migration = readFileSync(
-  "supabase/migrations/20260924000000_atomic_names_and_addresses.sql",
-  "utf8",
-);
+const customer = tableSql("customer");
+const employee = tableSql("employee");
 
 /**
  * The form limits and the database CHECK constraints are two copies of one
@@ -23,13 +21,17 @@ describe("limits match the database constraints", () => {
   it("names", () => {
     expect(FIELD_LIMITS.firstName).toEqual({ min: 2, max: 50 });
     expect(FIELD_LIMITS.lastName).toEqual({ min: 2, max: 50 });
-    expect(migration).toContain("char_length(%1$I) BETWEEN 2 AND 50");
+    for (const table of [customer, employee]) {
+      for (const column of ["first_name", "last_name"]) {
+        expect(table).toContain(`(char_length(${column}) >= 2) AND (char_length(${column}) <= 50)`);
+      }
+    }
   });
 
   it("email", () => {
-    expect(migration).toContain(
-      `char_length(%1$I) BETWEEN ${FIELD_LIMITS.email.min} AND ${FIELD_LIMITS.email.max}`,
-    );
+    const { min, max } = FIELD_LIMITS.email;
+    expect(customer).toContain(`(char_length(email) >= ${min}) AND (char_length(email) <= ${max})`);
+    expect(employee).toContain(`(char_length((email)::text) >= ${min}) AND (char_length((email)::text) <= ${max})`);
   });
 
 });

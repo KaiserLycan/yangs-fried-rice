@@ -62,6 +62,7 @@ describe("US-02: Menu Management Server Actions", () => {
       product_name: "Garlic Rice",
       product_price: 55,
       is_available: true,
+      is_featured: false,
     });
     expect(result.error).toBe("Only a manager can set or change menu prices.");
     expect(mockInsert).not.toHaveBeenCalled();

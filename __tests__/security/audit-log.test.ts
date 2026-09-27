@@ -1,33 +1,29 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { canAccessManagePath } from "@/lib/auth/roles";
+import { SCHEMA, functionSql, policiesOn, tableSql } from "../helpers/schema";
 
 /**
- * The employee audit log (supabase/migrations/20260927000004_*.sql), checked
- * statically. The behaviour was verified against the live project with a
- * rolled-back dry run (manager, staff, customer, anon and owner sessions);
- * these tests stop a later edit from quietly weakening it.
+ * The employee audit log, checked statically against the migrations. The
+ * behaviour was verified against the live project with a rolled-back dry run
+ * (manager, staff, customer, anon and owner sessions); these tests stop a
+ * later edit from quietly weakening it.
  */
-
-const raw = readFileSync("supabase/migrations/20260927000004_employee_audit_log.sql", "utf8");
-/** Comments stripped, so prose that mentions a statement doesn't count as one. */
-const sql = raw.replace(/--.*$/gm, "");
-/** The persona-review fixes, which redefine both functions. */
-const fixes = readFileSync("supabase/migrations/20260927000005_audit_log_review_fixes.sql", "utf8").replace(/--.*$/gm, "");
 
 describe("who can read the log", () => {
   it("has RLS on, and only a manager can select", () => {
-    expect(sql).toMatch(/ALTER TABLE public\.audit_log ENABLE ROW LEVEL SECURITY;/);
-    const policies = sql.match(/CREATE POLICY [^;]+ON public\.audit_log[^;]+;/g) ?? [];
+    expect(SCHEMA).toMatch(/ALTER TABLE public\.audit_log ENABLE ROW LEVEL SECURITY;/);
+    const policies = policiesOn("public.audit_log");
     expect(policies).toHaveLength(1);
     expect(policies[0]).toMatch(/FOR SELECT TO authenticated/);
     expect(policies[0]).toMatch(/current_employee_role\(\) = 'MANAGER'/);
   });
 
-  it("grants nothing to anon, and no write to anyone", () => {
-    expect(sql).toMatch(/REVOKE ALL ON TABLE public\.audit_log FROM PUBLIC, anon, authenticated;/);
-    expect(sql).toMatch(/GRANT SELECT ON TABLE public\.audit_log TO authenticated;/);
-    expect(sql).not.toMatch(/GRANT (INSERT|UPDATE|DELETE|ALL)[^;]*ON TABLE public\.audit_log/);
+  it("grants nothing to anon, and no write to anyone but the service role", () => {
+    expect(SCHEMA).toMatch(/REVOKE ALL ON TABLE public\.audit_log FROM anon;/);
+    expect(SCHEMA).toMatch(/REVOKE ALL ON TABLE public\.audit_log FROM authenticated;/);
+    expect(SCHEMA).toMatch(/GRANT SELECT ON TABLE public\.audit_log TO authenticated;/);
+    expect(SCHEMA).not.toMatch(/GRANT [A-Z, ]*(INSERT|UPDATE|DELETE|ALL)[^;]*ON TABLE public\.audit_log TO (anon|authenticated)/);
   });
 
   it("keeps /manage/audit-log away from staff", () => {
@@ -39,46 +35,52 @@ describe("who can read the log", () => {
 
 describe("nobody can rewrite history", () => {
   it("refuses UPDATE, DELETE and TRUNCATE with triggers, which bind the service role too", () => {
-    expect(sql).toMatch(/BEFORE UPDATE OR DELETE ON public\.audit_log\s+FOR EACH ROW EXECUTE FUNCTION public\.audit_log_is_append_only\(\)/);
-    expect(sql).toMatch(/BEFORE TRUNCATE ON public\.audit_log\s+FOR EACH STATEMENT EXECUTE FUNCTION public\.audit_log_is_append_only\(\)/);
+    expect(SCHEMA).toMatch(
+      /BEFORE DELETE OR UPDATE ON public\.audit_log FOR EACH ROW EXECUTE FUNCTION public\.audit_log_is_append_only\(\)/,
+    );
+    expect(SCHEMA).toMatch(
+      /BEFORE TRUNCATE ON public\.audit_log FOR EACH STATEMENT EXECUTE FUNCTION public\.audit_log_is_append_only\(\)/,
+    );
   });
 
   it("keeps entries when an employee is deleted (no foreign key)", () => {
-    const table = sql.slice(sql.indexOf("CREATE TABLE IF NOT EXISTS public.audit_log"), sql.indexOf(");", sql.indexOf("CREATE TABLE IF NOT EXISTS public.audit_log")));
-    expect(table).not.toMatch(/REFERENCES/);
-    expect(table).toMatch(/actor_name\s+text/);
+    expect(tableSql("audit_log")).toMatch(/actor_name text/);
+    expect(SCHEMA).not.toMatch(/ALTER TABLE ONLY public\.audit_log\s+ADD CONSTRAINT [a-z_]+ FOREIGN KEY/);
   });
 });
 
 describe("entries can't be forged", () => {
+  const record = functionSql("record_employee_action");
+
   it("takes the actor from the session, never from a parameter", () => {
-    const fn = sql.slice(sql.indexOf("CREATE OR REPLACE FUNCTION public.record_employee_action("));
-    const signature = fn.slice(0, fn.indexOf(")"));
+    const signature = record.slice(0, record.indexOf(")"));
     expect(signature).not.toMatch(/actor/);
-    expect(fn).toMatch(/SELECT \* INTO v_actor FROM public\.audit_current_actor\(\);/);
-    expect(sql).toMatch(/WHERE e\.employee_id = auth\.uid\(\)/);
+    expect(record).toMatch(/SELECT \* INTO v_actor FROM public\.audit_current_actor\(\);/);
+    expect(functionSql("audit_current_actor")).toMatch(/WHERE e\.employee_id = auth\.uid\(\)/);
   });
 
   it("accepts only a fixed list of app-side actions", () => {
-    expect(sql).toMatch(/IF p_action IS NULL OR p_action NOT IN \(/);
+    expect(record).toMatch(/ELSE\s+RAISE EXCEPTION 'Unknown audit action/);
   });
 
   it("lets signed-in users call it, and anon not at all", () => {
-    expect(sql).toMatch(/REVOKE ALL ON FUNCTION public\.record_employee_action\(text, text, text, text, jsonb\) FROM PUBLIC, anon;/);
-    expect(sql).toMatch(/GRANT EXECUTE ON FUNCTION public\.record_employee_action\(text, text, text, text, jsonb\) TO authenticated;/);
+    expect(SCHEMA).toMatch(/REVOKE ALL ON FUNCTION public\.record_employee_action\([^)]*\) FROM PUBLIC;/);
+    expect(SCHEMA).toMatch(/REVOKE ALL ON FUNCTION public\.record_employee_action\([^)]*\) FROM anon;/);
+    expect(SCHEMA).toMatch(/GRANT ALL ON FUNCTION public\.record_employee_action\([^)]*\) TO authenticated;/);
   });
 
   it("does not expose the internal helpers over the API", () => {
-    for (const fn of ["audit_current_actor()", "audit_employee_write()", "audit_log_is_append_only()"]) {
-      expect(sql).toContain(`REVOKE ALL ON FUNCTION public.${fn} FROM PUBLIC, anon, authenticated;`);
+    for (const fn of ["audit_current_actor", "audit_employee_write", "audit_log_is_append_only"]) {
+      for (const role of ["PUBLIC", "anon", "authenticated"]) {
+        expect(SCHEMA).toMatch(new RegExp(`REVOKE ALL ON FUNCTION public\\.${fn}\\([^)]*\\) FROM ${role};`));
+      }
     }
   });
 
-  it("pins search_path on every SECURITY DEFINER function it adds", () => {
-    const definers = sql.match(/SECURITY DEFINER\s+SET search_path = public/g) ?? [];
-    const allDefiners = sql.match(/SECURITY DEFINER/g) ?? [];
-    expect(definers.length).toBe(allDefiners.length);
-    expect(definers.length).toBe(3);
+  it("pins search_path on its SECURITY DEFINER functions", () => {
+    for (const fn of ["record_employee_action", "audit_current_actor", "audit_employee_write"]) {
+      expect(functionSql(fn)).toMatch(/SECURITY DEFINER\s+SET search_path TO 'public'/);
+    }
   });
 });
 
@@ -94,50 +96,48 @@ describe("what gets captured", () => {
     ["reports", "report"],
     ["review", "review"],
     ["notification", "notification"],
+    ["order_issue", "order_issue"],
   ])("audits writes to public.%s as %s", (table, entity) => {
-    expect(sql).toMatch(new RegExp(`\\('${table}',\\s*'[a-z_]+',\\s*'[a-z_]*',\\s*'${entity}'\\)`));
+    expect(SCHEMA).toMatch(
+      new RegExp(
+        `CREATE OR REPLACE TRIGGER trg_audit_employee_write AFTER INSERT OR DELETE OR UPDATE ON public\\.${table} FOR EACH ROW[^;]*audit_employee_write\\('[a-z_]+', '[a-z_]*', '${entity}'\\)`,
+      ),
+    );
   });
 
-  it("fires after insert, update and delete", () => {
-    expect(sql).toMatch(/AFTER INSERT OR UPDATE OR DELETE ON public\.%I/);
-  });
+  const writer = functionSql("audit_employee_write");
 
   it("never copies a Senior/PWD ID number into the log", () => {
-    expect(sql).toMatch(/v_redact\s+text\[\] := ARRAY\['discount_id_number'\]/);
+    expect(writer).toMatch(/v_redact\s+text\[\] := ARRAY\['discount_id_number'\]/);
   });
 
   it("skips non-employees and updates that only touch bookkeeping columns", () => {
-    expect(sql).toMatch(/IF v_actor\.actor_id IS NULL THEN\s+RETURN NULL;/);
-    expect(sql).toMatch(/'last_access_log', 'password_last_updated'/);
-    expect(sql).toMatch(/IF TG_OP = 'UPDATE' AND v_changes = '\{\}'::jsonb THEN/);
+    expect(writer).toMatch(/IF v_actor\.actor_id IS NULL THEN\s+RETURN NULL;/);
+    expect(writer).toMatch(/v_ignore\s+text\[\] := ARRAY\['last_access_log', 'password_last_updated'\];/);
+    expect(writer).toMatch(/IF TG_OP = 'UPDATE' AND v_changes = '\{\}'::jsonb THEN/);
   });
-});
 
-describe("persona review fixes (20260927000005)", () => {
   it("skips generated columns by catalog, so add_on.name is still recorded", () => {
-    expect(fixes).toMatch(/a\.attgenerated <> ''/);
-    expect(fixes).toMatch(/v_ignore\s+text\[\] := ARRAY\['last_access_log', 'password_last_updated'\];/);
-    expect(fixes).not.toMatch(/v_ignore[^;]*'name'/);
+    expect(writer).toMatch(/a\.attgenerated <> ''/);
+    expect(writer).not.toMatch(/v_ignore[^;]*'name'/);
   });
 
   it("records that a customer's personal data changed, never the value", () => {
-    expect(fixes).toMatch(/WHEN 'customer' THEN ARRAY\['email', 'phone_number', 'date_of_birth', 'first_name',/);
-    expect(fixes).toMatch(/to_jsonb\('\[personal data\]'::text\)/);
-    expect(fixes).toMatch(/WHEN v_entity = 'customer' THEN '#' \|\| left\(btrim\(v_row ->> 'customer_id'\), 8\)/);
+    expect(writer).toMatch(/WHEN 'customer' THEN ARRAY\['email', 'phone_number',/);
+    expect(writer).toMatch(/to_jsonb\('\[personal data\]'::text\)/);
+    expect(writer).toMatch(/WHEN v_entity = 'customer' THEN '#' \|\| left\(btrim\(v_row ->> 'customer_id'\), 8\)/);
   });
+});
+
+describe("record_employee_action rules", () => {
+  const fn = functionSql("record_employee_action");
 
   it("lets only a manager record manager actions, and only yourself for self-service ones", () => {
-    const fn = fixes.slice(fixes.indexOf("CREATE OR REPLACE FUNCTION public.record_employee_action("));
-    expect(fn).toMatch(/'employee\.create', 'employee\.update', 'employee\.password_reset',\s+'employee\.disable', 'employee\.enable', 'employee\.role_change'\) THEN\s+IF [^;]*v_actor\.actor_role IS DISTINCT FROM 'MANAGER'/);
+    expect(fn).toMatch(
+      /'employee\.create', 'employee\.update', 'employee\.password_reset',\s+'employee\.disable', 'employee\.enable', 'employee\.role_change'\) THEN\s+IF [^;]*v_actor\.actor_role IS DISTINCT FROM 'MANAGER'/,
+    );
     expect(fn).toMatch(/p_action = 'report\.export' THEN\s+IF [^;]*v_actor\.actor_role IS DISTINCT FROM 'MANAGER'/);
     expect(fn).toMatch(/'session\.sign_in', 'session\.sign_out', 'session\.password_change'\) THEN\s+IF [^;]*NOT v_is_self/);
-    expect(fn).toMatch(/ELSE\s+RAISE EXCEPTION 'Unknown audit action/);
-  });
-
-  it("keeps both redefined functions private and pinned", () => {
-    expect(fixes).toMatch(/REVOKE ALL ON FUNCTION public\.audit_employee_write\(\) FROM PUBLIC, anon, authenticated;/);
-    expect(fixes).toMatch(/REVOKE ALL ON FUNCTION public\.record_employee_action\(text, text, text, text, jsonb\) FROM PUBLIC, anon;/);
-    expect((fixes.match(/SECURITY DEFINER\s+SET search_path = public/g) ?? []).length).toBe(2);
   });
 
   it("records a password reset done from an emailed link", () => {

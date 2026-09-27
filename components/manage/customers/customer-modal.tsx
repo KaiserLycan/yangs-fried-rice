@@ -1,16 +1,14 @@
 import * as React from "react";
 import { DialogRoot } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { formatDateOfBirth } from "@/lib/profile/identity";
 import { CustomerOrderHistory } from "./customer-order-history";
-
 import { Button } from "@/components/ui/button";
+
 export interface CustomerData {
   id: string;
   name: string;
   firstName?: string;
   lastName?: string;
-  dateOfBirth?: string | null;
   email: string;
   contact: string;
   customerSince: string;
@@ -81,10 +79,6 @@ export function CustomerModal({ customer, isOpen, onClose, onAction }: CustomerM
             <DisplayField label="First Name" value={customer.firstName || "—"} />
             <DisplayField label="Last Name" value={customer.lastName || "—"} />
           </div>
-          <DisplayField
-            label="Date of Birth"
-            value={formatDateOfBirth(customer.dateOfBirth) || "Not provided"}
-          />
           <DisplayField label="Mobile Number" value={customer.contact} />
           <DisplayField label="Email Address" value={customer.email} />
           <DisplayField label="Member Since" value={customer.customerSince} />

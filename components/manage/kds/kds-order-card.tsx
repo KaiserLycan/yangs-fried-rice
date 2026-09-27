@@ -5,6 +5,7 @@ import { AlertTriangle, Loader2 } from "lucide-react";
 import type { OrderData } from "@/types/staff-order";
 import { useKdsTimer } from "@/hooks/use-kds-timer";
 import { primaryActionFor, canCancel, type StaffAction } from "@/lib/orders/staff-actions";
+import { isPendingTooLong } from "@/lib/orders/order-stage";
 import { FulfillmentBadge } from "@/components/manage/orders/fulfillment-badge";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +22,8 @@ interface KdsOrderCardProps {
   fixedBadge?: { text: string; bgClass: string; textClass: string };
   /** "grid": a tall ticket. "list": one wide row per order. */
   layout?: "grid" | "list";
+  /** The page's clock; an order unaccepted for 5 minutes flashes (issue #115). */
+  now?: Date;
 }
 
 export function KdsOrderCard({
@@ -32,7 +35,9 @@ export function KdsOrderCard({
   hideTimer = false,
   fixedBadge,
   layout = "grid",
+  now,
 }: KdsOrderCardProps) {
+  const waitingTooLong = isPendingTooLong(order.pendingAt, now);
   const { timerString, color: timerColor } = useKdsTimer(timerTimestamp ?? order.rawCreatedAt, amberMins, redMins);
   const isConfirmed = order.status === "PREP";
   // Every order someone still has to act on gets the amber / red clock: the
@@ -70,9 +75,11 @@ export function KdsOrderCard({
 
   return (
     <div
+      data-waiting-too-long={waitingTooLong || undefined}
       className={cn(
         "bg-background border border-field-border flex overflow-hidden rounded-lg w-full h-full shadow-sm",
         isList ? "flex-col md:flex-row md:min-h-[120px]" : "flex-col min-h-[320px]",
+        waitingTooLong && "pending-flash",
       )}
     >
 
@@ -132,6 +139,12 @@ export function KdsOrderCard({
               isList ? "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 content-start" : "flex flex-col",
             )}
           >
+            {order.seniorPwd && (
+              <div className="flex items-center justify-between rounded-md border border-warning/60 bg-warning-surface px-2.5 py-1 text-sm font-bold text-warning-text">
+                <span>Verify ID · {order.seniorPwd.type === "senior_citizen" ? "Senior" : "PWD"}</span>
+                <span>−₱{order.seniorPwd.discount.toFixed(2)}</span>
+              </div>
+            )}
             {order.items.map((item, index) => (
               <div key={index} className="flex flex-col w-full">
                 <div className="flex gap-[10px] items-start text-foreground">

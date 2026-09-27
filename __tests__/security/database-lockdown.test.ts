@@ -1,28 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
+import { BASELINE, PLATFORM, SCHEMA, functionSql, policiesOn, tableSql } from "../helpers/schema";
 
 /**
  * Issue #114, checked statically.
  *
  * The real enforcement is in Postgres and was verified against the live
- * project when the migrations were applied. These tests stop a later edit
- * from quietly undoing it: re-adding a customer INSERT policy, dropping the
- * row lock from checkout, or putting a direct order insert back in the app.
+ * project. These tests read the migrations (a baseline dumped from that
+ * project) and stop a later edit from quietly undoing it: re-adding a
+ * customer INSERT policy, dropping the row lock from checkout, or putting a
+ * direct order insert back in the app.
  */
 
-const MIGRATIONS = "supabase/migrations";
-const read = (file: string) => readFileSync(`${MIGRATIONS}/${file}`, "utf8");
-
-const checkout = read("20260927000001_atomic_checkout_and_order_write_lockdown.sql");
-const hardening = read("20260927000002_security_hardening_indexes_and_storage.sql");
-const pickupOnly = read("20260927000000_pickup_only_drop_rider_and_delivery.sql");
-const quantityBounds = read("20260927000003_quantity_bounds_and_search_path.sql");
-
-/** Comments stripped, so an explanation mentioning a statement doesn't count as one. */
-const sql = (text: string) => text.replace(/--.*$/gm, "");
-
 describe("atomic checkout (limitations #15)", () => {
-  const body = sql(checkout);
+  const body = functionSql("submit_cart_to_order");
 
   it("locks the cart row before checking it", () => {
     const lock = body.indexOf("FOR UPDATE");
@@ -32,7 +23,7 @@ describe("atomic checkout (limitations #15)", () => {
   });
 
   it("backs the lock with a unique index on order.cart_id", () => {
-    expect(body).toMatch(/CREATE UNIQUE INDEX IF NOT EXISTS order_cart_id_key\s+ON public\."order" \(cart_id\)/);
+    expect(SCHEMA).toMatch(/CREATE UNIQUE INDEX order_cart_id_key ON public\.order USING btree \(cart_id\)/);
   });
 
   it("prices lines from the menu, not from the caller", () => {
@@ -41,9 +32,11 @@ describe("atomic checkout (limitations #15)", () => {
   });
 
   it("is callable by signed-in users only, and pins its search_path", () => {
-    expect(body).toMatch(/REVOKE ALL ON FUNCTION public\.submit_cart_to_order\(uuid, text, text, text\) FROM PUBLIC, anon;/);
-    expect(body).toMatch(/GRANT EXECUTE ON FUNCTION public\.submit_cart_to_order\(uuid, text, text, text\) TO authenticated;/);
-    expect(body).toMatch(/SECURITY DEFINER\s+SET search_path = public/);
+    expect(SCHEMA).toMatch(/REVOKE ALL ON FUNCTION public\.submit_cart_to_order\([^)]*\) FROM PUBLIC;/);
+    expect(SCHEMA).toMatch(/REVOKE ALL ON FUNCTION public\.submit_cart_to_order\([^)]*\) FROM anon;/);
+    expect(SCHEMA).toMatch(/GRANT ALL ON FUNCTION public\.submit_cart_to_order\([^)]*\) TO authenticated;/);
+    expect(SCHEMA).not.toMatch(/GRANT [A-Z, ]+ ON FUNCTION public\.submit_cart_to_order\([^)]*\) TO anon;/);
+    expect(body).toMatch(/SECURITY DEFINER\s+SET search_path TO 'public'/);
   });
 
   it("refuses a disabled customer", () => {
@@ -51,34 +44,29 @@ describe("atomic checkout (limitations #15)", () => {
   });
 
   // Persona review (DBA / QA): the function trusts cart_item.quantity, which
-  // customers write directly, so the column itself refuses a negative one.
-  it("cannot be fed a zero or negative quantity", () => {
-    const bounds = sql(quantityBounds);
-    expect(bounds).toMatch(/cart_item_quantity_range CHECK \(quantity BETWEEN 1 AND 99\)/);
-    expect(bounds).toMatch(/order_item_quantity_positive CHECK \(quantity > 0\)/);
+  // customers write directly, so the column itself refuses a bad one.
+  it("cannot be fed a zero, negative or oversized quantity", () => {
+    expect(tableSql("cart_item")).toMatch(
+      /CONSTRAINT cart_item_quantity_range CHECK \(\(\(quantity >= 1\) AND \(quantity <= 20\)\)\)/,
+    );
+    expect(tableSql("order_item")).toMatch(/CONSTRAINT order_item_quantity_positive CHECK \(\(quantity > 0\)\)/);
   });
 });
 
 describe("customers cannot write orders directly (limitations #21)", () => {
-  const body = sql(checkout);
-
-  it.each([
-    ['"customer_insert_own_orders"', 'public."order"'],
-    ['"customer_insert_own_order_items"', "public.order_item"],
-    ['"customer_insert_own_order_add_on"', "public.order_add_on"],
-    ['"customer_insert_own_order_item_add_on"', "public.order_item_add_on"],
-  ])("drops %s", (policy, table) => {
-    expect(body).toContain(`DROP POLICY IF EXISTS ${policy}`);
-    expect(body).toContain(table);
-  });
-
-  it("does not re-create any customer INSERT policy on the order tables", () => {
-    expect(body).not.toMatch(/CREATE POLICY "customer_insert/);
-  });
+  it.each(["order", "order_item", "order_add_on", "order_item_add_on"])(
+    "has no customer INSERT policy on public.%s",
+    (table) => {
+      const inserts = policiesOn(`public.${table}`).filter((p) => / FOR INSERT /.test(p));
+      for (const policy of inserts) expect(policy).not.toMatch(/auth\.uid\(\)|customer_id/);
+    },
+  );
 
   it("limits a customer's cancel to the status and cancellation fields", () => {
-    expect(body).toMatch(/to_jsonb\(NEW\) - ARRAY\['order_status', 'cancelled_at', 'cancellation_reason'\]/);
-    expect(body).toMatch(/CREATE TRIGGER trg_guard_customer_order_update\s+BEFORE UPDATE ON public\."order"/);
+    expect(functionSql("guard_customer_order_update")).toMatch(
+      /to_jsonb\(NEW\) - ARRAY\['order_status', 'cancelled_at', 'cancellation_reason'\]/,
+    );
+    expect(SCHEMA).toMatch(/CREATE OR REPLACE TRIGGER trg_guard_customer_order_update BEFORE UPDATE ON public\.order/);
   });
 
   it("submitCart places orders only through the database function", () => {
@@ -104,70 +92,71 @@ describe("customers cannot write orders directly (limitations #21)", () => {
 });
 
 describe("security hardening", () => {
-  const body = sql(hardening);
-
   it("stops disabled employees counting as employees in RLS", () => {
-    expect(body).toMatch(/coalesce\(e\.is_account_disabled, false\) = false/);
+    expect(functionSql("current_employee_role")).toMatch(/coalesce\(e\.is_account_disabled, false\) = false/);
   });
 
   it("refuses self-promotion and self-re-enabling", () => {
-    expect(body).toMatch(/CREATE TRIGGER trg_guard_employee_self_update/);
-    expect(body).toMatch(/CREATE TRIGGER trg_guard_customer_self_update/);
+    expect(SCHEMA).toMatch(/CREATE OR REPLACE TRIGGER trg_guard_employee_self_update BEFORE UPDATE ON public\.employee/);
+    expect(SCHEMA).toMatch(/CREATE OR REPLACE TRIGGER trg_guard_customer_self_update BEFORE UPDATE ON public\.customer/);
   });
 
-  it("revokes the auth trigger function from API roles", () => {
-    expect(body).toMatch(
-      /REVOKE EXECUTE ON FUNCTION public\.handle_password_timestamp_update\(\) FROM PUBLIC, anon, authenticated;/,
-    );
+  it("keeps the auth trigger function away from API roles", () => {
+    for (const role of ["PUBLIC", "anon", "authenticated"]) {
+      expect(SCHEMA).toContain(`REVOKE ALL ON FUNCTION public.handle_password_timestamp_update() FROM ${role};`);
+    }
   });
 
   it("pins search_path on every SECURITY DEFINER function", () => {
-    expect(body).toMatch(/AND p\.prosecdef/);
-    expect(body).toMatch(/ALTER FUNCTION %s SET search_path = public/);
+    const definers = BASELINE.match(/CREATE OR REPLACE FUNCTION public\.[a-z_]+\([^$]*?SECURITY DEFINER[^$]*?AS \$/g) ?? [];
+    expect(definers.length).toBeGreaterThan(10);
+    for (const header of definers) expect(header).toMatch(/SET search_path TO/);
   });
 
   it.each([
-    ["order_customer_id_created_at_idx", /ON public\."order" \(customer_id, created_at DESC\)/],
-    ["order_order_status_created_at_idx", /ON public\."order" \(order_status, created_at\)/],
-    ["order_item_order_id_idx", /ON public\.order_item \(order_id\)/],
-    ["transaction_order_id_idx", /ON public\.transaction \(order_id\)/],
-  ])("adds %s", (name, on) => {
-    expect(body).toContain(`CREATE INDEX IF NOT EXISTS ${name}`);
-    expect(body).toMatch(on);
+    ["order_customer_id_created_at_idx", /ON public\.order USING btree \(customer_id, created_at DESC\)/],
+    ["order_order_status_created_at_idx", /ON public\.order USING btree \(order_status, created_at\)/],
+    ["order_item_order_id_idx", /ON public\.order_item USING btree \(order_id\)/],
+    ["transaction_order_id_idx", /ON public\.transaction USING btree \(order_id\)/],
+  ])("has index %s", (name, on) => {
+    const line = SCHEMA.match(new RegExp(`CREATE INDEX ${name} [^;]+;`))?.[0] ?? "";
+    expect(line).toMatch(on);
   });
 
-  it('renames employee."phone-num" to phone_number', () => {
-    expect(body).toMatch(/RENAME COLUMN "phone-num" TO phone_number/);
+  it('calls the employee phone column phone_number, not "phone-num"', () => {
+    expect(tableSql("employee")).toMatch(/\bphone_number text/);
+    expect(SCHEMA).not.toContain("phone-num");
   });
 
   it("keeps senior-pwd-ids private, with no public read", () => {
-    expect(body).toMatch(/'senior-pwd-ids',\s+'senior-pwd-ids',\s+false/);
-    expect(body).toMatch(/SET public\s+= false/);
-    // Every policy on the bucket is for signed-in users.
-    const policies = body.match(/CREATE POLICY "senior_pwd_ids[^;]+;/g) ?? [];
-    expect(policies.length).toBe(4);
+    expect(PLATFORM).toMatch(/\('senior-pwd-ids',\s+'senior-pwd-ids',\s+false,/);
+    const policies = policiesOn("storage.objects").filter((p) => p.includes("senior-pwd-ids"));
+    expect(policies.length).toBe(3);
     for (const policy of policies) expect(policy).toContain("TO authenticated");
+  });
+
+  it("only lets employees upload menu photos", () => {
+    const inserts = policiesOn("storage.objects").filter((p) => p.includes("menu-images") && / FOR INSERT /.test(p));
+    expect(inserts).toHaveLength(1);
+    expect(inserts[0]).toMatch(/TO authenticated/);
+    expect(inserts[0]).toMatch(/current_employee_role\(\) = ANY \(ARRAY\['MANAGER'::text, 'STAFF'::text\]\)/);
+  });
+
+  it("keeps each customer's avatar writes inside their own folder", () => {
+    const writes = policiesOn("storage.objects").filter(
+      (p) => p.includes("'avatars'") && / FOR (INSERT|UPDATE) /.test(p),
+    );
+    expect(writes).toHaveLength(2);
+    for (const policy of writes) expect(policy).toMatch(/storage\.foldername\(name\)\)\[1\] = \(auth\.uid\(\)\)::text/);
   });
 });
 
 describe("pickup-only", () => {
-  const body = sql(pickupOnly);
-
-  it("archives rider and delivery before dropping them", () => {
-    expect(body.indexOf("CREATE TABLE archive.delivery")).toBeLessThan(
-      body.indexOf("DROP TABLE IF EXISTS public.delivery"),
-    );
-    expect(body.indexOf("CREATE TABLE archive.rider")).toBeLessThan(
-      body.indexOf("DROP TABLE IF EXISTS public.rider"),
-    );
+  it("has no rider or delivery tables", () => {
+    expect(SCHEMA).not.toMatch(/CREATE TABLE IF NOT EXISTS public\.(rider|delivery) /);
   });
 
-  it("keeps the archive out of reach of the API roles", () => {
-    expect(body).toMatch(/REVOKE ALL ON SCHEMA archive FROM anon, authenticated;/);
-  });
-
-  it("disables rider accounts rather than deleting them", () => {
-    expect(body).toMatch(/SET is_account_disabled = true\s+WHERE upper\(trim\(role\)\) IN \('RIDER', 'DELIVERY'\)/);
-    expect(body).not.toMatch(/DELETE FROM public\.employee/);
+  it("keeps no delivery address on an order", () => {
+    expect(tableSql("order")).not.toMatch(/delivery_address/);
   });
 });

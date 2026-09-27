@@ -1,5 +1,6 @@
 "use client";
 
+import { useNow } from "@/lib/hooks/use-now";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowDownWideNarrow, ArrowUpNarrowWide, Bell, BellOff, LayoutGrid, List } from "lucide-react";
@@ -63,6 +64,9 @@ export default function KdsPage() {
 
 function KdsInner() {
   const showToast = useToast();
+  // Re-renders the cards every 30s so one that has waited 5 minutes for
+  // staff to accept starts flashing between refetches (issue #115).
+  const now = useNow(30_000);
   const [activeTab, setActiveTab] = useState<KdsTab>("active");
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [issues, setIssues] = useState<PaymentIssueOrder[]>([]);
@@ -405,6 +409,7 @@ function KdsInner() {
                   <KdsOrderCard
                     order={order}
                     onAction={handleAction}
+                    now={now}
                     layout={viewMode}
                     timerTimestamp={isPickupTab ? order.rawReadyAt ?? order.rawCreatedAt : order.rawCreatedAt}
                     // Active: 15 / 25 min since ordered. Payment: how long the

@@ -205,6 +205,8 @@ function ManageMenuInner({ isManager }: { isManager?: boolean }) {
       product_details: item.description,
       category_id: targetCat?.category_id,
       is_available: item.available ?? true,
+      // New dishes start off the featured shelf; the star on the card sets it.
+      is_featured: false,
       image_url: uploadedUrl, // Send new URL to backend
     });
 

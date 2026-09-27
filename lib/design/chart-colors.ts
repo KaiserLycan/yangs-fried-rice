@@ -10,7 +10,7 @@ export const CHART_COLORS = {
   /** --destructive */
   bar: "#BF4342",
   /** --primary: Fri–Sun, the busy days */
-  barHighlight: "#8C1C13",
+  barHighlight: "#B8352A",
   /** --muted-foreground: axis labels */
   axis: "#7A6A60",
 } as const;

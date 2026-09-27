@@ -11,7 +11,7 @@ import { cartItemCount } from "@/lib/menu/cart-totals";
 import { readBestSellers, readCategoryTiles, type LandingProduct } from "@/lib/menu/landing";
 import { formatPeso } from "@/lib/menu/product-listing";
 import { readCustomerProfile } from "@/lib/profile/customer-profile";
-import { PICKUP_COUNTER, SELLER_ADDRESS, SITE_BRANCH, SITE_DESCRIPTION } from "@/lib/site/site-info";
+import { DIRECTIONS_HREF, PICKUP_COUNTER, SELLER_ADDRESS, SITE_BRANCH, SITE_DESCRIPTION } from "@/lib/site/site-info";
 import { formatStoreHours, type StoreStatus } from "@/lib/store/store-status";
 import { readStoreStatus } from "@/lib/store/read-store-status";
 
@@ -146,7 +146,7 @@ export default async function HomePage() {
               Order for pickup
             </Link>
             <a
-              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`Yang's Fried Rice ${SELLER_ADDRESS}`)}`}
+              href={DIRECTIONS_HREF}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex min-h-[48px] items-center rounded-full border-2 border-primary px-7 text-base font-bold text-primary hover:bg-highlight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"

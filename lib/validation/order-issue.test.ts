@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
+import { functionSql } from "@/__tests__/helpers/schema";
 import {
   canReportIssue,
   isOrderIssuePhotoPath,
@@ -75,11 +75,8 @@ describe("photo rules", () => {
   });
 });
 
-describe("guard_order_issue_update (20260928000001)", () => {
-  const sql = readFileSync(
-    "supabase/migrations/20260928000001_order_issue_erasure_and_indexes.sql",
-    "utf8",
-  );
+describe("guard_order_issue_update", () => {
+  const sql = functionSql("guard_order_issue_update");
 
   // `text[] || 'photo_path'` is read as array || array-literal and raises
   // "malformed array literal" — which broke resolving any report without a

@@ -127,6 +127,11 @@ export function PromoCarousel({ slides }: { slides: PromoSlide[] }) {
   );
 }
 
+/** Slides link inside the site only; anything else falls back to the menu. */
+function sameSiteHref(href: string): string {
+  return href.startsWith("/") && !href.startsWith("//") ? href : "/menu";
+}
+
 function Slide({ slide, priority }: { slide: PromoSlide; priority: boolean }) {
   return (
     <div className="relative h-[420px] w-full overflow-hidden bg-primary md:h-[460px]">
@@ -154,7 +159,7 @@ function Slide({ slide, priority }: { slide: PromoSlide; priority: boolean }) {
           <h2 className="font-display text-5xl uppercase leading-[0.95] text-on-brand md:text-6xl">{slide.title}</h2>
           {slide.body && <p className="line-clamp-3 text-base text-on-brand-muted md:text-lg">{slide.body}</p>}
           <Link
-            href={slide.href}
+            href={sameSiteHref(slide.href)}
             className="mt-2 inline-flex min-h-[48px] w-fit items-center rounded-full bg-on-brand-accent px-7 text-base font-bold text-foreground shadow-lg transition-transform hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
           >
             {slide.cta}

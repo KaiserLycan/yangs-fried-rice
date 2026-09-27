@@ -64,3 +64,11 @@ export function copyrightYears(now: Date = new Date()): string {
  * when that page lands — nothing else needs changing.
  */
 export const BULK_ORDER_CONTACT_HREF = "/";
+
+/**
+ * "Get directions" on the landing page: a Google Maps search for the branch.
+ * Built from constants, so nothing a visitor types can change where it goes.
+ */
+export const DIRECTIONS_HREF = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+  `${SITE_NAME} ${SELLER_ADDRESS}`,
+)}`;
