@@ -1,11 +1,14 @@
 -- Phase 1 Schema changes and data fixes
 
 -- 1. Add fulfillment_method to cart and order tables
+-- No default: a default answered the question for every order before any
+-- customer was asked (see 20260928000006 / 20260928000010). IF NOT EXISTS so
+-- the file is safe to re-run.
 ALTER TABLE "public"."cart"
-  ADD COLUMN "fulfillment_method" text DEFAULT 'self_pickup';
+  ADD COLUMN IF NOT EXISTS "fulfillment_method" text;
 
 ALTER TABLE "public"."order"
-  ADD COLUMN "fulfillment_method" text DEFAULT 'self_pickup';
+  ADD COLUMN IF NOT EXISTS "fulfillment_method" text;
 
 -- 2. Backfill for total_paid on completed pay-in-store orders
 UPDATE "public"."transaction" t
