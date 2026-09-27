@@ -31,6 +31,10 @@ export type StaffOrderRow = {
   fulfillment_method?: string | null;
   /** When the kitchen marked it ready — the pick-up clock starts here. */
   ready_at?: string | null;
+  /** When it was marked picked up; "Picked up" can be undone for 10 minutes. */
+  completed_at?: string | null;
+  /** Pay in store: the bill the customer will hand over (L8). */
+  cash_tendered?: number | null;
   customer: One<{
     name: string | null;
     email: string | null;
@@ -58,6 +62,7 @@ export type StaffOrderRow = {
     discount_id_number?: string | null;
     name_on_id?: string | null;
     discount_id_photo_path?: string | null;
+    tip_amount?: number | null;
   }>;
 };
 
@@ -141,6 +146,9 @@ export function mapStaffOrder(order: StaffOrderRow): OrderData {
     // Both were read by the KDS but never filled in, so the "Pay in store"
     // chip never showed and pick-up timers counted from the order time.
     rawReadyAt: order.ready_at ?? null,
+    rawCompletedAt: order.completed_at ?? null,
+    cashTendered: order.cash_tendered ?? null,
+    tip: Number(first(order.transaction)?.tip_amount ?? 0),
     paymentMethod: first(order.transaction)?.payment_method ?? null,
     // Only a still-unaccepted order can be "waiting too long" (issue #115).
     // Falls back to created_at for an order from before pending_at existed.

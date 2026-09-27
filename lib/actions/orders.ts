@@ -19,6 +19,7 @@ import {
 } from "@/lib/validation/orders";
 import { isPickupOrder } from "@/lib/orders/format";
 import { orderIdRangeFor, orderNumberSearch } from "@/lib/orders/order-number";
+import { NO_SHOW_REASONS, UNDO_PICKUP_MINUTES, type NoShowReason } from "@/lib/checkout/order-rules";
 import { notifyOrderCancelled } from "@/lib/email/notify-order-cancelled";
 import { discardSeniorPwdIdPhoto, signSeniorPwdIdUrl } from "@/lib/storage/senior-pwd-ids";
 import type { Tables, TablesUpdate } from "@/types/database.types";
@@ -288,8 +289,8 @@ export async function getDetailedOrders(
   const needTransactionInner =
     !!filters.payment_method || filters.min_total !== undefined || filters.max_total !== undefined;
   const transactionJoin = needTransactionInner
-    ? 'transaction!inner ( transaction_id, payment_method, payment_status, total_paid, subtotal, discount_amount, discount_type, discount_id_number, name_on_id, discount_id_photo_path )'
-    : 'transaction ( transaction_id, payment_method, payment_status, total_paid, subtotal, discount_amount, discount_type, discount_id_number, name_on_id, discount_id_photo_path )';
+    ? 'transaction!inner ( transaction_id, payment_method, payment_status, total_paid, subtotal, discount_amount, discount_type, discount_id_number, name_on_id, discount_id_photo_path, tip_amount )'
+    : 'transaction ( transaction_id, payment_method, payment_status, total_paid, subtotal, discount_amount, discount_type, discount_id_number, name_on_id, discount_id_photo_path, tip_amount )';
 
   let query = supabase
     .from("order")
@@ -576,6 +577,83 @@ export async function updateOrderStatus(
     await notifyOrderCancelled(supabase, orderId, "store");
   }
 
+  return { data: updated, error: null };
+}
+
+/**
+ * "Customer didn't pick up" (panel feedback F14). Cancels a ready order the
+ * customer never collected and records why, which is what the no-show count
+ * reads: two on pay-in-store orders and `submit_cart_to_order` switches pay
+ * in store off for that account.
+ *
+ * Requires: manager or staff.
+ */
+export async function markOrderNoShow(
+  orderId: string,
+  reason: NoShowReason,
+): Promise<ActionResult<Order>> {
+  const auth = await requireManageAccess();
+  if (!auth.data) return { data: null, error: auth.error };
+  if (!(reason in NO_SHOW_REASONS)) return { data: null, error: "Choose why it wasn't picked up." };
+
+  const supabase = createClient();
+  const { data: order } = await supabase
+    .from("order")
+    .select("order_status")
+    .eq("order_id", orderId)
+    .maybeSingle();
+  if (!order) return { data: null, error: "Order not found." };
+  if (order.order_status !== "ready" && order.order_status !== "out_for_delivery") {
+    return { data: null, error: "Only an order that's ready for pickup can be marked as not picked up." };
+  }
+
+  const { data: updated, error } = await supabase
+    .from("order")
+    .update({
+      order_status: "cancelled",
+      cancelled_at: new Date().toISOString(),
+      cancellation_reason: `Not picked up: ${NO_SHOW_REASONS[reason]}`,
+      no_show_reason: reason,
+    })
+    .eq("order_id", orderId)
+    .select()
+    .single();
+  if (error) return { data: null, error: error.message };
+
+  await discardSeniorPwdIdPhoto(supabase, orderId);
+  await notifyOrderCancelled(supabase, orderId, "store");
+  return { data: updated, error: null };
+}
+
+/**
+ * Undo a mis-tapped "Picked up" (FINALE 9.9): back to ready for pickup,
+ * within 10 minutes of completing it. The database enforces the window and
+ * puts a pay-in-store payment back to unpaid, since nothing was collected.
+ *
+ * Requires: manager or staff.
+ */
+export async function undoOrderPickedUp(orderId: string): Promise<ActionResult<Order>> {
+  const auth = await requireManageAccess();
+  if (!auth.data) return { data: null, error: auth.error };
+
+  const supabase = createClient();
+  const { data: updated, error } = await supabase
+    .from("order")
+    .update({ order_status: "ready" })
+    .eq("order_id", orderId)
+    .eq("order_status", "completed")
+    .select()
+    .maybeSingle();
+
+  if (error) {
+    return {
+      data: null,
+      error: /INVALID_TRANSITION|can't go from/.test(`${error.message} ${error.hint ?? ""}`)
+        ? `"Picked up" can only be undone within ${UNDO_PICKUP_MINUTES} minutes.`
+        : error.message,
+    };
+  }
+  if (!updated) return { data: null, error: "That order isn't marked as picked up." };
   return { data: updated, error: null };
 }
 

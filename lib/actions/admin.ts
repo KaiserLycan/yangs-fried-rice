@@ -1082,6 +1082,42 @@ export async function toggleCustomerDisabled(
 }
 
 /**
+ * A customer's standing (panel feedback F14): missed pick-ups, and whether
+ * the account is disabled. Two no-shows on cash orders and checkout stops
+ * offering pay in store; three and the manager is prompted to disable.
+ * Requires: manager only.
+ */
+export async function getCustomerStanding(
+  customerId: string,
+): Promise<ActionResult<{ noShows: number; cashNoShows: number; isDisabled: boolean }>> {
+  const auth = await requireRole("MANAGER");
+  if (!auth.data) return { data: null, error: auth.error };
+
+  const supabase = createClient();
+  const [customer, noShows] = await Promise.all([
+    supabase.from("customer").select("is_account_disabled").eq("customer_id", customerId).maybeSingle(),
+    supabase
+      .from("order")
+      .select("order_id, transaction(payment_method)")
+      .eq("customer_id", customerId)
+      .not("no_show_reason", "is", null),
+  ]);
+  if (customer.error || noShows.error) {
+    return { data: null, error: customer.error?.message ?? noShows.error?.message ?? "Could not read." };
+  }
+
+  const rows = (noShows.data ?? []) as { transaction: { payment_method: string | null }[] | null }[];
+  return {
+    data: {
+      noShows: rows.length,
+      cashNoShows: rows.filter((row) => (row.transaction ?? []).some((t) => t.payment_method === "pay_in_store")).length,
+      isDisabled: Boolean(customer.data?.is_account_disabled),
+    },
+    error: null,
+  };
+}
+
+/**
  * Delete a customer account and their Supabase Auth user.
  * Requires: manager only.
  */

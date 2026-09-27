@@ -4,6 +4,8 @@ import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import type { OrderData } from "@/types/staff-order";
 import { useKdsTimer } from "@/hooks/use-kds-timer";
+import { PickupFollowup } from "@/components/manage/orders/pickup-followup";
+import { changeDue } from "@/lib/checkout/order-rules";
 
 export interface PickupModalProps {
   order: OrderData | null;
@@ -11,9 +13,11 @@ export interface PickupModalProps {
   isProcessing: boolean;
   onClose: () => void;
   onConfirm: () => void;
+  /** After "Customer didn't pick up" — the list refetches. */
+  onChanged?: () => void;
 }
 
-export function PickupModal({ order, isOpen, isProcessing, onClose, onConfirm }: PickupModalProps) {
+export function PickupModal({ order, isOpen, isProcessing, onClose, onConfirm, onChanged }: PickupModalProps) {
   const { timerString, color: timerColor } = useKdsTimer(order?.rawReadyAt || order?.rawCreatedAt, 999, 90);
 
   if (!order) return null;
@@ -59,9 +63,22 @@ export function PickupModal({ order, isOpen, isProcessing, onClose, onConfirm }:
         {isCash && (
           <div className="bg-status-ready/10 border border-status-ready/30 rounded-lg p-4 flex flex-col items-center justify-center gap-2">
             <span className="text-status-ready font-bold uppercase tracking-wider text-sm">Pay In-store</span>
-            <span className="text-status-ready font-display text-2xl">₱ {order.total.toFixed(2)}</span>
+            <span className="text-status-ready font-display text-2xl">₱ {(order.total + (order.tip ?? 0)).toFixed(2)}</span>
+            {(order.tip ?? 0) > 0 && (
+              <span className="text-sm text-status-ready">includes a ₱{(order.tip ?? 0).toFixed(2)} tip for the staff</span>
+            )}
+            {order.cashTendered != null && (
+              <span className="text-base font-bold text-foreground">
+                Paying with ₱{order.cashTendered.toFixed(2)} · change ₱
+                {(changeDue(order.total + (order.tip ?? 0), order.cashTendered) ?? 0).toFixed(2)}
+              </span>
+            )}
           </div>
         )}
+
+        <div className="-mx-6 -mb-4">
+          <PickupFollowup order={order} onChanged={onChanged} />
+        </div>
       </div>
     </Dialog>
   );

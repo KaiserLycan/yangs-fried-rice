@@ -298,6 +298,7 @@ function ManageOrdersInner() {
         onClose={() => setSelectedOrder(null)} 
         order={selectedOrder} 
         onAction={(type, order) => setConfirmAction({ type, order })}
+        onChanged={() => { void fetchOrders(); }}
       />
 
       {/* Confirmation Dialog (Non-Cancel) */}

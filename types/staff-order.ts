@@ -22,6 +22,12 @@ export type OrderData = {
   id: string;
   rawCreatedAt?: string | null;
   rawReadyAt?: string | null;
+  /** When it was marked picked up — the undo window runs from here. */
+  rawCompletedAt?: string | null;
+  /** Pay in store: the bill the customer said they will pay with (L8). */
+  cashTendered?: number | null;
+  /** Tip for the staff, on top of the total (F19). */
+  tip?: number;
   /** The database status behind `status` — tells "awaiting payment" from "payment failed" under UNPAID. */
   dbStatus?: string | null;
   paymentMethod?: string | null;

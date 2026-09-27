@@ -143,6 +143,8 @@ describe("record_employee_action rules", () => {
   it("records a password reset done from an emailed link", () => {
     const actions = readFileSync("app/(auth)/actions.ts", "utf8");
     const reset = actions.slice(actions.indexOf("export async function resetPassword("));
-    expect(reset.slice(0, reset.indexOf("await supabase.auth.signOut();"))).toMatch(/action: "session\.password_change"/);
+    // Recorded before the recovery session is ended (the last sign-out; an
+    // earlier one only turns a disabled account away).
+    expect(reset.slice(0, reset.indexOf("deleteSession();"))).toMatch(/action: "session\.password_change"/);
   });
 });

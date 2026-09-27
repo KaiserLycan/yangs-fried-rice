@@ -35,6 +35,9 @@ export const NO_SHOW_REASONS = {
 } as const;
 export type NoShowReason = keyof typeof NO_SHOW_REASONS;
 
+/** How long a mis-tapped "Picked up" can be undone (guard_order_status). */
+export const UNDO_PICKUP_MINUTES = 10;
+
 /** How much more the cart needs to reach the minimum, or 0. */
 export function amountToMinimum(subtotal: number): number {
   return Math.max(0, Math.round((MIN_ORDER - subtotal) * 100) / 100);

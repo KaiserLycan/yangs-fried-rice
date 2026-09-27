@@ -2,6 +2,7 @@ import * as React from "react";
 import { DialogRoot } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { CustomerOrderHistory } from "./customer-order-history";
+import { CustomerStanding } from "./customer-standing";
 import { Button } from "@/components/ui/button";
 
 export interface CustomerData {
@@ -83,6 +84,8 @@ export function CustomerModal({ customer, isOpen, onClose, onAction }: CustomerM
           <DisplayField label="Email Address" value={customer.email} />
           <DisplayField label="Member Since" value={customer.customerSince} />
           
+          <CustomerStanding customerId={customer.id} />
+
           <CustomerOrderHistory customerId={customer.id} />
 
           {/* Actions */}

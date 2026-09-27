@@ -456,6 +456,10 @@ function KdsInner() {
         isProcessing={isProcessing}
         onClose={() => setPickupOrder(null)}
         onConfirm={handlePickupConfirm}
+        onChanged={() => {
+          setPickupOrder(null);
+          void fetchOrders();
+        }}
       />
     </div>
   );

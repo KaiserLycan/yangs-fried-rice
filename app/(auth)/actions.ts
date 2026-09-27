@@ -13,6 +13,7 @@ import {
 } from "@/lib/auth/login-rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { homePathForRole, resolveEmployeeRole } from "@/lib/auth/roles";
+import { ACCOUNT_DISABLED_MESSAGE, EMPLOYEE_ACCOUNT_DISABLED_MESSAGE } from "@/lib/auth/account-status";
 import { joinFullName } from "@/lib/validation/fields";
 import {
   fieldErrorFromDbError,
@@ -262,7 +263,7 @@ export async function loginCustomer(
     await supabase.auth.signOut();
     return {
       success: false,
-      error: "Your account has been disabled. Please contact support.",
+      error: ACCOUNT_DISABLED_MESSAGE,
     };
   }
 
@@ -347,6 +348,21 @@ export async function resetPassword(
       success: false,
       error:
         "That reset link has expired or has already been used. Request a new one.",
+    };
+  }
+
+  // A disabled account can't sign in whatever its password (FINALE 9.11).
+  // Say so here, rather than letting the reset succeed and the next sign-in
+  // bounce, which sent people round the reset loop again.
+  const [{ data: customerRow }, { data: employeeRow }] = await Promise.all([
+    supabase.from("customer").select("is_account_disabled").eq("customer_id", user.id).maybeSingle(),
+    supabase.from("employee").select("is_account_disabled").eq("employee_id", user.id).maybeSingle(),
+  ]);
+  if (customerRow?.is_account_disabled || employeeRow?.is_account_disabled) {
+    await supabase.auth.signOut();
+    return {
+      success: false,
+      error: employeeRow ? EMPLOYEE_ACCOUNT_DISABLED_MESSAGE : ACCOUNT_DISABLED_MESSAGE,
     };
   }
 

@@ -7,12 +7,16 @@ import { DialogRoot } from "@/components/ui/dialog";
 import { FulfillmentBadge } from "@/components/manage/orders/fulfillment-badge";
 import { getSeniorPwdIdPhotoUrl } from "@/lib/actions/orders";
 import { Button } from "@/components/ui/button";
+import { PickupFollowup } from "@/components/manage/orders/pickup-followup";
+import { changeDue } from "@/lib/checkout/order-rules";
 
 interface OrderDetailModalProps {
   order: OrderData | null;
   isOpen: boolean;
   onClose: () => void;
   onAction?: (type: StaffAction, order: OrderData) => void;
+  /** After a no-show or an undo, so the list can refetch. */
+  onChanged?: () => void;
 }
 
 const statusConfig = {
@@ -37,7 +41,7 @@ const statusConfig = {
   },
 };
 
-export function OrderDetailModal({ order, isOpen, onClose, onAction }: OrderDetailModalProps) {
+export function OrderDetailModal({ order, isOpen, onClose, onAction, onChanged }: OrderDetailModalProps) {
   const [photoUrl, setPhotoUrl] = React.useState<string | null>(null);
   const [isLoadingPhoto, setIsLoadingPhoto] = React.useState(false);
   const [photoError, setPhotoError] = React.useState<string | null>(null);
@@ -261,10 +265,13 @@ export function OrderDetailModal({ order, isOpen, onClose, onAction }: OrderDeta
                 </div>
               ))}
               
-              <div className="flex justify-between items-start gap-4 mt-2">
-                <span className="font-bold text-foreground">Delivery Fee</span>
-                <span className="shrink-0 text-foreground">₱{order.deliveryFee.toFixed(2)}</span>
-              </div>
+              {/* Pickup-only: a fee line only for a legacy delivery order. */}
+              {order.deliveryFee > 0 && (
+                <div className="flex justify-between items-start gap-4 mt-2">
+                  <span className="font-bold text-foreground">Delivery Fee</span>
+                  <span className="shrink-0 text-foreground">₱{order.deliveryFee.toFixed(2)}</span>
+                </div>
+              )}
 
               {order.seniorPwd && (
                 <div className="flex justify-between items-start gap-4 mt-1 text-status-done">
@@ -279,12 +286,27 @@ export function OrderDetailModal({ order, isOpen, onClose, onAction }: OrderDeta
                 <span className="font-bold text-foreground text-base">Total</span>
                 <span className="font-bold text-foreground text-base">₱{order.total.toFixed(2)}</span>
               </div>
+
+              {(order.tip ?? 0) > 0 && (
+                <div className="flex justify-between items-start gap-4 text-sm text-muted-strong">
+                  <span>Tip for the staff (on top)</span>
+                  <span className="shrink-0 font-bold">₱{(order.tip ?? 0).toFixed(2)}</span>
+                </div>
+              )}
+
+              {order.cashTendered != null && (
+                <div className="mt-2 rounded-md bg-warning-surface px-3 py-2 text-sm text-warning-text">
+                  Paying with <strong>₱{order.cashTendered.toFixed(2)}</strong> — have{" "}
+                  <strong>₱{(changeDue(order.total + (order.tip ?? 0), order.cashTendered) ?? 0).toFixed(2)}</strong> change ready.
+                </div>
+              )}
             </div>
           </div>
         </div>
 
         {/* Footer Actions */}
         <div className="flex flex-col w-full shrink-0">
+          <PickupFollowup order={order} onChanged={() => { onChanged?.(); onClose(); }} />
           {(canCancel(order) || primary) && (
             <div className="flex w-full">
               {canCancel(order) && (
