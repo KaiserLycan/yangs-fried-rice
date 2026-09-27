@@ -73,7 +73,10 @@ export function NotificationBell({ className }: { className?: string }) {
           (data as NotificationRow[]).map(toNotification).reduce(upsertNotification, current),
         );
       }
-    })();
+    })().catch(() => {
+      // Offline, or auth unreachable: the bell stays hidden (or empty) rather
+      // than leaving an unhandled rejection behind.
+    });
     return () => {
       active = false;
     };

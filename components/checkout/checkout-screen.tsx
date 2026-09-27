@@ -3,7 +3,6 @@
 import * as React from "react";
 import Link from "next/link";
 import { SiteNavBar } from "@/components/nav/site-nav-bar";
-import { DeliveryDetailsCard } from "@/components/checkout/delivery-details-card";
 import { OrderSummaryCard } from "@/components/checkout/order-summary-card";
 import { PaymentMethodPicker } from "@/components/checkout/payment-method-picker";
 import {
@@ -114,17 +113,6 @@ export function CheckoutScreen({
              in the DOM at all times. */
           <div className="grid grid-cols-1 gap-[16px] md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] md:items-start md:gap-[24px]">
             <div className="order-2 flex flex-col gap-[18px] md:order-1">
-              {/* Delivery details are desktop-only per the frames, and only
-                  for an order actually being delivered — a pickup order has
-                  no address to confirm, and telling that customer to add one
-                  "before choosing delivery" would read as a blocker on an
-                  order that needs no address at all. */}
-              {fulfilment === "delivery" ? (
-                <div className="hidden md:block">
-                  <DeliveryDetailsCard profile={profile} />
-                </div>
-              ) : null}
-
               <section className="flex flex-col gap-[12px] md:rounded-lg md:border md:border-rule md:bg-card md:p-[20px]">
                 <h2 className="text-[14px] font-bold uppercase tracking-[1.44px] text-muted-foreground md:text-[14px] md:tracking-[1.54px]">
                   Payment method

@@ -41,6 +41,9 @@ export async function readRecentCompletedOrders(
     .select("order_id, order_type, delivery_fee, completed_at, created_at")
     .eq("customer_id", user.id)
     .eq("order_status", "completed")
+    // Most recently picked up first; an old row with no completion time
+    // falls back to when it was placed.
+    .order("completed_at", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
     .limit(safeLimit);
 

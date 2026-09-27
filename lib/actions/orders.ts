@@ -191,7 +191,7 @@ export async function getAllOrders(
 
   if (filters.status) {
     if (Array.isArray(filters.status)) {
-      // If the frontend sends an array like ["pending", "received"]
+      // If the frontend sends an array like ["pending", "preparing"]
       query = query.in("order_status", filters.status);
     } else {
       // If the frontend sends a single string like "preparing"
