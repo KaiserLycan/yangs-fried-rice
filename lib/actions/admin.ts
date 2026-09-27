@@ -48,6 +48,24 @@ import {
   imageUploadProblem,
 } from "@/lib/storage/stored-image";
 import { removeStoredImage } from "@/lib/storage/remove-stored-image";
+import { recordEmployeeAction } from "@/lib/audit/record-employee-action";
+
+/**
+ * `{ column: { from, to } }` for the columns `updates` actually changes, the
+ * shape the audit log stores. Service-role writes are invisible to the log's
+ * trigger, so the actions that make them describe their own changes.
+ */
+function auditChanges(
+  before: Record<string, unknown>,
+  updates: Record<string, unknown>,
+): Record<string, { from?: unknown; to?: unknown }> {
+  const changes: Record<string, { from?: unknown; to?: unknown }> = {};
+  for (const [key, to] of Object.entries(updates)) {
+    const from = before[key] ?? null;
+    if (from !== (to ?? null)) changes[key] = { from, to: to ?? null };
+  }
+  return changes;
+}
 
 // ---------------------------------------------------------------------------
 // Shared types
@@ -254,6 +272,18 @@ export async function createEmployee(
       };
     }
 
+    await recordEmployeeAction(createClient(), {
+      action: "employee.create",
+      entityType: "employee",
+      entityId: employee.employee_id,
+      summary: `Employee "${joinFullName(firstName, lastName)}" created as ${canonicalRole}`,
+      changes: auditChanges({}, {
+        email,
+        role: canonicalRole,
+        schedule_shift: employeeRow.schedule_shift,
+      }),
+    });
+
     return { data: employee, error: null };
   } catch (err: any) {
     return { data: null, error: err.message || "Failed to create employee" };
@@ -391,6 +421,14 @@ export async function changeOwnPassword(
     return { data: null, error: error.message };
   }
 
+  // The password itself is never logged — only that it changed.
+  await recordEmployeeAction(supabase, {
+    action: "session.password_change",
+    entityType: "session",
+    entityId: auth.data.employee_id,
+    summary: "Changed their own password",
+  });
+
   return { data: { success: true }, error: null };
 }
 
@@ -423,6 +461,12 @@ export async function resetEmployeePassword(
       password: parsed.data.new_password,
     });
     if (error) return { data: null, error: error.message };
+    await recordEmployeeAction(supabase, {
+      action: "session.password_change",
+      entityType: "session",
+      entityId: employeeId,
+      summary: "Changed their own password",
+    });
     return { data: { employee_id: employeeId }, error: null };
   }
 
@@ -455,6 +499,13 @@ export async function resetEmployeePassword(
     if (updateAuthError) {
       return { data: null, error: updateAuthError.message };
     }
+
+    await recordEmployeeAction(supabase, {
+      action: "employee.password_reset",
+      entityType: "employee",
+      entityId: employeeId,
+      summary: `Reset the password of employee "${target.name ?? "Unknown employee"}"`,
+    });
 
     return { data: { employee_id: employeeId }, error: null };
   } catch (err: any) {
@@ -585,7 +636,7 @@ export async function updateEmployeeDetails(
   // ---- current state ----
   const { data: current, error: lookupError } = await adminClient
     .from("employee")
-    .select("employee_id, email, role, is_account_disabled")
+    .select("*")
     .eq("employee_id", employeeId)
     .single();
 
@@ -669,6 +720,52 @@ export async function updateEmployeeDetails(
     }
   }
 
+  const changes = auditChanges(
+    current as Record<string, unknown>,
+    updates as Record<string, unknown>,
+  );
+  // Only that it changed — the password itself never reaches the log.
+  if (newPassword) changes.password = { to: "[changed]" };
+  const changedFields = Object.keys(changes).sort();
+  if (changedFields.length > 0) {
+    const name = current.name ?? "Unknown employee";
+    // The same verb the database trigger would have chosen, in the same
+    // order of precedence, so a change made here and one made through a
+    // session read alike in the log.
+    const action =
+      "is_account_disabled" in changes
+        ? input.isAccountDisabled
+          ? "employee.disable"
+          : "employee.enable"
+        : "role" in changes
+          ? "employee.role_change"
+          : changedFields.length === 1 && changedFields[0] === "password"
+            ? "employee.password_reset"
+            : "employee.update";
+    // Everything else in the same save, named after the headline change.
+    const headline =
+      action === "employee.role_change" ? "role" : "is_account_disabled";
+    const others = changedFields.filter((f) => f !== headline);
+    const summary =
+      action === "employee.disable" || action === "employee.enable"
+        ? `Employee "${name}" ${action === "employee.disable" ? "disabled" : "enabled"}`
+        : action === "employee.role_change"
+          ? `Employee "${name}": role ${String(changes.role.from ?? "—")} → ${String(changes.role.to ?? "—")}`
+          : action === "employee.password_reset"
+            ? `Reset the password of employee "${name}"`
+            : `Employee "${name}" updated: ${changedFields.join(", ")}`;
+    await recordEmployeeAction(createClient(), {
+      action,
+      entityType: "employee",
+      entityId: employeeId,
+      summary:
+        others.length > 0 && action !== "employee.update" && action !== "employee.password_reset"
+          ? `${summary} (also: ${others.join(", ")})`
+          : summary,
+      changes,
+    });
+  }
+
   const { data, error } = await adminClient
     .from("employee")
     .select("*")
@@ -701,7 +798,7 @@ export async function deleteEmployee(
   const admin = createAdminClient();
   const { data: photoRow } = await admin
     .from("employee")
-    .select("profileImage_URL")
+    .select("profileImage_URL, name, role, email")
     .eq("employee_id", employeeId)
     .maybeSingle();
 
@@ -713,6 +810,18 @@ export async function deleteEmployee(
   if (deleteError) {
     return { data: null, error: deleteError.message };
   }
+
+  // The row is gone, so its name survives only here.
+  await recordEmployeeAction(createClient(), {
+    action: "employee.delete",
+    entityType: "employee",
+    entityId: employeeId,
+    summary: `Employee "${photoRow?.name ?? "Unknown employee"}" deleted`,
+    changes: auditChanges(
+      { email: photoRow?.email, role: photoRow?.role },
+      { email: null, role: null },
+    ),
+  });
 
   await removeStoredImage(IMAGE_BUCKETS.employeeAvatar, photoRow?.profileImage_URL);
 
@@ -762,7 +871,7 @@ export async function setEmployeePhoto(
   const admin = createAdminClient();
   const { data: before, error: readError } = await admin
     .from("employee")
-    .select("profileImage_URL")
+    .select("profileImage_URL, name")
     .eq("employee_id", employeeId)
     .maybeSingle();
   if (readError) return { data: null, error: readError.message };
@@ -788,6 +897,16 @@ export async function setEmployeePhoto(
   }
 
   await removeStoredImage(IMAGE_BUCKETS.employeeAvatar, before.profileImage_URL);
+
+  await recordEmployeeAction(createClient(), {
+    action: "employee.photo_change",
+    entityType: "employee",
+    entityId: employeeId,
+    summary: isSelf
+      ? "Changed their own profile photo"
+      : `Changed the profile photo of employee "${before.name ?? "Unknown employee"}"`,
+  });
+
   return { data: { imageUrl: publicUrl }, error: null };
 }
 

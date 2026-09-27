@@ -68,7 +68,7 @@ is too large for that time or needs outside services, accounts or money. List it
 |---|---|
 | **Two-factor login for managers** | Supabase supports TOTP, but employee login uses its own signed cookie (`jose`), so 2FA would need wiring in two places. |
 | **CAPTCHA on sign-up and login** (Cloudflare Turnstile / hCaptcha) | Small (about 1–2 h), but needs a third-party account and keys. Do it next if time is left. The existing rate limit covers the main risk. |
-| **Full audit log for manager actions** (price changes, role changes, account disabling) | The order-status log in `limitations.md` covers orders only. Covering every admin action is bigger. |
+| ~~**Full audit log for manager actions**~~ | ✅ **Done (27 Sep 2026):** `audit_log` covers every employee action, append-only, at `/manage/audit-log`. Left: a retention period and CSV export. |
 | **Data retention / automatic deletion** (Data Privacy Act) | Deciding how long to keep orders, addresses and ID photos, then building jobs to purge them. |
 | **Penetration test / dependency scanning in CI** | Needs a CI pipeline. The Phase 4 security report covers manual testing. |
 | **Concurrency tests for business logic** (OWASP WSTG 4.10: two checkouts at once, negative/huge numbers, skipping steps) | The fix for the double-order race is in `limitations.md`. A proper test suite that fires parallel requests against a real database is extra work. |

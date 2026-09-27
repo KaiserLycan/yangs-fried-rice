@@ -382,6 +382,6 @@ The panel's 25 points were checked against the code. The ones not already covere
 | F1 | Promo banner managed by the manager | P2 | 2.5 h |
 | F13 | CAPTCHA on sign-up and login (moved from `lacking.md`) | P2 | 1.5 h |
 | F19 | Staff tips with preset amounts (moved from `lacking.md`) | P2 | 2 h |
-| F20 | Record who created and cancelled each order (extends L9) | P2 | 0.5 h on top of L9 |
+| F20 | ~~Record who created and cancelled each order~~ | ✅ **Done — employee audit log** (`/manage/audit-log`) | — |
 
 Panel P1 items add about 6 hours. Future work for the paper: group orders (F2), bulk and advance orders (F10), vouchers and games (F1).

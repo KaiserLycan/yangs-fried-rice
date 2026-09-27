@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { recordEmployeeAction } from "@/lib/audit/record-employee-action";
 import {
   ACCOUNT_DISABLED_CODE,
   EMPLOYEE_ACCOUNT_DISABLED_MESSAGE,
@@ -841,6 +842,14 @@ export async function generateSalesPDF(
   pdfFooter(doc);
 
   const base64 = doc.output("datauristring");
+
+  // Exporting sales data is worth a trace even though it writes nothing.
+  await recordEmployeeAction(createClient(), {
+    action: "report.export",
+    entityType: "report",
+    summary: `Exported the Sales report PDF (${dateRange.start_date} to ${dateRange.end_date})`,
+  });
+
   return { data: base64, error: null };
 }
 
@@ -1012,6 +1021,14 @@ export async function generatePerformancePDF(
   pdfFooter(doc);
 
   const base64 = doc.output("datauristring");
+
+  // Exporting sales data is worth a trace even though it writes nothing.
+  await recordEmployeeAction(createClient(), {
+    action: "report.export",
+    entityType: "report",
+    summary: `Exported the Menu & satisfaction report PDF (${data.dateRange.start_date} to ${data.dateRange.end_date})`,
+  });
+
   return { data: base64, error: null };
 }
 
@@ -1110,6 +1127,14 @@ export async function generateReportPDF(
   pdfFooter(doc);
 
   const base64 = doc.output("datauristring");
+
+  // Exporting sales data is worth a trace even though it writes nothing.
+  await recordEmployeeAction(createClient(), {
+    action: "report.export",
+    entityType: "report",
+    summary: `Exported the Daily sales summary PDF (${dateRange.start_date} to ${dateRange.end_date})`,
+  });
+
   return { data: base64, error: null };
 }
 

@@ -43,6 +43,48 @@ export type Database = {
           },
         ]
       }
+      audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_name: string | null
+          actor_role: string | null
+          audit_id: number
+          changes: Json
+          entity_id: string | null
+          entity_type: string
+          occurred_at: string
+          source: string
+          summary: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_role?: string | null
+          audit_id?: never
+          changes?: Json
+          entity_id?: string | null
+          entity_type: string
+          occurred_at?: string
+          source: string
+          summary: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_role?: string | null
+          audit_id?: never
+          changes?: Json
+          entity_id?: string | null
+          entity_type?: string
+          occurred_at?: string
+          source?: string
+          summary?: string
+        }
+        Relationships: []
+      }
       cart: {
         Row: {
           cart_id: string
@@ -773,12 +815,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      audit_current_actor: { Args: never; Returns: Record<string, unknown> }
       current_employee_role: { Args: never; Returns: string }
       get_customer_order_history: {
         Args: { p_customer_id: string }
         Returns: Json
       }
       is_menu_manager: { Args: never; Returns: boolean }
+      record_employee_action: {
+        Args: {
+          p_action: string
+          p_changes?: Json
+          p_entity_id: string
+          p_entity_type: string
+          p_summary: string
+        }
+        Returns: number
+      }
       submit_cart_to_order: {
         Args: {
           p_cart_id: string

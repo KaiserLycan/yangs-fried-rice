@@ -21,7 +21,7 @@ interface DateInputProps {
   onChange: (value: string) => void;
 }
 
-function DateInput({ label, max, value, onChange }: DateInputProps) {
+export function DateInput({ label, max, value, onChange }: DateInputProps) {
   const id = useId();
   return (
     <div className="flex w-full md:w-auto md:min-w-[160px] flex-col gap-[6px]">
