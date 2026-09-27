@@ -663,17 +663,13 @@ async function _fetchPaymentIssuesBase(supabase: ReturnType<typeof createClient>
 
     // 1. payment_failed
     const isEwallet = WALLET_PAYMENT_METHODS.includes(paymentMethod);
-    if (isEwallet) {
-      if (order.order_status === "payment_failed") {
+    // Same rule as the Orders page's Payment Issues tab: still unpaid
+    // STUCK_PAYMENT_MINUTES after it was placed.
+    if (isEwallet && (order.order_status === "payment_failed" || order.order_status === "awaiting_payment")) {
+      const elapsedMins = (now - new Date(order.created_at as string).getTime()) / 60000;
+      if (elapsedMins >= STUCK_PAYMENT_MINUTES) {
         issues.push({ type: "payment_failed", order });
         continue;
-      }
-      if (order.order_status === "awaiting_payment") {
-        const elapsedMins = (now - new Date(order.created_at as string).getTime()) / 60000;
-        if (elapsedMins >= STUCK_PAYMENT_MINUTES) {
-          issues.push({ type: "payment_failed", order });
-          continue;
-        }
       }
     }
 
