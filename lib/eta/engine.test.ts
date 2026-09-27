@@ -56,6 +56,18 @@ describe("ETA Engine", () => {
     it("handles negative queue count gracefully", () => {
       expect(calculateKitchenPrepMinutes(-5)).toBe(15);
     });
+
+    it("adds the manager's extra prep minutes", () => {
+      expect(calculateKitchenPrepMinutes(0, 10)).toBe(25);
+    });
+
+    it("adds extra prep minutes after the cap, so they still show when busy", () => {
+      expect(calculateKitchenPrepMinutes(100, 10)).toBe(70);
+    });
+
+    it("ignores negative extra prep minutes", () => {
+      expect(calculateKitchenPrepMinutes(0, -10)).toBe(15);
+    });
   });
 
   describe("calculateTransitMinutes", () => {

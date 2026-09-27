@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { countActiveKitchenOrders } from "@/lib/orders/kitchen-queue";
 import { quoteArrivalWindow } from "@/lib/checkout/arrival-estimate";
+import { readStoreStatus } from "@/lib/store/read-store-status";
 
 /**
  * The arrival window to quote for an order that has not been placed yet.
@@ -21,12 +22,16 @@ export async function readArrivalQuote({
   fulfilment: "delivery" | "pickup";
   distanceKm?: number | null;
 }): Promise<string> {
-  let activeOrdersAhead = 0;
-  try {
-    activeOrdersAhead = await countActiveKitchenOrders(createClient());
-  } catch {
-    activeOrdersAhead = 0;
-  }
+  const [activeOrdersAhead, store] = await Promise.all([
+    countActiveKitchenOrders(createClient()).catch(() => 0),
+    // Never throws; falls back to no extra time.
+    readStoreStatus(),
+  ]);
 
-  return quoteArrivalWindow({ fulfilment, activeOrdersAhead, distanceKm });
+  return quoteArrivalWindow({
+    fulfilment,
+    activeOrdersAhead,
+    distanceKm,
+    extraPrepMinutes: store.extraPrepMinutes,
+  });
 }

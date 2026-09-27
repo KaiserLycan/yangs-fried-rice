@@ -29,6 +29,8 @@ import type { ProductListing } from "@/lib/menu/product-listing";
 import type { CustomerProfile } from "@/lib/profile/customer-profile";
 import type { CartRead } from "@/lib/cart/read-cart";
 import { createClient } from "@/lib/supabase/client";
+import { useStoreStatus } from "@/lib/hooks/use-store-status";
+import { BUSY_MESSAGE, formatStoreHours } from "@/lib/store/store-status";
 
 /** Debounce for the search field, so every keystroke doesn't fire a request. */
 const SEARCH_DEBOUNCE_MS = 250;
@@ -156,21 +158,9 @@ export function MenuScreen({
 
   const hasFilter = search.trim().length > 0 || selectedCategory !== null;
 
-  // Determine if branch is open (8am - 6pm Manila time).
-  // Default to true during SSR to avoid hydration mismatch, then check on mount.
-  const [isBranchOpen, setIsBranchOpen] = React.useState(true);
-  
-  React.useEffect(() => {
-    import("@/lib/store-hours").then(({ isRestaurantOpen }) => {
-      const checkBranchHours = () => {
-        setIsBranchOpen(isRestaurantOpen());
-      };
-      
-      checkBranchHours();
-      const interval = setInterval(checkBranchHours, 60000);
-      return () => clearInterval(interval);
-    });
-  }, []);
+  // Open / paused / busy, from the database's hours and the manager's pause
+  // (issue #115). Null until the first answer, so no banner flashes on load.
+  const storeStatus = useStoreStatus();
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -187,11 +177,15 @@ export function MenuScreen({
         onSearchChange={setSearch}
       />
       
-      {!isBranchOpen && (
+      {storeStatus && !storeStatus.isOpen ? (
         <Alert className="rounded-none border-x-0 border-t-0 flex items-center justify-center">
-          Store is currently closed. Restaurant hours are 8am - 6pm.
+          Store is currently closed. Restaurant hours are {formatStoreHours(storeStatus)}.
         </Alert>
-      )}
+      ) : storeStatus && (storeStatus.isPaused || storeStatus.isBusy) ? (
+        <Alert className="rounded-none border-x-0 border-t-0 flex items-center justify-center">
+          {BUSY_MESSAGE}
+        </Alert>
+      ) : null}
 
       {categories ? (
         <CategoryChips

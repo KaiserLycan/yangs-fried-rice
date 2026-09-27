@@ -22,14 +22,14 @@ vi.mock("next/navigation", () => ({
 }));
 
 /**
- * The checkout button is disabled outside opening hours, and
- * `isRestaurantOpen()` reads the real clock — so these tests passed during the
- * day and failed after 18:00 Manila. Pinning it open makes them test the cart,
- * not the time they happen to run at. `store-hours.test.ts` covers the hours
- * rule itself.
+ * The checkout button is disabled when the store is closed, paused or busy,
+ * which it learns from `/api/store/status` (issue #115). Pinning the hook to
+ * "no answer yet" (the button stays usable) makes these tests about the cart,
+ * not about the clock or a network call. `lib/store/store-status.test.ts`
+ * covers the rules themselves.
  */
-vi.mock("@/lib/store-hours", () => ({
-  isRestaurantOpen: () => true,
+vi.mock("@/lib/hooks/use-store-status", () => ({
+  useStoreStatus: () => null,
 }));
 
 vi.mock("@/lib/actions/cart", () => ({

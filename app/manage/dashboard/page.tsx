@@ -8,6 +8,7 @@ import {
   getWeeklySales,
   getTopSellers,
 } from "@/lib/actions/dashboard";
+import { readStoreStatus } from "@/lib/store/read-store-status";
 
 /**
  * Admin dashboard page — "Today at a glance".
@@ -48,10 +49,11 @@ export default async function DashboardPage() {
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
   const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString();
 
-  const [stats, weeklySales, topSellers] = await Promise.all([
+  const [stats, weeklySales, topSellers, storeStatus] = await Promise.all([
     getDashboardStats(),
     getWeeklySales(),
     getTopSellers(undefined, startOfDay, endOfDay),
+    readStoreStatus(),
   ]);
 
   // Branch mock for now until multi-branch support
@@ -69,6 +71,7 @@ export default async function DashboardPage() {
       topSellers={topSellers}
       dateStr={dateStr}
       branchName={branchName}
+      storeStatus={storeStatus}
     />
   );
 }

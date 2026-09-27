@@ -3,6 +3,8 @@
 import { StatCard } from "./stat-card";
 import { SalesChart } from "./sales-chart";
 import { ProductRanking } from "./product-ranking";
+import { StoreControlPanel } from "./store-control-panel";
+import type { StoreStatus } from "@/lib/store/store-status";
 import type { DailySales, RankedProduct, DashboardStats } from "@/lib/actions/dashboard";
 
 export interface DashboardContentProps {
@@ -11,6 +13,8 @@ export interface DashboardContentProps {
   topSellers: RankedProduct[];
   dateStr: string;
   branchName: string;
+  /** Open / paused / busy and the settings behind it (issue #115). */
+  storeStatus: StoreStatus;
 }
 
 /**
@@ -37,6 +41,7 @@ export function DashboardContent({
   topSellers,
   dateStr,
   branchName,
+  storeStatus,
 }: DashboardContentProps) {
   return (
     <div className="flex flex-col gap-6">
@@ -52,6 +57,9 @@ export function DashboardContent({
             {dateStr} · {branchName}
           </span>
         </div>
+
+        {/* Pause / busy / hours (issue #115), above the numbers it affects. */}
+        <StoreControlPanel status={storeStatus} />
 
         {/* KPI stat cards row */}
         <div className="flex flex-col md:flex-row gap-3.5">

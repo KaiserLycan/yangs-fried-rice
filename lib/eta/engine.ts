@@ -90,11 +90,17 @@ export function calculateHaversineDistanceKm(
 /**
  * Calculates estimated kitchen preparation time factoring in queue congestion.
  * @param activeOrdersAhead Count of active orders ahead in the queue.
+ * @param extraPrepMinutes The manager's buffer from `store_setting` (issue
+ *   #115). Added after the cap, so a buffer set on a busy day still shows
+ *   instead of disappearing under `MAX_KITCHEN_PREP_MINUTES`.
  */
-export function calculateKitchenPrepMinutes(activeOrdersAhead: number): number {
+export function calculateKitchenPrepMinutes(
+  activeOrdersAhead: number,
+  extraPrepMinutes = 0,
+): number {
   const safeCount = Math.max(0, activeOrdersAhead);
   const total = BASE_KITCHEN_PREP_MINUTES + safeCount * MINUTES_PER_QUEUE_ORDER;
-  return Math.min(MAX_KITCHEN_PREP_MINUTES, total);
+  return Math.min(MAX_KITCHEN_PREP_MINUTES, total) + Math.max(0, extraPrepMinutes);
 }
 
 /**
@@ -158,6 +164,8 @@ export interface CalculateEtaParams {
   storeCoordinates?: Coordinates;
   orderStatus?: string;
   deliveryStatus?: string;
+  /** The manager's extra prep buffer from `store_setting` (issue #115). */
+  extraPrepMinutes?: number;
 }
 
 export interface EtaResult {
@@ -185,6 +193,7 @@ export function calculateOrderEta({
   storeCoordinates = STORE_LOCATION,
   orderStatus,
   deliveryStatus,
+  extraPrepMinutes = 0,
 }: CalculateEtaParams): EtaResult {
   let distanceKm: number | null = null;
   let isDeliverable = true;
@@ -248,7 +257,7 @@ export function calculateOrderEta({
   const kitchenPrepMinutes =
     isReady || isAlreadyInTransit
       ? 0
-      : calculateKitchenPrepMinutes(activeOrdersAhead);
+      : calculateKitchenPrepMinutes(activeOrdersAhead, extraPrepMinutes);
 
   const transitMinutes = calculateTransitMinutes(distanceKm, orderType);
 

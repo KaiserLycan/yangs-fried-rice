@@ -4,7 +4,8 @@ import * as React from "react";
 import Link from "next/link";
 import { formatPeso } from "@/lib/menu/product-listing";
 import type { CartTotals, Fulfilment } from "@/lib/menu/cart-totals";
-import { isRestaurantOpen } from "@/lib/store-hours";
+import { useStoreStatus } from "@/lib/hooks/use-store-status";
+import { storeBlockFor } from "@/lib/store/store-status";
 
 /**
  * Subtotal, delivery fee, Total, and the call to action — `133:990` desktop
@@ -38,13 +39,11 @@ export function CartTotalsSummary({
   fulfilment: Fulfilment;
 }) {
   const [isClicked, setIsClicked] = React.useState(false);
-  const [isOpen, setIsOpen] = React.useState(true);
-
-  React.useEffect(() => {
-    setIsOpen(isRestaurantOpen());
-    const interval = setInterval(() => setIsOpen(isRestaurantOpen()), 60000);
-    return () => clearInterval(interval);
-  }, []);
+  // Closed, paused or busy (issue #115). Null while the status loads: the
+  // button stays usable, and checkout itself is refused server-side anyway.
+  const storeStatus = useStoreStatus();
+  const block = storeStatus ? storeBlockFor(storeStatus) : null;
+  const isOpen = block === null;
 
   return (
     <div className="flex flex-col gap-[8px] border-t border-field-border pt-[14px]">
@@ -65,7 +64,7 @@ export function CartTotalsSummary({
       ) : null}
 
       <Link
-        title={!isOpen ? "We're closed right now — ordering opens with the store." : "Review your order and pay"}
+        title={block ? block.message : "Review your order and pay"}
         href={!isOpen || isClicked ? "#" : `/checkout?fulfilment=${fulfilment}`}
         onClick={(e) => {
           if (!isOpen || isClicked) {
@@ -80,7 +79,11 @@ export function CartTotalsSummary({
             : "bg-foreground text-background"
         }`}
       >
-        {!isOpen ? "Store Closed" : ctaLabel}
+        {block?.code === "STORE_CLOSED"
+          ? "Store Closed"
+          : block
+            ? "Very Busy — Try Again Soon"
+            : ctaLabel}
       </Link>
     </div>
   );

@@ -712,6 +712,45 @@ export type Database = {
           },
         ]
       }
+      store_setting: {
+        Row: {
+          close_hour: number
+          extra_prep_minutes: number
+          id: boolean
+          is_force_open: boolean
+          is_paused: boolean
+          max_active_orders: number
+          open_hour: number
+          paused_until: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          close_hour?: number
+          extra_prep_minutes?: number
+          id?: boolean
+          is_force_open?: boolean
+          is_paused?: boolean
+          max_active_orders?: number
+          open_hour?: number
+          paused_until?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          close_hour?: number
+          extra_prep_minutes?: number
+          id?: boolean
+          is_force_open?: boolean
+          is_paused?: boolean
+          max_active_orders?: number
+          open_hour?: number
+          paused_until?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       transaction: {
         Row: {
           discount_amount: number | null
@@ -774,6 +813,7 @@ export type Database = {
     }
     Functions: {
       current_employee_role: { Args: never; Returns: string }
+      get_store_status: { Args: never; Returns: Json }
       get_customer_order_history: {
         Args: { p_customer_id: string }
         Returns: Json

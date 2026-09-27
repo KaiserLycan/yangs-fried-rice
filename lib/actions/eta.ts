@@ -10,6 +10,7 @@ import {
 } from "@/lib/eta/engine";
 import { validateNcrAddress } from "@/lib/address/validate-ncr";
 import { countActiveKitchenOrders } from "@/lib/orders/kitchen-queue";
+import { readStoreStatus } from "@/lib/store/read-store-status";
 
 export interface GetOrderEtaResult {
   success: boolean;
@@ -92,11 +93,12 @@ export async function getOrderEtaAction(
     }
   }
 
-  // 4. Count active orders ahead in kitchen queue
-  const activeOrdersAhead = await countActiveKitchenOrders(
-    supabase,
-    order.created_at || new Date().toISOString(),
-  );
+  // 4. Count active orders ahead in kitchen queue, and read the manager's
+  // extra prep buffer (issue #115) so tracking quotes what checkout did.
+  const [activeOrdersAhead, store] = await Promise.all([
+    countActiveKitchenOrders(supabase, order.created_at || new Date().toISOString()),
+    readStoreStatus(),
+  ]);
 
   // 5. Calculate ETA breakdown
   const etaResult = calculateOrderEta({
@@ -105,6 +107,7 @@ export async function getOrderEtaAction(
     activeOrdersAhead,
     customerCoordinates,
     orderStatus: order.order_status || undefined,
+    extraPrepMinutes: store.extraPrepMinutes,
   });
 
   return {
