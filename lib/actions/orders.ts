@@ -275,7 +275,8 @@ export async function getDetailedOrders(
     ? 'customer!inner ( name, email, phone_number )' 
     : 'customer:customer_id ( name, email, phone_number )';
     
-  const needTransactionInner = !!filters.payment_method;
+  const needTransactionInner =
+    !!filters.payment_method || filters.min_total !== undefined || filters.max_total !== undefined;
   const transactionJoin = needTransactionInner
     ? 'transaction!inner ( transaction_id, payment_method, payment_status, total_paid )'
     : 'transaction ( transaction_id, payment_method, payment_status, total_paid )';
