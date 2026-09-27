@@ -63,9 +63,16 @@ export function OrderFilterPopover({ filters, onFilterChange }: OrderFilterPopov
   }, []);
 
   const rangeInvalid = !!(draft.date_from && draft.date_to && draft.date_to < draft.date_from);
+  const minTotal = toAmount(minTotalText);
+  const maxTotal = toAmount(maxTotalText);
+  const amountUnreadable =
+    (minTotalText.trim() !== "" && minTotal === undefined) ||
+    (maxTotalText.trim() !== "" && maxTotal === undefined);
+  const amountBackwards = minTotal !== undefined && maxTotal !== undefined && maxTotal < minTotal;
+  const invalid = rangeInvalid || amountUnreadable || amountBackwards;
 
   const handleApply = () => {
-    if (rangeInvalid) return;
+    if (invalid) return;
     onFilterChange({
       date_from: draft.date_from || undefined,
       date_to: draft.date_to || undefined,
@@ -73,11 +80,15 @@ export function OrderFilterPopover({ filters, onFilterChange }: OrderFilterPopov
       customer_phone: draft.customer_phone?.trim() || undefined,
       payment_method: draft.payment_method || undefined,
       order_type: draft.order_type || undefined,
+      min_total: minTotal,
+      max_total: maxTotal,
     });
     setOpen(false);
   };
 
   const handleClear = () => {
+    setMinTotalText("");
+    setMaxTotalText("");
     setDraft({});
     onFilterChange({});
     setOpen(false);
