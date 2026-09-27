@@ -1180,11 +1180,18 @@ export async function saveReport(
 }
 
 /**
- * Export report breakdown as CSV.
+ * The report on screen, as CSV — the same figures as the page, plus the
+ * detailed breakdowns the page has no room for.
+ *
+ *   Sales and Order: summary, sales per day, cash remitted per day, and
+ *     sales by payment method / hour / weekday, cancellations by reason.
+ *   Menu & Customer Satisfaction: overview, top dishes, ratings.
+ *
  * Requires: manager.
  */
 export async function exportReportCSV(
   input: ReportDateRange,
+  reportType?: string,
 ): Promise<ActionResult<string>> {
   const parsed = reportDateRangeSchema.safeParse(input);
   if (!parsed.success) return { data: null, error: parsed.error.errors[0].message };
@@ -1193,6 +1200,47 @@ export async function exportReportCSV(
   if (!auth.data) return { data: null, error: auth.error };
 
   const { start_date, end_date } = parsed.data;
+  const type = normalizeReportType(reportType);
+
+  if (type === MENU_SATISFACTION_REPORT) {
+    const perf = await getPlatformPerformance({ start_date, end_date, top_products: 10 });
+    if (!perf.data) return { data: null, error: perf.error };
+    const p = perf.data;
+
+    const out: (string | number)[][] = [
+      ["Yang's Fried Rice report", MENU_SATISFACTION_REPORT],
+      ["Date range", `${start_date} to ${end_date}`],
+      [],
+      ["Overview"],
+      ["Measure", "Value"],
+      ["Registered customers", p.totalRegisteredCustomers],
+      ["Orders placed", p.totalOrdersInRange],
+      ["Completed orders", p.completedOrders],
+      ["Cancelled orders", p.cancelledOrders],
+      ["Completion rate (%)", p.completionRate],
+      ["Cancellation rate (%)", p.cancellationRate],
+      ["Revenue (PHP)", money(p.totalRevenue)],
+      ["Average order value (PHP)", money(p.averageOrderValue)],
+      ["Previous period revenue (PHP)", money(p.revenueTrend.previousPeriodRevenue)],
+      ["Change vs previous period (%)", p.revenueTrend.percentChange],
+      ["Dishes on the menu", p.totalAvailableProducts],
+      [],
+      ["Top selling dishes"],
+      ["Rank", "Dish", "Quantity sold"],
+      ...p.topSellingProducts.map((row) => [row.rank, row.productName, row.quantitySold]),
+      [],
+      ["Customer satisfaction"],
+      ["Average rating", p.customerSatisfaction.averageRating ?? "No ratings"],
+      ["Reviews", p.customerSatisfaction.totalReviews],
+      ["Stars", "Reviews"],
+      ...p.customerSatisfaction.distribution.map((row) => [`${row.rating} star`, row.count]),
+    ];
+    return { data: toCsv(out), error: null };
+  }
+
+  const sales = await getSalesReportData({ start_date, end_date, frequency: "daily" });
+  if (!sales.data) return { data: null, error: sales.error };
+
   const supabase = createClient();
 
   // The generated database types predate these functions. Bound: `rpc` reads
