@@ -640,6 +640,9 @@ async function _fetchPaymentIssuesBase(supabase: ReturnType<typeof createClient>
       ),
       transaction ( transaction_id, payment_method, payment_status, total_paid )
     `)
+    // Only these statuses can become an issue; reading every order ever
+    // placed just to discard most of them grew with the table.
+    .in("order_status", ["payment_failed", "awaiting_payment", "ready"])
     .order("created_at", { ascending: true });
 
   if (error || !data) {
