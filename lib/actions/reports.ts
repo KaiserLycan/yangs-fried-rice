@@ -1195,40 +1195,84 @@ export async function exportReportCSV(
   const { start_date, end_date } = parsed.data;
   const supabase = createClient();
 
-  const [pmRes, cancelRes, remittedRes] = await Promise.all([
-    supabase.rpc("get_payment_method_breakdown", { start_date, end_date }),
-    supabase.rpc("get_cancellation_reason_breakdown", { start_date, end_date }),
-    supabase.rpc("get_cash_remitted", { start_date, end_date }),
+  // The generated database types predate these functions.
+  const rpc = supabase.rpc as unknown as (
+    fn: string,
+    args: Record<string, unknown>,
+  ) => Promise<{ data: any[] | null; error: { message: string } | null }>;
+
+  const [pmRes, cancelRes, dailyCashRes, hourRes, weekdayRes] = await Promise.all([
+    rpc("get_payment_method_breakdown", { start_date, end_date }),
+    rpc("get_cancellation_reason_breakdown", { start_date, end_date }),
+    rpc("get_cash_remitted_daily", { start_date, end_date }),
+    rpc("get_sales_by_hour", { start_date, end_date }),
+    rpc("get_sales_by_weekday", { start_date, end_date }),
   ]);
 
-  if (pmRes.error) return { data: null, error: pmRes.error.message };
-  if (cancelRes.error) return { data: null, error: cancelRes.error.message };
-  if (remittedRes.error) return { data: null, error: remittedRes.error.message };
-
-  const csvRows = [];
-  
-  csvRows.push("REPORT METRICS EXPORT");
-  csvRows.push(`Date Range:,${start_date} to ${end_date}`);
-  csvRows.push("");
-
-  csvRows.push("Cash Remitted (Counter Collection)");
-  csvRows.push(`Total:,${remittedRes.data}`);
-  csvRows.push("");
-
-  csvRows.push("Payment Method Breakdown");
-  csvRows.push("Method,Orders,Revenue");
-  for (const row of pmRes.data || []) {
-    csvRows.push(`${row.method},${row.total_orders},${row.total_revenue}`);
-  }
-  csvRows.push("");
-
-  csvRows.push("Cancellation Breakdown");
-  csvRows.push("Reason,Orders");
-  for (const row of cancelRes.data || []) {
-    csvRows.push(`"${row.reason}",${row.total_orders}`);
+  for (const res of [pmRes, cancelRes, dailyCashRes, hourRes, weekdayRes]) {
+    if (res.error) return { data: null, error: res.error.message };
   }
 
-  return { data: csvRows.join("\n"), error: null };
+  const rows: (string | number)[][] = [];
+  const section = (title: string, header: string[], body: (string | number)[][]) => {
+    rows.push([title], header, ...body, []);
+  };
+
+  rows.push(["Yang's Fried Rice report"], ["Date range", `${start_date} to ${end_date}`], ["Times", "Asia/Manila"], []);
+
+  const dailyCash = dailyCashRes.data ?? [];
+  const cashTotal = dailyCash.reduce((sum, row) => sum + Number(row.cash_total), 0);
+  section(
+    "Cash remitted (collected at the counter)",
+    ["Date", "Orders", "Cash (PHP)"],
+    [
+      ...dailyCash.map((row) => [row.day, row.total_orders, money(row.cash_total)]),
+      ["Total", dailyCash.reduce((sum, row) => sum + Number(row.total_orders), 0), money(cashTotal)],
+    ],
+  );
+
+  section(
+    "Sales by payment method",
+    ["Method", "Orders", "Revenue (PHP)"],
+    (pmRes.data ?? []).map((row) => [row.method, row.total_orders, money(row.total_revenue)]),
+  );
+
+  section(
+    "Sales by hour of day",
+    ["Hour", "Orders", "Revenue (PHP)"],
+    (hourRes.data ?? []).map((row) => [hourLabel(row.hour), row.total_orders, money(row.total_revenue)]),
+  );
+
+  section(
+    "Sales by weekday",
+    ["Weekday", "Orders", "Revenue (PHP)"],
+    (weekdayRes.data ?? []).map((row) => [row.weekday_name, row.total_orders, money(row.total_revenue)]),
+  );
+
+  section(
+    "Cancellations by reason",
+    ["Reason", "Orders"],
+    (cancelRes.data ?? []).map((row) => [row.reason, row.total_orders]),
+  );
+
+  // Excel opens a UTF-8 CSV correctly only with the byte-order mark.
+  return { data: "﻿" + rows.map((row) => row.map(csvCell).join(",")).join("\r\n"), error: null };
+}
+
+/** One CSV field: quoted when it holds a comma, quote or line break. */
+function csvCell(value: string | number | null | undefined): string {
+  const text = value === null || value === undefined ? "" : String(value);
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function money(value: number | string | null | undefined): string {
+  return Number(value ?? 0).toFixed(2);
+}
+
+/** 0 → "12 AM – 1 AM", 13 → "1 PM – 2 PM". */
+function hourLabel(hour: number): string {
+  const fmt = (h: number) => `${h % 12 === 0 ? 12 : h % 12} ${h % 24 < 12 ? "AM" : "PM"}`;
+  return `${fmt(hour)} – ${fmt(hour + 1)}`;
 }
 
 /**
