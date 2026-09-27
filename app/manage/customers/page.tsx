@@ -75,8 +75,9 @@ function ManageCustomersInner() {
       search: debouncedSearchQuery,
       sortColumn,
       sortDirection,
+      filters,
     });
-    
+
     if (result.error) {
       showToast(`Failed to load customers: ${result.error}`, "error");
     } else if (result.data) {
