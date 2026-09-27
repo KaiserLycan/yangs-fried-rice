@@ -217,9 +217,40 @@ export function OrderFilterPopover({ filters, onFilterChange }: OrderFilterPopov
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label htmlFor="order-filter-min-total" className={FIELD_LABEL}>Total from (₱)</label>
+                <Input
+                  id="order-filter-min-total"
+                  inputMode="decimal"
+                  placeholder="e.g. 2000"
+                  value={minTotalText}
+                  onChange={(e) => setMinTotalText(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+              <div className="space-y-1">
+                <label htmlFor="order-filter-max-total" className={FIELD_LABEL}>Total up to (₱)</label>
+                <Input
+                  id="order-filter-max-total"
+                  inputMode="decimal"
+                  placeholder="Any"
+                  value={maxTotalText}
+                  onChange={(e) => setMaxTotalText(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+            </div>
+            {amountUnreadable && (
+              <p className="text-[13px] text-red-600">Totals must be amounts of 0 or more.</p>
+            )}
+            {amountBackwards && (
+              <p className="text-[13px] text-red-600">&quot;Up to&quot; can&apos;t be less than &quot;from&quot;.</p>
+            )}
+
             <Button
               onClick={handleApply}
-              disabled={rangeInvalid}
+              disabled={invalid}
               variant="primary"
               className="w-full bg-[#CD7D39] hover:bg-orange-600 text-white"
             >
