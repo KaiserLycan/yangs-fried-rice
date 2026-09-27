@@ -63,6 +63,10 @@ type OrderSummary = {
   total_paid: number | null;
 };
 
+/** Every spelling the transaction table has used for each kind of payment. */
+const WALLET_PAYMENT_METHODS = ["paymongo", "gcash", "paymaya"];
+const CASH_PAYMENT_METHODS = ["pay_in_store", "pay-in-store", "cash"];
+
 type OrderStats = {
   pending: number;
   preparing: number;
