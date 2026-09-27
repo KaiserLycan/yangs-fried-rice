@@ -5,6 +5,7 @@ import Link from "next/link";
 import { SiteNavBar } from "@/components/nav/site-nav-bar";
 import { OrderSummaryCard } from "@/components/checkout/order-summary-card";
 import { PaymentMethodPicker } from "@/components/checkout/payment-method-picker";
+import { PickupByPicker, type PickupBy } from "@/components/checkout/pickup-by-picker";
 import {
   DEFAULT_WALLET_PROVIDER,
   defaultPaymentMethodFor,
