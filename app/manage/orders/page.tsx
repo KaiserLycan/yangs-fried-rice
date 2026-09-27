@@ -206,8 +206,9 @@ function ManageOrdersInner() {
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 md:gap-8 flex-1 min-h-0">
-        <OrderSidebar 
-          activeStatus={activeStatus} 
+        <OrderSidebar
+          activeStatus={activeStatus}
+          isManager={isManager}
           onStatusChange={(status) => {
             setActiveStatus(status);
             setCurrentPage(1); // Reset page on filter change

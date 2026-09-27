@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(git add *)",
-      "Bash(git commit -q -m 'feat\\(orders\\): show the filter popover next to the search box *)"
+      "Bash(git commit -q -m 'feat\\(orders\\): show the filter popover next to the search box *)",
+      "Bash(git commit -q -m 'feat\\(orders\\): show Payment Issues tab to managers *)",
+      "Bash(git check-ignore *)"
     ]
   }
 }
