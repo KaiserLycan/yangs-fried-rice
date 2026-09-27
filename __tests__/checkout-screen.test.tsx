@@ -257,8 +257,10 @@ describe("Checkout payment method", () => {
     });
     fireEvent.click(wallet);
 
+    // Payment options only — the "who is picking up" choice is its own group.
     const checked = screen
       .getAllByRole("radio")
+      .filter((option) => !option.closest('[aria-label="Who is picking up"]'))
       .filter((option) => option.getAttribute("aria-checked") === "true");
 
     // One per breakpoint copy of the picker, all naming the same selected wallet provider.
