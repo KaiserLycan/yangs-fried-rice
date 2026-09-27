@@ -192,6 +192,13 @@ function ManageOrdersInner() {
               className="w-full sm:w-[260px] h-[45px] pl-11 pr-4 rounded-xl border border-[#DDCDB8] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#E8541F] placeholder:text-[#A2938A]"
             />
           </div>
+          <OrderFilterPopover
+            filters={advancedFilters}
+            onFilterChange={(next) => {
+              setAdvancedFilters(next);
+              setCurrentPage(1);
+            }}
+          />
           <Link href="/manage/kds" className="bg-[#CD7D39] hover:bg-orange-600 text-white px-6 py-2.5 rounded-lg font-semibold shadow-sm transition-colors text-center w-full sm:w-auto">
             View KDS
           </Link>
