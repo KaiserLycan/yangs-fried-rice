@@ -34,7 +34,10 @@ export function KdsOrderCard({
 }: KdsOrderCardProps) {
   const { timerString, color: timerColor } = useKdsTimer(timerTimestamp ?? order.rawCreatedAt, amberMins, redMins);
   const isConfirmed = order.status === "PREP";
-  const isActive = order.status === "QUEUE" || order.status === "PREP";
+  // Every order someone still has to act on gets the amber / red clock: the
+  // kitchen (queue, prep), the counter (waiting for pick-up) or the customer
+  // (unpaid). Each tab passes its own thresholds.
+  const isActive = order.status !== "CANCELED" && order.status !== "COMPLETED";
   const [isProcessing, setIsProcessing] = useState(false);
   const isList = layout === "list";
 
