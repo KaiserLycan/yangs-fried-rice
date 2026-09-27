@@ -1,6 +1,7 @@
 import { orderItemName } from "@/lib/orders/item-name";
 import { createClient } from "@/lib/supabase/server";
 import { formatOrderNumber } from "@/lib/orders/order-number";
+import type { StatusChange } from "@/lib/orders/order-stage";
 
 /**
  * One customer's order, narrowed to what the tracking screen draws.
@@ -39,6 +40,13 @@ export type TrackedOrder = {
    * `lib/orders/arrival-window.ts`.
    */
   arrivalWindow: string | null;
+  /**
+   * `order.promised_at` — the ready-by time quoted when the order was
+   * placed. Never changes, even when the ETA does. Null on older orders.
+   */
+  promisedAt: string | null;
+  /** `order_status_log`, oldest first. Stamps each timeline stage. */
+  statusLog: StatusChange[];
   /** The address the order is going to, or null for a non-delivery order. */
   destination: string | null;
   items: { productId: string; name: string }[];
@@ -68,14 +76,14 @@ export async function readTrackedOrder(
   // so the filter is what actually prevents that.
   const { data: order } = await supabase
     .from("order")
-    .select("order_id, order_status, order_type, cancelled_at, cancellation_reason, delivery_address")
+    .select("order_id, order_status, order_type, cancelled_at, cancellation_reason, delivery_address, promised_at")
     .eq("order_id", orderId)
     .eq("customer_id", user.id)
     .maybeSingle();
 
   if (!order) return null;
 
-  const [orderItems, review] = await Promise.all([
+  const [orderItems, review, statusLog] = await Promise.all([
     supabase
       .from("order_item")
       .select("product_id, product_name, product(product_name)")
@@ -90,6 +98,12 @@ export async function readTrackedOrder(
       .is("product_id", null)
       .maybeSingle()
       .then((res) => res.data),
+    supabase
+      .from("order_status_log")
+      .select("to_status, changed_at")
+      .eq("order_id", order.order_id)
+      .order("changed_at", { ascending: true })
+      .then((res) => res.data),
   ]);
 
   return {
@@ -101,6 +115,11 @@ export async function readTrackedOrder(
     deliveryStatus: null,
     orderType: order.order_type,
     arrivalWindow: null,
+    promisedAt: order.promised_at,
+    statusLog: (statusLog || []).map((row) => ({
+      toStatus: row.to_status,
+      changedAt: row.changed_at,
+    })),
     destination: order.delivery_address,
     items: (orderItems || []).map((item) => ({
       productId: item.product_id || "",

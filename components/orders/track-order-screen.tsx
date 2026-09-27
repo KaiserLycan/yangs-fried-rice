@@ -14,8 +14,11 @@ import {
   fulfilmentOf,
   headlineFor,
   resolveOrderProgress,
+  stageReachedAt,
   timelineStages,
+  type StatusChange,
 } from "@/lib/orders/order-stage";
+import { formatClockTime } from "@/lib/checkout/order-time";
 import type { TrackedOrder } from "@/lib/orders/read-tracked-order";
 import { Alert } from "@/components/ui/alert";
 import { CancelOrderControl } from "@/components/orders/cancel-order-control";
@@ -124,6 +127,17 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
     })();
   }, [orderId]);
 
+  /**
+   * Status changes that arrived over the subscription after the page loaded
+   * (#116). Added to the server's log so each new stage gets its time
+   * without a reload.
+   */
+  const [liveLog, setLiveLog] = React.useState<StatusChange[]>([]);
+  const statusLog = React.useMemo(
+    () => [...order.statusLog, ...liveLog],
+    [order.statusLog, liveLog],
+  );
+
   React.useEffect(() => {
     const supabase = createClient();
 
@@ -149,6 +163,23 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
           refreshEta();
         },
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "order_status_log",
+          filter: `order_id=eq.${orderId}`,
+        },
+        (payload: { new: Record<string, unknown> }) => {
+          const changedAt = payload.new.changed_at as string | undefined;
+          if (!changedAt) return;
+          setLiveLog((previous) => [
+            ...previous,
+            { toStatus: (payload.new.to_status as string | null) ?? null, changedAt },
+          ]);
+        },
+      )
       .subscribe();
 
     return () => {
@@ -159,7 +190,11 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
   // Take-out reads "Ready for pick up" / "Picked up"; delivery keeps its own words.
   const fulfilment = fulfilmentOf(order.orderType);
   const progress = resolveOrderProgress({ ...status, orderType: order.orderType });
-  const stages = timelineStages(progress, fulfilment);
+  const stages = timelineStages(
+    progress,
+    fulfilment,
+    stageReachedAt(statusLog, order.orderType),
+  );
 
   // While a fresh estimate is on its way the old one stays up rather than
   // flashing the fallback; only a screen with nothing yet says it is working.
@@ -173,7 +208,13 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
   const destination = order.destination
     ? `${order.orderType ?? "Delivery"} to ${order.destination}`
     : null;
-  const subline = [arrival, destination].filter(Boolean).join(" · ");
+  // Fixed when the order was placed; the arrival line above can move, this
+  // cannot (#116). Nothing to promise once the order is cancelled.
+  const promised =
+    order.promisedAt && progress.kind !== "cancelled"
+      ? `Promised by ${formatClockTime(new Date(order.promisedAt))}`
+      : null;
+  const subline = [arrival, promised, destination].filter(Boolean).join(" · ");
 
   return (
     <div className="min-h-screen bg-background">

@@ -411,6 +411,7 @@ export type Database = {
           order_id: string
           order_status: string | null
           order_type: string | null
+          promised_at: string | null
           special_instructions: string | null
         }
         Insert: {
@@ -425,6 +426,7 @@ export type Database = {
           order_id?: string
           order_status?: string | null
           order_type?: string | null
+          promised_at?: string | null
           special_instructions?: string | null
         }
         Update: {
@@ -439,6 +441,7 @@ export type Database = {
           order_id?: string
           order_status?: string | null
           order_type?: string | null
+          promised_at?: string | null
           special_instructions?: string | null
         }
         Relationships: [
@@ -572,6 +575,44 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "order_item"
             referencedColumns: ["order_item_id"]
+          },
+        ]
+      }
+      order_status_log: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          from_status: string | null
+          log_id: number
+          order_id: string
+          reason: string | null
+          to_status: string | null
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          from_status?: string | null
+          log_id?: never
+          order_id: string
+          reason?: string | null
+          to_status?: string | null
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          from_status?: string | null
+          log_id?: never
+          order_id?: string
+          reason?: string | null
+          to_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_status_log_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order"
+            referencedColumns: ["order_id"]
           },
         ]
       }
