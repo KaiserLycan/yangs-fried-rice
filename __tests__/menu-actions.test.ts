@@ -42,9 +42,44 @@ vi.mock("@/lib/supabase/server", () => ({
   })),
 }));
 
+// 4. Who is calling. Prices are manager-only, so most tests run as a manager.
+const mockGetCurrentEmployee = vi.fn();
+vi.mock("@/lib/actions/admin", () => ({
+  getCurrentEmployee: () => mockGetCurrentEmployee(),
+}));
+const asRole = (role: string) =>
+  mockGetCurrentEmployee.mockResolvedValue({ data: { employee_id: "emp-1", role }, error: null });
+
 describe("US-02: Menu Management Server Actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    asRole("MANAGER");
+  });
+
+  it("staff cannot add a product, because that sets a price", async () => {
+    asRole("STAFF");
+    const result = await createProduct({
+      product_name: "Garlic Rice",
+      product_price: 55,
+      is_available: true,
+    });
+    expect(result.error).toBe("Only a manager can set or change menu prices.");
+    expect(mockInsert).not.toHaveBeenCalled();
+  });
+
+  it("staff cannot change a price, but may save other edits with it unchanged", async () => {
+    asRole("STAFF");
+    mockMaybeSingle.mockResolvedValue({ data: { product_price: 55 }, error: null });
+
+    const changed = await updateProduct("test-uuid-123", { product_price: 60 });
+    expect(changed.error).toBe("Only a manager can set or change menu prices.");
+    expect(mockUpdate).not.toHaveBeenCalled();
+
+    mockSingle.mockResolvedValue({ data: { product_id: "test-uuid-123", image_url: null }, error: null });
+    const unchanged = await updateProduct("test-uuid-123", { product_price: 55, product_name: "Garlic Rice" });
+    expect(unchanged.error).toBeNull();
+    // The price is left out of the write entirely.
+    expect(mockUpdate).toHaveBeenCalledWith({ product_name: "Garlic Rice" });
   });
 
   it("TC-2.1.U: createProduct blocks submission when price is negative or name is blank", async () => {
