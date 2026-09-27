@@ -59,3 +59,55 @@ describe("mapStaffOrder — special instructions (P30)", () => {
     ).toBe("");
   });
 });
+
+describe("mapStaffOrder — Senior Citizen / PWD discount (#116)", () => {
+  const line = {
+    quantity: 1,
+    subtotal: 112,
+    special_instructions: null,
+    product_name: "Yang Chow",
+    product: null,
+    order_item_add_on: [],
+  };
+
+  it("totals a discounted order at what is owed, not at menu prices", () => {
+    const mapped = mapStaffOrder(
+      row({
+        order_type: "take_out",
+        delivery_fee: 0,
+        order_item: [line],
+        transaction: [
+          {
+            subtotal: 100,
+            discount_amount: 20,
+            discount_type: "senior_citizen",
+            discount_id_number: "OSCA-123",
+            name_on_id: "Liza Reyes",
+            discount_id_photo_path: "x/y.jpg",
+          },
+        ],
+      }),
+    );
+    expect(mapped.total).toBe(80);
+    expect(mapped.seniorPwd).toEqual({
+      type: "senior_citizen",
+      idNumber: "OSCA-123",
+      nameOnId: "Liza Reyes",
+      discount: 20,
+      hasPhoto: true,
+    });
+  });
+
+  it("leaves an ordinary order at menu prices with no badge", () => {
+    const mapped = mapStaffOrder(
+      row({
+        order_type: "take_out",
+        delivery_fee: 0,
+        order_item: [line],
+        transaction: [{ subtotal: 112, discount_amount: 0, discount_type: null }],
+      }),
+    );
+    expect(mapped.total).toBe(112);
+    expect(mapped.seniorPwd).toBeUndefined();
+  });
+});
