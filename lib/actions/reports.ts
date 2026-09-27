@@ -1,5 +1,6 @@
 "use server";
 
+import { summariseOnTime, type OnTimeSummary } from "@/lib/reports/on-time";
 import { createClient } from "@/lib/supabase/server";
 import { requireRole } from "@/lib/actions/admin";
 import { recordEmployeeAction } from "@/lib/audit/record-employee-action";
@@ -106,6 +107,8 @@ export type PlatformPerformanceData = {
   topSellingProducts: TopSellingProduct[];
   totalAvailableProducts: number;
   customerSatisfaction: CustomerSatisfaction;
+  /** Ready-by promises kept (FINALE 4.3). */
+  onTime: OnTimeSummary;
 };
 
 /** Ratings customers left on their orders/dishes within the report range. */
@@ -524,6 +527,17 @@ export async function getPlatformPerformance(
     })),
   };
 
+  // --- 7. Promises kept: ready_at against the promised_at quoted at checkout.
+  // Degrades to "not measured" rather than failing the report.
+  const { data: promiseRows } = await supabase
+    .from("order")
+    .select("promised_at, ready_at")
+    .not("promised_at", "is", null)
+    .not("ready_at", "is", null)
+    .gte("created_at", manilaDayStart(start_date))
+    .lte("created_at", manilaDayEnd(end_date));
+  const onTime = summariseOnTime(promiseRows ?? []);
+
   return {
     data: {
       dateRange: { start_date, end_date },
@@ -542,6 +556,7 @@ export async function getPlatformPerformance(
       topSellingProducts,
       totalAvailableProducts,
       customerSatisfaction,
+      onTime,
     },
     error: null,
   };
@@ -954,8 +969,24 @@ export async function generatePerformancePDF(
         value: `${data.customerSatisfaction.distribution.find((d) => d.rating === 5)?.count ?? 0}`,
       },
       {
+        label: "Ready On Time",
+        value:
+          data.onTime.onTimeRate === null
+            ? "Not measured"
+            : `${data.onTime.onTimeRate}% of ${data.onTime.measured} orders`,
+      },
+    ],
+    [
+      {
         label: "Completion Rate",
         value: `${data.completionRate}% (${data.cancelledOrders} cancelled)`,
+      },
+      {
+        label: "Late Orders",
+        value:
+          data.onTime.averageMinutesLate === null
+            ? "None late"
+            : `Avg ${data.onTime.averageMinutesLate} min past the promise`,
       },
     ],
   ]);

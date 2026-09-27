@@ -160,6 +160,20 @@ export function ReportsSummary({ type: rawType = SALES_REPORT, startDate, endDat
           }
         />
         <StatCard
+          label="Ready On Time"
+          value={perfData.onTime.onTimeRate === null ? "Not measured" : `${perfData.onTime.onTimeRate}%`}
+          subtitle={
+            perfData.onTime.measured === 0
+              ? "No promised times yet"
+              : perfData.onTime.averageMinutesLate === null
+                ? `${perfData.onTime.measured} orders, none late`
+                : `${perfData.onTime.measured} orders · late ones avg ${perfData.onTime.averageMinutesLate} min`
+          }
+          subtitleColor={
+            perfData.onTime.onTimeRate !== null && perfData.onTime.onTimeRate < 80 ? "red" : "muted"
+          }
+        />
+        <StatCard
           label="Completion Rate"
           value={`${perfData.completionRate}%`}
           subtitle={`${perfData.cancelledOrders} cancelled`}
