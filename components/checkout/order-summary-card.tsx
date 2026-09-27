@@ -174,6 +174,7 @@ export function OrderSummaryCard({
           const result = await submitCart({
             cart_id: cartId,
             order_type: orderTypeFor(fulfilment),
+            fulfillment_method: pickupBy,
             delivery_fee: totals.deliveryFee,
             delivery_address: address ?? undefined,
             special_instructions:
