@@ -131,8 +131,8 @@ export const orderFilterSchema = z.object({
   /** "take_out" (also matches legacy pickup spellings) or "dine_in". */
   order_type: z.enum(["take_out", "dine_in"]).optional(),
   /**
-   * The manager-only Payment Issues view: orders still awaiting_payment or
-   * payment_failed STUCK_PAYMENT_MINUTES after they were placed.
+   * The manager-only Payment Issues view: every order still awaiting_payment
+   * or payment_failed, newest first.
    */
   payment_issues: z.boolean().optional(),
   include_unpaid: z.boolean().optional(),
