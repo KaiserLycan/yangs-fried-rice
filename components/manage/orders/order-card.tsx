@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 
 import type { OrderData } from "@/types/staff-order";
 import { canCancel, primaryActionFor, statusLabelFor, type StaffAction } from "@/lib/orders/staff-actions";
+import { isPendingTooLong } from "@/lib/orders/order-stage";
 import { Button } from "@/components/ui/button";
 
 interface OrderCardProps {
@@ -11,6 +12,11 @@ interface OrderCardProps {
   // The onAction callback handles specific button interactions (Cancel, Deliver, Confirm)
   // independent of the card's main click handler. This triggers the confirmation dialog.
   onAction?: (type: StaffAction, order: OrderData) => void;
+  /**
+   * The page's clock, ticked by `useNow` so a card starts flashing without
+   * a refetch. An order unaccepted for 5 minutes flashes (issue #115).
+   */
+  now?: Date;
 }
 
 const statusConfig = {
@@ -31,8 +37,9 @@ const statusConfig = {
   },
 };
 
-export function OrderCard({ order, onClick, onAction }: OrderCardProps) {
+export function OrderCard({ order, onClick, onAction, now }: OrderCardProps) {
   const config = statusConfig[order.status];
+  const waitingTooLong = isPendingTooLong(order.pendingAt, now);
   const primary = primaryActionFor(order);
 
   return (
@@ -46,7 +53,11 @@ export function OrderCard({ order, onClick, onAction }: OrderCardProps) {
           onClick?.();
         }
       }}
-      className="flex flex-col text-left w-full rounded-md overflow-hidden shadow-sm bg-background border border-field-border h-full transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-status-preparing"
+      data-waiting-too-long={waitingTooLong || undefined}
+      className={cn(
+        "flex flex-col text-left w-full rounded-md overflow-hidden shadow-sm bg-background border border-field-border h-full transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-status-preparing",
+        waitingTooLong && "pending-flash",
+      )}
     >
       {/* Header */}
       <div className={cn("flex justify-between items-start p-4 text-white", config.headerBg)}>

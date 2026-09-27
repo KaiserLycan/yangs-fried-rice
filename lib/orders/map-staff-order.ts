@@ -21,6 +21,8 @@ export type StaffOrderRow = {
   /** `#1042` — see lib/orders/order-number.ts. */
   order_number?: number | null;
   created_at: string | null;
+  /** When it entered the kitchen queue (issue #115). */
+  pending_at?: string | null;
   order_status: string | null;
   order_type: string | null;
   delivery_fee: number | null;
@@ -125,6 +127,12 @@ export function mapStaffOrder(order: StaffOrderRow): OrderData {
   return {
     id: order.order_id,
     rawCreatedAt: order.created_at,
+    // Only a still-unaccepted order can be "waiting too long" (issue #115).
+    // Falls back to created_at for an order from before pending_at existed.
+    pendingAt:
+      order.order_status === "pending"
+        ? (order.pending_at ?? order.created_at)
+        : null,
     // Was `substring(0, 4).toUpperCase()` while the customer was shown the
     // last four — the same order, two references, neither able to check the
     // other (issue #106).

@@ -44,3 +44,16 @@ describe("foldPaymentStatus", () => {
     expect(foldPaymentStatus([{ payment_status: " Paid " }])).toBe("paid");
   });
 });
+
+describe("foldPaymentStatus refunds (issue #115)", () => {
+  it("reports where a refund stands", () => {
+    expect(foldPaymentStatus([{ payment_status: "refund_pending" }])).toBe("refund_pending");
+    expect(foldPaymentStatus([{ payment_status: "refund_failed" }])).toBe("refund_failed");
+  });
+
+  it("puts the refund ahead of a retry's leftover rows", () => {
+    expect(
+      foldPaymentStatus([{ payment_status: "failed" }, { payment_status: "refund_pending" }]),
+    ).toBe("refund_pending");
+  });
+});

@@ -150,9 +150,15 @@ describe("A6. quantities, ratings and money", () => {
     expect(addCartItemSchema.safeParse({ product_id: product, quantity }).success).toBe(false);
   });
 
-  it("accepts a quantity of 1 to 99", () => {
+  // Issue #115 lowered the cap from 99 to the stepper's MAX_QUANTITY (20).
+  it("accepts a quantity of 1 to 20", () => {
     expect(addCartItemSchema.safeParse({ product_id: product, quantity: 1 }).success).toBe(true);
-    expect(addCartItemSchema.safeParse({ product_id: product, quantity: 99 }).success).toBe(true);
+    expect(addCartItemSchema.safeParse({ product_id: product, quantity: 20 }).success).toBe(true);
+  });
+
+  it("rejects a quantity of 21 or more", () => {
+    expect(addCartItemSchema.safeParse({ product_id: product, quantity: 21 }).success).toBe(false);
+    expect(addCartItemSchema.safeParse({ product_id: product, quantity: 99 }).success).toBe(false);
   });
 
   it.each([0, 6, -3, 2.5])("rejects a rating of %s", (rating) => {

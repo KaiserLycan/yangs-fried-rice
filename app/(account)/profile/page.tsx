@@ -18,6 +18,7 @@ import { initialsFrom } from "@/lib/profile/identity";
 import { BottomTabBar } from "@/components/nav/bottom-tab-bar";
 import { readCart } from "@/lib/cart/read-cart";
 import { cartItemCount } from "@/lib/menu/cart-totals";
+import { readMyActiveOrderCount } from "@/lib/orders/active-orders";
 
 /**
  * Customer profile (Cust3, Cust4, Cust5).
@@ -32,9 +33,12 @@ import { cartItemCount } from "@/lib/menu/cart-totals";
  * `.scratch/profile-page/issues/05-backend-handoff.md`.
  */
 export default async function ProfilePage() {
-  const [profile, cart] = await Promise.all([
+  const [profile, cart, activeOrderCount] = await Promise.all([
     readCustomerProfile(),
     readCart(),
+    // Delete account is refused while any order is in progress (issue #115);
+    // the dialog says so up front instead of after the press.
+    readMyActiveOrderCount(),
   ]);
 
   // Middleware already turns signed-out visitors away, so reaching this is
@@ -95,7 +99,7 @@ export default async function ProfilePage() {
 
               <PasswordCard lastUpdated={profile.passwordLastUpdated} />
 
-              <AccountActions />
+              <AccountActions activeOrderCount={activeOrderCount} />
             </div>
           </main>
         </div>

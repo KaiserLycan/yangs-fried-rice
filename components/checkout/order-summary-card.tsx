@@ -254,6 +254,13 @@ export function OrderSummaryCard({
             // so the kitchen never sees a payment that was abandoned or
             // refused.
             payment_method: chosenMethod,
+            // What each line cost on this screen. If the menu price moved
+            // since, the database refuses with PRICE_CHANGED and names the
+            // dishes; the toast shows that and the refresh brings in the
+            // new prices, so the customer re-confirms (issue #115).
+            expected_prices: Object.fromEntries(
+              lines.map((line) => [line.id, line.unitPrice]),
+            ),
             wallet,
             discount:
               seniorDiscount?.enabled && uploadedPhotoPath

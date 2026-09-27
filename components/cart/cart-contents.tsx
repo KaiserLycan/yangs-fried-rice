@@ -5,6 +5,7 @@ import { CartEmptyState } from "@/components/cart/cart-empty-state";
 import { CartLineRow } from "@/components/cart/cart-line-row";
 import { CartTotalsSummary } from "@/components/cart/cart-totals-summary";
 import {
+  cartItemCount,
   computeCartTotals,
   type CartLine,
   type Fulfilment,
@@ -79,6 +80,7 @@ export function CartContents({
         ctaLabel={ctaLabel}
         arrivalEstimate={arrivalEstimate}
         fulfilment={fulfilment}
+        totalItems={cartItemCount(localLines)}
       />
     </div>
   );

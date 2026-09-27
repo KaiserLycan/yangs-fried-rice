@@ -114,7 +114,11 @@ export function PaymentStatusCard({
   // the webhook writes `paid`, and this tab would sit on "Try again with
   // GCash" for an order that is already paid for. Realtime alone cannot be
   // relied on, since nothing here can check that `transaction` is published.
-  const settled = status === "paid" || status === "refunded";
+  const settled =
+    status === "paid" ||
+    status === "refunded" ||
+    status === "refund_pending" ||
+    status === "refund_failed";
 
   React.useEffect(() => {
     if (settled) {
@@ -303,6 +307,11 @@ function note(
       return "Payment received — thank you.";
     case "refunded":
       return "This payment was refunded.";
+    // Issue #115: the order was cancelled after it was paid for.
+    case "refund_pending":
+      return "This order was cancelled, so your payment is being refunded.";
+    case "refund_failed":
+      return "This order was cancelled. We couldn’t refund your payment automatically — the store will refund you.";
     case "pending":
       if (!isOnlineOrder) {
         return "Nothing has been taken yet — settle up when your order reaches you.";

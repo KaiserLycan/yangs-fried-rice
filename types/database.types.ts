@@ -467,6 +467,7 @@ export type Database = {
           order_number: number
           order_status: string | null
           order_type: string | null
+          pending_at: string | null
           promised_at: string | null
           special_instructions: string | null
         }
@@ -483,6 +484,7 @@ export type Database = {
           order_number?: never
           order_status?: string | null
           order_type?: string | null
+          pending_at?: string | null
           promised_at?: string | null
           special_instructions?: string | null
         }
@@ -499,6 +501,7 @@ export type Database = {
           order_number?: never
           order_status?: string | null
           order_type?: string | null
+          pending_at?: string | null
           promised_at?: string | null
           special_instructions?: string | null
         }
@@ -865,6 +868,45 @@ export type Database = {
           },
         ]
       }
+      store_setting: {
+        Row: {
+          close_time: string
+          extra_prep_minutes: number
+          id: boolean
+          is_force_open: boolean
+          is_paused: boolean
+          max_active_orders: number
+          open_time: string
+          paused_until: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          close_time?: string
+          extra_prep_minutes?: number
+          id?: boolean
+          is_force_open?: boolean
+          is_paused?: boolean
+          max_active_orders?: number
+          open_time?: string
+          paused_until?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          close_time?: string
+          extra_prep_minutes?: number
+          id?: boolean
+          is_force_open?: boolean
+          is_paused?: boolean
+          max_active_orders?: number
+          open_time?: string
+          paused_until?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       transaction: {
         Row: {
           discount_amount: number | null
@@ -875,7 +917,11 @@ export type Database = {
           order_id: string | null
           payment_method: string | null
           payment_status: string | null
+          provider_payment_id: string | null
           provider_reference_id: string | null
+          provider_refund_id: string | null
+          refund_error: string | null
+          refunded_at: string | null
           subtotal: number | null
           tax_amount: number | null
           total_paid: number | null
@@ -892,7 +938,11 @@ export type Database = {
           order_id?: string | null
           payment_method?: string | null
           payment_status?: string | null
+          provider_payment_id?: string | null
           provider_reference_id?: string | null
+          provider_refund_id?: string | null
+          refund_error?: string | null
+          refunded_at?: string | null
           subtotal?: number | null
           tax_amount?: number | null
           total_paid?: number | null
@@ -909,7 +959,11 @@ export type Database = {
           order_id?: string | null
           payment_method?: string | null
           payment_status?: string | null
+          provider_payment_id?: string | null
           provider_reference_id?: string | null
+          provider_refund_id?: string | null
+          refund_error?: string | null
+          refunded_at?: string | null
           subtotal?: number | null
           tax_amount?: number | null
           total_paid?: number | null
@@ -934,6 +988,7 @@ export type Database = {
     Functions: {
       audit_current_actor: { Args: never; Returns: Record<string, unknown> }
       current_employee_role: { Args: never; Returns: string }
+      get_store_status: { Args: never; Returns: Json }
       get_customer_order_history: {
         Args: { p_customer_id: string }
         Returns: Json

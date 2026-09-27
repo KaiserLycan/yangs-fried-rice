@@ -314,6 +314,10 @@ describe("Checkout place order", () => {
         // It used to send cash on delivery here — on an order nobody was
         // delivering (issue #106).
         payment_method: "pay-in-store",
+        // The unit price of each line as this screen showed it, so the
+        // database can refuse with PRICE_CHANGED if the menu moved
+        // (issue #115).
+        expected_prices: { "1": 180, "2": 90 },
         wallet: "gcash",
       }),
     );

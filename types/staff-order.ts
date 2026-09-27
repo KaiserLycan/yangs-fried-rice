@@ -20,6 +20,13 @@ export type OrderData = {
   id: string;
   rawCreatedAt?: string | null;
   /**
+   * When the order started waiting for staff to accept it — set only while
+   * it is still `pending` (issue #115). The staff screens flash a card once
+   * this is 5 minutes old; `received` shares the QUEUE column but has been
+   * accepted, so it has none.
+   */
+  pendingAt?: string | null;
+  /**
    * True only for an order placed before the shop went pickup-only
    * (issue #114). Such orders still exist and still need finishing, so the
    * wording on their card differs; nothing new is ever a delivery.

@@ -60,6 +60,33 @@ describe("mapStaffOrder — special instructions (P30)", () => {
   });
 });
 
+describe("mapStaffOrder pendingAt (issue #115)", () => {
+  it("carries pending_at while the order is still pending", () => {
+    const mapped = mapStaffOrder(
+      row({ order_status: "pending", pending_at: "2026-09-28T04:00:00.000Z" }),
+    );
+    expect(mapped.pendingAt).toBe("2026-09-28T04:00:00.000Z");
+  });
+
+  it("falls back to created_at for a pending order from before pending_at", () => {
+    const mapped = mapStaffOrder(
+      row({ order_status: "pending", pending_at: null, created_at: "2026-09-28T03:00:00.000Z" }),
+    );
+    expect(mapped.pendingAt).toBe("2026-09-28T03:00:00.000Z");
+  });
+
+  it("has none once staff accepted it, even in the QUEUE column", () => {
+    expect(
+      mapStaffOrder(row({ order_status: "received", pending_at: "2026-09-28T04:00:00.000Z" }))
+        .pendingAt,
+    ).toBeNull();
+    expect(
+      mapStaffOrder(row({ order_status: "preparing", pending_at: "2026-09-28T04:00:00.000Z" }))
+        .pendingAt,
+    ).toBeNull();
+  });
+});
+
 describe("mapStaffOrder — Senior Citizen / PWD discount (#116)", () => {
   const line = {
     quantity: 1,

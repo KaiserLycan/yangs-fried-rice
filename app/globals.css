@@ -195,3 +195,29 @@
     background: transparent !important;
   }
 }
+
+/*
+ * Issue #115: a staff card (Orders page, KDS) for an order still waiting for
+ * staff to accept it after 5 minutes. An amber ring that pulses, drawn with
+ * box-shadow so it adds no layout and sits over the card's own border.
+ */
+@keyframes pending-flash {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px rgb(245 158 11 / 0.95);
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgb(245 158 11 / 0.15);
+  }
+}
+
+.pending-flash {
+  animation: pending-flash 1.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pending-flash {
+    animation: none;
+    box-shadow: 0 0 0 3px rgb(245 158 11);
+  }
+}

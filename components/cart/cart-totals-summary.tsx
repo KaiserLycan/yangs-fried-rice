@@ -4,7 +4,10 @@ import * as React from "react";
 import Link from "next/link";
 import { formatPeso } from "@/lib/menu/product-listing";
 import type { CartTotals, Fulfilment } from "@/lib/menu/cart-totals";
-import { isRestaurantOpen, nextOpeningLabel } from "@/lib/store-hours";
+import { useStoreStatus } from "@/lib/hooks/use-store-status";
+import { storeBlockFor } from "@/lib/store/store-status";
+import { BIG_ORDER_MESSAGE, isOverOrderCap } from "@/lib/cart/limits";
+import { Alert } from "@/components/ui/alert";
 
 /**
  * Subtotal, delivery fee, Total, and the call to action — `133:990` desktop
@@ -25,6 +28,7 @@ export function CartTotalsSummary({
   ctaLabel,
   arrivalEstimate,
   fulfilment,
+  totalItems = 0,
 }: {
   totals: CartTotals;
   ctaLabel: string;
@@ -36,20 +40,20 @@ export function CartTotalsSummary({
    */
   arrivalEstimate: string | null;
   fulfilment: Fulfilment;
+  /**
+   * Items in the cart (sum of quantities). Over MAX_ITEMS_PER_ORDER the
+   * button is disabled with the "big order" message (issue #115); the server
+   * refuses the same cart at checkout.
+   */
+  totalItems?: number;
 }) {
   const [isClicked, setIsClicked] = React.useState(false);
-  const [isOpen, setIsOpen] = React.useState(true);
-  const [opensLabel, setOpensLabel] = React.useState("");
-
-  React.useEffect(() => {
-    const check = () => {
-      setIsOpen(isRestaurantOpen());
-      setOpensLabel(nextOpeningLabel());
-    };
-    check();
-    const interval = setInterval(check, 60000);
-    return () => clearInterval(interval);
-  }, []);
+  // Closed, paused or busy (issue #115). Null while the status loads: the
+  // button stays usable, and checkout itself is refused server-side anyway.
+  const storeStatus = useStoreStatus();
+  const block = storeStatus ? storeBlockFor(storeStatus) : null;
+  const tooLarge = isOverOrderCap(totalItems);
+  const isOpen = block === null && !tooLarge;
 
   return (
     <div className="flex flex-col gap-[8px] border-t border-field-border pt-[14px]">
@@ -72,23 +76,43 @@ export function CartTotalsSummary({
         </p>
       ) : null}
 
+      {tooLarge ? (
+        <Alert role="status" className="mt-[6px]">
+          {BIG_ORDER_MESSAGE}
+        </Alert>
+      ) : null}
+
       <Link
-        title={!isOpen ? `We're closed right now. ${opensLabel}. Your cart is saved until then.` : "Review your order and pay"}
-        href={!isOpen || isClicked ? "#" : `/checkout?fulfilment=${fulfilment}`}
+        title={
+          block
+            ? block.message
+            : tooLarge
+              ? BIG_ORDER_MESSAGE
+              : "Review your order and pay"
+        }
+        href={!isOpen || isClicked ? (tooLarge ? "/contact" : "#") : `/checkout?fulfilment=${fulfilment}`}
         onClick={(e) => {
-          if (!isOpen || isClicked) {
+          if ((!isOpen && !tooLarge) || isClicked) {
             e.preventDefault();
             return;
           }
-          setIsClicked(true);
+          if (!tooLarge) {
+            setIsClicked(true);
+          }
         }}
         className={`mt-[6px] flex items-center justify-center rounded-md p-[15px] text-sm font-bold ${
-          !isOpen || isClicked
+          (!isOpen && !tooLarge) || isClicked
             ? "bg-secondary text-muted-foreground cursor-not-allowed opacity-60 pointer-events-none"
             : "bg-foreground text-background"
         }`}
       >
-        {!isOpen ? `Closed · ${opensLabel}` : ctaLabel}
+        {block?.code === "STORE_CLOSED"
+          ? "Store Closed"
+          : block
+            ? "Very Busy — Try Again Soon"
+            : tooLarge
+              ? "Too big? Contact Us"
+              : ctaLabel}
       </Link>
       {!isOpen ? (
         <p className="text-center text-sm text-muted-foreground">

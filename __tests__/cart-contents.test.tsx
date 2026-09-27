@@ -22,15 +22,14 @@ vi.mock("next/navigation", () => ({
 }));
 
 /**
- * The checkout button is disabled outside opening hours, and
- * `isRestaurantOpen()` reads the real clock — so these tests passed during the
- * day and failed after 18:00 Manila. Pinning it open makes them test the cart,
- * not the time they happen to run at. `store-hours.test.ts` covers the hours
- * rule itself.
+ * The checkout button is disabled when the store is closed, paused or busy,
+ * which it learns from `/api/store/status` (issue #115). Pinning the hook to
+ * "no answer yet" (the button stays usable) makes these tests about the cart,
+ * not about the clock or a network call. `lib/store/store-status.test.ts`
+ * covers the rules themselves.
  */
-vi.mock("@/lib/store-hours", () => ({
-  isRestaurantOpen: () => true,
-  nextOpeningLabel: () => "Opens tomorrow at 8:00 AM",
+vi.mock("@/lib/hooks/use-store-status", () => ({
+  useStoreStatus: () => null,
 }));
 
 vi.mock("@/lib/actions/cart", () => ({
@@ -274,5 +273,34 @@ describe("CartLineRow lower bound", () => {
 
     await waitFor(() => expect(removeCartItem).toHaveBeenCalled());
     expect(updateCartItem).not.toHaveBeenCalled();
+  });
+
+  // Issue #115: MAX_ITEMS_PER_ORDER. The server refuses the same cart.
+  it("blocks checkout with the big-order message above 30 items", () => {
+    const big: CartLine[] = [
+      { id: "1", name: "Yangzhou Special", unitPrice: 180, quantity: 20, specialInstructions: null },
+      { id: "2", name: "Lumpia (5pc)", unitPrice: 90, quantity: 11, specialInstructions: null },
+    ];
+    renderCart(<CartContents lines={big} ctaLabel="Checkout" arrivalEstimate={null} />);
+
+    expect(
+      screen.getByText("That's a big order! Please contact us for a bulk order or catering."),
+    ).toBeInTheDocument();
+    const cta = screen.getByRole("link", { name: /Too big\? Contact Us/i });
+    expect(cta).toHaveAttribute("href", "/contact");
+  });
+
+  it("allows checkout at exactly 30 items", () => {
+    const full: CartLine[] = [
+      { id: "1", name: "Yangzhou Special", unitPrice: 180, quantity: 20, specialInstructions: null },
+      { id: "2", name: "Lumpia (5pc)", unitPrice: 90, quantity: 10, specialInstructions: null },
+    ];
+    renderCart(<CartContents lines={full} ctaLabel="Checkout" arrivalEstimate={null} />);
+
+    expect(screen.queryByText(/big order/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Checkout" })).toHaveAttribute(
+      "href",
+      "/checkout?fulfilment=pickup",
+    );
   });
 });

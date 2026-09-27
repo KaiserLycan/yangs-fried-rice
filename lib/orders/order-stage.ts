@@ -366,6 +366,15 @@ export function headlineFor(
  */
 const CUSTOMER_CANCEL_REASON = "Customer requested cancellation";
 
+/**
+ * The reason an unpaid wallet order is cancelled with once its payment
+ * window closes (issue #115) — by `expireAbandonedOrders` and by the
+ * `expire_abandoned_orders()` sweep, which writes the same words. Not the
+ * restaurant's doing, so it is not introduced as one.
+ */
+export const ABANDONED_PAYMENT_REASON =
+  "Payment wasn't completed, so this order was cancelled. Nothing was charged.";
+
 export function cancellationNoticeFor(reason: string | null): {
   message: string;
   reason: string | null;
@@ -375,6 +384,13 @@ export function cancellationNoticeFor(reason: string | null): {
   if (trimmed === CUSTOMER_CANCEL_REASON) {
     return { message: "You cancelled this order.", reason: null };
   }
+  if (trimmed === ABANDONED_PAYMENT_REASON) {
+    return {
+      message:
+        "Payment wasn't completed in time, so this order was cancelled. Nothing was charged.",
+      reason: null,
+    };
+  }
   if (!trimmed) {
     return {
       message:
@@ -383,4 +399,121 @@ export function cancellationNoticeFor(reason: string | null): {
     };
   }
   return { message: "The restaurant cancelled this order.", reason: trimmed };
+}
+
+// ---------------------------------------------------------------------------
+// Waiting for the store to accept (issue #115)
+// ---------------------------------------------------------------------------
+
+/**
+ * How long an order may sit at `pending` — placed, not yet confirmed by
+ * staff — before each thing happens. Counted from `order.pending_at`, when it
+ * entered the kitchen queue (a wallet order only gets there once paid).
+ *
+ * The 20 is enforced by `expire_unaccepted_orders()` in the database
+ * (20260928000005, run by pg_cron every 5 minutes); change both together.
+ */
+export const PENDING_FLASH_MINUTES = 5;
+export const PENDING_WARN_MINUTES = 10;
+export const PENDING_TIMEOUT_MINUTES = 20;
+
+/** Whole minutes since `since`, or null when there is no timestamp. */
+export function minutesSince(
+  since: string | Date | null | undefined,
+  now: Date = new Date(),
+): number | null {
+  if (!since) return null;
+  const then = new Date(since).getTime();
+  if (Number.isNaN(then)) return null;
+  return Math.max(0, (now.getTime() - then) / 60_000);
+}
+
+/** Staff screens: has this order waited long enough to flash? */
+export function isPendingTooLong(
+  pendingAt: string | null | undefined,
+  now: Date = new Date(),
+): boolean {
+  const waited = minutesSince(pendingAt, now);
+  return waited !== null && waited >= PENDING_FLASH_MINUTES;
+}
+
+export type PendingPrompt = "none" | "waiting" | "cancel-free";
+
+/**
+ * Tracking page: what to tell a customer whose order is still `pending`.
+ * Nothing for the first 5 minutes, "waiting for the store" from 5, and
+ * "the store hasn't confirmed — you can cancel for free" from 10.
+ */
+export function pendingPromptFor(
+  orderStatus: string | null | undefined,
+  pendingAt: string | null | undefined,
+  now: Date = new Date(),
+): PendingPrompt {
+  if (orderStatus !== "pending") return "none";
+  const waited = minutesSince(pendingAt, now);
+  if (waited === null) return "none";
+  if (waited >= PENDING_WARN_MINUTES) return "cancel-free";
+  if (waited >= PENDING_FLASH_MINUTES) return "waiting";
+  return "none";
+}
+
+// ---------------------------------------------------------------------------
+// Refunds on a cancelled paid order (issue #115)
+// ---------------------------------------------------------------------------
+
+/** What the tracking page knows about how the order was paid. */
+export type OrderPaymentSummary = {
+  /** Paid through PayMongo (GCash / Maya), as opposed to at the counter. */
+  paidOnline: boolean;
+  /** The transaction's payment_status: paid, refund_pending, refunded, … */
+  status: string | null;
+  /** Pesos PayMongo took, or null when unknown. */
+  amount: number | null;
+};
+
+/**
+ * The refund summary from the tracking page's payment row
+ * (`TrackedOrder.payment`): paid online means a PayMongo transaction that
+ * money was actually taken on — paid, or somewhere in being refunded.
+ */
+export function paymentSummaryFrom(
+  payment: { method: string | null; status: string | null; totalPaid: number } | null | undefined,
+): OrderPaymentSummary | null {
+  if (!payment) return null;
+  const moneyTaken = ["paid", "refund_pending", "refunded", "refund_failed"];
+  return {
+    paidOnline: payment.method === "paymongo" && moneyTaken.includes(payment.status ?? ""),
+    status: payment.status,
+    amount: payment.totalPaid > 0 ? payment.totalPaid : null,
+  };
+}
+
+/**
+ * The line under a cancelled order's notice about the customer's money, or
+ * null when there is nothing to say (never paid online, or paid at the
+ * counter, where cash goes back by hand).
+ *
+ * A cancel that arrives over the realtime subscription carries no payment
+ * row, so a paid online order that has just been cancelled reads as "being
+ * refunded" even before the refund flag is seen — which is what the
+ * database's trigger does in the same moment.
+ */
+export function refundNoticeFor(payment: OrderPaymentSummary | null | undefined): string | null {
+  if (!payment?.paidOnline) return null;
+  const amount =
+    payment.amount !== null && payment.amount > 0
+      ? `₱${payment.amount.toLocaleString("en-PH", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })} `
+      : "";
+
+  switch (payment.status) {
+    case "refunded":
+      return `Your ${amount}GCash / Maya payment has been refunded. It may take a few days to show in your wallet.`;
+    case "refund_failed":
+      return `We couldn't refund your ${amount}payment automatically. The store has been notified and will refund you.`;
+    default:
+      return `Your ${amount}GCash / Maya payment is being refunded. It may take a few days to show in your wallet.`;
+  }
 }

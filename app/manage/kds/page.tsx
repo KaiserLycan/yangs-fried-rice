@@ -9,6 +9,7 @@ import { getDetailedOrders, updateOrderStatus } from "@/lib/actions/orders";
 import { mapStaffOrder, type StaffOrderRow } from "@/lib/orders/map-staff-order";
 import { actionCopy, dbStatusFor, type StaffAction } from "@/lib/orders/staff-actions";
 import { useToast, ToastProvider } from "@/components/ui/toast";
+import { useNow } from "@/lib/hooks/use-now";
 
 export default function KdsPage() {
   return (
@@ -22,6 +23,9 @@ function KdsInner() {
   const showToast = useToast();
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  // Re-renders the cards every 30s so one that has waited 5 minutes for
+  // staff to accept starts flashing between refetches (issue #115).
+  const now = useNow(30_000);
 
   const fetchOrders = useCallback(async () => {
     setIsLoading(true);
@@ -175,6 +179,7 @@ function KdsInner() {
               <KdsOrderCard
                 key={order.id}
                 order={order}
+                now={now}
                 onAction={handleAction}
               />
             ))}

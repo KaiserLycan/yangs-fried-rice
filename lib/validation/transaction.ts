@@ -1,6 +1,22 @@
 import { z } from "zod";
 
 /**
+ * `transaction.payment_status` values. The two refund states are issue
+ * #115's: `refund_pending` is set by the database when a paid wallet order
+ * is cancelled, and `process-refunds` moves it to `refunded`, or to
+ * `refund_failed` for a manager to settle by hand (who may then mark it
+ * `refunded` through the transactions API).
+ */
+export const PAYMENT_STATUSES = [
+  "pending",
+  "paid",
+  "failed",
+  "refunded",
+  "refund_pending",
+  "refund_failed",
+] as const;
+
+/**
  * Schema for creating a new transaction record.
  */
 export const transactionSchema = z.object({
@@ -15,10 +31,10 @@ export const transactionSchema = z.object({
     }),
   }),
   payment_status: z
-    .enum(["pending", "paid", "failed", "refunded"], {
+    .enum(PAYMENT_STATUSES, {
       errorMap: () => ({
         message:
-          "Payment status must be one of: pending, paid, failed, refunded",
+          `Payment status must be one of: ${PAYMENT_STATUSES.join(", ")}`,
       }),
     })
     .default("pending"),
@@ -42,10 +58,10 @@ export const transactionSchema = z.object({
  * Schema for updating a transaction's payment status.
  */
 export const transactionUpdateSchema = z.object({
-  payment_status: z.enum(["pending", "paid", "failed", "refunded"], {
+  payment_status: z.enum(PAYMENT_STATUSES, {
     errorMap: () => ({
       message:
-        "Payment status must be one of: pending, paid, failed, refunded",
+        `Payment status must be one of: ${PAYMENT_STATUSES.join(", ")}`,
     }),
   }),
 });

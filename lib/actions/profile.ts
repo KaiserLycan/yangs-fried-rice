@@ -26,6 +26,9 @@ import {
   deliveryAddressSchema,
   passwordChangeSchema,
 } from "@/lib/validation/profile";
+import { countActiveOrders } from "@/lib/orders/active-orders";
+import { DELETE_BLOCKED_MESSAGE } from "@/lib/orders/active-orders-message";
+import { expireAbandonedOrders } from "@/lib/checkout/expire-abandoned-orders";
 
 /**
  * `fieldErrors` rides along with `error` when the rejection is about a
@@ -509,6 +512,34 @@ export async function deleteMyAccount(): Promise<RouterResult<undefined>> {
   }
 
   const userId = user.id;
+
+  // Not while an order is still in progress (issue #115): the kitchen may
+  // be cooking it, the counter may be waiting for them, or a payment may be
+  // owed or refunded. Checked before anything is touched, and a failed check
+  // refuses too — this is the one action that cannot be taken back.
+  //
+  // A wallet order abandoned past its 30-minute window is cancelled first,
+  // so it doesn't block deletion while waiting for the next sweep. Best
+  // effort: if it fails, the count below still sees the order and refuses.
+  try {
+    await expireAbandonedOrders(userId);
+  } catch (error) {
+    console.error("deleteMyAccount: could not expire abandoned orders:", error);
+  }
+
+  let activeOrders: number;
+  try {
+    activeOrders = await countActiveOrders(supabase, userId);
+  } catch (error) {
+    console.error("deleteMyAccount: could not count active orders:", error);
+    return {
+      data: null,
+      error: "We couldn't check your orders. Please try again.",
+    };
+  }
+  if (activeOrders > 0) {
+    return { data: null, error: DELETE_BLOCKED_MESSAGE };
+  }
 
   // Read before the row goes: the photo is only reachable through it.
   const { data: photoRow } = await supabase

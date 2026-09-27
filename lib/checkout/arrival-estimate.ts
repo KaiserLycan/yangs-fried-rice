@@ -27,6 +27,7 @@ export function quoteArrivalWindow({
   fulfilment,
   activeOrdersAhead,
   distanceKm = null,
+  extraPrepMinutes = 0,
 }: {
   fulfilment: "delivery" | "pickup";
   /** How many orders the kitchen is already working through. */
@@ -38,8 +39,10 @@ export function quoteArrivalWindow({
    * transit time rather than blocking the estimate.
    */
   distanceKm?: number | null;
+  /** The manager's extra prep buffer from `store_setting` (issue #115). */
+  extraPrepMinutes?: number;
 }): string {
-  const prep = calculateKitchenPrepMinutes(activeOrdersAhead);
+  const prep = calculateKitchenPrepMinutes(activeOrdersAhead, extraPrepMinutes);
   const transit = calculateTransitMinutes(
     distanceKm,
     fulfilment === "pickup" ? "take_out" : "delivery",

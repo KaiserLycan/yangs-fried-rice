@@ -11,11 +11,15 @@ import {
   cancellationNoticeFor,
   fulfilmentOf,
   headlineFor,
+  pendingPromptFor,
+  paymentSummaryFrom,
+  refundNoticeFor,
   resolveOrderProgress,
   stageReachedAt,
   timelineStages,
   type StatusChange,
 } from "@/lib/orders/order-stage";
+import { useNow } from "@/lib/hooks/use-now";
 import { formatClockTime } from "@/lib/checkout/order-time";
 import type { TrackedOrder } from "@/lib/orders/read-tracked-order";
 import { Alert } from "@/components/ui/alert";
@@ -57,6 +61,7 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
     cancelledAt: order.cancelledAt,
     cancellationReason: order.cancellationReason,
     deliveryStatus: order.deliveryStatus,
+    pendingAt: order.pendingAt ?? null,
   };
 
   /**
@@ -72,7 +77,7 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
    * `order` object itself would not work, since the server hands over a new
    * object every render and the patch would be thrown away immediately.
    */
-  const serverKey = `${order.orderStatus}|${order.cancelledAt}|${order.cancellationReason}|${order.deliveryStatus}`;
+  const serverKey = `${order.orderStatus}|${order.cancelledAt}|${order.cancellationReason}|${order.deliveryStatus}|${order.pendingAt ?? ""}`;
   const [live, setLive] = React.useState<typeof serverStatus | null>(null);
   const [seenKey, setSeenKey] = React.useState(serverKey);
 
@@ -180,6 +185,7 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
               cancelledAt: (payload.new.cancelled_at as string | null) ?? null,
               cancellationReason:
                 (payload.new.cancellation_reason as string | null) ?? null,
+              pendingAt: (payload.new.pending_at as string | null) ?? null,
             }));
             refreshEta();
           },
@@ -232,6 +238,15 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
     fulfilment,
     stageReachedAt(statusLog, order.orderType),
   );
+
+  // Waiting for the store to accept (issue #115): nothing for 5 minutes,
+  // "waiting" from 5, a free-cancel prompt from 10. The clock ticks so the
+  // prompt appears without anything else changing; the realtime channel
+  // above clears it the moment staff confirm.
+  const now = useNow(15_000);
+  const pendingPrompt = pendingPromptFor(status.orderStatus, status.pendingAt, now);
+  const refundNotice =
+    progress.kind === "cancelled" ? refundNoticeFor(paymentSummaryFrom(order.payment)) : null;
 
   // While a fresh estimate is on its way the old one stays up rather than
   // flashing the fallback; only a screen with nothing yet says it is working.
@@ -302,16 +317,37 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
                     {notice.message}
                     {/* Its own line, so it reads as the reason (P54). Spans,
                       because Alert already wraps its content in a <p>. */}
-                    {notice.reason && (
-                      <span className="mt-1 block">
-                        <span className="font-semibold">Reason:</span>{" "}
-                        {notice.reason}
-                      </span>
-                    )}
-                  </Alert>
-                </div>
-              );
-            })()}
+                  {notice.reason && (
+                    <span className="mt-1 block">
+                      <span className="font-semibold">Reason:</span> {notice.reason}
+                    </span>
+                  )}
+                  {/* Paid online and cancelled: where the money is (issue #115). */}
+                  {refundNotice && (
+                    <span className="mt-1 block">{refundNotice}</span>
+                  )}
+                </Alert>
+              </div>
+            );
+          })()}
+
+          {pendingPrompt === "waiting" && (
+            <p
+              role="status"
+              className="mt-3 text-sm text-on-ink-muted md:text-muted-strong"
+            >
+              Waiting for the store to confirm your order…
+            </p>
+          )}
+          {pendingPrompt === "cancel-free" && (
+            <div
+              role="alert"
+              className="mt-4 rounded-md border border-amber-500/60 bg-amber-50 px-[14px] py-[11px] text-sm font-bold leading-snug text-amber-900"
+            >
+              The store hasn&apos;t confirmed yet. You can cancel for free.
+            </div>
+          )}
+
         </header>
 
         {/* Second on mobile, right-hand column on desktop — where the
@@ -335,6 +371,7 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
               orderId={orderId}
               orderNumber={order.orderNumber}
               progress={progress}
+              prominent={pendingPrompt === "cancel-free"}
             />
           </div>
           {/* One rating for the whole order, and none offered once given

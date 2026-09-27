@@ -8,8 +8,10 @@ import { ProductPhotoPlaceholder } from "@/components/menu/product-photo-placeho
 import { addCartItem, updateCartItem } from "@/lib/actions/cart";
 import { useCartAction } from "@/lib/cart/use-cart-action";
 import { formatPeso, type ProductListing } from "@/lib/menu/product-listing";
-import { MIN_QUANTITY } from "@/lib/menu/quantity";
+import { MIN_QUANTITY, MAX_QUANTITY } from "@/lib/menu/quantity";
+import { wouldExceedOrderCap, BIG_ORDER_MESSAGE } from "@/lib/cart/limits";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast";
 
 const SPECIAL_INSTRUCTIONS_PLACEHOLDER = "e.g. extra chili, no egg";
 
@@ -60,6 +62,8 @@ export function ItemDetailModal({
   onAdd,
   editing,
   isGuest = false,
+  cartTotalItems = 0,
+  cartProductItems = 0,
 }: {
   /** `null` closes the dialog — there is no separate `open` boolean to keep
    * in sync with which product it is showing. */
@@ -68,8 +72,11 @@ export function ItemDetailModal({
   onAdd?: (quantity: number, instructions: string) => void;
   editing?: CartLineEdit;
   isGuest?: boolean;
+  cartTotalItems?: number;
+  cartProductItems?: number;
 }) {
   const { run, pending } = useCartAction();
+  const showToast = useToast();
   const ref = React.useRef<HTMLDialogElement>(null);
   const [quantity, setQuantity] = React.useState(MIN_QUANTITY);
   const [instructions, setInstructions] = React.useState("");
@@ -120,6 +127,11 @@ export function ItemDetailModal({
 
   const lineTotal = formatPeso((product.price + addOnsTotal) * quantity);
 
+  const delta = editing ? quantity - editing.quantity : quantity;
+  const isOverOrderCap = wouldExceedOrderCap(cartTotalItems, delta);
+  const isOverProductCap = (cartProductItems + delta) > MAX_QUANTITY;
+  const isCapped = isOverOrderCap || isOverProductCap;
+
   // Optimistic UI requested by user: The modal closes immediately and updates the cart 
   // without waiting for the server roundtrip, making the interaction feel instantaneous.
   function handleAddToCart() {
@@ -138,7 +150,12 @@ export function ItemDetailModal({
           quantity: qty,
           special_instructions: inst || null,
           add_on_ids: Array.from(selectedAddOns),
-        })
+        }),
+      () => {
+        if (cartTotalItems + qty === 30) {
+          showToast(`That's a big order! ${BIG_ORDER_MESSAGE}`);
+        }
+      }
     );
   }
 
@@ -176,7 +193,7 @@ export function ItemDetailModal({
       <Button variant="unstyled"
         type="button"
         onClick={editing ? handleSaveEdit : handleAddToCart}
-        disabled={pending || !product!.isAvailable}
+        disabled={pending || !product!.isAvailable || isCapped}
         className={`${className} disabled:cursor-not-allowed disabled:opacity-60`}
       >
         <span>{primaryLabel}</span>
@@ -425,3 +442,4 @@ export function AddOnsSection({
     </div>
   );
 }
+

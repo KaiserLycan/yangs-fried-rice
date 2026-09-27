@@ -11,7 +11,7 @@ import { ItemDetailModal } from "@/components/menu/item-detail-modal";
 import { MenuEmptyState } from "@/components/menu/menu-empty-state";
 import { MobileMenuHeader } from "@/components/menu/mobile-menu-header";
 import { OrderAgainRow } from "@/components/menu/order-again-row";
-import { isRestaurantOpen, nextOpeningLabel, STORE_HOURS_LABEL } from "@/lib/store-hours";
+
 import { ProductCard } from "@/components/menu/product-card";
 import { ProductRow } from "@/components/menu/product-row";
 import { SearchField } from "@/components/menu/search-field";
@@ -33,6 +33,8 @@ import type { CartRead } from "@/lib/cart/read-cart";
 import type { RecentOrder } from "@/lib/orders/read-recent-orders";
 import { createClient } from "@/lib/supabase/client";
 import { uniqueChannelName } from "@/lib/supabase/channel-name";
+import { useStoreStatus } from "@/lib/hooks/use-store-status";
+import { BUSY_MESSAGE, formatStoreHours } from "@/lib/store/store-status";
 
 /** Debounce for the search field, so every keystroke doesn't fire a request. */
 const SEARCH_DEBOUNCE_MS = 250;
@@ -205,20 +207,9 @@ export function MenuScreen({
 
   const hasFilter = search.trim().length > 0 || selectedCategory !== null;
 
-  // Determine if branch is open (8am - 6pm Manila time).
-  // Default to true during SSR to avoid hydration mismatch, then check on mount.
-  const [isBranchOpen, setIsBranchOpen] = React.useState(true);
-  const [opensLabel, setOpensLabel] = React.useState("");
-
-  React.useEffect(() => {
-    const checkBranchHours = () => {
-      setIsBranchOpen(isRestaurantOpen());
-      setOpensLabel(nextOpeningLabel());
-    };
-    checkBranchHours();
-    const interval = setInterval(checkBranchHours, 60000);
-    return () => clearInterval(interval);
-  }, []);
+  // Open / paused / busy, from the database's hours and the manager's pause
+  // (issue #115). Null until the first answer, so no banner flashes on load.
+  const storeStatus = useStoreStatus();
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -235,12 +226,15 @@ export function MenuScreen({
         onSearchChange={setSearch}
       />
       
-      {!isBranchOpen && (
+      {storeStatus && !storeStatus.isOpen ? (
         <Alert className="rounded-none border-x-0 border-t-0 flex items-center justify-center">
-          We&apos;re closed right now. {opensLabel} ({STORE_HOURS_LABEL}). You can
-          still add to your cart — it&apos;s saved until we open.
+          Store is currently closed. Restaurant hours are {formatStoreHours(storeStatus)}.
         </Alert>
-      )}
+      ) : storeStatus && (storeStatus.isPaused || storeStatus.isBusy) ? (
+        <Alert className="rounded-none border-x-0 border-t-0 flex items-center justify-center">
+          {BUSY_MESSAGE}
+        </Alert>
+      ) : null}
 
       {categories ? (
         <CategoryChips
@@ -385,6 +379,8 @@ export function MenuScreen({
       <ItemDetailModal
         product={selectedProduct}
         isGuest={isGuest}
+        cartTotalItems={(optimisticCartLines ?? []).reduce((acc, line) => acc + line.quantity, 0)}
+        cartProductItems={(optimisticCartLines ?? []).filter(l => l.name === selectedProduct?.name).reduce((acc, line) => acc + line.quantity, 0)}
         onClose={() => setSelectedProduct(null)}
         onAdd={(quantity, instructions) => {
           if (!selectedProduct) return;

@@ -51,6 +51,11 @@ export type TrackedOrder = {
   cancelledAt: string | null;
   cancellationReason: string | null;
   /**
+   * When the order started waiting for staff to accept it (issue #115). The
+   * screen prompts from 5 minutes and offers a free cancel from 10.
+   */
+  pendingAt?: string | null;
+  /**
    * Always null: the shop is pickup-only and the `delivery` table is gone
    * (issue #114). Kept on the type because `resolveOrderProgress` still
    * accepts it for legacy delivery orders.
@@ -107,7 +112,7 @@ export async function readTrackedOrder(
   const { data: order } = await supabase
     .from("order")
     .select(
-      "order_id, order_number, order_status, order_type, cancelled_at, cancellation_reason, created_at, completed_at, delivery_fee, special_instructions, promised_at",
+      "order_id, order_number, order_status, order_type, cancelled_at, cancellation_reason, created_at, completed_at, delivery_fee, special_instructions, pending_at, promised_at"
     )
     .eq("order_id", orderId)
     .eq("customer_id", user.id)
@@ -165,6 +170,11 @@ export async function readTrackedOrder(
     orderStatus: order.order_status,
     cancelledAt: order.cancelled_at,
     cancellationReason: order.cancellation_reason,
+    // An order from before pending_at existed falls back to when it was made.
+    pendingAt:
+      order.order_status === "pending"
+        ? (order.pending_at ?? order.created_at)
+        : order.pending_at,
     deliveryStatus: null,
     orderType: order.order_type,
     placedAt: order.created_at,
