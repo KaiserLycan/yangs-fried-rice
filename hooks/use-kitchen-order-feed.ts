@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { uniqueChannelName } from "@/lib/supabase/channel-name";
 
@@ -52,9 +52,9 @@ export function useKitchenOrderFeed({
   }, []);
 
   /** Orders already on the board when it loaded should not ring later. */
-  return {
-    markSeen(orderIds: string[]) {
-      for (const id of orderIds) announced.current.add(id);
-    },
-  };
+  const markSeen = useCallback((orderIds: string[]) => {
+    for (const id of orderIds) announced.current.add(id);
+  }, []);
+
+  return { markSeen };
 }
