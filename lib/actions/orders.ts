@@ -366,6 +366,14 @@ export async function getDetailedOrders(
       query = query.eq("transaction.payment_method", filters.payment_method);
     }
   }
+  // Order total = items + add-ons, what the card shows; stored at checkout
+  // as transaction.subtotal (answers "every order over ₱2,000 paid in cash").
+  if (filters.min_total !== undefined) {
+    query = query.gte("transaction.subtotal", filters.min_total);
+  }
+  if (filters.max_total !== undefined) {
+    query = query.lte("transaction.subtotal", filters.max_total);
+  }
   if (filters.order_type === "take_out") {
     // Older orders were stored as "pickup" before take-out was the only kind.
     query = query.in("order_type", ["take_out", "takeout", "pickup", "pick_up"]);
