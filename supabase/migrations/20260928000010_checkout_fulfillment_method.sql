@@ -16,6 +16,14 @@
 -- 1. Allowed values
 -- ---------------------------------------------------------------------------
 
+-- Earlier experiments used other spellings ('unspecified', 'take_out', …).
+-- None of them came from a customer's choice, so they become "not specified"
+-- rather than stopping the constraint from being added.
+UPDATE public."order"
+SET fulfillment_method = NULL
+WHERE fulfillment_method IS NOT NULL
+  AND fulfillment_method NOT IN ('self_pickup', '3rd_party_courier');
+
 ALTER TABLE public."order"
   DROP CONSTRAINT IF EXISTS order_fulfillment_method_check;
 ALTER TABLE public."order"
