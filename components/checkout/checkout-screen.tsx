@@ -115,6 +115,13 @@ export function CheckoutScreen({
             <div className="order-2 flex flex-col gap-[18px] md:order-1">
               <section className="flex flex-col gap-[12px] md:rounded-lg md:border md:border-rule md:bg-card md:p-[20px]">
                 <h2 className="text-[14px] font-bold uppercase tracking-[1.44px] text-muted-foreground md:text-[14px] md:tracking-[1.54px]">
+                  Who&apos;s picking up?
+                </h2>
+                <PickupByPicker value={pickupBy} onChange={setPickupBy} />
+              </section>
+
+              <section className="flex flex-col gap-[12px] md:rounded-lg md:border md:border-rule md:bg-card md:p-[20px]">
+                <h2 className="text-[14px] font-bold uppercase tracking-[1.44px] text-muted-foreground md:text-[14px] md:tracking-[1.54px]">
                   Payment method
                 </h2>
                 <PaymentMethodPicker
