@@ -336,7 +336,7 @@ Expected: "No stuck or failed payments right now."
 **TC-02-08 KDS agrees** · S or M · `/manage/kds`
 1. With O6 still stuck, open the KDS tab **Payment Pending/Issues**.
 
-Expected: O6 is there with a **Payment Issue** chip. (Same 5-minute rule as the Orders tab.)
+Expected: O6 is there with a red **Payment failed** chip (an unfinished one says **Awaiting payment**), and a clock since it was placed.
 - [ ] Pass - [ ] Fail — notes: ______
 
 ---
