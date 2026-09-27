@@ -113,17 +113,6 @@ function countOf(text: string | RegExp) {
   return screen.queryAllByText(text).length;
 }
 
-  beforeEach(() => {
-    // The address note calls the real validation route on mount. Stubbed so
-    // these tests don't depend on Nominatim being reachable.
-    // Return an unresolved promise by default to prevent act() warnings in
-    // tests that don't wait for the validation note to settle.
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockReturnValue(new Promise(() => {}))
-    );
-  });
-
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.clearAllMocks();
@@ -674,81 +663,6 @@ describe("Checkout delivery details", () => {
     expect(
       screen.getByText(/no saved delivery address yet/i),
     ).toBeInTheDocument();
-    // The frame's confident validation line must not appear over an address
-    // that does not exist.
-    expect(countOf(/validated against mapping service/i)).toBe(0);
-  });
-
-  it("confirms the address once the mapping service validates it", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ valid: true }),
-      })
-    );
-    renderCheckout();
-
-    await waitFor(() =>
-      expect(countOf(/validated against mapping service/i)).toBeGreaterThan(0),
-    );
-    expect(fetch).toHaveBeenCalledWith(
-      "/api/address/validate",
-      expect.objectContaining({ method: "POST" }),
-    );
-  });
-
-  it("does not claim validation when the mapping service rejects the address", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          valid: false,
-          message: "Address could not be found.",
-        }),
-      }),
-    );
-
-    renderCheckout();
-
-    expect(
-      await screen.findByText("Address could not be found."),
-    ).toBeInTheDocument();
-    expect(countOf(/validated against mapping service/i)).toBe(0);
-  });
-
-  it("does not claim validation when the mapping service is unreachable", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
-
-    renderCheckout();
-
-    expect(
-      await screen.findByText(/couldn't reach the mapping service/i),
-    ).toBeInTheDocument();
-    expect(countOf(/validated against mapping service/i)).toBe(0);
-  });
-
-  // The route answers 400 with an `error` when `addressSchema` rejects the
-  // address itself. That is a bad address, not an outage, and saying
-  // "we couldn't reach the service" would send the customer looking for a
-  // problem that isn't there.
-  it("reports a rejected address as a bad address, not an outage", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: false,
-        status: 400,
-        json: async () => ({ error: "Address appears too short." }),
-      }),
-    );
-
-    renderCheckout();
-
-    expect(
-      await screen.findByText("Address appears too short."),
-    ).toBeInTheDocument();
-    expect(countOf(/couldn't reach the mapping service/i)).toBe(0);
   });
 
   // A pickup order has no address to confirm, and the "add one before
@@ -762,7 +676,6 @@ describe("Checkout delivery details", () => {
 
     expect(countOf(/no saved delivery address yet/i)).toBe(0);
     expect(countOf("Delivery details")).toBe(0);
-    expect(fetch).not.toHaveBeenCalled();
   });
 });
 

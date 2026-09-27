@@ -35,12 +35,6 @@ vi.mock("next/navigation", () => ({
   useRouter: () => router,
 }));
 
-// The live map is Leaflet, which needs a real browser (ResizeObserver, a
-// laid-out container). Nothing here is about the map, so it is stubbed.
-vi.mock("@/components/deliver/delivery-map", () => ({
-  DeliveryMap: () => <div data-testid="delivery-map" />,
-}));
-
 vi.mock("@/lib/actions/cart", () => ({
   cancelCustomerOrder: vi.fn(),
 }));
@@ -101,7 +95,6 @@ function trackedOrder(over: Partial<TrackedOrder> = {}): TrackedOrder {
     orderType: "Delivery",
     arrivalWindow: "35–45 min",
     destination: "21 Mabini St",
-    destinationCoordinates: null,
     items: [],
     rating: null,
     ...over,

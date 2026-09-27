@@ -1,9 +1,5 @@
 "use client";
 import * as React from "react";
-import {
-  AddressValidationNote,
-  type AddressValidationStatus,
-} from "@/components/checkout/address-validation-note";
 import { formatMobileNumber } from "@/lib/profile/mobile-number";
 import type { CustomerProfile } from "@/lib/profile/customer-profile";
 import { setActiveAddress, upsertCustomerAddress } from "@/lib/actions/address";
@@ -16,7 +12,6 @@ import {
 import { FormErrorSummary } from "@/components/forms/form-error-summary";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Tooltip } from "@/components/ui/tooltip";
-import { addressForGeocoding } from "@/lib/address/geocoding-query";
 import { useLiveValidation } from "@/lib/forms/use-live-validation";
 import { useSubmitShortcut } from "@/lib/hooks/use-shortcut";
 import { lengthProps } from "@/lib/validation/fields";
@@ -49,9 +44,6 @@ export function DeliveryDetailsCard({ profile }: { profile: CustomerProfile }) {
   const [editingAddressId, setEditingAddressId] = React.useState<string | null>(null);
   const [saveError, setSaveError] = React.useState<string | null>(null);
   const [saveFieldErrors, setSaveFieldErrors] = React.useState<FieldErrors | null>(null);
-  const [draftAddressStr, setDraftAddressStr] = React.useState("");
-  const [addressStatus, setAddressStatus] =
-    React.useState<AddressValidationStatus>("checking");
 
   const live = useLiveValidation({ schema: deliveryAddressSchema, read: readAddressForm });
   useSubmitShortcut(live.formRef, { enabled: isEditing });
@@ -63,7 +55,6 @@ export function DeliveryDetailsCard({ profile }: { profile: CustomerProfile }) {
   const startEditing = (addressId?: string) => {
     const address = addressId ? profile.addresses.find((a) => a.id === addressId) : undefined;
     setEditingAddressId(address?.id ?? null);
-    setDraftAddressStr(address ? addressForGeocoding(address) : "");
     setSaveError(null);
     setSaveFieldErrors(null);
     live.reset();
@@ -76,11 +67,6 @@ export function DeliveryDetailsCard({ profile }: { profile: CustomerProfile }) {
     setSaveFieldErrors(null);
     live.reset();
   };
-
-  function handleFormChange(event: React.FormEvent<HTMLFormElement>) {
-    live.formProps.onChange(event);
-    setDraftAddressStr(addressForGeocoding(readAddressForm(new FormData(event.currentTarget))));
-  }
 
   const handleSave = live.handleSubmit(async (values) => {
     setIsSaving(true);
@@ -106,7 +92,6 @@ export function DeliveryDetailsCard({ profile }: { profile: CustomerProfile }) {
   });
 
   const activeAddress = profile.addresses.find(a => a.id === profile.activeAddressId) ?? profile.addresses[0];
-  const addressBlocked = addressStatus === "invalid";
 
   return (
     <section className="flex flex-col gap-[12px] rounded-lg border border-rule bg-card p-[20px]">
@@ -128,7 +113,6 @@ export function DeliveryDetailsCard({ profile }: { profile: CustomerProfile }) {
         <form
           key={editingAddressId ?? "new"}
           {...live.formProps}
-          onChange={handleFormChange}
           onSubmit={handleSave}
           className="mt-[4px] flex flex-col gap-[12px] rounded-[11px] border border-rule bg-background p-[16px]"
         >
@@ -177,19 +161,13 @@ export function DeliveryDetailsCard({ profile }: { profile: CustomerProfile }) {
             />
           </CardField>
 
-          <AddressValidationNote address={draftAddressStr} onStatusChange={setAddressStatus} />
-
           <div className="mt-[8px] flex items-center gap-[8px]">
             <SubmitButton
               pending={isSaving}
-              invalid={!live.isValid || addressBlocked}
+              invalid={!live.isValid}
               pendingLabel="Saving..."
               hint="Save this address and deliver to it"
-              blockedHint={
-                addressBlocked
-                  ? "We can't deliver to this address — see the note above."
-                  : "Complete the highlighted fields to continue."
-              }
+              blockedHint="Complete the highlighted fields to continue."
               wrapperClassName="w-auto"
               className="w-auto rounded-sm bg-foreground px-[16px] py-[10px] text-[13px] hover:bg-foreground/90 md:p-[10px] md:px-[16px]"
             >
@@ -289,9 +267,7 @@ export function DeliveryDetailsCard({ profile }: { profile: CustomerProfile }) {
         </div>
       )}
 
-      {!isEditing && activeAddress ? (
-        <AddressValidationNote address={addressForGeocoding(activeAddress)} />
-      ) : !isEditing && (
+      {!isEditing && !activeAddress && (
         <p className="text-[12px] text-muted-foreground">
           You have no saved delivery address yet. Please add one above.
         </p>

@@ -3,10 +3,6 @@
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import {
-  addressForGeocoding,
-  outsideDeliveryRadiusMessage,
-} from "@/lib/address/validate-ncr";
 import { addressRowFromParts } from "@/lib/address/format";
 import { deliveryAddressSchema } from "@/lib/validation/profile";
 import {
@@ -69,12 +65,6 @@ export async function upsertCustomerAddress(
       error: "Some address fields need fixing.",
       fieldErrors: fieldErrorsFromIssues(parsed.error.issues),
     };
-  }
-
-  // Refuse an address that is known to be beyond the delivery radius.
-  const tooFar = await outsideDeliveryRadiusMessage(addressForGeocoding(parsed.data));
-  if (tooFar) {
-    return { success: false, error: tooFar, fieldErrors: { street: tooFar } };
   }
 
   const payload = {

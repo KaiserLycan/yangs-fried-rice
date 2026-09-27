@@ -64,12 +64,6 @@ const config: Config = {
           pending: "hsl(var(--timeline-pending))",
           meta: "hsl(var(--timeline-meta))",
         },
-        map: {
-          surface: "hsl(var(--map-surface))",
-          grid: "hsl(var(--map-grid))",
-          label: "hsl(var(--map-label))",
-          border: "hsl(var(--map-border))",
-        },
         rule: "hsl(var(--rule))",
         track: "hsl(var(--track))",
         "field-border": "hsl(var(--field-border))",

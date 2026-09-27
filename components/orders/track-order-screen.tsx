@@ -9,7 +9,6 @@ import {
   arrivalLineFor,
   arrivalWindowFrom,
 } from "@/lib/orders/arrival-window";
-import { cn } from "@/lib/utils";
 import {
   cancellationNoticeFor,
   fulfilmentOf,
@@ -20,7 +19,6 @@ import {
 import type { TrackedOrder } from "@/lib/orders/read-tracked-order";
 import { Alert } from "@/components/ui/alert";
 import { CancelOrderControl } from "@/components/orders/cancel-order-control";
-import { LiveMapPanel } from "@/components/orders/live-map-panel";
 import { OrderTimeline } from "@/components/orders/order-timeline";
 import {
   OrderRatingDisplay,
@@ -28,16 +26,10 @@ import {
 } from "@/components/orders/order-rating";
 
 /**
- * The tracking screen. Desktop (`133:1164`) is two columns — header, timeline
- * and cancel control on the left, map on the right. Mobile (`132:481`,
- * `132:543`) stacks them, and the order is header, then map, then timeline:
- * the map sits between the header and the timeline rather than below
- * everything.
- *
- * That reordering is done with grid placement rather than by rendering the
- * screen twice. Two copies would be the quicker way to write it and the wrong
- * thing to ship — the page would carry two `h1`s and two copies of the
- * timeline, and a screen reader would read the whole order twice.
+ * The tracking screen: header, then timeline and cancel control. The Figma
+ * frames (`133:1164` desktop, `132:481` / `132:543` mobile) also draw a map,
+ * but the shop is pickup-only (issue #114) and the map was removed in #116 —
+ * there is nothing to follow on it.
  *
  * No bottom tab bar on mobile, matching the precedent ticket 06 names: once a
  * customer is inside a specific flow screen rather than browsing, the tab bar
@@ -47,13 +39,7 @@ import {
  * interactivity — the page around it stays a Server Component and does the
  * reading.
  */
-export function TrackOrderScreen({ 
-  order,
-  locationIqApiKey
-}: { 
-  order: TrackedOrder;
-  locationIqApiKey?: string;
-}) {
+export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
   const serverStatus = {
     orderStatus: order.orderStatus,
     cancelledAt: order.cancelledAt,
@@ -192,12 +178,12 @@ export function TrackOrderScreen({
   return (
     <div className="min-h-screen bg-background">
       <div
-        className={cn(cnGrid, "md:grid-rows-[auto_auto]")}
+        className={cnLayout}
         data-testid="track-order-layout"
       >
         {/* Header. Full-bleed ink panel on mobile, plain copy on cream on
             desktop — same element, different clothes. */}
-        <header className="flex flex-col gap-[4px] bg-foreground p-[20px] md:col-start-1 md:row-start-1 md:gap-[3px] md:bg-transparent md:p-0">
+        <header className="flex flex-col gap-[4px] bg-foreground p-[20px] md:gap-[3px] md:bg-transparent md:p-0">
           <Link
             href="/orders"
             className="group mb-1 flex w-fit items-center gap-[4px] text-[11px] uppercase tracking-[1.76px] text-on-ink-faint transition-colors hover:text-white md:mb-2 md:text-[12px] md:tracking-[1.92px] md:text-muted-foreground md:hover:text-foreground"
@@ -244,15 +230,7 @@ export function TrackOrderScreen({
           })()}
         </header>
 
-        {/* Second on mobile, right-hand column on desktop. */}
-        <LiveMapPanel
-          riderName={null}
-          destinationCoordinates={order.destinationCoordinates}
-          className="md:col-start-2 md:row-start-1 md:row-span-full"
-          locationIqApiKey={locationIqApiKey}
-        />
-
-        <div className="flex flex-col items-start p-[20px] md:col-start-1 md:row-start-2 md:rounded-lg md:border md:border-rule md:bg-white md:p-[20px]">
+        <div className="flex flex-col items-start p-[20px] md:rounded-lg md:border md:border-rule md:bg-white md:p-[20px]">
           <OrderTimeline stages={stages} />
           {/* Ticket 06 left this as a render-prop slot for ticket 07 to fill.
               A function prop cannot cross the server/client boundary, and the
@@ -302,12 +280,8 @@ export function TrackOrderScreen({
 }
 
 /**
- * Mobile is a plain stack in DOM order. Desktop becomes a two-column grid
- * whose second column holds the map across every row — header and
- * timeline — which is what lets the map move from
- * between the header and the timeline to beside them without the markup
- * changing. The row count is set at the call site, because an empty third
- * row would still carry the gap above it.
+ * One column at every width. On desktop it keeps the width the left column
+ * had when the map sat beside it, so lines stay a readable length.
  */
-const cnGrid =
-  "mx-auto flex w-full max-w-[1200px] flex-col md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] md:items-start md:gap-[26px] md:px-[26px] md:pb-[60px] md:pt-[30px]";
+const cnLayout =
+  "mx-auto flex w-full max-w-[640px] flex-col md:gap-[26px] md:px-[26px] md:pb-[60px] md:pt-[30px]";

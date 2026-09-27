@@ -1,7 +1,6 @@
 import { orderItemName } from "@/lib/orders/item-name";
 import { createClient } from "@/lib/supabase/server";
 import { formatOrderNumber } from "@/lib/orders/order-number";
-import { validateNcrAddress } from "@/lib/address/validate-ncr";
 
 /**
  * One customer's order, narrowed to what the tracking screen draws.
@@ -42,8 +41,6 @@ export type TrackedOrder = {
   arrivalWindow: string | null;
   /** The address the order is going to, or null for a non-delivery order. */
   destination: string | null;
-  /** Geocoded coordinates of the destination */
-  destinationCoordinates: { lat: number; lng: number } | null;
   items: { productId: string; name: string }[];
   /**
    * The order-level `review.rating`, or null when the customer has not rated
@@ -105,7 +102,6 @@ export async function readTrackedOrder(
     orderType: order.order_type,
     arrivalWindow: null,
     destination: order.delivery_address,
-    destinationCoordinates: await geocode(order.delivery_address),
     items: (orderItems || []).map((item) => ({
       productId: item.product_id || "",
       name: orderItemName(
@@ -117,13 +113,4 @@ export async function readTrackedOrder(
     })),
     rating: review?.rating ?? null,
   };
-}
-
-async function geocode(address: string | null) {
-  if (!address) return null;
-  const result = await validateNcrAddress(address);
-  if (result.latitude && result.longitude) {
-    return { lat: result.latitude, lng: result.longitude };
-  }
-  return null;
 }

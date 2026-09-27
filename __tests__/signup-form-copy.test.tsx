@@ -16,13 +16,6 @@ vi.mock("@/app/(auth)/actions", () => ({
   loginCustomer: vi.fn(),
 }));
 
-vi.mock("@/components/checkout/address-validation-note", () => ({
-  AddressValidationNote: ({ onStatusChange }: { onStatusChange?: (s: string) => void }) => {
-    onStatusChange?.("valid");
-    return null;
-  },
-}));
-
 beforeEach(() => {
   vi.clearAllMocks();
   (useRouter as any).mockReturnValue({ push: vi.fn(), refresh: vi.fn() });
