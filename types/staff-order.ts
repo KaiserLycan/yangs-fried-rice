@@ -49,5 +49,18 @@ export type OrderData = {
   };
   /** 0 for every pickup order; kept for legacy delivery orders. */
   deliveryFee: number;
+  /** What the customer owes — after any Senior Citizen / PWD discount. */
   total: number;
+  /**
+   * Set when the customer claimed the Senior Citizen / PWD discount
+   * (issue #116). Staff check the ID before releasing the order.
+   */
+  seniorPwd?: {
+    type: "senior_citizen" | "pwd";
+    idNumber: string;
+    nameOnId: string;
+    discount: number;
+    /** False once the photo is deleted (order completed or cancelled). */
+    hasPhoto: boolean;
+  };
 };

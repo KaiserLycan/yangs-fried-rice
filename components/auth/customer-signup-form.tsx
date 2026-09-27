@@ -17,11 +17,6 @@ import {
   ADDRESS_FIELD_LABELS,
 } from "@/components/forms/address-fields";
 import { FormErrorSummary } from "@/components/forms/form-error-summary";
-import {
-  AddressValidationNote,
-  type AddressValidationStatus,
-} from "@/components/checkout/address-validation-note";
-import { addressForGeocoding } from "@/lib/address/geocoding-query";
 import { useLiveValidation } from "@/lib/forms/use-live-validation";
 import { useSubmitShortcut } from "@/lib/hooks/use-shortcut";
 import { toInternationalMobile } from "@/lib/profile/mobile-number";
@@ -96,22 +91,10 @@ function SignupFormInner() {
   // Only for the strength meter; the form still reads the field itself.
   const [password, setPassword] = useState("");
   const [isPending, startTransition] = useTransition();
-  const [draftAddressStr, setDraftAddressStr] = useState("");
-  const [addressStatus, setAddressStatus] =
-    useState<AddressValidationStatus>("checking");
 
   const live = useLiveValidation({ schema: signupFormSchema, read: readSignupForm });
   const { errors } = live;
   useSubmitShortcut(live.formRef);
-
-  function handleFormChange(event: React.FormEvent<HTMLFormElement>) {
-    live.formProps.onChange(event);
-    const values = readSignupForm(new FormData(event.currentTarget));
-    // Street, barangay, city and ZIP only. The house/building number is left
-    // out on purpose: "B10 L10 Camella Homes" is a lot inside a subdivision
-    // that no map lists, and including it stops the street from matching.
-    setDraftAddressStr(addressForGeocoding(values));
-  }
 
   const handleSubmit = live.handleSubmit(async ({ terms: _terms, ...values }) => {
     setServerError(null);
@@ -141,13 +124,10 @@ function SignupFormInner() {
     });
   });
 
-  const addressBlocked = addressStatus === "invalid";
-
   return (
     <div className="relative flex flex-col px-6 pb-[30px] md:justify-center md:bg-background md:px-[52px] md:py-[48px]">
       <form
         {...live.formProps}
-        onChange={handleFormChange}
         onSubmit={handleSubmit}
         className="flex flex-col gap-[10px] rounded-lg bg-background p-5 md:gap-[14px] md:rounded-none md:bg-transparent md:p-0"
       >
@@ -262,13 +242,6 @@ function SignupFormInner() {
 
         <AddressFields idPrefix="signup" variant="auth" errors={errors} />
 
-        <div className="-mt-1 px-1">
-          <AddressValidationNote
-            address={draftAddressStr}
-            onStatusChange={setAddressStatus}
-          />
-        </div>
-
         {/* Only while the form is being sent — it is the moment the
             confirmation email goes out, and the login page repeats it. */}
         {isPending ? (
@@ -309,18 +282,12 @@ function SignupFormInner() {
           {errors.terms ? <p className="text-sm text-primary">{errors.terms}</p> : null}
         </div>
 
-        {/* An address outside the delivery radius (or one the map can't find)
-            can't be used to sign up — the note above says why. */}
         <SubmitButton
           pending={isPending}
-          invalid={!live.isValid || addressBlocked}
+          invalid={!live.isValid}
           pendingLabel="Creating account…"
           hint="Create your account and sign in"
-          blockedHint={
-            addressBlocked
-              ? "We couldn't use this address — check the note above."
-              : "Complete the highlighted fields to continue."
-          }
+          blockedHint="Complete the highlighted fields to continue."
           wrapperClassName="w-full"
         >
           Create account

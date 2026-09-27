@@ -17,6 +17,16 @@ export const SITE_NAME = "Yang's Fried Rice";
 export const SITE_BRANCH = "Malate Branch, Manila";
 
 /**
+ * The seller, as the Internet Transactions Act (RA 11967) asks every online
+ * shop to show it: business name, address and contact (issue #116).
+ *
+ * TODO(owner): replace with the registered business name and the full street
+ * address of the branch. The repository only knows the branch name.
+ */
+export const SELLER_NAME = SITE_NAME;
+export const SELLER_ADDRESS = SITE_BRANCH;
+
+/**
  * Where a customer collects their order. The "ready for pickup" notification
  * is written by a database trigger
  * (`20260928000000_notifications_order_issues_and_realtime.sql`) and spells

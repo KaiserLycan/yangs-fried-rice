@@ -7,7 +7,7 @@
  * "three-eight-two-zero-six-D-C-zero" (UI/UX review, docs/user-simulation.md
  * #16).
  *
- * Now it is `order.order_number` (migration 20260928000003): `#1042`, handed
+ * Now it is `order.order_number` (migration 20260928000007): `#1042`, handed
  * out by the database in order, never reused and never editable. The UUID is
  * still the key for URLs and foreign keys; this is only what people see and
  * say. The notification trigger and the audit log print the same number.

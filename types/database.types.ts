@@ -467,6 +467,7 @@ export type Database = {
           order_number: number
           order_status: string | null
           order_type: string | null
+          promised_at: string | null
           special_instructions: string | null
         }
         Insert: {
@@ -482,6 +483,7 @@ export type Database = {
           order_number?: never
           order_status?: string | null
           order_type?: string | null
+          promised_at?: string | null
           special_instructions?: string | null
         }
         Update: {
@@ -497,6 +499,7 @@ export type Database = {
           order_number?: never
           order_status?: string | null
           order_type?: string | null
+          promised_at?: string | null
           special_instructions?: string | null
         }
         Relationships: [
@@ -687,6 +690,44 @@ export type Database = {
           },
         ]
       }
+      order_status_log: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          from_status: string | null
+          log_id: number
+          order_id: string
+          reason: string | null
+          to_status: string | null
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          from_status?: string | null
+          log_id?: never
+          order_id: string
+          reason?: string | null
+          to_status?: string | null
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          from_status?: string | null
+          log_id?: never
+          order_id?: string
+          reason?: string | null
+          to_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_status_log_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order"
+            referencedColumns: ["order_id"]
+          },
+        ]
+      }
       product: {
         Row: {
           archived_at: string | null
@@ -828,7 +869,9 @@ export type Database = {
         Row: {
           discount_amount: number | null
           discount_id_number: string | null
+          discount_id_photo_path: string | null
           discount_type: string | null
+          name_on_id: string | null
           order_id: string | null
           payment_method: string | null
           payment_status: string | null
@@ -843,7 +886,9 @@ export type Database = {
         Insert: {
           discount_amount?: number | null
           discount_id_number?: string | null
+          discount_id_photo_path?: string | null
           discount_type?: string | null
+          name_on_id?: string | null
           order_id?: string | null
           payment_method?: string | null
           payment_status?: string | null
@@ -858,7 +903,9 @@ export type Database = {
         Update: {
           discount_amount?: number | null
           discount_id_number?: string | null
+          discount_id_photo_path?: string | null
           discount_type?: string | null
+          name_on_id?: string | null
           order_id?: string | null
           payment_method?: string | null
           payment_status?: string | null
@@ -905,6 +952,8 @@ export type Database = {
       submit_cart_to_order: {
         Args: {
           p_cart_id: string
+          p_discount?: Json
+          p_expected_prices?: Json
           p_order_type?: string
           p_payment_method?: string
           p_special_instructions?: string

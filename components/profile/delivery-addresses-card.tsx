@@ -21,11 +21,6 @@ import { lengthProps } from "@/lib/validation/fields";
 import type { FieldErrors } from "@/lib/validation/field-errors";
 import { Dialog } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
-import {
-  AddressValidationNote,
-  type AddressValidationStatus,
-} from "@/components/checkout/address-validation-note";
-import { addressForGeocoding } from "@/lib/address/geocoding-query";
 import type { CustomerAddress } from "@/lib/profile/customer-profile";
 import {
   deliveryAddressSchema,
@@ -315,10 +310,6 @@ function AddressFormDialog({
   onClose: () => void;
   onSave: (values: DeliveryAddressValues) => void;
 }) {
-  const [draftAddressStr, setDraftAddressStr] = React.useState("");
-  const [addressStatus, setAddressStatus] =
-    React.useState<AddressValidationStatus>("checking");
-
   const live = useLiveValidation({
     schema: deliveryAddressSchema,
     read: (form) => ({
@@ -335,37 +326,16 @@ function AddressFormDialog({
   useSubmitShortcut(live.formRef, { enabled: open });
 
   React.useEffect(() => {
-    if (!open) {
-      reset();
-      return;
-    }
-    setDraftAddressStr(address ? addressForGeocoding(address) : "");
-  }, [open, address, reset]);
+    if (!open) reset();
+  }, [open, reset]);
 
   // A server rejection lands under the field it names.
   React.useEffect(() => {
     setServerErrors(serverFieldErrors);
   }, [serverFieldErrors, setServerErrors]);
 
-  function handleFormChange(event: React.FormEvent<HTMLFormElement>) {
-    live.formProps.onChange(event);
-    const form = new FormData(event.currentTarget);
-    // Street, barangay, city and ZIP only. The house/building number is left
-    // out on purpose: "B10 L10 Camella Homes" is a lot inside a subdivision
-    // that no map lists, and including it stops the street from matching.
-    setDraftAddressStr(
-      addressForGeocoding({
-        street: String(form.get("street") ?? ""),
-        barangay: String(form.get("barangay") ?? ""),
-        city: String(form.get("city") ?? ""),
-        zip: String(form.get("zip") ?? ""),
-      }),
-    );
-  }
-
   const formId = React.useId();
   const { errors } = live;
-  const addressBlocked = addressStatus === "invalid";
 
   return (
     <Dialog
@@ -381,16 +351,10 @@ function AddressFormDialog({
             variant="confirm"
             form={formId}
             pending={isSubmitting}
-            invalid={!live.isValid || addressBlocked}
+            invalid={!live.isValid}
             pendingLabel="Saving…"
             hint={address ? "Save changes to this address" : "Save this address"}
-            // An address the map rejects — including one beyond the delivery
-            // radius — can't be saved at all. The note under the form says why.
-            blockedHint={
-              addressBlocked
-                ? "We can't accept this address — see the note in the form."
-                : "Complete the highlighted fields to continue."
-            }
+            blockedHint="Complete the highlighted fields to continue."
             wrapperClassName="flex-1"
           >
             Save
@@ -403,7 +367,6 @@ function AddressFormDialog({
           key={address?.id ?? "add"}
           id={formId}
           {...live.formProps}
-          onChange={handleFormChange}
           onSubmit={live.handleSubmit(onSave)}
           className="flex flex-col gap-[12px]"
         >
@@ -451,13 +414,6 @@ function AddressFormDialog({
               invalid={Boolean(errors.deliveryNote)}
             />
           </CardField>
-
-          <div className="pt-2">
-            <AddressValidationNote
-              address={draftAddressStr}
-              onStatusChange={setAddressStatus}
-            />
-          </div>
         </form>
       ) : null}
     </Dialog>

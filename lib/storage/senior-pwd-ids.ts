@@ -112,3 +112,40 @@ export async function signSeniorPwdIdUrl(
   if (error || !data?.signedUrl) return null;
   return data.signedUrl;
 }
+
+/**
+ * Deletes an order's ID photo and clears `transaction.discount_id_photo_path`
+ * (issue #116). Called in the same action that completes or cancels the
+ * order: the privacy page promises the photo is gone once the order is done.
+ * The ID number and name stay on the transaction for the BIR record.
+ *
+ * Staff pass their own session (they may delete from the bucket and update
+ * the transaction); the customer's cancel passes the service role, after
+ * checking the order is theirs. Never throws — a failure is logged and the
+ * path is kept, so the photo can still be found and deleted later.
+ */
+export async function discardSeniorPwdIdPhoto(
+  supabase: SupabaseClient,
+  orderId: string,
+): Promise<void> {
+  const { data: rows } = await supabase
+    .from("transaction")
+    .select("transaction_id, discount_id_photo_path")
+    .eq("order_id", orderId)
+    .not("discount_id_photo_path", "is", null);
+
+  for (const row of rows ?? []) {
+    const path = row.discount_id_photo_path as string;
+    if (isSeniorPwdIdPath(path)) {
+      const { error } = await supabase.storage.from(SENIOR_PWD_ID_BUCKET).remove([path]);
+      if (error) {
+        console.error("discardSeniorPwdIdPhoto: could not delete", path, error.message);
+        continue;
+      }
+    }
+    await supabase
+      .from("transaction")
+      .update({ discount_id_photo_path: null })
+      .eq("transaction_id", row.transaction_id);
+  }
+}

@@ -61,6 +61,12 @@ export function KdsOrderCard({ order, onAction }: KdsOrderCardProps) {
 
       {/* Order Items List */}
       <div className="flex-1 flex flex-col overflow-y-auto min-h-0 px-[13px] py-[12px] gap-[10px]">
+        {order.seniorPwd && (
+          <div className="flex items-center justify-between rounded-md border border-amber-300 bg-amber-100/80 px-2.5 py-1 text-sm font-bold text-amber-950">
+            <span>Verify ID · {order.seniorPwd.type === "senior_citizen" ? "Senior" : "PWD"}</span>
+            <span>−₱{order.seniorPwd.discount.toFixed(2)}</span>
+          </div>
+        )}
         {order.items.map((item, index) => (
           <div key={index} className="flex flex-col w-full">
             <div className="flex gap-[10px] items-start text-foreground">

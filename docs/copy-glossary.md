@@ -33,15 +33,15 @@ The internal staff enum (`QUEUE`, `PREP`, `DELIVERY`, `COMPLETED`, `CANCELED` in
 | **Counter 1** | the counter, Counter #1 | `PICKUP_COUNTER` in `lib/site/site-info.ts`; the notification trigger prints the same text |
 | **Account** | Me, Profile | Bottom tab bar and nav bar |
 | **Sign in to order** | Add (for guests), Log in to add | The guest's action on a dish |
-| **Pay at the counter** | Cash on delivery, COD | The shop is pickup-only (#114); stored as `pay_in_store` |
-| **GCash / Maya** | PayMongo, e-wallet | The wallet option; PayMongo is the processor, not what customers see |
+| **Pay in store** (the checkout option) | Cash on delivery, COD, Cash | The shop is pickup-only (#114); stored as `pay_in_store`. In a sentence, "pay at the counter" is fine ("Pay at the counter instead"). |
+| **GCash / Maya** | PayMongo, e-wallet | The wallet option; PayMongo is the processor, not what customers see. Stored as `gcash` / `paymaya` (#116). |
 | **Report a problem** | Complaint, dispute | Missing / Wrong / Damaged, within 24 hours of pickup |
 
 The database spells the order type `take_out` (`order.order_type`). On screen it is always "Pickup".
 
 ## Order numbers
 
-An order is `#1042`: the `order.order_number` column (migration `20260928000003`), printed by `formatOrderNumber` in `lib/orders/order-number.ts`. Use the same number on the customer's screens, the staff screens, the KDS, the receipt, emails, notifications and the audit log.
+An order is `#1042`: the `order.order_number` column (migration `20260928000007`), printed by `formatOrderNumber` in `lib/orders/order-number.ts`. Use the same number on the customer's screens, the staff screens, the KDS, the receipt, emails, notifications and the audit log.
 
 Never show the UUID. The staff search still accepts the older 8-character reference (`#38206dc0`), for receipts printed before the change.
 
@@ -54,3 +54,10 @@ Hours are written `8:00 AM – 6:00 PM` (`STORE_HOURS_LABEL`). When the store is
 - Buttons and labels use sentence case: "Yes, it's ready", "Picked up", "Order again".
 - Staff card headers are the one place written in capitals, as the design has them.
 - Headings drawn in Anton (`font-display`) are uppercase through CSS. Write them in sentence case in the code.
+
+## Money (#116)
+
+- Totals show **VATable sales / VAT (12%) / Total**. Menu prices already include VAT.
+- With a Senior Citizen / PWD discount: **VAT exempt**, then **Discount**, then **Total**. The receipt names the kind: "Discount (Senior Citizen)" or "Discount (PWD)".
+- Staff see a **Verify ID** badge on discounted orders.
+- "Promised by 3:45 PM" is the ready-by time set at checkout. It never moves.

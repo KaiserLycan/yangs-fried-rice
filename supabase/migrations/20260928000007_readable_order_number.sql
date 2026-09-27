@@ -79,7 +79,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  -- The readable order number (20260928000003), as formatOrderNumber prints it.
+  -- The readable order number (20260928000007), as formatOrderNumber prints it.
   v_ref     text := '#' || coalesce(NEW.order_number::text, left(NEW.order_id::text, 8));
   v_kind    text;
   v_message text;
@@ -230,7 +230,7 @@ BEGIN
     RETURN NULL;
   END IF;
 
-  -- Orders are named by their readable number (20260928000003); rows that
+  -- Orders are named by their readable number (20260928000007); rows that
   -- belong to an order (payment, problem report) look theirs up.
   IF v_entity IN ('payment', 'order_issue') AND v_row ? 'order_id' THEN
     SELECT o.order_number::text INTO v_order_ref

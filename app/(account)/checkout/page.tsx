@@ -6,7 +6,6 @@ import { formatOrderTime } from "@/lib/checkout/order-time";
 import { readCart } from "@/lib/cart/read-cart";
 import { findAwaitingPaymentOrder } from "@/lib/checkout/find-awaiting-payment-order";
 import { readCustomerProfile } from "@/lib/profile/customer-profile";
-import { validateNcrAddress } from "@/lib/address/validate-ncr";
 import { readArrivalQuote } from "@/lib/checkout/read-arrival-quote";
 
 /**
@@ -53,23 +52,13 @@ export default async function CheckoutPage({
 
   const fulfilment = fulfilmentFromParam(searchParams.fulfilment);
 
-  // Distance to the delivery address drives the fee, so the total shown here
-  // is the total `submitCart` will charge (it recomputes the same figure
-  // server-side). Best effort: if the geocoder is unreachable the fee falls
-  // back to the base rate rather than blocking checkout.
-  let distanceKm: number | null = null;
-  if (fulfilment === "delivery" && profile.deliverToAddress) {
-    try {
-      const check = await validateNcrAddress(profile.deliverToAddress);
-      if (Number.isFinite(check.distanceKm)) distanceKm = check.distanceKm ?? null;
-    } catch {
-      distanceKm = null;
-    }
-  }
+  // Pickup-only: there is no delivery distance to price (the address
+  // geocoder went with the map in #116).
+  const distanceKm = null;
 
-  // Quoted from the live kitchen queue and the distance just geocoded, so
-  // the figure the customer agrees to here is produced by the same engine
-  // that will tell them where their order is a minute later (issue #106).
+  // Quoted from the live kitchen queue, so the figure the customer agrees to
+  // here is produced by the same engine that will tell them where their
+  // order is a minute later (issue #106).
   const arrivalEstimate = await readArrivalQuote({ fulfilment, distanceKm });
 
   return (

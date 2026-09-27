@@ -6,6 +6,10 @@ import { SiteNavBar } from "@/components/nav/site-nav-bar";
 import { OrderSummaryCard } from "@/components/checkout/order-summary-card";
 import { PaymentMethodPicker } from "@/components/checkout/payment-method-picker";
 import {
+  SeniorPwdDiscountPicker,
+  type SeniorPwdDiscountState,
+} from "@/components/checkout/senior-pwd-discount-picker";
+import {
   DEFAULT_WALLET_PROVIDER,
   defaultPaymentMethodFor,
   type PaymentMethodId,
@@ -63,6 +67,15 @@ export function CheckoutScreen({
   const [wallet, setWallet] = React.useState<WalletProvider>(
     DEFAULT_WALLET_PROVIDER,
   );
+  const [seniorDiscount, setSeniorDiscount] =
+    React.useState<SeniorPwdDiscountState>({
+      enabled: false,
+      type: "senior_citizen",
+      idNumber: "",
+      nameOnId: "",
+      photo: null,
+      photoError: null,
+    });
 
   const totals = computeCartTotals({ lines, fulfilment, distanceKm });
 
@@ -125,6 +138,11 @@ export function CheckoutScreen({
                   fulfilment={fulfilment}
                 />
               </section>
+
+              <SeniorPwdDiscountPicker
+                value={seniorDiscount}
+                onChange={setSeniorDiscount}
+              />
             </div>
 
             <div className="order-1 md:order-2">
@@ -140,6 +158,7 @@ export function CheckoutScreen({
                 paymentMethod={paymentMethod}
                 wallet={wallet}
                 arrivalEstimate={arrivalEstimate}
+                seniorDiscount={seniorDiscount}
               />
             </div>
           </div>

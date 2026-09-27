@@ -113,17 +113,6 @@ function countOf(text: string | RegExp) {
   return screen.queryAllByText(text).length;
 }
 
-  beforeEach(() => {
-    // The address note calls the real validation route on mount. Stubbed so
-    // these tests don't depend on Nominatim being reachable.
-    // Return an unresolved promise by default to prevent act() warnings in
-    // tests that don't wait for the validation note to settle.
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockReturnValue(new Promise(() => {}))
-    );
-  });
-
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.clearAllMocks();
@@ -152,13 +141,13 @@ describe("Checkout order summary", () => {
     renderCheckout();
 
     expect(countOf("₱50")).toBeGreaterThan(0);
-    expect(countOf("₱500")).toBeGreaterThan(0);
+    expect(countOf("₱500.00")).toBeGreaterThan(0);
   });
 
   it("drops the delivery fee for pickup and follows it through to the total", () => {
     renderCheckout({ fulfilment: "pickup" });
 
-    expect(countOf("₱450")).toBeGreaterThan(0);
+    expect(countOf("₱450.00")).toBeGreaterThan(0);
     expect(countOf("Pickup")).toBeGreaterThan(0);
     // No "Delivery fee ₱0" row on an order nobody is delivering.
     expect(countOf("Delivery fee")).toBe(0);
@@ -325,6 +314,7 @@ describe("Checkout place order", () => {
         // It used to send cash on delivery here — on an order nobody was
         // delivering (issue #106).
         payment_method: "pay-in-store",
+        wallet: "gcash",
       }),
     );
     await waitFor(() =>

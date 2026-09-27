@@ -5,18 +5,18 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getOrderEtaAction } from "@/lib/actions/eta";
-import {
-  arrivalLineFor,
-  arrivalWindowFrom,
-} from "@/lib/orders/arrival-window";
+import { arrivalLineFor, arrivalWindowFrom } from "@/lib/orders/arrival-window";
 import { cn } from "@/lib/utils";
 import {
   cancellationNoticeFor,
   fulfilmentOf,
   headlineFor,
   resolveOrderProgress,
+  stageReachedAt,
   timelineStages,
+  type StatusChange,
 } from "@/lib/orders/order-stage";
+import { formatClockTime } from "@/lib/checkout/order-time";
 import type { TrackedOrder } from "@/lib/orders/read-tracked-order";
 import { Alert } from "@/components/ui/alert";
 import { CancelOrderControl } from "@/components/orders/cancel-order-control";
@@ -136,42 +136,102 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
     })();
   }, [orderId]);
 
+  /**
+   * Status changes that arrived over the subscription after the page loaded
+   * (#116). Added to the server's log so each new stage gets its time
+   * without a reload.
+   */
+  const [liveLog, setLiveLog] = React.useState<StatusChange[]>([]);
+  const statusLog = React.useMemo(
+    () => [...order.statusLog, ...liveLog],
+    [order.statusLog, liveLog],
+  );
+
   React.useEffect(() => {
     const supabase = createClient();
+    let cancelled = false;
+    let channels: ReturnType<typeof supabase.channel>[] = [];
 
-    // Pickup-only (issue #114): every stage comes from `order` now, so one
-    // subscription is the whole journey.
-    const channel = supabase
-      .channel(uniqueChannelName(`order-tracking-${orderId}`))
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "order",
-          filter: `order_id=eq.${orderId}`,
-        },
-        (payload: { new: Record<string, unknown> }) => {
-          setLive((previous) => ({
-            ...(previous ?? serverStatusRef.current),
-            orderStatus: (payload.new.order_status as string | null) ?? null,
-            cancelledAt: (payload.new.cancelled_at as string | null) ?? null,
-            cancellationReason: (payload.new.cancellation_reason as string | null) ?? null,
-          }));
-          refreshEta();
-        },
-      )
-      .subscribe();
+    // Load the session first, as the notification bell does. Joined before
+    // it, Realtime treats the customer as anon and RLS hides every change to
+    // their own order — the screen never moved (#116).
+    void supabase.auth.getSession().then(() => {
+      if (cancelled) return;
+      channels = subscribe();
+    });
+
+    function subscribe() {
+      // Pickup-only (issue #114): every stage comes from `order` now, so one
+      // subscription is the whole journey.
+      const channel = supabase
+        .channel(uniqueChannelName(`order-tracking-${orderId}`))
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "order",
+            filter: `order_id=eq.${orderId}`,
+          },
+          (payload: { new: Record<string, unknown> }) => {
+            setLive((previous) => ({
+              ...(previous ?? serverStatusRef.current),
+              orderStatus: (payload.new.order_status as string | null) ?? null,
+              cancelledAt: (payload.new.cancelled_at as string | null) ?? null,
+              cancellationReason:
+                (payload.new.cancellation_reason as string | null) ?? null,
+            }));
+            refreshEta();
+          },
+        )
+        .subscribe();
+
+      // Its own channel (#116): if this subscription is refused, the status
+      // listener above must keep working.
+      const logChannel = supabase
+        .channel(uniqueChannelName(`order-status-log-${orderId}`))
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "order_status_log",
+            filter: `order_id=eq.${orderId}`,
+          },
+          (payload: { new: Record<string, unknown> }) => {
+            const changedAt = payload.new.changed_at as string | undefined;
+            if (!changedAt) return;
+            setLiveLog((previous) => [
+              ...previous,
+              {
+                toStatus: (payload.new.to_status as string | null) ?? null,
+                changedAt,
+              },
+            ]);
+          },
+        )
+        .subscribe();
+
+      return [channel, logChannel];
+    }
 
     return () => {
-      supabase.removeChannel(channel);
+      cancelled = true;
+      for (const channel of channels) supabase.removeChannel(channel);
     };
   }, [orderId, refreshEta]);
 
   // Take-out reads "Ready for pickup" / "Picked up"; delivery keeps its own words.
   const fulfilment = fulfilmentOf(order.orderType);
-  const progress = resolveOrderProgress({ ...status, orderType: order.orderType });
-  const stages = timelineStages(progress, fulfilment);
+  const progress = resolveOrderProgress({
+    ...status,
+    orderType: order.orderType,
+  });
+  const stages = timelineStages(
+    progress,
+    fulfilment,
+    stageReachedAt(statusLog, order.orderType),
+  );
 
   // While a fresh estimate is on its way the old one stays up rather than
   // flashing the fallback; only a screen with nothing yet says it is working.
@@ -180,9 +240,15 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
     progress.kind === "cancelled"
       ? null
       : etaPending && arrivalWindow === null
-      ? "Updating arrival time…"
-      : arrivalLineFor(arrivalWindow);
-  const subline = arrival ?? "";
+        ? "Updating arrival time…"
+        : arrivalLineFor(arrivalWindow);
+  // Fixed when the order was placed; the arrival line above can move, this
+  // cannot (#116). Nothing to promise once the order is cancelled.
+  const promised =
+    order.promisedAt && progress.kind !== "cancelled"
+      ? `Promised by ${formatClockTime(new Date(order.promisedAt))}`
+      : null;
+  const subline = [arrival, promised].filter(Boolean).join(" · ");
   const delivered = progress.kind === "stage" && progress.stage === "delivered";
   // Re-read against the live status, so the button appears the moment staff
   // mark the order picked up. A status that arrived over realtime carries no
@@ -209,9 +275,7 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
             <ChevronLeft className="h-[14px] w-[14px] md:h-[16px] md:w-[16px]" />
             <span>Back to orders</span>
           </Link>
-          <span
-            className="text-sm uppercase tracking-[1.76px] text-on-ink-faint md:text-sm md:tracking-[1.92px] md:text-muted-foreground"
-          >
+          <span className="text-sm uppercase tracking-[1.76px] text-on-ink-faint md:text-sm md:tracking-[1.92px] md:text-muted-foreground">
             {/* The id renders in the case it is stored in — see the receipt's
                 own note, and `lib/orders/order-number.ts`. */}
             Order <span className="normal-case">#{order.orderNumber}</span>
@@ -229,23 +293,25 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
           {/* Shown for every cancellation, not only one with a reason: the
               kitchen's cancel writes none, and the customer was left with a
               bare headline (P28). */}
-          {progress.kind === "cancelled" && (() => {
-            const notice = cancellationNoticeFor(status.cancellationReason);
-            return (
-              <div className="mt-4">
-                <Alert className="bg-destructive/10 border-destructive/20 text-destructive md:text-destructive md:bg-error-surface md:border-error-border">
-                  {notice.message}
-                  {/* Its own line, so it reads as the reason (P54). Spans,
+          {progress.kind === "cancelled" &&
+            (() => {
+              const notice = cancellationNoticeFor(status.cancellationReason);
+              return (
+                <div className="mt-4">
+                  <Alert className="border-destructive/20 bg-destructive/10 text-destructive md:border-error-border md:bg-error-surface md:text-destructive">
+                    {notice.message}
+                    {/* Its own line, so it reads as the reason (P54). Spans,
                       because Alert already wraps its content in a <p>. */}
-                  {notice.reason && (
-                    <span className="mt-1 block">
-                      <span className="font-semibold">Reason:</span> {notice.reason}
-                    </span>
-                  )}
-                </Alert>
-              </div>
-            );
-          })()}
+                    {notice.reason && (
+                      <span className="mt-1 block">
+                        <span className="font-semibold">Reason:</span>{" "}
+                        {notice.reason}
+                      </span>
+                    )}
+                  </Alert>
+                </div>
+              );
+            })()}
         </header>
 
         {/* Second on mobile, right-hand column on desktop — where the

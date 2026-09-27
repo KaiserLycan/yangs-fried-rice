@@ -3,6 +3,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
+  SENIOR_PWD_ID_BUCKET,
+  discardSeniorPwdIdPhoto,
+  isSeniorPwdIdPath,
+} from "@/lib/storage/senior-pwd-ids";
+import {
   addCartItemSchema,
   updateCartItemSchema,
   submitCartSchema,
@@ -787,10 +792,32 @@ export async function submitCart(
     p_cart_id: parsed.data.cart_id,
     p_order_type: parsed.data.order_type,
     p_special_instructions: parsed.data.special_instructions ?? undefined,
-    p_payment_method: parsed.data.payment_method,
+    // The wallet itself (gcash / paymaya) is what gets recorded.
+    p_payment_method:
+      parsed.data.payment_method === "wallet"
+        ? parsed.data.wallet
+        : "pay-in-store",
+    // Senior Citizen / PWD (issue #116). The function re-checks all of it,
+    // including that the photo is in this customer's own folder.
+    p_discount: parsed.data.discount ?? undefined,
   });
 
   if (error || !data) {
+    // No order was made, so the ID photo uploaded for it is not needed.
+    // The customer can't delete from the bucket (staff-only), so the
+    // service role does — only inside this customer's own folder.
+    const photoPath = parsed.data.discount?.photo_path;
+    if (
+      photoPath &&
+      isSeniorPwdIdPath(photoPath) &&
+      photoPath.startsWith(`${auth.data.customer_id}/`)
+    ) {
+      await createAdminClient()
+        .storage.from(SENIOR_PWD_ID_BUCKET)
+        .remove([photoPath])
+        .catch(() => undefined);
+    }
+
     // The function raises with a customer-facing message and a stable code
     // in `hint` (CART_LOCKED, ITEM_UNAVAILABLE, ACCOUNT_DISABLED, …). Anything
     // without a hint is unexpected, so its raw text is logged, not shown.
@@ -893,7 +920,7 @@ export async function switchOrderToCashOnDelivery(
   // `markDelivered` scopes its own.
   const admin = createAdminClient();
 
-  // Point the payment at cash. Clearing the provider reference means a late
+  // Point the payment at the counter. Clearing the provider reference means a late
   // webhook for the abandoned wallet intent no longer matches this row and
   // cannot mark a cash order as failed.
   const { error: paymentError } = await admin
@@ -1029,6 +1056,9 @@ export async function cancelCustomerOrder(
 
   if (!rpcError && rpcData) {
     await notifyOrderCancelled(supabase, orderId, "customer");
+    // The RPC only cancels the customer's own order. They can't delete from
+    // the ID bucket (staff-only), so the service role does (issue #116).
+    await discardSeniorPwdIdPhoto(createAdminClient(), orderId);
     return {
       data: rpcData as {
         order_id: string;
@@ -1090,6 +1120,8 @@ export async function cancelCustomerOrder(
 
   // A confirmation, and for a paid order what happens to the money (F23).
   await notifyOrderCancelled(supabase, orderId, "customer");
+  // Ownership was checked above (issue #116).
+  await discardSeniorPwdIdPhoto(createAdminClient(), orderId);
 
   return {
     data: {

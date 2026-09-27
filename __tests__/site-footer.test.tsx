@@ -1,7 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import { SiteFooter } from "@/components/layout/site-footer";
-import { copyrightYears } from "@/lib/site/site-info";
+import {
+  SELLER_ADDRESS,
+  SELLER_NAME,
+  copyrightYears,
+} from "@/lib/site/site-info";
 
 /**
  * Issue #106: "no site footer exists anywhere (copyright, social links,
@@ -28,17 +32,30 @@ describe("site footer", () => {
       .getAllByRole("link")
       .map((link) => link.getAttribute("href"));
 
-    expect(hrefs).toEqual(["/menu", "/orders", "/profile", "/terms"]);
+    expect(hrefs).toEqual(["/menu", "/orders", "/profile", "/terms", "/privacy"]);
   });
 
   /**
-   * The repository has no phone number, no support address and no accounts.
-   * A "Get in touch" heading over nothing is worse than no heading, and an
-   * invented number is worse than both.
+   * The Internet Transactions Act (RA 11967) asks every online seller to show
+   * its business name, address and contact details (issue #116).
    */
-  it("omits contact details rather than inventing them", () => {
+  it("names the seller and its address", () => {
     render(<SiteFooter />);
-    expect(screen.queryByText(/get in touch/i)).toBeNull();
+    const seller = screen.getByRole("region", { name: "Seller" });
+    expect(within(seller).getByText(SELLER_NAME)).toBeInTheDocument();
+    expect(within(seller).getByText(SELLER_ADDRESS)).toBeInTheDocument();
+  });
+
+  /** An invented number is worse than none: only what is set is shown. */
+  it("shows only the contact details that are filled in", () => {
+    render(<SiteFooter />);
+    const seller = screen.getByRole("region", { name: "Seller" });
+    const hrefs = within(seller)
+      .queryAllByRole("link")
+      .map((link) => link.getAttribute("href") ?? "");
+    for (const href of hrefs) {
+      expect(href).not.toMatch(/^(mailto|tel):$/);
+    }
   });
 
   it("clears the mobile tab bar, which is fixed over the bottom of the page", () => {

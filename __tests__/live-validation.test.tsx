@@ -15,14 +15,6 @@ vi.mock("@/app/(auth)/actions", () => ({
   registerCustomer: vi.fn(),
 }));
 
-// The delivery-area check calls the geocoder; report every address as fine.
-vi.mock("@/components/checkout/address-validation-note", () => ({
-  AddressValidationNote: ({ onStatusChange }: { onStatusChange?: (s: string) => void }) => {
-    onStatusChange?.("valid");
-    return null;
-  },
-}));
-
 beforeEach(() => {
   vi.clearAllMocks();
   (useRouter as any).mockReturnValue({ push: vi.fn(), refresh: vi.fn() });

@@ -27,32 +27,7 @@ describe("Customer Addresses API", () => {
     expect(body.error).toContain("Unauthorized");
   });
 
-  it("TC-ADDR-2: Rejects address outside NCR with 400", async () => {
-    (createClient as any).mockReturnValue({
-      auth: {
-        getUser: vi.fn().mockResolvedValue({ data: { user: { id: "cust-1" } } }),
-      },
-    });
-
-    const request = new Request("http://localhost:3000/api/customer/addresses", {
-      method: "POST",
-      body: JSON.stringify({
-        label: "Beach House",
-        buildingNo: "12",
-        street: "Osmena Blvd",
-        barangay: "Barangay Uno",
-        city: "Cebu City",
-        zip: "6000",
-      }),
-    });
-
-    const res = await postAddress(request);
-    expect(res.status).toBe(400);
-    const body = await res.json();
-    expect(body.error).toContain("Delivery is currently restricted to Metro Manila (NCR)");
-  });
-
-  it("TC-ADDR-3: Successfully saves valid NCR address with 201", async () => {
+  it("TC-ADDR-3: Successfully saves a valid address with 201", async () => {
     const mockInsert = vi.fn().mockReturnValue({
       select: vi.fn().mockReturnValue({
         single: vi.fn().mockResolvedValue({

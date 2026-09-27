@@ -10,7 +10,7 @@ import {
 const ID = "38206dc0-b033-4453-864c-b7c487862c7c";
 
 describe("formatOrderNumber", () => {
-  // The readable number (migration 20260928000003) is what people see and say.
+  // The readable number (migration 20260928000007) is what people see and say.
   it("prints the order number when there is one", () => {
     expect(formatOrderNumber(1042, ID)).toBe("1042");
     expect(formatOrderNumber("1042", ID)).toBe("1042");
