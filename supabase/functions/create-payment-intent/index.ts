@@ -1,9 +1,12 @@
 // supabase/functions/create-payment-intent/index.ts
 //
 // Deno Edge Function (AC1). Called by an authenticated customer to start
-// paying for an order. The amount is ALWAYS computed server-side from
-// order_item.subtotal + order.delivery_fee — never trust a client-supplied
-// amount for a payment, or a tampered request could pay less than owed.
+// paying for an order. The amount is ALWAYS computed server-side — never
+// trust a client-supplied amount for a payment, or a tampered request could
+// pay less than owed. It is the order's pending transaction, subtotal minus
+// discount_amount, as `submit_cart_to_order` wrote it (issue #116: that is
+// where a Senior Citizen / PWD discount lives). Orders without that row fall
+// back to order_item.subtotal + order.delivery_fee.
 //
 // Deploy: supabase functions deploy create-payment-intent
 // Secrets (set once, NOT in .env.local — these are Supabase Function
@@ -83,21 +86,43 @@ Deno.serve(async (req: Request) => {
       return json({ error: "This order has already been paid." }, 400);
     }
 
-    // Sum order_item.subtotal server-side.
-    const { data: items, error: itemsError } = await supabase
-      .from("order_item")
-      .select("subtotal")
-      .eq("order_id", orderId);
-
-    if (itemsError) {
-      return json({ error: "Could not read order items." }, 500);
-    }
-
-    const itemsTotal = (items ?? []).reduce(
-      (sum: number, item: { subtotal: number }) => sum + item.subtotal,
-      0,
+    // Use admin client to query and write the transaction, bypassing table RLS constraints
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
-    const totalPesos = itemsTotal + (order.delivery_fee ?? 0);
+
+    const { data: pendingTransaction } = await supabaseAdmin
+      .from("transaction")
+      .select("transaction_id, subtotal, discount_amount")
+      .eq("order_id", orderId)
+      .eq("payment_status", "pending")
+      .maybeSingle();
+
+    let totalPesos: number;
+    if (pendingTransaction && pendingTransaction.subtotal !== null) {
+      // What checkout saved: includes order-level add-ons and any discount.
+      totalPesos =
+        Number(pendingTransaction.subtotal) -
+        Number(pendingTransaction.discount_amount ?? 0) +
+        (order.delivery_fee ?? 0);
+    } else {
+      // Sum order_item.subtotal server-side.
+      const { data: items, error: itemsError } = await supabase
+        .from("order_item")
+        .select("subtotal")
+        .eq("order_id", orderId);
+
+      if (itemsError) {
+        return json({ error: "Could not read order items." }, 500);
+      }
+
+      const itemsTotal = (items ?? []).reduce(
+        (sum: number, item: { subtotal: number }) => sum + item.subtotal,
+        0,
+      );
+      totalPesos = itemsTotal + (order.delivery_fee ?? 0);
+    }
     const amountCentavos = Math.round(totalPesos * 100);
 
     if (amountCentavos <= 0) {
@@ -147,24 +172,10 @@ Deno.serve(async (req: Request) => {
     const paymentIntentId = paymongoData.data.id;
     const clientKey = paymongoData.data.attributes.client_key;
 
-    // Use admin client to query and write the transaction, bypassing table RLS constraints
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
-
-    const { data: pendingTransaction } = await supabaseAdmin
-      .from("transaction")
-      .select("transaction_id")
-      .eq("order_id", orderId)
-      .eq("payment_status", "pending")
-      .maybeSingle();
-
     const transactionPayload = {
       order_id: orderId,
       payment_status: "pending",
       ...(wallet ? { payment_method: wallet } : {}),
-      subtotal: totalPesos,
       provider_reference_id: paymentIntentId,
       transaction_type: "payment",
       transaction_date: new Date().toISOString(),
@@ -182,7 +193,7 @@ Deno.serve(async (req: Request) => {
     } else {
       const { error } = await supabaseAdmin
         .from("transaction")
-        .insert({ payment_method: "paymongo", ...transactionPayload });
+        .insert({ payment_method: "paymongo", subtotal: totalPesos, ...transactionPayload });
       
       transactionError = error;
     }
