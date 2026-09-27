@@ -1,37 +1,35 @@
 #!/usr/bin/env node
 // ============================================================================
-// Database cleanse — removes test data and repairs or removes rows that break
-// the field rules in lib/validation/fields.ts (the same rules the CHECK
-// constraints in supabase/migrations/20260924000000_atomic_names_and_addresses.sql
-// enforce on new writes).
+// Database cleanse — removes test data and repairs rows that contradict the
+// rules the app now enforces, so reports and order history add up.
 //
-//   npm run db:cleanse                      dry run: prints what it WOULD do
-//   npm run db:cleanse -- --apply           does it
-//   npm run db:cleanse -- --apply --wipe-orders
-//                                           also deletes every order, cart,
-//                                           review and notification — a clean
-//                                           slate before `npm run db:seed`
+//   npm run db:cleanse              dry run: prints what it WOULD do
+//   npm run db:cleanse -- --apply   does it
+//
+// Real accounts are never deleted for their history; only rows that are test
+// data or internally contradictory are touched. Run `npm run db:seed --
+// --reset` afterwards to refresh the demo accounts' data.
 //
 // What it does, in order:
-//   1. Test accounts — customers/employees whose email or name looks like
-//      test data (test@…, asdf, @example.com, "Test User", digits in a name)
-//      are deleted with their orders, carts, addresses and auth users.
-//   2. Repairable rows are repaired: names trimmed and re-split, phone numbers
-//      normalised to +63XXXXXXXXXX (or cleared when unrecoverable).
-//   3. Customers whose name or email still can't pass are deleted.
-//      Employees are NEVER deleted for a bad field — they are listed for a
-//      manager to fix by hand — and the last manager is never deleted at all.
-//   4. Addresses with a part that can't pass, duplicates, and orphans are
-//      deleted; a customer left without a default gets one.
-//   5. (Removed: riders — the shop is pickup-only, issue #114.)
-//   6. Test products are deleted (or hidden, if past orders reference them);
-//      products that break the name/price rules are hidden and listed.
-//   7. Orphans: auth users with no customer or employee row (half-finished
-//      sign-ups), addresses/carts/notifications for missing customers, and
-//      empty carts abandoned for over 30 days.
-//
-// Every CHECK constraint on the live project is validated, so nothing needs
-// re-checking afterwards.
+//   1. Test accounts: employees and customers whose email or name looks like
+//      test data (…@test.local, @example.com, "Test Staff"), and employees
+//      with a role the app no longer has (RIDER, since pickup-only, #114).
+//      The last manager is never deleted.
+//   2. Test menu items (KNOWN_TEST_PRODUCTS) with every order that holds
+//      them, then categories left with no dishes.
+//   3. Orders: `pickup` / NULL order types become `take_out` (same meaning);
+//      orders with no identifiable line (no dish, no saved name) are deleted.
+//   4. Payments:
+//      - a completed order with no payment row gets the pay-in-store one it
+//        was collected as (wallet orders always had a row from checkout);
+//      - an order with several payment rows keeps the one that took money
+//        (or the latest) and loses the empty attempts;
+//      - a cancelled order whose payment says "paid" but never captured
+//        anything (no PayMongo id, ₱0) is marked failed. One that did take
+//        money is marked `refund_failed` for a manager to refund by hand —
+//        never `refund_pending`, which would make the cron call PayMongo.
+//   5. Orphans: auth users with no customer or employee row older than a
+//      day (abandoned sign-ups), and empty open carts idle for 30 days.
 // ============================================================================
 
 import {
@@ -48,299 +46,195 @@ import {
 } from "./lib/admin.mjs";
 
 const APPLY = hasFlag("--apply");
-const WIPE_ORDERS = hasFlag("--wipe-orders");
 
-// ---- rules (mirror lib/validation/fields.ts) --------------------------------
-const NAME = /^\p{L}[\p{L}\p{M} .'-]*$/u;
-const EMAIL = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
-const PHONE_STORED = /^\+639\d{9}$/;
-const PHONE_ANY = /^(?:\+?63|0)?9\d{9}$/;
+/** Menu items made while testing. Matched by exact name. */
+const KNOWN_TEST_PRODUCTS = ["Yang's Meaty Steak"];
 
-const validName = (v) => typeof v === "string" && v.length >= 2 && v.length <= 50 && NAME.test(v);
-const validEmail = (v) => typeof v === "string" && v.length >= 6 && v.length <= 254 && EMAIL.test(v);
+const ROLES = new Set(["MANAGER", "STAFF"]);
+const TEST_DOMAIN = /@(example\.(com|org|net)|test\.com|mailinator\.com|yopmail\.com|[\w.-]+\.(test|invalid|example|localhost|local|demo))$/i;
+const TEST_LOCAL = /(^|[^a-z])(test|tester|testing|asdf|qwerty|dummy|sample|fake|temp)(\d|_|[^a-z]|$)/i;
+const TEST_NAME = /^(test\w*|tester|asdf\w*|dummy|sample|fake|temp)$/i;
 
-const TEST_WORD = /^(test\w*|tester|asdf\w*|qwe\w*|dummy|sample|fake|temp|user\d*|abc|xyz|aa+|xx+|zz+|n\/?a|none|null|undefined)$/i;
-const TEST_LOCAL = /(^|[^a-z])(test|tester|testing|asdf|qwerty|dummy|sample|fake|temp)\d*([^a-z]|$)/i;
-const TEST_DOMAIN = /@(example\.(com|org|net)|test\.com|mailinator\.com|yopmail\.com|tempmail\.\w+|[\w.-]+\.(test|invalid|example|localhost))$/i;
-
-function looksLikeTest({ email, first, last, full }) {
+function looksLikeTest(email, name) {
   if (email && (TEST_DOMAIN.test(email) || TEST_LOCAL.test(email.split("@")[0]))) return "test email";
-  const words = `${first ?? ""} ${last ?? ""} ${full ?? ""}`.trim().split(/\s+/).filter(Boolean);
-  if (words.some((w) => TEST_WORD.test(w))) return "test name";
-  if (/\d/.test(`${first ?? ""}${last ?? ""}`)) return "digits in name";
+  if ((name ?? "").split(/\s+/).some((word) => TEST_NAME.test(word))) return "test name";
   return null;
 }
-
-function tidy(value) {
-  return (value ?? "").replace(/\s+/g, " ").trim();
-}
-
-/** Trimmed parts; a one-word first name with an empty last name is re-split. */
-function repairName(first, last) {
-  let f = tidy(first);
-  let l = tidy(last);
-  if (!l && f.includes(" ")) {
-    const i = f.lastIndexOf(" ");
-    l = f.slice(i + 1);
-    f = f.slice(0, i);
-  }
-  return { first: f, last: l };
-}
-
-function repairPhone(raw) {
-  if (raw == null || raw === "") return { value: null, ok: true };
-  if (PHONE_STORED.test(raw)) return { value: raw, ok: true };
-  const compact = String(raw).replace(/[\s().-]/g, "");
-  if (PHONE_ANY.test(compact)) {
-    const digits = compact.replace(/\D/g, "").slice(-10);
-    return { value: `+63${digits}`, ok: true };
-  }
-  return { value: null, ok: false };
-}
-
-function addressProblem(a) {
-  const len = (v) => tidy(v).length;
-  if (len(a.building_no) < 1 || len(a.building_no) > 50) return "building no.";
-  if (len(a.street) < 3 || len(a.street) > 100) return "street";
-  if (len(a.barangay) < 2 || len(a.barangay) > 100) return "barangay";
-  if (len(a.city) < 3 || len(a.city) > 50) return "city";
-  if (!/^\d{4}$/.test(tidy(a.zip_code))) return "ZIP";
-  if (a.label && a.label.length > 30) return "label";
-  if (a.address_note && a.address_note.length > 200) return "delivery note";
-  return null;
-}
-
-// ---- plan -------------------------------------------------------------------
-const plan = {
-  deleteCustomers: new Map(), // id -> reason
-  deleteEmployees: new Map(),
-  deleteAuthUsers: new Map(),
-  deleteAddresses: new Map(),
-  deleteCarts: new Map(),
-  deleteNotifications: new Map(),
-  deleteProducts: new Map(),
-  deleteCategories: new Map(),
-  updates: [], // { table, key, id, patch, why }
-  report: [], // things a person must fix
-};
 
 const db = createAdmin();
+const log = [];
+const note = (line) => log.push(line);
 console.log(`\nYang's Fried Rice — database cleanse (${APPLY ? "APPLY" : "dry run"})\n`);
 
-const [customers, employees, addresses, products, categories, orderItems, carts, cartItems, notifications, authUsers] =
+const [customers, employees, products, categories, orders, orderItems, transactions, carts, cartItems, authUsers] =
   await Promise.all([
-    selectAll(db, "customer", "customer_id, first_name, last_name, email, phone_number"),
-    selectAll(db, "employee", "employee_id, first_name, last_name, email, role, phone_number"),
-    selectAll(db, "customer_address", "address_id, customer_id, label, building_no, street, barangay, city, zip_code, address_note, is_default"),
-    selectAll(db, "product", "product_id, product_name, product_price, product_details, is_available, category_id"),
+    selectAll(db, "customer", "customer_id, email, name"),
+    selectAll(db, "employee", "employee_id, email, name, role"),
+    selectAll(db, "product", "product_id, product_name, category_id"),
     selectAll(db, "categories", "category_id, category_name"),
-    selectAll(db, "order_item", "product_id"),
-    selectAll(db, "cart", "cart_id, customer_id, status, updated_at"),
+    selectAll(db, "order", "order_id, order_number, order_type, order_status, created_at"),
+    selectAll(db, "order_item", "order_id, product_id, product_name, subtotal"),
+    selectAll(db, "transaction", "transaction_id, order_id, payment_method, payment_status, total_paid, provider_payment_id, transaction_date"),
+    selectAll(db, "cart", "cart_id, customer_id, is_final, updated_at"),
     selectAll(db, "cart_item", "cart_id"),
-    selectAll(db, "notification", "notification_id, customer_id"),
     listAllAuthUsers(db),
   ]);
 
-// 1–3. customers
-for (const c of customers) {
-  const reason = looksLikeTest({ email: c.email, first: c.first_name, last: c.last_name });
-  if (reason) {
-    plan.deleteCustomers.set(c.customer_id, `${reason}: ${c.email ?? "(no email)"}`);
-    continue;
-  }
-  const name = repairName(c.first_name, c.last_name);
-  const phone = repairPhone(c.phone_number);
-  if (!validName(name.first) || !validName(name.last)) {
-    plan.deleteCustomers.set(c.customer_id, `name can't be repaired: "${c.first_name} ${c.last_name}"`);
-    continue;
-  }
-  if (c.email && !validEmail(c.email)) {
-    plan.deleteCustomers.set(c.customer_id, `invalid email: ${c.email}`);
-    continue;
-  }
-  const patch = {};
-  if (name.first !== c.first_name) patch.first_name = name.first;
-  if (name.last !== c.last_name) patch.last_name = name.last;
-  if (phone.value !== c.phone_number) patch.phone_number = phone.value;
-  if (Object.keys(patch).length) {
-    plan.updates.push({
-      table: "customer", key: "customer_id", id: c.customer_id, patch,
-      why: phone.ok ? "tidy name / normalise phone" : `phone "${c.phone_number}" unrecoverable — cleared`,
-    });
-  }
-}
-
-// employees — test accounts go, bad fields are repaired or reported
+// ---- 1. test accounts --------------------------------------------------------
+const deleteEmployees = new Map();
 const managers = employees.filter((e) => (e.role ?? "").toUpperCase() === "MANAGER");
 for (const e of employees) {
-  const reason = looksLikeTest({ email: e.email, first: e.first_name, last: e.last_name });
-  const isManager = (e.role ?? "").toUpperCase() === "MANAGER";
-  if (reason) {
-    const managersLeft = managers.filter((m) => !plan.deleteEmployees.has(m.employee_id) && m.employee_id !== e.employee_id);
-    if (isManager && managersLeft.length === 0) {
-      plan.report.push(`employee ${e.email}: looks like test data (${reason}) but is the last manager — kept`);
-    } else {
-      plan.deleteEmployees.set(e.employee_id, `${reason}: ${e.email}`);
+  const role = (e.role ?? "").toUpperCase();
+  const reason = looksLikeTest(e.email, e.name) ?? (ROLES.has(role) ? null : `retired role ${role || "(none)"}`);
+  if (!reason) continue;
+  const managersLeft = managers.filter((m) => m.employee_id !== e.employee_id && !deleteEmployees.has(m.employee_id));
+  if (role === "MANAGER" && managersLeft.length === 0) {
+    note(`keep employee ${e.email}: ${reason}, but the last manager`);
+    continue;
+  }
+  deleteEmployees.set(e.employee_id, `${reason}: ${e.email}`);
+}
+const deleteCustomers = new Map();
+for (const c of customers) {
+  const reason = looksLikeTest(c.email, c.name);
+  if (reason) deleteCustomers.set(c.customer_id, `${reason}: ${c.email}`);
+}
+
+// ---- 2. test menu items --------------------------------------------------------
+const testProducts = products.filter((p) => KNOWN_TEST_PRODUCTS.includes(p.product_name));
+const testProductIds = new Set(testProducts.map((p) => p.product_id));
+const deleteOrders = new Map();
+for (const item of orderItems) {
+  if (testProductIds.has(item.product_id)) deleteOrders.set(item.order_id, "holds a test menu item");
+}
+const remainingProducts = products.filter((p) => !testProductIds.has(p.product_id));
+const emptyCategories = categories.filter(
+  (c) => !remainingProducts.some((p) => p.category_id === c.category_id),
+);
+
+// ---- 3. orders -----------------------------------------------------------------
+const itemsByOrder = new Map();
+for (const item of orderItems) {
+  const list = itemsByOrder.get(item.order_id) ?? [];
+  list.push(item);
+  itemsByOrder.set(item.order_id, list);
+}
+const retypeOrders = [];
+for (const o of orders) {
+  if (deleteOrders.has(o.order_id)) continue;
+  // A line with neither a dish nor a saved name can't be shown or reported
+  // on; an order made only of those is test debris.
+  const lines = itemsByOrder.get(o.order_id) ?? [];
+  if (!lines.some((line) => line.product_id || line.product_name)) {
+    deleteOrders.set(o.order_id, `#${o.order_number}: no identifiable items`);
+    continue;
+  }
+  if (o.order_type === null || o.order_type === "pickup") retypeOrders.push(o.order_id);
+}
+
+// ---- 4. payments ---------------------------------------------------------------
+const txByOrder = new Map();
+for (const t of transactions) {
+  const list = txByOrder.get(t.order_id) ?? [];
+  list.push(t);
+  txByOrder.set(t.order_id, list);
+}
+const captured = (t) => Number(t.total_paid ?? 0) > 0 || Boolean(t.provider_payment_id);
+const insertPayments = [];
+const deletePayments = new Map();
+const updatePayments = [];
+for (const o of orders) {
+  if (deleteOrders.has(o.order_id)) continue;
+  const rows = txByOrder.get(o.order_id) ?? [];
+  if (rows.length === 0 && o.order_status === "completed") {
+    const total = (itemsByOrder.get(o.order_id) ?? []).reduce((sum, i) => sum + Number(i.subtotal ?? 0), 0);
+    insertPayments.push({
+      order_id: o.order_id,
+      payment_method: "pay_in_store",
+      payment_status: "paid",
+      subtotal: total,
+      tax_amount: Math.round((total * 12 / 112) * 100) / 100,
+      discount_amount: 0,
+      total_paid: total,
+      transaction_date: o.created_at,
+    });
+    note(`#${o.order_number}: completed with no payment — recorded as paid in store, ₱${total}`);
+    continue;
+  }
+  let keep = rows;
+  if (rows.length > 1) {
+    const sorted = [...rows].sort((a, b) => Number(captured(b)) - Number(captured(a)) || String(b.transaction_date).localeCompare(String(a.transaction_date)));
+    keep = [sorted[0]];
+    for (const extra of sorted.slice(1)) {
+      if (captured(extra)) note(`#${o.order_number}: two payments took money — kept both, check by hand`);
+      else deletePayments.set(extra.transaction_id, `#${o.order_number}: empty extra payment attempt`);
     }
-    continue;
   }
-  const name = repairName(e.first_name, e.last_name);
-  const phone = repairPhone(e.phone_number);
-  const patch = {};
-  if (name.first !== e.first_name) patch.first_name = name.first;
-  if (name.last !== e.last_name) patch.last_name = name.last;
-  if (phone.value !== e.phone_number) patch.phone_number = phone.value;
-  if (Object.keys(patch).length) {
-    plan.updates.push({ table: "employee", key: "employee_id", id: e.employee_id, patch, why: "tidy name / normalise phone" });
-  }
-  if (!validName(name.first) || !validName(name.last)) {
-    plan.report.push(`employee ${e.email}: name "${e.first_name} ${e.last_name}" breaks the name rule — fix it in Manage → Employees`);
-  }
-  if (!validEmail(e.email)) {
-    plan.report.push(`employee ${e.employee_id}: email "${e.email}" is invalid — fix it in Manage → Employees`);
-  }
-}
-
-// 4. addresses
-const customerIds = new Set(customers.map((c) => c.customer_id));
-const seenAddress = new Set();
-for (const a of addresses) {
-  if (!a.customer_id || !customerIds.has(a.customer_id)) {
-    plan.deleteAddresses.set(a.address_id, "orphan (no customer)");
-    continue;
-  }
-  if (plan.deleteCustomers.has(a.customer_id)) continue; // goes with the customer
-  const problem = addressProblem(a);
-  if (problem) {
-    plan.deleteAddresses.set(a.address_id, `invalid ${problem}: "${[a.building_no, a.street, a.barangay, a.city, a.zip_code].join(" | ")}"`);
-    continue;
-  }
-  const key = [a.customer_id, ...[a.building_no, a.street, a.barangay, a.city].map((v) => tidy(v).toLowerCase()), tidy(a.zip_code)].join("|");
-  if (seenAddress.has(key)) {
-    plan.deleteAddresses.set(a.address_id, "duplicate address");
-    continue;
-  }
-  seenAddress.add(key);
-}
-// a default for everyone who keeps an address but loses (or never had) one
-const keptByCustomer = new Map();
-for (const a of addresses) {
-  if (plan.deleteAddresses.has(a.address_id) || plan.deleteCustomers.has(a.customer_id) || !customerIds.has(a.customer_id)) continue;
-  if (!keptByCustomer.has(a.customer_id)) keptByCustomer.set(a.customer_id, []);
-  keptByCustomer.get(a.customer_id).push(a);
-}
-for (const [, list] of keptByCustomer) {
-  if (!list.some((a) => a.is_default)) {
-    plan.updates.push({ table: "customer_address", key: "address_id", id: list[0].address_id, patch: { is_default: true }, why: "customer had no default address" });
-  }
-}
-
-// 6. products and categories
-const orderedProducts = new Set(orderItems.map((i) => i.product_id).filter(Boolean));
-for (const p of products) {
-  const name = tidy(p.product_name);
-  const isTest = name.split(/\s+/).some((w) => TEST_WORD.test(w));
-  const broken = name.length < 2 || name.length > 80 || !(Number(p.product_price) > 0) || Number(p.product_price) > 99999.99 || (p.product_details ?? "").length > 300;
-  if (isTest && !orderedProducts.has(p.product_id)) {
-    plan.deleteProducts.set(p.product_id, `test product "${p.product_name}"`);
-  } else if (isTest || broken) {
-    if (p.is_available !== false) {
-      plan.updates.push({ table: "product", key: "product_id", id: p.product_id, patch: { is_available: false }, why: `hidden: ${isTest ? "test product with past orders" : "breaks name/price/details rules"} ("${p.product_name}")` });
+  if (o.order_status === "cancelled") {
+    for (const t of keep) {
+      if (t.payment_status !== "paid") continue;
+      if (captured(t) && t.payment_method !== "pay_in_store") {
+        updatePayments.push({ id: t.transaction_id, patch: { payment_status: "refund_failed", refund_error: "Cancelled before automatic refunds existed. Refund by hand in PayMongo, then mark it refunded." }, why: `#${o.order_number}: cancelled after payment — refund owed` });
+      } else {
+        updatePayments.push({ id: t.transaction_id, patch: { payment_status: "failed", total_paid: 0 }, why: `#${o.order_number}: cancelled, nothing was collected` });
+      }
     }
-    if (broken) plan.report.push(`product "${p.product_name}": fix its name (2–80), price (₱0.01–₱99,999.99) or details (≤300) in Manage → Menu`);
-  }
-}
-const productsLeftByCategory = new Map();
-for (const p of products) {
-  if (plan.deleteProducts.has(p.product_id)) continue;
-  productsLeftByCategory.set(p.category_id, (productsLeftByCategory.get(p.category_id) ?? 0) + 1);
-}
-for (const c of categories) {
-  const name = tidy(c.category_name);
-  const isTest = name.split(/\s+/).some((w) => TEST_WORD.test(w));
-  if ((isTest || name.length < 2) && !productsLeftByCategory.get(c.category_id)) {
-    plan.deleteCategories.set(c.category_id, `test/empty category "${c.category_name}"`);
-  } else if (name.length < 2 || name.length > 40) {
-    plan.report.push(`category "${c.category_name}": name must be 2–40 characters`);
   }
 }
 
-// 7. orphans
-const employeeIds = new Set(employees.map((e) => e.employee_id));
-for (const u of authUsers) {
-  if (customerIds.has(u.id) || employeeIds.has(u.id)) continue;
-  plan.deleteAuthUsers.set(u.id, `auth user with no customer or employee record: ${u.email ?? u.id}`);
-}
-const itemsByCart = new Set(cartItems.map((i) => i.cart_id));
-const monthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
-for (const cart of carts) {
-  if (plan.deleteCustomers.has(cart.customer_id)) continue;
-  if (!cart.customer_id || !customerIds.has(cart.customer_id)) {
-    plan.deleteCarts.set(cart.cart_id, "orphan cart");
-  } else if (cart.status === "active" && !itemsByCart.has(cart.cart_id) && cart.updated_at && Date.parse(cart.updated_at) < monthAgo) {
-    plan.deleteCarts.set(cart.cart_id, "empty cart abandoned for 30+ days");
-  }
-}
-for (const n of notifications) {
-  if (!n.customer_id || !customerIds.has(n.customer_id)) plan.deleteNotifications.set(n.notification_id, "orphan notification");
-}
+// ---- 5. orphans ----------------------------------------------------------------
+const known = new Set([...customers.map((c) => c.customer_id), ...employees.map((e) => e.employee_id)]);
+const dayAgo = Date.now() - 86_400_000;
+const orphanUsers = authUsers.filter((u) => !known.has(u.id) && Date.parse(u.created_at) < dayAgo);
+const busyCarts = new Set(cartItems.map((i) => i.cart_id));
+const monthAgo = Date.now() - 30 * 86_400_000;
+const staleCarts = carts.filter(
+  (c) => !c.is_final && !busyCarts.has(c.cart_id) && c.updated_at && Date.parse(c.updated_at) < monthAgo,
+);
 
-// ---- print ------------------------------------------------------------------
-function section(title, entries) {
-  const list = [...entries];
-  console.log(`${title}: ${list.length}`);
-  for (const [id, why] of list.slice(0, 50)) console.log(`   - ${why}  [${id}]`);
-  if (list.length > 50) console.log(`   … and ${list.length - 50} more`);
-}
-section("Customers to delete", plan.deleteCustomers);
-section("Employees to delete", plan.deleteEmployees);
-section("Orphan auth users to delete", plan.deleteAuthUsers);
-section("Addresses to delete", plan.deleteAddresses);
-section("Carts to delete", plan.deleteCarts);
-section("Notifications to delete", plan.deleteNotifications);
-section("Products to delete", plan.deleteProducts);
-section("Categories to delete", plan.deleteCategories);
-console.log(`Rows to repair: ${plan.updates.length}`);
-for (const u of plan.updates.slice(0, 50)) console.log(`   - ${u.table} ${u.id}: ${JSON.stringify(u.patch)} — ${u.why}`);
-if (WIPE_ORDERS) console.log("ALL orders, carts, reviews and notifications will be deleted (--wipe-orders).");
-if (plan.report.length) {
-  console.log(`\nNeeds a person (not changed automatically): ${plan.report.length}`);
-  for (const line of plan.report) console.log(`   - ${line}`);
-}
+// ---- report --------------------------------------------------------------------
+const section = (title, entries) => {
+  console.log(`${title}: ${entries.length}`);
+  for (const line of entries.slice(0, 40)) console.log(`   - ${line}`);
+  if (entries.length > 40) console.log(`   … and ${entries.length - 40} more`);
+};
+section("Employees to delete", [...deleteEmployees.values()]);
+section("Customers to delete", [...deleteCustomers.values()]);
+section("Test menu items to delete", testProducts.map((p) => p.product_name));
+section("Orders to delete", [...deleteOrders.values()]);
+section("Empty categories to delete", emptyCategories.map((c) => c.category_name));
+section("Orders retyped to take_out", retypeOrders);
+section("Payments to add", insertPayments.map((p) => `${p.order_id} ₱${p.total_paid}`));
+section("Empty payment attempts to delete", [...deletePayments.values()]);
+section("Payments to correct", updatePayments.map((u) => u.why));
+section("Orphan auth users to delete", orphanUsers.map((u) => u.email ?? u.id));
+section("Stale empty carts to delete", staleCarts.map((c) => c.cart_id));
+section("Notes", log);
 
 if (!APPLY) {
-  console.log("\nDry run — nothing was changed. Re-run with --apply to make these changes.\n");
+  console.log("\nDry run — nothing changed. Re-run with --apply to do it.\n");
   process.exit(0);
 }
 
-// ---- apply ------------------------------------------------------------------
-console.log("\nApplying…");
-if (WIPE_ORDERS) {
-  const orders = await selectAll(db, "order", "order_id");
-  await deleteOrdersCascade(db, orders.map((o) => o.order_id));
-  const allCarts = await selectAll(db, "cart", "cart_id");
-  await deleteCartsCascade(db, allCarts.map((c) => c.cart_id));
-  check(await db.from("review").delete().not("review_id", "is", null), "delete reviews");
-  check(await db.from("notification").delete().not("notification_id", "is", null), "delete notifications");
+// ---- apply ---------------------------------------------------------------------
+await deleteOrdersCascade(db, [...deleteOrders.keys()]);
+await deleteCustomersCascade(db, [...deleteCustomers.keys()]);
+await deleteEmployeesCascade(db, [...deleteEmployees.keys()]);
+// review.product_id has no ON DELETE action, so a direct review blocks it.
+await deleteIn(db, "review", "product_id", [...testProductIds]);
+await deleteIn(db, "product", "product_id", [...testProductIds]);
+await deleteIn(db, "categories", "category_id", emptyCategories.map((c) => c.category_id));
+for (let i = 0; i < retypeOrders.length; i += 100) {
+  check(await db.from("order").update({ order_type: "take_out" }).in("order_id", retypeOrders.slice(i, i + 100)), "retype orders");
 }
-await deleteCustomersCascade(db, [...plan.deleteCustomers.keys()]);
-await deleteEmployeesCascade(db, [...plan.deleteEmployees.keys()]);
-for (const id of plan.deleteAuthUsers.keys()) {
-  const { error } = await db.auth.admin.deleteUser(id);
-  if (error) console.warn(`  ! auth user ${id}: ${error.message}`);
+if (insertPayments.length) check(await db.from("transaction").insert(insertPayments), "add missing payments");
+await deleteIn(db, "transaction", "transaction_id", [...deletePayments.keys()]);
+for (const u of updatePayments) {
+  check(await db.from("transaction").update(u.patch).eq("transaction_id", u.id), u.why);
 }
-await deleteIn(db, "customer_address", "address_id", [...plan.deleteAddresses.keys()]);
-if (!WIPE_ORDERS) {
-  await deleteCartsCascade(db, [...plan.deleteCarts.keys()]);
-  await deleteIn(db, "notification", "notification_id", [...plan.deleteNotifications.keys()]);
+for (const u of orphanUsers) {
+  const { error } = await db.auth.admin.deleteUser(u.id);
+  if (error) console.warn(`  ! could not delete auth user ${u.email ?? u.id}: ${error.message}`);
 }
-const productIds = [...plan.deleteProducts.keys()];
-await deleteIn(db, "add_on", "product_id", productIds);
-await deleteIn(db, "review", "product_id", productIds);
-await deleteIn(db, "product", "product_id", productIds);
-await deleteIn(db, "categories", "category_id", [...plan.deleteCategories.keys()]);
-for (const u of plan.updates) {
-  const { error } = await db.from(u.table).update(u.patch).eq(u.key, u.id);
-  if (error) console.warn(`  ! ${u.table} ${u.id}: ${error.message}`);
-}
-console.log("Done.\n");
+await deleteCartsCascade(db, staleCarts.map((c) => c.cart_id));
+console.log("\nDone.\n");

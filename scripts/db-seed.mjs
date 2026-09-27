@@ -1,17 +1,16 @@
 #!/usr/bin/env node
 // ============================================================================
-// Demo data seed — a realistic menu, staff, customers with Metro Manila
-// addresses, and a month of pickup orders, payments and reviews, so every
-// screen (menu, KDS, dashboard, reports, order history) has something
-// believable on it during testing. The shop is pickup-only (issue #114).
+// Demo data seed — a realistic menu, staff, customers and a month of pickup
+// orders with payments, status timelines and ratings, so every screen (menu,
+// KDS, dashboard, reports, order history) has something believable on it
+// during testing. The shop is pickup-only (issue #114).
 //
 //   npm run db:seed              add the demo data (refuses if already there)
 //   npm run db:seed -- --reset   remove the previous demo data first, then add
 //
 // Every value passes the field rules in lib/validation/fields.ts and the
-// CHECK constraints from the atomic-fields migration: split first/last names,
-// +63 mobile numbers, five-part NCR addresses with real barangays and ZIPs,
-// LTO-format licence numbers.
+// CHECK constraints: split first/last names, +63 mobile numbers, take-out
+// orders, and the payment vocabulary (pay_in_store, gcash, paymaya).
 //
 // Demo accounts are marked with user_metadata.seeded = true, and customers use
 // the @yangs-demo.ph domain so they can never collide with a real person's
@@ -99,35 +98,34 @@ const ADD_ONS = {
 };
 
 const EMPLOYEES = [
-  { first: "Ramon", last: "Tan", email: "ramon.tan@yangs.ph", role: "MANAGER", shift: "Mon-Fri – 8-4PM", phone: "+639171110001", dob: "1984-03-12" },
-  { first: "Grace", last: "Lim", email: "grace.lim@yangs.ph", role: "STAFF", shift: "MWF – 12-3PM", phone: "+639171110002", dob: "1996-07-21" },
-  { first: "Paolo", last: "Dizon", email: "paolo.dizon@yangs.ph", role: "STAFF", shift: "TThS – 9-5PM", phone: "+639171110003", dob: "1999-11-02" },
-  { first: "Anna Mae", last: "Santos", email: "annamae.santos@yangs.ph", role: "STAFF", shift: "Weekends – 10-10PM", phone: "+639171110004", dob: "2001-01-30" },
+  { first: "Ramon", last: "Tan", email: "ramon.tan@yangs.ph", role: "MANAGER", shift: "Mon-Fri – 8-4PM", phone: "+639171110001" },
+  { first: "Grace", last: "Lim", email: "grace.lim@yangs.ph", role: "STAFF", shift: "MWF – 12-3PM", phone: "+639171110002" },
+  { first: "Paolo", last: "Dizon", email: "paolo.dizon@yangs.ph", role: "STAFF", shift: "TThS – 9-5PM", phone: "+639171110003" },
+  { first: "Anna Mae", last: "Santos", email: "annamae.santos@yangs.ph", role: "STAFF", shift: "Weekends – 10-10PM", phone: "+639171110004" },
 ];
 
-// [first, last, [buildingNo, street, barangay, city, zip], note]
 const CUSTOMERS = [
-  ["Liza", "Reyes", ["21", "Mabini St.", "Malate", "Manila", "1004"], "Gate on the left, ring twice."],
-  ["Carlo", "Mendoza", ["Unit 12B", "Ayala Avenue", "Bel-Air", "Makati", "1209"], "Leave with the lobby guard."],
-  ["Bea", "Santos", ["45", "Katipunan Avenue", "Loyola Heights", "Quezon City", "1108"], null],
-  ["Miguel", "Garcia", ["8", "Kalayaan Avenue", "Pinagsama", "Taguig", "1630"], "Blue gate beside the sari-sari store."],
-  ["Andrea", "Villanueva", ["1203", "Shaw Boulevard", "Wack-Wack Greenhills", "Mandaluyong", "1555"], null],
-  ["Joshua", "Ramos", ["17", "Ortigas Avenue", "Ugong", "Pasig", "1604"], "Call when outside."],
-  ["Kristine", "Aquino", ["32", "Aurora Boulevard", "Socorro", "Quezon City", "1109"], null],
-  ["Paolo", "Fernandez", ["9", "J.P. Rizal St.", "Poblacion", "Makati", "1210"], null],
-  ["Camille", "dela Cruz", ["55", "Taft Avenue", "Barangay 76", "Pasay", "1300"], "Third floor, room 3C."],
-  ["Rafael", "Lim", ["101", "Banawe St.", "Sto. Domingo", "Quezon City", "1114"], null],
-  ["Nicole", "Tan", ["4", "Tomas Morato Avenue", "South Triangle", "Quezon City", "1103"], "Beside the coffee shop."],
-  ["Enrico", "Bautista", ["220", "Quirino Avenue", "Tambo", "Parañaque", "1701"], null],
-  ["Sofia", "Navarro", ["14", "Pioneer St.", "Buayang Bato", "Mandaluyong", "1550"], null],
-  ["Gabriel", "Castillo", ["7", "E. Rodriguez Sr. Avenue", "Kristong Hari", "Quezon City", "1112"], "Yellow house, green gate."],
-  ["Isabel", "Ocampo", ["3", "Wilson St.", "Greenhills", "San Juan", "1502"], null],
+  ["Liza", "Reyes"],
+  ["Carlo", "Mendoza"],
+  ["Bea", "Santos"],
+  ["Miguel", "Garcia"],
+  ["Andrea", "Villanueva"],
+  ["Joshua", "Ramos"],
+  ["Kristine", "Aquino"],
+  ["Paolo", "Fernandez"],
+  ["Camille", "dela Cruz"],
+  ["Rafael", "Lim"],
+  ["Nicole", "Tan"],
+  ["Enrico", "Bautista"],
+  ["Sofia", "Navarro"],
+  ["Gabriel", "Castillo"],
+  ["Isabel", "Ocampo"],
 ];
 
 const REVIEW_COMMENTS = {
   5: ["Hot and fast — the Yang Chow is still the best in the city.", "Staff were friendly and the food was piping hot.", "Perfect as always. The siomai never misses!", "Generous servings, will order again."],
   4: ["Really good, just a little late tonight.", "Tasty fried rice, wish there was a bit more shrimp.", "Solid order, packaging kept everything warm."],
-  3: ["Food was fine but arrived lukewarm.", "Okay overall — the noodles were a bit soggy."],
+  3: ["Food was fine but a bit lukewarm by the time I got home.", "Okay overall — the noodles were a bit soggy."],
 };
 
 // ---- helpers -----------------------------------------------------------------
@@ -146,10 +144,6 @@ async function createAuthUser(email, name, extra = {}) {
   });
   if (error) throw new Error(`create auth user ${email}: ${error.message}`);
   return data.user.id;
-}
-
-function formatAddress([buildingNo, street, barangay, city, zip]) {
-  return `${buildingNo} ${street}, ${barangay}, ${city} ${zip}`;
 }
 
 // ---- reset -------------------------------------------------------------------
@@ -212,48 +206,40 @@ for (const e of EMPLOYEES) {
     role: e.role,
     schedule_shift: e.shift,
     phone_number: e.phone,
-    date_of_birth: e.dob,
   }), `employee ${e.email}`);
 }
 console.log(`Employees: ${EMPLOYEES.length}.`);
 
 // ---- customers ---------------------------------------------------------------
-const customers = []; // { id, address }
-for (const [index, [first, last, parts, note]] of CUSTOMERS.entries()) {
+const customers = []; // { id }
+for (const [index, [first, last]] of CUSTOMERS.entries()) {
   const email = emailFor(first, last);
   const id = await createAuthUser(email, `${first} ${last}`);
   const phone = `+63917${String(2200000 + index * 7919).padStart(7, "0")}`;
-  const year = between(1975, 2004);
   check(await db.from("customer").insert({
     customer_id: id,
     first_name: first,
     last_name: last,
     email,
     phone_number: phone,
-    date_of_birth: `${year}-${String(between(1, 12)).padStart(2, "0")}-${String(between(1, 28)).padStart(2, "0")}`,
   }), `customer ${email}`);
-  const [buildingNo, street, barangay, city, zip] = parts;
-  check(await db.from("customer_address").insert({
-    customer_id: id,
-    label: "Home",
-    building_no: buildingNo,
-    street,
-    barangay,
-    city,
-    zip_code: zip,
-    address_note: note,
-    is_default: true,
-  }), `address for ${email}`);
-  customers.push({ id, address: formatAddress(parts) });
+  customers.push({ id });
 }
-console.log(`Customers: ${customers.length}, each with a Metro Manila address.`);
+console.log(`Customers: ${customers.length}.`);
 
 // ---- orders ------------------------------------------------------------------
 const now = Date.now();
 let orderCount = 0;
 let reviewCount = 0;
 
-async function createOrder({ customer, createdAt, status, orderType }) {
+const minutes = (date, n) => new Date(date.getTime() + n * 60000);
+
+/**
+ * One order, written the way the app would have left it: status timeline in
+ * `order_status_log`, the ready-by promise and when it was actually ready,
+ * a payment row in the current vocabulary, and sometimes a rating.
+ */
+async function createOrder({ customer, createdAt, status, noShow = false }) {
   const lines = [];
   for (let i = 0, n = between(1, 4); i < n; i += 1) {
     const product = pick(products);
@@ -261,27 +247,63 @@ async function createOrder({ customer, createdAt, status, orderType }) {
     const addOn = product.addOns.length && random() < 0.35 ? pick(product.addOns) : null;
     lines.push({ product, quantity, addOn });
   }
-  const completedAt = status === "completed" ? new Date(createdAt.getTime() + between(25, 55) * 60000) : null;
-  const cancelled = status === "cancelled";
 
+  // Accepted a few minutes in; ready around the promise (some late, so the
+  // on-time report has something to say); collected soon after.
+  const promisedAt = minutes(createdAt, between(15, 25));
+  const acceptedAt = minutes(createdAt, between(1, 5));
+  const readyAt = minutes(promisedAt, pick([-6, -4, -3, -2, -1, 0, 0, 2, 5, 9]));
+  const completedAt = minutes(readyAt, between(3, 20));
+  const cancelled = status === "cancelled";
+  const cancelledAt = noShow ? minutes(readyAt, 95) : minutes(createdAt, between(2, 8));
+  const reached = { pending: 0, preparing: 1, ready: 2, completed: 3, cancelled: noShow ? 2 : 0 }[status];
+
+  const method = random() < 0.55 ? "pay_in_store" : random() < 0.55 ? "gcash" : "paymaya";
   const order = check(await db.from("order").insert({
     customer_id: customer.id,
-    order_type: orderType,
+    order_type: "take_out",
     order_status: status,
+    fulfillment_method: random() < 0.1 ? "3rd_party_courier" : "self_pickup",
     delivery_fee: 0,
-    delivery_address: null,
     created_at: createdAt.toISOString(),
-    completed_at: completedAt?.toISOString() ?? null,
-    cancelled_at: cancelled ? new Date(createdAt.getTime() + 5 * 60000).toISOString() : null,
-    cancellation_reason: cancelled ? pick(["Ordered the wrong items.", "Changed my mind.", "Store was about to close."]) : null,
+    pending_at: createdAt.toISOString(),
+    promised_at: promisedAt.toISOString(),
+    ready_at: reached >= 2 ? readyAt.toISOString() : null,
+    completed_at: status === "completed" ? completedAt.toISOString() : null,
+    cancelled_at: cancelled ? cancelledAt.toISOString() : null,
+    cancellation_reason: !cancelled
+      ? null
+      : noShow
+        ? "Customer did not pick up the order."
+        : pick(["Ordered the wrong items.", "Changed my mind.", "Out of stock"]),
+    no_show_reason: noShow ? "no_show" : null,
     special_instructions: random() < 0.2 ? pick(["No onions please.", "Extra chili on the side.", "Please include utensils."]) : null,
   }).select("order_id").single(), "order");
 
+  // The insert trigger logged one row stamped now(); replace it with the
+  // order's real path so the tracking timeline and history read true.
+  check(await db.from("order_status_log").delete().eq("order_id", order.order_id), "clear seeded status log");
+  const path = [{ to: "pending", at: createdAt }];
+  if (reached >= 1) path.push({ to: "preparing", at: acceptedAt });
+  if (reached >= 2) path.push({ to: "ready", at: readyAt });
+  if (status === "completed") path.push({ to: "completed", at: completedAt });
+  if (cancelled) path.push({ to: "cancelled", at: cancelledAt });
+  check(await db.from("order_status_log").insert(
+    path.map((step, i) => ({
+      order_id: order.order_id,
+      from_status: i === 0 ? null : path[i - 1].to,
+      to_status: step.to,
+      changed_at: step.at.toISOString(),
+    })),
+  ), "status log");
+
   let subtotal = 0;
+  const dishes = new Map();
   for (const line of lines) {
     const unit = line.product.price + (line.addOn ? Number(line.addOn.price) : 0);
     const lineTotal = money(unit * line.quantity);
     subtotal += lineTotal;
+    dishes.set(line.product.product_id, line.product);
     const item = check(await db.from("order_item").insert({
       order_id: order.order_id,
       product_id: line.product.product_id,
@@ -295,43 +317,63 @@ async function createOrder({ customer, createdAt, status, orderType }) {
     }
   }
 
-  const paid = status === "completed";
-  const method = random() < 0.6 ? "pay_in_store" : "paymongo";
+  // Wallet orders are paid before the kitchen sees them; cash is settled at
+  // pickup. A cancelled wallet order was refunded; cancelled cash never paid.
+  const tip = status === "completed" && random() < 0.2 ? pick([10, 20, 50]) : 0;
+  const wallet = method !== "pay_in_store";
+  const paid = status === "completed" || (wallet && !cancelled);
   check(await db.from("transaction").insert({
     order_id: order.order_id,
     payment_method: method,
-    payment_status: cancelled ? (method === "paymongo" ? "refunded" : "failed") : paid ? "paid" : "pending",
+    payment_status: cancelled ? (wallet ? "refunded" : "failed") : paid ? "paid" : "pending",
     subtotal: money(subtotal),
-    tax_amount: 0,
+    tax_amount: money((subtotal * 12) / 112),
     discount_amount: 0,
-    total_paid: paid ? money(subtotal) : 0,
+    tip_amount: tip,
+    total_paid: paid ? money(subtotal + tip) : 0,
     transaction_date: createdAt.toISOString(),
+    refunded_at: cancelled && wallet ? minutes(cancelledAt, 5).toISOString() : null,
   }), "transaction");
 
   if (status === "completed" && random() < 0.55) {
     const rating = pick([5, 5, 5, 4, 4, 3]);
+    const reviewedAt = minutes(completedAt, between(10, 180)).toISOString();
     check(await db.from("review").insert({
       customer_id: customer.id,
       order_id: order.order_id,
       rating,
+      service_rating: random() < 0.8 ? Math.max(1, Math.min(5, rating + pick([-1, 0, 0, 1]))) : null,
       comment: pick(REVIEW_COMMENTS[rating]),
-      created_at: new Date(completedAt.getTime() + between(10, 180) * 60000).toISOString(),
+      created_at: reviewedAt,
     }), "review");
+    // Some rate each dish too (FINALE 2.3).
+    if (random() < 0.4) {
+      for (const product of dishes.values()) {
+        check(await db.from("review").insert({
+          customer_id: customer.id,
+          order_id: order.order_id,
+          product_id: product.product_id,
+          rating: Math.max(1, Math.min(5, rating + pick([-1, 0, 0, 0, 1]))),
+          created_at: reviewedAt,
+        }), "dish review");
+      }
+    }
     reviewCount += 1;
   }
   orderCount += 1;
 }
 
-// A month of history: 2–5 orders a day, during store hours (10:00–21:00).
+// A month of history: 2–5 orders a day, inside store hours (08:00–18:00).
 for (let daysAgo = 30; daysAgo >= 1; daysAgo -= 1) {
   for (let i = 0, n = between(2, 5); i < n; i += 1) {
     const createdAt = new Date(now - daysAgo * 86400000);
-    createdAt.setHours(between(10, 20), between(0, 59), 0, 0);
+    createdAt.setHours(between(8, 16), between(0, 59), 0, 0);
+    const roll = random();
     await createOrder({
       customer: pick(customers),
       createdAt,
-      status: random() < 0.08 ? "cancelled" : "completed",
-      orderType: random() < 0.85 ? "take_out" : "dine_in",
+      status: roll < 0.08 ? "cancelled" : "completed",
+      noShow: roll < 0.015,
     });
   }
 }
@@ -341,7 +383,6 @@ for (const status of ["pending", "pending", "preparing", "preparing", "ready", "
     customer: pick(customers),
     createdAt: new Date(now - between(5, 50) * 60000),
     status,
-    orderType: "take_out",
   });
 }
 console.log(`Orders: ${orderCount} (30 days of history + today's queue), ${reviewCount} reviews.`);

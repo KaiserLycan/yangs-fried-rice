@@ -102,43 +102,33 @@ export async function selectIn(db, table, columns, key, ids) {
 }
 
 /**
- * Deletes orders and everything hanging off them, children first so no
- * foreign key is left pointing at a missing row.
+ * Deletes orders. Their items, add-ons, payments, reviews, status log,
+ * problem reports and notifications go with them (ON DELETE CASCADE); a
+ * submitted cart only points at its order, so it is deleted here.
  */
 export async function deleteOrdersCascade(db, orderIds) {
   if (orderIds.length === 0) return 0;
-  const items = await selectIn(db, "order_item", "order_item_id", "order_id", orderIds);
-  await deleteIn(db, "order_item_add_on", "order_item_id", items.map((i) => i.order_item_id));
-  await deleteIn(db, "order_item", "order_id", orderIds);
-  await deleteIn(db, "order_add_on", "order_id", orderIds);
-  await deleteIn(db, "transaction", "order_id", orderIds);
-  await deleteIn(db, "delivery", "order_id", orderIds);
-  await deleteIn(db, "review", "order_id", orderIds);
-  // A submitted cart points at its order.
   const carts = await selectIn(db, "cart", "cart_id", "order_id", orderIds);
   await deleteCartsCascade(db, carts.map((c) => c.cart_id));
   return deleteIn(db, "order", "order_id", orderIds);
 }
 
+/** Deletes carts; their lines and add-ons cascade. */
 export async function deleteCartsCascade(db, cartIds) {
   if (cartIds.length === 0) return 0;
-  const items = await selectIn(db, "cart_item", "cart_item_id", "cart_id", cartIds);
-  await deleteIn(db, "cart_item_add_on", "cart_item_id", items.map((i) => i.cart_item_id));
-  await deleteIn(db, "cart_item", "cart_id", cartIds);
-  await deleteIn(db, "cart_add_on", "cart_id", cartIds);
   return deleteIn(db, "cart", "cart_id", cartIds);
 }
 
-/** Removes customers with their orders, carts, addresses, reviews and auth users. */
+/**
+ * Removes customers with their orders and auth users. `order.customer_id` is
+ * ON DELETE SET NULL (so staff history survives a real account deletion),
+ * which is why the orders are deleted explicitly first; carts, reviews and
+ * notifications cascade.
+ */
 export async function deleteCustomersCascade(db, customerIds) {
   if (customerIds.length === 0) return 0;
   const orders = await selectIn(db, "order", "order_id", "customer_id", customerIds);
   await deleteOrdersCascade(db, orders.map((o) => o.order_id));
-  const carts = await selectIn(db, "cart", "cart_id", "customer_id", customerIds);
-  await deleteCartsCascade(db, carts.map((c) => c.cart_id));
-  await deleteIn(db, "review", "customer_id", customerIds);
-  await deleteIn(db, "notification", "customer_id", customerIds);
-  await deleteIn(db, "customer_address", "customer_id", customerIds);
   await deleteIn(db, "customer", "customer_id", customerIds);
   for (const id of customerIds) {
     const { error } = await db.auth.admin.deleteUser(id);
