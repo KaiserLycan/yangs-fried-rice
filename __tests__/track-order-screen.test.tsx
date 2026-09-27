@@ -52,6 +52,14 @@ function etaOf(arrivalWindow: string) {
 
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
+    // The screen waits for the session before subscribing. Answered at once
+    // (a thenable, not a Promise) so each test can emit straight after render.
+    auth: {
+      getSession: () => ({
+        then: (resolve: (value: { data: { session: null } }) => void) =>
+          resolve({ data: { session: null } }),
+      }),
+    },
     channel: () => {
       const channel = {
         on: (
@@ -398,11 +406,12 @@ describe("TrackOrderScreen", () => {
     expect(screen.getByText(/Arriving 10–15 mins/)).toBeInTheDocument();
   });
 
-  it("closes its channel when the screen goes away", () => {
+  // Two: the status channel and the status-log channel (#116).
+  it("closes its channels when the screen goes away", () => {
     const { unmount } = renderScreen(trackedOrder());
     unmount();
 
-    expect(channelsRemoved).toBe(1);
+    expect(channelsRemoved).toBe(2);
   });
 
   it("never shows a rider card — the shop is pickup-only", () => {
