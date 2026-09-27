@@ -14,7 +14,17 @@ export type OrderFilterState = {
   customer_phone?: string;
   payment_method?: "pay_in_store" | "wallet";
   order_type?: "take_out" | "dine_in";
+  /** Order total in pesos (items + add-ons). */
+  min_total?: number;
+  max_total?: number;
 };
+
+function toAmount(value: string): number | undefined {
+  const trimmed = value.trim().replace(/,/g, "");
+  if (trimmed === "") return undefined;
+  const n = Number(trimmed);
+  return Number.isFinite(n) && n >= 0 ? n : undefined;
+}
 
 interface OrderFilterPopoverProps {
   filters: OrderFilterState;
