@@ -74,7 +74,7 @@ function ManageMenuInner({ isManager }: { isManager?: boolean }) {
 
   // Shift+N opens "Add item" (listed in the ? shortcuts overlay).
   useShortcut(SHORTCUTS.newItem.combo, () => setIsAddModalOpen(true), {
-    enabled: !isAddModalOpen && !isDetailModalOpen && !isProcessing,
+    enabled: !!isManager && !isAddModalOpen && !isDetailModalOpen && !isProcessing,
   });
 
   // Derived Category Strings for UI
