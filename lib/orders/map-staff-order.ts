@@ -108,6 +108,10 @@ export function mapStaffOrder(order: StaffOrderRow): OrderData {
   return {
     id: order.order_id,
     rawCreatedAt: order.created_at,
+    // Both were read by the KDS but never filled in, so the "Pay in store"
+    // chip never showed and pick-up timers counted from the order time.
+    rawReadyAt: order.ready_at ?? null,
+    paymentMethod: first(order.transaction)?.payment_method ?? null,
     // Was `substring(0, 4).toUpperCase()` while the customer was shown the
     // last four — the same order, two references, neither able to check the
     // other (issue #106).
