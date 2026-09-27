@@ -33,7 +33,7 @@ export const productSchema = z.object({
     .nullable()
     .optional(),
   is_available: z.boolean().optional().default(true),
-  
+  is_featured: z.boolean().optional().default(false),
 });
 
 /** Partial version of productSchema. every field is optional so callers
