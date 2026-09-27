@@ -1,3 +1,11 @@
+-- !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+-- DO NOT RUN THIS VERSION. It was built on a branch that predates the
+-- `development` checkout (#115 store hours, #116 discount, price check). Its
+-- submit_cart_to_order section adds a second, older checkout function next
+-- to the live one. To be regenerated after merging `development`.
+-- !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+DO $$ BEGIN RAISE EXCEPTION 'Superseded: do not run this version of staff-workflow-live-setup.sql (see header).'; END $$;
+
 -- =============================================================================
 -- Yang's Fried Rice — staff workflow: LIVE DATABASE SETUP
 -- Generated from supabase/migrations/ (do not edit by hand; regenerate).
