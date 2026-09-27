@@ -16,6 +16,8 @@ export type StaffAction = "Cancel" | "Confirm" | "Ready" | "Complete";
 /** Header label for an order's card / modal. */
 export function statusLabelFor(order: Pick<OrderData, "status" | "isDelivery">): string {
   switch (order.status) {
+    case "UNPAID":
+      return "UNPAID";
     case "QUEUE":
       return "QUEUE";
     case "PREP":
