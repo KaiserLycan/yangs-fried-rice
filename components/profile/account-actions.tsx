@@ -87,7 +87,7 @@ export function AccountActions({
         description={
           blocked
             ? activeOrdersMessage(activeOrderCount)
-            : "This permanently deletes your profile and saved addresses. This can’t be undone."
+            : "This permanently deletes your profile. This can’t be undone."
         }
         footer={
           <>

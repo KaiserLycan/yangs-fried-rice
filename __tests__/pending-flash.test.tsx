@@ -20,7 +20,7 @@ function order(pendingAt: string | null): OrderData {
     status: "QUEUE",
     pendingAt,
     items: [{ quantity: 1, name: "Yang Chow", price: 150 }],
-    contactInfo: { name: "Liza", address: "—", phone: "—" },
+    contactInfo: { name: "Liza", phone: "—" },
     orderInfo: { type: "Take-Out" },
     deliveryFee: 0,
     total: 150,

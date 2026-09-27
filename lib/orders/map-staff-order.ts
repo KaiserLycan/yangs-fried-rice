@@ -26,7 +26,6 @@ export type StaffOrderRow = {
   order_status: string | null;
   order_type: string | null;
   delivery_fee: number | null;
-  delivery_address: string | null;
   /** The order-wide note from checkout, not any one line's. */
   special_instructions?: string | null;
   customer: One<{
@@ -148,9 +147,6 @@ export function mapStaffOrder(order: StaffOrderRow): OrderData {
     timer: `${prepMinutes}:00`,
     contactInfo: {
       name: customer?.name || "Walk-in Customer",
-      address:
-        order.delivery_address ||
-        (delivery ? "No delivery address on file" : "Not applicable (no delivery)"),
       // Same "+63 917 123 4567" grouping as every other screen (P27).
       phone:
         formatMobileNumber(customer?.phone_number) ||

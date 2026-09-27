@@ -9,7 +9,7 @@ import {
  * Whether the shop can take an order right now, and why not (issue #115).
  *
  * The answer comes from `get_store_status()` in the database
- * (20260928000001_store_setting.sql), which applies the opening hours, the
+ * (20260928000003_store_setting.sql), which applies the opening hours, the
  * manager's pause and the busy limit. This module is the pure half — types,
  * parsing and the customer-facing wording — so the client components that
  * draw the banners can import it. The read itself is in

@@ -6,7 +6,6 @@ import { ChevronLeft } from "lucide-react";
 import { redirect } from "next/navigation";
 import { AccountActions } from "@/components/profile/account-actions";
 import { ContactDetailsCard } from "@/components/profile/contact-details-card";
-import { DeliveryAddressesCard } from "@/components/profile/delivery-addresses-card";
 import { PasswordCard } from "@/components/profile/password-card";
 import { PersonalDetailsCard } from "@/components/profile/personal-details-card";
 import { ProfileAvatarCard } from "@/components/profile/profile-avatar-card";
@@ -23,8 +22,8 @@ import { readMyActiveOrderCount } from "@/lib/orders/active-orders";
 /**
  * Customer profile (Cust3, Cust4, Cust5).
  *
- * The shell, log out and delete account came first; personal, contact,
- * delivery addresses and password followed.
+ * The shell, log out and delete account came first; personal, contact and
+ * password followed. There is no address: the shop is pickup-only.
  *
  * Reads are real; writes are not. Everything displayed here comes from live
  * data so the screen can be reviewed against the design, but every mutation
@@ -75,7 +74,7 @@ export default async function ProfilePage() {
                   MY PROFILE
                 </h1>
                 <p className="text-sm text-muted-foreground">
-                  name, contact, addresses and password
+                  name, contact and password
                 </p>
               </div>
 
@@ -94,8 +93,6 @@ export default async function ProfilePage() {
               </div>
 
               <ContactDetailsCard profile={profile} />
-
-              <DeliveryAddressesCard addresses={profile.addresses} />
 
               <PasswordCard lastUpdated={profile.passwordLastUpdated} />
 

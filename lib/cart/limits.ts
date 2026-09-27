@@ -9,7 +9,7 @@ import { MAX_QUANTITY } from "@/lib/menu/quantity";
  *
  * Past this, the kitchen wants a phone call, not a surprise in the queue.
  * The same 30 is enforced by `submit_cart_to_order`
- * (20260928000004_checkout_business_rules.sql) — change both together.
+ * (20260928000006_checkout_business_rules.sql) — change both together.
  * The per-dish cap is separate: `MAX_QUANTITY` in `lib/menu/quantity.ts`.
  */
 export const MAX_ITEMS_PER_ORDER = 30;
@@ -25,7 +25,7 @@ export const BULK_ORDER_NOTE = "Please contact us for a bulk order or catering."
 /**
  * One dish over 20 across all its cart lines — notes and add-ons included.
  * Worded and coded exactly as `submit_cart_to_order` refuses it
- * (20260928000008), so the message a customer sees while adding matches the
+ * (20260928000014), so the message a customer sees while adding matches the
  * one checkout would give.
  */
 export const DISH_LIMIT_CODE = "ITEM_LIMIT_EXCEEDED";

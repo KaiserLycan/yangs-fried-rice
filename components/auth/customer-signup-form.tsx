@@ -12,10 +12,6 @@ import { ShowHideToggle } from "@/components/ui/show-hide-toggle";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { AuthTabs } from "@/components/auth/auth-tabs";
-import {
-  AddressFields,
-  ADDRESS_FIELD_LABELS,
-} from "@/components/forms/address-fields";
 import { FormErrorSummary } from "@/components/forms/form-error-summary";
 import { useLiveValidation } from "@/lib/forms/use-live-validation";
 import { useSubmitShortcut } from "@/lib/hooks/use-shortcut";
@@ -37,7 +33,6 @@ const FIELD_LABELS: Record<string, string> = {
   password: "Password",
   ageConfirmed: "Age confirmation",
   terms: "Terms & Policy",
-  ...ADDRESS_FIELD_LABELS,
 };
 
 function readSignupForm(data: FormData) {
@@ -49,11 +44,6 @@ function readSignupForm(data: FormData) {
     // The field shows the masked digits; this is the stored form.
     phone: toInternationalMobile(text("phone")),
     password: text("password"),
-    buildingNo: text("buildingNo"),
-    street: text("street"),
-    barangay: text("barangay"),
-    city: text("city"),
-    zip: text("zip"),
     ageConfirmed: data.get("ageConfirmed") === "on",
     terms: data.get("terms") === "on",
   };
@@ -144,8 +134,8 @@ function SignupFormInner() {
             Create your account
           </h1>
           <p className="text-sm text-muted-foreground">
-            Fill in your details and your address. Fields marked * are
-            required. Orders are picked up at the counter.
+            Fields marked * are required. Orders are picked up at the
+            counter.
           </p>
         </div>
 
@@ -240,8 +230,6 @@ function SignupFormInner() {
           <PasswordStrengthMeter password={password} />
         </Field>
 
-        <AddressFields idPrefix="signup" variant="auth" errors={errors} />
-
         {/* Only while the form is being sent — it is the moment the
             confirmation email goes out, and the login page repeats it. */}
         {isPending ? (
@@ -255,8 +243,8 @@ function SignupFormInner() {
           </p>
         ) : null}
 
-        {/* Replaces the date of birth (F16). The birthday was the only age
-            check, and the lawyer review (persona 15, J6) raised minors. */}
+        {/* The only age check (F16): no birthday is collected. The lawyer
+            review (persona 15, J6) raised minors. */}
         <div className="flex flex-col gap-[4px]">
           <label className="mt-1 flex min-h-[44px] items-start gap-[9px] text-sm">
             <Checkbox

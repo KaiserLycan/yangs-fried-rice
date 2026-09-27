@@ -43,7 +43,6 @@ export default async function ProfilePage() {
     firstName: result.data.firstName,
     lastName: result.data.lastName,
     name: result.data.name,
-    dateOfBirth: result.data.dateOfBirth ?? null,
     role: result.data.role,
     shift: result.data.scheduleShift ?? "Not set",
     mobile: result.data.phoneNumber ?? "",
@@ -67,7 +66,7 @@ export default async function ProfilePage() {
             MY PROFILE
           </h1>
           <p className="font-sans text-sm text-muted-foreground pb-[2px]">
-            name, contact, addresses and password
+            name, contact and password
           </p>
         </div>
 

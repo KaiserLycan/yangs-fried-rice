@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -7,10 +7,30 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
@@ -522,6 +542,42 @@ export type Database = {
           },
         ]
       }
+      order_add_on: {
+        Row: {
+          addon_id: string | null
+          order_add_on_id: string
+          order_id: string | null
+          price: number
+        }
+        Insert: {
+          addon_id?: string | null
+          order_add_on_id?: string
+          order_id?: string | null
+          price: number
+        }
+        Update: {
+          addon_id?: string | null
+          order_add_on_id?: string
+          order_id?: string | null
+          price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_add_on_addon_id_fkey"
+            columns: ["addon_id"]
+            isOneToOne: false
+            referencedRelation: "add_on"
+            referencedColumns: ["addon_id"]
+          },
+          {
+            foreignKeyName: "order_add_on_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order"
+            referencedColumns: ["order_id"]
+          },
+        ]
+      }
       order_issue: {
         Row: {
           created_at: string
@@ -571,42 +627,6 @@ export type Database = {
             foreignKeyName: "order_issue_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: true
-            referencedRelation: "order"
-            referencedColumns: ["order_id"]
-          },
-        ]
-      }
-      order_add_on: {
-        Row: {
-          addon_id: string | null
-          order_add_on_id: string
-          order_id: string | null
-          price: number
-        }
-        Insert: {
-          addon_id?: string | null
-          order_add_on_id?: string
-          order_id?: string | null
-          price: number
-        }
-        Update: {
-          addon_id?: string | null
-          order_add_on_id?: string
-          order_id?: string | null
-          price?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "order_add_on_addon_id_fkey"
-            columns: ["addon_id"]
-            isOneToOne: false
-            referencedRelation: "add_on"
-            referencedColumns: ["addon_id"]
-          },
-          {
-            foreignKeyName: "order_add_on_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
             referencedRelation: "order"
             referencedColumns: ["order_id"]
           },
@@ -737,6 +757,7 @@ export type Database = {
           category_id: string | null
           image_url: string | null
           is_available: boolean | null
+          is_featured: boolean
           product_details: string | null
           product_id: string
           product_name: string
@@ -747,6 +768,7 @@ export type Database = {
           category_id?: string | null
           image_url?: string | null
           is_available?: boolean | null
+          is_featured?: boolean
           product_details?: string | null
           product_id?: string
           product_name: string
@@ -757,6 +779,7 @@ export type Database = {
           category_id?: string | null
           image_url?: string | null
           is_available?: boolean | null
+          is_featured?: boolean
           product_details?: string | null
           product_id?: string
           product_name?: string
@@ -769,6 +792,66 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "categories"
             referencedColumns: ["category_id"]
+          },
+        ]
+      }
+      promotion: {
+        Row: {
+          category_id: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          ends_at: string
+          id: string
+          image_url: string
+          is_active: boolean
+          product_id: string | null
+          starts_at: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          ends_at: string
+          id?: string
+          image_url: string
+          is_active?: boolean
+          product_id?: string | null
+          starts_at: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          ends_at?: string
+          id?: string
+          image_url?: string
+          is_active?: boolean
+          product_id?: string | null
+          starts_at?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promotion_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["category_id"]
+          },
+          {
+            foreignKeyName: "promotion_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product"
+            referencedColumns: ["product_id"]
           },
         ]
       }
@@ -988,11 +1071,13 @@ export type Database = {
     Functions: {
       audit_current_actor: { Args: never; Returns: Record<string, unknown> }
       current_employee_role: { Args: never; Returns: string }
-      get_store_status: { Args: never; Returns: Json }
+      expire_abandoned_orders: { Args: { p_window?: string }; Returns: number }
+      expire_unaccepted_orders: { Args: { p_window?: string }; Returns: number }
       get_customer_order_history: {
         Args: { p_customer_id: string }
         Returns: Json
       }
+      get_store_status: { Args: never; Returns: Json }
       is_menu_manager: { Args: never; Returns: boolean }
       record_employee_action: {
         Args: {
@@ -1156,7 +1241,11 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },
 } as const
+

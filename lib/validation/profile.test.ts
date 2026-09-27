@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { z } from "zod";
 import {
   contactDetailsSchema,
-  deliveryAddressSchema,
   passwordChangeSchema,
   personalDetailsSchema,
 } from "./profile";
@@ -19,28 +18,13 @@ function messageFor(
 }
 
 describe("personalDetailsSchema", () => {
-  it("accepts a name with a date of birth", () => {
-    expect(
-      personalDetailsSchema.safeParse({
-        firstName: "Liza",
-        lastName: "Reyes",
-        dateOfBirth: "1996-06-14",
-      }).success,
-    ).toBe(true);
-  });
-
-  // Date of birth has no column yet and is confirmed optional when it lands,
-  // so a customer must be able to correct their name without supplying one.
-  it("accepts a name with no date of birth", () => {
-    expect(
-      personalDetailsSchema.safeParse({ firstName: "Liza", lastName: "Reyes", dateOfBirth: "" })
-        .success,
-    ).toBe(true);
+  it("accepts a first and last name", () => {
+    expect(personalDetailsSchema.safeParse({ firstName: "Liza", lastName: "Reyes" }).success).toBe(true);
   });
 
   it("rejects an empty first name with sign-up's message", () => {
     expect(
-      messageFor(personalDetailsSchema, { firstName: "", lastName: "Reyes", dateOfBirth: "" }, "firstName"),
+      messageFor(personalDetailsSchema, { firstName: "", lastName: "Reyes" }, "firstName"),
     ).toBe("Enter your first name.");
   });
 
@@ -48,7 +32,7 @@ describe("personalDetailsSchema", () => {
     expect(
       messageFor(
         personalDetailsSchema,
-        { firstName: "Liza", lastName: "   ", dateOfBirth: "" },
+        { firstName: "Liza", lastName: "   " },
         "lastName",
       ),
     ).toBe("Enter your last name.");
@@ -56,19 +40,19 @@ describe("personalDetailsSchema", () => {
 
   it("rejects a one-letter last name", () => {
     expect(
-      messageFor(personalDetailsSchema, { firstName: "Liza", lastName: "R", dateOfBirth: "" }, "lastName"),
+      messageFor(personalDetailsSchema, { firstName: "Liza", lastName: "R" }, "lastName"),
     ).toBe("Last name must be at least 2 characters.");
   });
 
   it("rejects digits and symbols in a name", () => {
     expect(
-      messageFor(personalDetailsSchema, { firstName: "L1za", lastName: "Reyes", dateOfBirth: "" }, "firstName"),
+      messageFor(personalDetailsSchema, { firstName: "L1za", lastName: "Reyes" }, "firstName"),
     ).toMatch(/only contain letters/);
   });
 
   it("accepts real-world names with spaces, hyphens, apostrophes and ñ", () => {
     for (const [firstName, lastName] of [["Maria Clara", "dela Cruz"], ["Jean-Luc", "O'Neil"], ["José", "Peñaflor Jr."]]) {
-      expect(personalDetailsSchema.safeParse({ firstName, lastName, dateOfBirth: "" }).success).toBe(true);
+      expect(personalDetailsSchema.safeParse({ firstName, lastName }).success).toBe(true);
     }
   });
 });
@@ -161,59 +145,6 @@ describe("contactDetailsSchema", () => {
       contactDetailsSchema.safeParse({ ...valid, email: "liza@gmial.com" })
         .success,
     ).toBe(true);
-  });
-});
-
-describe("deliveryAddressSchema", () => {
-  it("accepts a full address with a label and a note", () => {
-    expect(
-      deliveryAddressSchema.safeParse({
-        label: "Home",
-        buildingNo: "128",
-        street: "Paseo del Congreso",
-        barangay: "Malolos",
-        city: "Bulacan",
-        zip: "3000",
-        deliveryNote: "Beside the blue gate",
-      }).success,
-    ).toBe(true);
-  });
-
-  // The label and the note are confirmed-upcoming columns with no shape of
-  // their own yet, so a customer must be able to save an address without
-  // either.
-  it("accepts a blank label and a blank note", () => {
-    expect(
-      deliveryAddressSchema.safeParse({
-        label: "",
-        buildingNo: "128",
-        street: "Paseo del Congreso",
-        barangay: "Malolos",
-        city: "Bulacan",
-        zip: "3000",
-        deliveryNote: "",
-      }).success,
-    ).toBe(true);
-  });
-
-  it("rejects an empty address", () => {
-    expect(
-      messageFor(
-        deliveryAddressSchema,
-        { label: "Home", buildingNo: "", street: "", barangay: "", city: "", zip: "", deliveryNote: "" },
-        "buildingNo",
-      ),
-    ).toBe("Enter building/house number.");
-  });
-
-  it("rejects a whitespace-only address", () => {
-    expect(
-      messageFor(
-        deliveryAddressSchema,
-        { label: "Home", buildingNo: "   ", street: "", barangay: "", city: "", zip: "", deliveryNote: "" },
-        "buildingNo",
-      ),
-    ).toBe("Enter building/house number.");
   });
 });
 

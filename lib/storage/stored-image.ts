@@ -14,6 +14,7 @@ export const IMAGE_BUCKETS = {
   menu: "menu-images",
   customerAvatar: "avatars",
   employeeAvatar: "emp-pfp",
+  promotions: "promotion-images",
 } as const;
 
 export type ImageBucket = (typeof IMAGE_BUCKETS)[keyof typeof IMAGE_BUCKETS];

@@ -20,10 +20,6 @@
       "description": "Handles menu browsing and filtering, allows managers to add, update, or remove food products, categories, and add-on options"
     },
     {
-      "name": "Address & Validation",
-      "description": "Save customers' addresses per profile"
-    },
-    {
       "name": "Cart & Checkout",
       "description": "Manage active cart items, automatically lock the cart upon checkout, and handle pre-confirmation order cancellation"
     },
@@ -3230,105 +3226,6 @@
         }
       }
     },
-    "/api/customer/addresses": {
-      "get": {
-        "tags": [
-          "Address & Validation"
-        ],
-        "summary": "List saved customer addresses",
-        "description": "Returns all saved delivery addresses for the currently authenticated customer.",
-        "operationId": "getCustomerAddresses",
-        "responses": {
-          "200": {
-            "description": "List of customer addresses",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "addresses": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/CustomerAddress"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized — customer session required",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "Address & Validation"
-        ],
-        "summary": "Add new customer address",
-        "description": "Adds a new address for the authenticated customer.",
-        "operationId": "addCustomerAddress",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AddCustomerAddressInput"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Address created successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "message": {
-                      "type": "string",
-                      "example": "Address successfully added."
-                    },
-                    "address": {
-                      "$ref": "#/components/schemas/CustomerAddress"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Validation error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/orders/{id}/eta": {
       "get": {
         "tags": [
@@ -4667,60 +4564,6 @@
           }
         }
       },
-      "AddressInput": {
-        "type": "object",
-        "required": [
-          "address"
-        ],
-        "properties": {
-          "address": {
-            "type": "string",
-            "minLength": 5,
-            "maxLength": 500,
-            "example": "123 Rizal Avenue, Quezon City, Philippines"
-          }
-        }
-      },
-      "AddressValidationResponse": {
-        "type": "object",
-        "properties": {
-          "valid": {
-            "type": "boolean",
-            "example": true
-          },
-          "formatted_address": {
-            "type": "string",
-            "description": "Full formatted address (only when source=nominatim and valid=true)",
-            "example": "123 Rizal Avenue, Quezon City, Metro Manila, Philippines"
-          },
-          "latitude": {
-            "type": "number",
-            "format": "float",
-            "description": "Latitude (only when source=nominatim and valid=true)",
-            "example": 14.6336
-          },
-          "longitude": {
-            "type": "number",
-            "format": "float",
-            "description": "Longitude (only when source=nominatim and valid=true)",
-            "example": 121.0014
-          },
-          "message": {
-            "type": "string",
-            "description": "Human-readable validation message",
-            "example": "Address accepted (external validation unavailable — verified by format only)."
-          },
-          "source": {
-            "type": "string",
-            "enum": [
-              "nominatim",
-              "fallback"
-            ],
-            "description": "Which validation method was used",
-            "example": "nominatim"
-          }
-        }
-      },
       "Employee": {
         "type": "object",
         "required": [
@@ -5831,61 +5674,6 @@
             "type": "string",
             "maxLength": 300,
             "default": "Customer requested cancellation"
-          }
-        }
-      },
-      "CustomerAddress": {
-        "type": "object",
-        "properties": {
-          "address_id": {
-            "type": "string",
-            "example": "1"
-          },
-          "label": {
-            "type": "string",
-            "example": "Home"
-          },
-          "address_details": {
-            "type": "string",
-            "example": "Taft Avenue, Malate, Manila"
-          },
-          "address_note": {
-            "type": "string",
-            "nullable": true,
-            "example": "Leave at front desk"
-          },
-          "is_default": {
-            "type": "boolean",
-            "example": true
-          }
-        }
-      },
-      "AddCustomerAddressInput": {
-        "type": "object",
-        "required": [
-          "address_details"
-        ],
-        "properties": {
-          "label": {
-            "type": "string",
-            "example": "Home"
-          },
-          "address_details": {
-            "type": "string",
-            "example": "Taft Avenue, Malate, Manila"
-          },
-          "address": {
-            "type": "string",
-            "description": "Alternative key for address_details"
-          },
-          "delivery_note": {
-            "type": "string",
-            "nullable": true,
-            "example": "Ring doorbell"
-          },
-          "is_default": {
-            "type": "boolean",
-            "default": false
           }
         }
       },

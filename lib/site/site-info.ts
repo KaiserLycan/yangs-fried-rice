@@ -12,6 +12,7 @@
  */
 
 export const SITE_NAME = "Yang's Fried Rice";
+export const SITE_DESCRIPTION = "The best authentic Yangzhou fried rice in Manila. We cook every order fresh, offering quick and easy counter pickup.";
 
 /** Matches what the manager's PDF reports already print as the letterhead. */
 export const SITE_BRANCH = "Malate Branch, Manila";

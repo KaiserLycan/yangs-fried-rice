@@ -13,7 +13,7 @@
 --                   (p_expected_prices) and the menu now says otherwise;
 --                   the message names each changed dish, old → new
 --
--- The store checks read get_store_status() (20260928000001), the same answer
+-- The store checks read get_store_status() (20260928000003), the same answer
 -- the menu banner and the dashboard show, so they cannot disagree.
 --
 -- The rest of the body — locking, pricing from the menu, the writes — is

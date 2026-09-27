@@ -54,7 +54,6 @@ function ManageCustomersInner() {
           name: c.name || "Unknown User",
           firstName: c.first_name || "",
           lastName: c.last_name || "",
-          dateOfBirth: c.date_of_birth ?? null,
           email: c.email || "No email",
           // Grouped for reading: stored numbers are a dense +639171234567.
           contact: formatMobileNumber(c.phone_number) || "No contact",

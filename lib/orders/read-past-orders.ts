@@ -60,7 +60,7 @@ export async function readPastOrders(): Promise<PastOrder[]> {
   // rows are already here, so the common case — nothing stale — costs
   // nothing, and only a customer who actually abandoned a payment triggers
   // a write. It is a read doing a write, which is the price of having no
-  // scheduler; `supabase/migrations/20260926000002_expire_abandoned_orders.sql`
+  // scheduler; `supabase/migrations/20260926000003_expire_abandoned_orders.sql`
   // carries the same rule for a sweep that does not need the customer to
   // come back.
   const staleCutoff = Date.now() - PAYMENT_WINDOW_MS;

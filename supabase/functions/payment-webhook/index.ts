@@ -106,7 +106,7 @@ Deno.serve(async (req: Request) => {
         : {}),
       // The payment (pay_…), which PayMongo's Refunds API needs; the row
       // already holds the intent (pi_…). Issue #115, column added in
-      // 20260928000002.
+      // 20260928000004.
       ...(newStatus === "paid" && resourceId?.startsWith("pay_")
         ? { provider_payment_id: resourceId }
         : {}),

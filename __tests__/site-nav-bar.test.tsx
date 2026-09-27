@@ -32,30 +32,12 @@ const profile: CustomerProfile = {
   firstName: "Liza",
   lastName: "Reyes",
   name: "Liza Reyes",
-  dateOfBirth: null,
   mobile: null,
   email: "liza@example.com",
   passwordLastUpdated: null,
   profileImageUrl: null,
-  activeAddressId: "addr-1",
   memberSince: null,
   orderCount: 0,
-  deliverToAddress: "21 Mabini St, Malolos, Bulacan",
-  deliverToNote: null,
-  addresses: [
-    {
-      id: "addr-1",
-      addressDetails: "21 Mabini St, Malolos, Bulacan",
-      buildingNo: "21",
-      street: "Mabini St",
-      barangay: "Malolos",
-      city: "Bulacan",
-      zip: "",
-      label: "Home",
-      deliveryNote: "",
-      isDefault: true,
-    },
-  ],
 };
 
 describe("SiteNavBar", () => {
@@ -90,16 +72,6 @@ describe("SiteNavBar", () => {
     expect(screen.queryByText("Deliver to")).not.toBeInTheDocument();
   });
 
-  it("hides the delivery address affordance when there is none saved", () => {
-    renderNavBar(
-      <SiteNavBar
-        profile={{ ...profile, deliverToAddress: null }}
-        currentSection="menu"
-      />,
-    );
-
-    expect(screen.queryByText("Deliver to")).not.toBeInTheDocument();
-  });
 
   it("renders no search slot when none is passed", () => {
     renderNavBar(<SiteNavBar profile={profile} currentSection="account" />);

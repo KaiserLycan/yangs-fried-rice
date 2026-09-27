@@ -199,7 +199,7 @@ async function replaceLineAddOns(
  *   - 30 items per order (MAX_ITEMS_PER_ORDER), and
  *   - 20 of one dish across ALL its lines (MAX_QUANTITY): a line with a note
  *     or different add-ons is still the same dish.
- * `submit_cart_to_order` checks both again (20260928000008).
+ * `submit_cart_to_order` checks both again (20260928000014).
  */
 type CartLineQuantity = { cart_item_id: string; product_id: string | null; quantity: number };
 
@@ -875,8 +875,8 @@ export async function clearCart(): Promise<
  * way left an order with no lines — and it relied on customers being allowed
  * to insert into the order tables directly, which they no longer are.
  *
- * The browser's `delivery_fee` and `delivery_address` are not sent on: the
- * shop is pickup-only, and the function charges no fee.
+ * The browser's `delivery_fee` is not sent on: the shop is pickup-only, and
+ * the function charges no fee.
  *
  * Closed, paused or busy (issue #115) is checked here first, so the
  * customer gets the same wording the menu banner uses without a trip to the
