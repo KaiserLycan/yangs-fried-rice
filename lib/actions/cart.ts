@@ -31,7 +31,9 @@ import { storeBlockFor } from "@/lib/store/store-status";
 import { MAX_QUANTITY } from "@/lib/menu/quantity";
 import {
   BIG_ORDER_MESSAGE,
+  DISH_LIMIT_CODE,
   ORDER_TOO_LARGE_CODE,
+  dishLimitMessage,
   wouldExceedOrderCap,
 } from "@/lib/cart/limits";
 
@@ -188,28 +190,51 @@ async function replaceLineAddOns(
 // ---------------------------------------------------------------------------
 
 /**
- * How many items are in a cart: the sum of its lines' quantities, leaving
- * out `excludeCartItemId` (the line being changed, whose new quantity the
- * caller adds back itself).
+ * Every line of a cart, reduced to what the order limits need: which dish,
+ * and how many (issue #115).
  *
  * Every path that grows a cart — adding a dish, the stepper, reorder — checks
- * this against MAX_ITEMS_PER_ORDER, so the customer hears "that's a big
- * order" while building the cart rather than at checkout.
- * `submit_cart_to_order` checks again.
+ * these against the two limits, so the customer hears about them while
+ * building the cart rather than at checkout:
+ *   - 30 items per order (MAX_ITEMS_PER_ORDER), and
+ *   - 20 of one dish across ALL its lines (MAX_QUANTITY): a line with a note
+ *     or different add-ons is still the same dish.
+ * `submit_cart_to_order` checks both again (20260928000008).
  */
-async function cartQuantityTotal(
+type CartLineQuantity = { cart_item_id: string; product_id: string | null; quantity: number };
+
+async function readCartQuantities(
   supabase: ReturnType<typeof createClient>,
   cartId: string,
-  excludeCartItemId?: string,
-): Promise<number> {
+): Promise<CartLineQuantity[]> {
   const { data } = await supabase
     .from("cart_item")
-    .select("cart_item_id, quantity")
+    .select("cart_item_id, product_id, quantity")
     .eq("cart_id", cartId);
+  return (data ?? []).map((row) => ({
+    cart_item_id: row.cart_item_id,
+    product_id: row.product_id,
+    quantity: row.quantity ?? 0,
+  }));
+}
 
-  return (data ?? [])
-    .filter((row) => row.cart_item_id !== excludeCartItemId)
-    .reduce((sum, row) => sum + (row.quantity ?? 0), 0);
+/** Items in the cart, leaving out one line (the one being changed). */
+function itemsIn(lines: CartLineQuantity[], excludeCartItemId?: string): number {
+  return lines
+    .filter((line) => line.cart_item_id !== excludeCartItemId)
+    .reduce((sum, line) => sum + line.quantity, 0);
+}
+
+/** Of one dish across all its lines, leaving out one line. */
+function dishItemsIn(
+  lines: CartLineQuantity[],
+  productId: string,
+  excludeCartItemId?: string,
+): number {
+  return itemsIn(
+    lines.filter((line) => line.product_id === productId),
+    excludeCartItemId,
+  );
 }
 
 const TOO_LARGE = {
@@ -218,7 +243,9 @@ const TOO_LARGE = {
   code: ORDER_TOO_LARGE_CODE,
 } as const;
 
-const PER_DISH_LIMIT_MESSAGE = `You can have at most ${MAX_QUANTITY} of one dish in your cart.`;
+function dishLimit(dishName: string) {
+  return { data: null, error: dishLimitMessage(dishName), code: DISH_LIMIT_CODE } as const;
+}
 
 // ---------------------------------------------------------------------------
 // 1. Get Active Cart
@@ -401,10 +428,14 @@ export async function addCartItem(
   if (addOnError) return { data: null, error: addOnError };
 
   // Merged into an existing line or added as a new one, the cart grows by
-  // the same number of items.
-  const currentTotal = await cartQuantityTotal(supabase, cart.cart_id);
-  if (wouldExceedOrderCap(currentTotal, parsed.data.quantity)) {
+  // the same number of items — and so does this dish, whichever line it
+  // lands on (a note makes a new line, not a new dish).
+  const cartLines = await readCartQuantities(supabase, cart.cart_id);
+  if (wouldExceedOrderCap(itemsIn(cartLines), parsed.data.quantity)) {
     return TOO_LARGE;
+  }
+  if (dishItemsIn(cartLines, product.product_id) + parsed.data.quantity > MAX_QUANTITY) {
+    return dishLimit(product.product_name);
   }
 
   // Adding a dish that is already in the cart raises its quantity instead of
@@ -431,15 +462,9 @@ export async function addCartItem(
     });
 
     if (match) {
+      // Within 20: the dish total, which includes this line, was checked
+      // above. (It used to clamp silently at 99.)
       const mergedQuantity = match.quantity + parsed.data.quantity;
-      // Used to clamp silently at 99, so "add 5" could add 2 without a word.
-      if (mergedQuantity > MAX_QUANTITY) {
-        return {
-          data: null,
-          error: PER_DISH_LIMIT_MESSAGE,
-          code: "QUANTITY_LIMIT",
-        };
-      }
       const now = new Date().toISOString();
 
       const [mergeResult] = await Promise.all([
@@ -608,11 +633,8 @@ export async function updateCartItem(
     parsed.data.quantity !== undefined &&
     parsed.data.quantity > item.quantity
   ) {
-    const otherLines = await cartQuantityTotal(
-      supabase,
-      parentCart.cart_id,
-      item.cart_item_id,
-    );
+    const cartLines = await readCartQuantities(supabase, parentCart.cart_id);
+    const otherLines = itemsIn(cartLines, item.cart_item_id);
     if (
       wouldExceedOrderCap(
         otherLines + item.quantity,
@@ -620,6 +642,14 @@ export async function updateCartItem(
       )
     ) {
       return TOO_LARGE;
+    }
+    if (
+      item.product_id &&
+      dishItemsIn(cartLines, item.product_id, item.cart_item_id) + parsed.data.quantity >
+        MAX_QUANTITY
+    ) {
+      const dish = item.product as { product_name: string } | null;
+      return dishLimit(dish?.product_name ?? "this dish");
     }
   }
 
@@ -1268,6 +1298,7 @@ export async function reorderPastOrder(
       special_instructions,
       product!inner (
         product_id,
+        product_name,
         is_available,
         archived_at
       ),
@@ -1324,25 +1355,44 @@ export async function reorderPastOrder(
     };
   }
 
-  // 5. Insert available items into cart. Ids are chosen here so each line's
-  // add-ons can be attached to it below. A line from before the per-dish cap
-  // (issue #115) can be over 20; it comes back at 20, since the cart can no
-  // longer hold more.
+  // 5. Insert available items into cart, as they were ordered: same
+  // quantities and notes. Ids are chosen here so each line's add-ons can be
+  // attached to it below.
   const cartItemsToInsert = availableItems.map((item) => {
     const p = (Array.isArray(item.product) ? item.product[0] : item.product) as unknown as { product_id: string };
     return {
       cart_item_id: crypto.randomUUID(),
       cart_id: cart!.cart_id,
       product_id: p.product_id,
-      quantity: Math.min(MAX_QUANTITY, item.quantity),
+      quantity: item.quantity,
       special_instructions: item.special_instructions,
     };
   });
 
+  // The same list or nothing (issue #115): if the order would not fit the
+  // cart — 30 items, or 20 of a dish counting what is already there — say
+  // so, rather than quietly adding a smaller order than the one asked for.
+  const cartLines = await readCartQuantities(supabase, cart.cart_id);
   const reorderedItems = cartItemsToInsert.reduce((sum, line) => sum + line.quantity, 0);
-  const currentTotal = await cartQuantityTotal(supabase, cart.cart_id);
-  if (wouldExceedOrderCap(currentTotal, reorderedItems)) {
+  if (wouldExceedOrderCap(itemsIn(cartLines), reorderedItems)) {
     return TOO_LARGE;
+  }
+  const dishNames = new Map(
+    availableItems.map((item) => {
+      const p = (Array.isArray(item.product) ? item.product[0] : item.product) as unknown as {
+        product_id: string;
+        product_name: string;
+      };
+      return [p.product_id, p.product_name] as const;
+    }),
+  );
+  for (const [productId, name] of dishNames) {
+    const reorderedOfDish = cartItemsToInsert
+      .filter((line) => line.product_id === productId)
+      .reduce((sum, line) => sum + line.quantity, 0);
+    if (dishItemsIn(cartLines, productId) + reorderedOfDish > MAX_QUANTITY) {
+      return dishLimit(name);
+    }
   }
 
   // Add-ons still offered for each dish. One that was deleted since, or
@@ -1394,6 +1444,42 @@ export async function reorderPastOrder(
         .delete()
         .in("cart_item_id", cartItemsToInsert.map((line) => line.cart_item_id));
       return { data: null, error: "Couldn't add the add-ons from that order. Please try again." };
+    }
+  }
+
+  // Order-wide add-ons (rice, drinks …) come back too (issue #115), so the
+  // cart holds the same list as the order. One since removed from the menu
+  // is skipped, the same as a dish's own add-ons above.
+  const { data: orderAddOns } = await supabase
+    .from("order_add_on")
+    .select("addon_id")
+    .eq("order_id", orderId);
+  const orderAddOnIds = (orderAddOns ?? [])
+    .map((row) => row.addon_id)
+    .filter((id): id is string => Boolean(id));
+  if (orderAddOnIds.length > 0) {
+    const { data: stillOffered } = await supabase
+      .from("add_on")
+      .select("addon_id")
+      .in("addon_id", Array.from(new Set(orderAddOnIds)));
+    const offered = new Set((stillOffered ?? []).map((row) => row.addon_id));
+    const cartAddOns = orderAddOnIds
+      .filter((id) => offered.has(id))
+      .map((addonId) => ({ cart_id: cart!.cart_id, addon_id: addonId }));
+    if (cartAddOns.length > 0) {
+      const { error: cartAddOnError } = await supabase.from("cart_add_on").insert(cartAddOns);
+      if (cartAddOnError) {
+        // The dishes are in; the rice and drinks are not. Say so rather than
+        // let the customer check out believing they are.
+        console.error("reorderPastOrder: order add-ons not copied:", cartAddOnError);
+        const { revalidatePath } = await import("next/cache");
+        revalidatePath("/", "layout");
+        return {
+          data: null,
+          error:
+            "The dishes were added, but not the rice and drinks from that order. Please add them again.",
+        };
+      }
     }
   }
 
