@@ -7,9 +7,13 @@ export const transactionSchema = z.object({
   order_id: z
     .string({ required_error: "Order ID is required" })
     .uuid("Order ID must be a valid UUID"),
-  payment_method: z
-    .string({ required_error: "Payment method is required" })
-    .min(1, "Payment method must not be empty"),
+  // Matches the CHECK on transaction.payment_method. `paymongo` only exists
+  // on old wallet rows, so new ones must name the wallet.
+  payment_method: z.enum(["pay_in_store", "gcash", "paymaya"], {
+    errorMap: () => ({
+      message: "Payment method must be one of: pay_in_store, gcash, paymaya",
+    }),
+  }),
   payment_status: z
     .enum(["pending", "paid", "failed", "refunded"], {
       errorMap: () => ({

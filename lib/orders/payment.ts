@@ -13,12 +13,9 @@ import { PAYMENT_METHODS } from "@/lib/checkout/payment-methods";
 /**
  * Does this transaction row describe a wallet payment?
  *
- * `submitCart` writes "paymongo" for a wallet order and
- * `create-payment-intent` writes the same, so that is the value in practice.
- * "gcash" and "paymaya" are accepted too because `payment_method` is free
- * text and older rows may name the wallet rather than the gateway — reading
- * one of those as a cash order would hand the customer a Track link for
- * food nobody has paid for.
+ * New wallet rows name the wallet, "gcash" or "paymaya" (#116). "paymongo"
+ * is an older wallet row where the wallet was not recorded. The CHECK on the
+ * column allows these three plus "pay_in_store".
  */
 export function isWalletMethod(stored: string | null | undefined): boolean {
   if (!stored) return false;
@@ -32,12 +29,14 @@ export function isWalletMethod(stored: string | null | undefined): boolean {
  * Saying "Payment method not recorded" when the customer definitely chose one
  * would be worse than echoing an unfamiliar string.
  *
- * `create-payment-intent` writes the gateway's name, "paymongo", rather than
- * which wallet was used — the intent allows any of them. It is shown as the
- * option the customer picked.
+ * "gcash" / "paymaya" name the wallet (#116); an older "paymongo" row does
+ * not know which one, so it reads as the option the customer picked.
  */
 export function paymentLabelFor(stored: string | null | undefined): string {
   if (!stored) return "Not recorded";
+  const lower = stored.trim().toLowerCase();
+  if (lower === "gcash") return "GCash";
+  if (lower === "paymaya") return "Maya";
   if (isWalletMethod(stored)) return "GCash / Maya wallet";
   const folded = stored
     .trim()

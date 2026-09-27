@@ -63,7 +63,7 @@ describe("startWalletPayment", () => {
     });
 
     expect(invoke).toHaveBeenCalledWith("create-payment-intent", {
-      body: { order_id: "order-1" },
+      body: { order_id: "order-1", wallet: "gcash" },
     });
 
     const [methodUrl, methodInit] = fetchMock.mock.calls[0];

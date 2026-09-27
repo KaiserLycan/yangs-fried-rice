@@ -52,6 +52,14 @@ function etaOf(arrivalWindow: string) {
 
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
+    // The screen waits for the session before subscribing. Answered at once
+    // (a thenable, not a Promise) so each test can emit straight after render.
+    auth: {
+      getSession: () => ({
+        then: (resolve: (value: { data: { session: null } }) => void) =>
+          resolve({ data: { session: null } }),
+      }),
+    },
     channel: () => {
       const channel = {
         on: (
@@ -102,6 +110,8 @@ function trackedOrder(over: Partial<TrackedOrder> = {}): TrackedOrder {
     specialInstructions: null,
     payment: null,
     rating: null,
+    promisedAt: null,
+    statusLog: [],
     issue: null,
     ...over,
   };
@@ -191,7 +201,47 @@ describe("TrackOrderScreen", () => {
   it("listens to the order row only — there is no delivery table any more", () => {
     renderScreen(trackedOrder({ orderStatus: "preparing" }));
 
-    expect(handlers.map((entry) => entry.table)).toEqual(["order"]);
+    expect(handlers.map((entry) => entry.table)).toEqual(["order", "order_status_log"]);
+  });
+
+  // 07:02Z / 07:05Z are 3:02 PM / 3:05 PM in Manila.
+  it("stamps each reached stage with its time from the status log", () => {
+    renderScreen(
+      trackedOrder({
+        orderStatus: "preparing",
+        statusLog: [
+          { toStatus: "pending", changedAt: "2026-09-27T07:02:00Z" },
+          { toStatus: "preparing", changedAt: "2026-09-27T07:05:00Z" },
+        ],
+      }),
+    );
+    expect(screen.getByText("3:02 PM")).toBeInTheDocument();
+    expect(screen.getByText("Now · 3:05 PM")).toBeInTheDocument();
+  });
+
+  it("stamps a new stage as soon as its log row arrives", () => {
+    renderScreen(
+      trackedOrder({
+        statusLog: [{ toStatus: "pending", changedAt: "2026-09-27T07:02:00Z" }],
+      }),
+    );
+    emit("order", { order_status: "preparing", cancelled_at: null, cancellation_reason: null });
+    emit("order_status_log", { to_status: "preparing", changed_at: "2026-09-27T07:05:00Z" });
+    expect(screen.getByText("Now · 3:05 PM")).toBeInTheDocument();
+  });
+
+  it("shows the promised time, and keeps it when the ETA moves", () => {
+    renderScreen(trackedOrder({ promisedAt: "2026-09-27T07:45:00Z" }));
+    expect(screen.getByText(/Promised by 3:45 PM/)).toBeInTheDocument();
+    emit("order", { order_status: "preparing", cancelled_at: null, cancellation_reason: null });
+    expect(screen.getByText(/Promised by 3:45 PM/)).toBeInTheDocument();
+  });
+
+  it("drops the promise once the order is cancelled", () => {
+    renderScreen(
+      trackedOrder({ promisedAt: "2026-09-27T07:45:00Z", cancelledAt: "2026-09-27T07:10:00Z", orderStatus: "cancelled" }),
+    );
+    expect(screen.queryByText(/Promised by/)).toBeNull();
   });
 
   it("reacts to a cancellation arriving over the subscription", () => {
@@ -356,11 +406,12 @@ describe("TrackOrderScreen", () => {
     expect(screen.getByText(/Arriving 10–15 mins/)).toBeInTheDocument();
   });
 
-  it("closes its channel when the screen goes away", () => {
+  // Two: the status channel and the status-log channel (#116).
+  it("closes its channels when the screen goes away", () => {
     const { unmount } = renderScreen(trackedOrder());
     unmount();
 
-    expect(channelsRemoved).toBe(1);
+    expect(channelsRemoved).toBe(2);
   });
 
   it("never shows a rider card — the shop is pickup-only", () => {

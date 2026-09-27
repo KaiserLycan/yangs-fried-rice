@@ -198,9 +198,47 @@ describe("submitCartSchema payment method", () => {
     expect(parse({ payment_method: "pay-in-store" }).success).toBe(true);
   });
 
+  it("takes the wallet, defaulting to GCash", () => {
+    const maya = parse({ payment_method: "wallet", wallet: "paymaya" });
+    expect(maya.success && maya.data.wallet).toBe("paymaya");
+    const none = parse({ payment_method: "wallet" });
+    expect(none.success && none.data.wallet).toBe("gcash");
+    expect(parse({ payment_method: "wallet", wallet: "paymongo" }).success).toBe(false);
+  });
+
   it("defaults to paying in store when no method is given", () => {
     const res = parse({ order_type: "take_out" });
     expect(res.success).toBe(true);
     if (res.success) expect(res.data.payment_method).toBe("pay-in-store");
+  });
+});
+
+describe("submitCartSchema discount (issue #116)", () => {
+  const cart_id = "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d";
+  const discount = {
+    type: "senior_citizen",
+    id_number: " OSCA-123 ",
+    name_on_id: "Liza Reyes",
+    photo_path: `${cart_id}/id.jpg`,
+  };
+
+  it("accepts an order with no discount", () => {
+    expect(submitCartSchema.safeParse({ cart_id }).success).toBe(true);
+  });
+
+  it("accepts a full discount and trims the ID number", () => {
+    const res = submitCartSchema.safeParse({ cart_id, discount });
+    expect(res.success && res.data.discount?.id_number).toBe("OSCA-123");
+  });
+
+  it("refuses a discount with a blank field", () => {
+    for (const blank of [
+      { id_number: "  " },
+      { name_on_id: "" },
+      { photo_path: "" },
+      { type: "student" },
+    ]) {
+      expect(submitCartSchema.safeParse({ cart_id, discount: { ...discount, ...blank } }).success).toBe(false);
+    }
   });
 });

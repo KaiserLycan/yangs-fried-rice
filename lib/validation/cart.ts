@@ -59,6 +59,25 @@ export const updateCartItemSchema = z
  * that sends them is not rejected outright, but nothing reads them: the
  * function charges no fee and stores no address.
  */
+export const seniorPwdDiscountSchema = z.object({
+  type: z.enum(["senior_citizen", "pwd"], {
+    errorMap: () => ({ message: "Choose Senior Citizen or PWD." }),
+  }),
+  id_number: z
+    .string()
+    .trim()
+    .min(1, { message: "Enter the ID number." })
+    .max(40, { message: "The ID number can be up to 40 characters." }),
+  name_on_id: z
+    .string()
+    .trim()
+    .min(1, { message: "Enter the name on the ID." })
+    .max(100, { message: "The name can be up to 100 characters." }),
+  photo_path: z.string().min(1, { message: "Add a photo of the ID." }),
+});
+
+export type SeniorPwdDiscountInput = z.infer<typeof seniorPwdDiscountSchema>;
+
 export const submitCartSchema = z
   .object({
     cart_id: z.string().uuid({ message: "cart_id must be a valid UUID" }),
@@ -98,6 +117,19 @@ export const submitCartSchema = z
         }),
       })
       .default("pay-in-store"),
+    /** Which wallet, when `payment_method` is `wallet`. Saved on the transaction. */
+    wallet: z
+      .enum(["gcash", "paymaya"], {
+        errorMap: () => ({ message: "wallet must be gcash or paymaya" }),
+      })
+      .default("gcash"),
+    /**
+     * Senior Citizen / PWD discount (issue #116). One ID per order.
+     * `photo_path` is where the browser uploaded the ID photo in the private
+     * `senior-pwd-ids` bucket; `submit_cart_to_order` checks it is the
+     * customer's own, and repeats every rule below.
+     */
+    discount: seniorPwdDiscountSchema.nullable().optional(),
   });
 
 export const cancelOrderSchema = z.object({

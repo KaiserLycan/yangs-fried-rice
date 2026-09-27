@@ -17,6 +17,7 @@ import {
 import { isPickupOrder } from "@/lib/orders/format";
 import { orderIdRangeFor } from "@/lib/orders/order-number";
 import { notifyOrderCancelled } from "@/lib/email/notify-order-cancelled";
+import { discardSeniorPwdIdPhoto, signSeniorPwdIdUrl } from "@/lib/storage/senior-pwd-ids";
 import type { Tables, TablesUpdate } from "@/types/database.types";
 
 // ---------------------------------------------------------------------------
@@ -48,6 +49,12 @@ type OrderWithDetails = Order & {
     payment_method: string | null;
     payment_status: string | null;
     total_paid: number | null;
+    subtotal: number | null;
+    discount_amount: number | null;
+    discount_type: string | null;
+    discount_id_number: string | null;
+    name_on_id: string | null;
+    discount_id_photo_path: string | null;
   }[];
 };
 
@@ -276,7 +283,13 @@ export async function getDetailedOrders(
         transaction_id,
         payment_method,
         payment_status,
-        total_paid
+        total_paid,
+        subtotal,
+        discount_amount,
+        discount_type,
+        discount_id_number,
+        name_on_id,
+        discount_id_photo_path
       )
     `,
       { count: "exact" }
@@ -360,7 +373,13 @@ export async function getOrderDetail(
         transaction_id,
         payment_method,
         payment_status,
-        total_paid
+        total_paid,
+        subtotal,
+        discount_amount,
+        discount_type,
+        discount_id_number,
+        name_on_id,
+        discount_id_photo_path
       )
     `,
     )
@@ -469,6 +488,12 @@ export async function updateOrderStatus(
 
   if (updateError) return { data: null, error: updateError.message };
 
+  // Senior Citizen / PWD (issue #116): the ID photo was only for checking at
+  // release. Once the order is done it goes, in this same action.
+  if (validatedNewStatus === "completed" || validatedNewStatus === "cancelled") {
+    await discardSeniorPwdIdPhoto(supabase, orderId);
+  }
+
   // The in-app notification is written by a database trigger on this same
   // update; the email goes from here (F23). It never fails the cancel.
   if (validatedNewStatus === "cancelled") {
@@ -476,6 +501,43 @@ export async function updateOrderStatus(
   }
 
   return { data: updated, error: null };
+}
+
+// ---------------------------------------------------------------------------
+// Senior Citizen / PWD ID photo
+// ---------------------------------------------------------------------------
+
+/**
+ * A five-minute link to an order's ID photo, for the "Verify ID" check
+ * before release (issue #116). Signed with the staff member's own session,
+ * so the bucket's staff-only policy decides. Asked for when staff open the
+ * photo, never put in the order list.
+ *
+ * Requires: manager or staff.
+ */
+export async function getSeniorPwdIdPhotoUrl(
+  orderId: string,
+): Promise<ActionResult<{ url: string }>> {
+  const auth = await requireManageAccess();
+  if (!auth.data) return { data: null, error: auth.error };
+
+  const supabase = createClient();
+  const { data: row } = await supabase
+    .from("transaction")
+    .select("discount_id_photo_path")
+    .eq("order_id", orderId)
+    .not("discount_id_photo_path", "is", null)
+    .limit(1)
+    .maybeSingle();
+
+  const url = row?.discount_id_photo_path
+    ? await signSeniorPwdIdUrl(supabase, row.discount_id_photo_path)
+    : null;
+
+  if (!url) {
+    return { data: null, error: "The ID photo is no longer available." };
+  }
+  return { data: { url }, error: null };
 }
 
 // ---------------------------------------------------------------------------

@@ -135,7 +135,40 @@ export type TimelineStage = {
   stage: OrderStage;
   label: string;
   state: StageState;
+  /** When the order reached this stage (ISO), or null if unknown / not yet. */
+  reachedAt: string | null;
 };
+
+/** One `order_status_log` row, narrowed to what the timeline needs. */
+export type StatusChange = { toStatus: string | null; changedAt: string };
+
+/**
+ * When the order first reached each stage, from `order_status_log` (#116).
+ * Each row's status is resolved the same way as the live status, so every
+ * spelling lands on the same stage. Unpaid and cancelled rows have no stage
+ * and are skipped. Orders placed before the log existed have no rows, so
+ * their stages have no time.
+ */
+export function stageReachedAt(
+  log: StatusChange[],
+  orderType?: string | null,
+): Partial<Record<OrderStage, string>> {
+  const reached: Partial<Record<OrderStage, string>> = {};
+  for (const row of log) {
+    const progress = resolveOrderProgress({
+      orderStatus: row.toStatus,
+      cancelledAt: null,
+      deliveryStatus: null,
+      orderType,
+    });
+    if (progress.kind !== "stage") continue;
+    const earlier = reached[progress.stage];
+    if (!earlier || Date.parse(row.changedAt) < Date.parse(earlier)) {
+      reached[progress.stage] = row.changedAt;
+    }
+  }
+  return reached;
+}
 
 /**
  * The two rows this screen reads, narrowed to the columns it uses. Taking the
@@ -291,17 +324,24 @@ export function isCancellable(progress: OrderProgress): boolean {
 export function timelineStages(
   progress: OrderProgress,
   fulfilment: Fulfilment = "delivery",
+  reachedAt: Partial<Record<OrderStage, string>> = {},
 ): TimelineStage[] {
   const currentIndex =
     progress.kind === "stage" ? ORDER_STAGES.indexOf(progress.stage) : -1;
   const labels = fulfilment === "pickup" ? PICKUP_STAGE_LABELS : STAGE_LABELS;
 
-  return ORDER_STAGES.map((stage, index) => ({
-    stage,
-    label: labels[stage],
-    state:
-      index < currentIndex ? "done" : index === currentIndex ? "now" : "pending",
-  }));
+  return ORDER_STAGES.map((stage, index) => {
+    const state: StageState =
+      index < currentIndex ? "done" : index === currentIndex ? "now" : "pending";
+    return {
+      stage,
+      label: labels[stage],
+      state,
+      // A pending stage shows no time even if the log has one — the order
+      // may have been moved back.
+      reachedAt: state === "pending" ? null : (reachedAt[stage] ?? null),
+    };
+  });
 }
 
 export function headlineFor(

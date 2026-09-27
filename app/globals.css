@@ -97,13 +97,6 @@
     --timeline-pending: 35 33% 77%; /* #D8C8B2  unreached stage marker */
     --timeline-meta: 23 11% 44%; /* #7D6D64  the Done / Now / — line (was #9A8A80, 3.4:1) */
 
-    /* The map is an empty rectangle in the design too — these draw the
-       placeholder, not a real map. See `components/orders/live-map-panel`. */
-    --map-surface: 47 25% 86%; /* #E4E0D2  map placeholder fill */
-    --map-grid: 45 24% 80%; /* #D8D2C0  its faint grid rule */
-    --map-label: 29 18% 46%; /* #8A7460  the LIVE MAP label */
-    --map-border: 39 28% 78%; /* #D6CBB6  its edge on mobile */
-
     --radius: 0.75rem; /* radius/12 */
 
     /* The mobile bottom tab bar (`components/nav/bottom-tab-bar.tsx`) is

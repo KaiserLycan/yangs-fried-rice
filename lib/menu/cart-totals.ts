@@ -39,7 +39,14 @@ export type CartTotals = {
   subtotal: number;
   deliveryFee: number;
   total: number;
+  /** The total minus the VAT inside it. See `vatBreakdown`. */
+  vatableSales: number;
+  /** The 12% VAT already inside the total. Not added on top. */
+  vat: number;
 };
+
+/** Philippine VAT, in whole percent. Menu prices already include it. */
+export const VAT_PERCENT = 12;
 
 export function calculateDeliveryFee(distanceKm?: number | null): number {
   if (!Number.isFinite(distanceKm as number)) {
@@ -88,11 +95,55 @@ export function computeCartTotals({
       : 0;
 
   const deliveryFeeCentavos = toCentavos(deliveryFee);
+  const total = toPesos(subtotalCentavos + deliveryFeeCentavos);
 
   return {
     subtotal: toPesos(subtotalCentavos),
     deliveryFee: toPesos(deliveryFeeCentavos),
-    total: toPesos(subtotalCentavos + deliveryFeeCentavos),
+    total,
+    ...vatBreakdown(total),
+  };
+}
+
+/**
+ * Splits a VAT-inclusive total into VATable sales + VAT (issue #116).
+ * VAT = total × 12 / 112, rounded to the centavo; VATable sales is the rest,
+ * so the two always add back to the total. `submit_cart_to_order` saves the
+ * same figure as `transaction.tax_amount`.
+ */
+export function vatBreakdown(total: number): { vatableSales: number; vat: number } {
+  const totalCentavos = toCentavos(total);
+  const vatCentavos = Math.round((totalCentavos * VAT_PERCENT) / (100 + VAT_PERCENT));
+  return {
+    vatableSales: toPesos(totalCentavos - vatCentavos),
+    vat: toPesos(vatCentavos),
+  };
+}
+
+/** Senior Citizen / PWD discount, in whole percent (issue #116). */
+export const SENIOR_PWD_DISCOUNT_PERCENT = 20;
+
+/**
+ * A Senior Citizen / PWD order (issue #116): VAT-exempt, then 20% off.
+ * ₱112 → ₱100 VAT-exempt sales, ₱20 discount, ₱80 due. Same rounding as
+ * `submit_cart_to_order`, which saves `vatExemptSales` as
+ * `transaction.subtotal` and `discount` as `transaction.discount_amount`.
+ */
+export function seniorPwdBreakdown(total: number): {
+  vatExemptSales: number;
+  discount: number;
+  total: number;
+} {
+  const exemptCentavos = Math.round(
+    (toCentavos(total) * 100) / (100 + VAT_PERCENT),
+  );
+  const discountCentavos = Math.round(
+    (exemptCentavos * SENIOR_PWD_DISCOUNT_PERCENT) / 100,
+  );
+  return {
+    vatExemptSales: toPesos(exemptCentavos),
+    discount: toPesos(discountCentavos),
+    total: toPesos(exemptCentavos - discountCentavos),
   };
 }
 

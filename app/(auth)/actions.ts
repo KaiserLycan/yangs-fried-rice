@@ -13,7 +13,6 @@ import {
 } from "@/lib/auth/login-rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { homePathForRole, resolveEmployeeRole } from "@/lib/auth/roles";
-import { addressForGeocoding, validateNcrAddress } from "@/lib/address/validate-ncr";
 import { addressRowFromParts } from "@/lib/address/format";
 import { joinFullName } from "@/lib/validation/fields";
 import {
@@ -86,19 +85,6 @@ export async function registerCustomer(
   // Kept in the auth user's metadata as a display fallback only; the
   // customer row stores the two parts.
   const name = joinFullName(firstName, lastName);
-  // What the map can actually find: street, barangay, city, ZIP. The building
-  // number is a lot/unit inside a subdivision and only makes the lookup miss.
-  const essentialAddress = addressForGeocoding({ street, barangay, city, zip });
-
-  // Enforce delivery boundary: customer address must be within NCR
-  const ncrCheck = await validateNcrAddress(essentialAddress);
-  if (!ncrCheck.valid) {
-    const message =
-      ncrCheck.message ??
-      "Delivery is currently restricted to Metro Manila (NCR). Please provide an address within NCR.";
-    return { success: false, error: message, fieldErrors: { street: message } };
-  }
-
   const supabase = createClient();
 
   // Send the confirmation link back to the site the person signed up on

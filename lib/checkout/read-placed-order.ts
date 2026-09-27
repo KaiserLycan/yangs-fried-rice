@@ -50,7 +50,7 @@ export async function readPlacedOrder(
     // to a pending one. `foldPaymentStatus` decides what they add up to.
     supabase
       .from("transaction")
-      .select("payment_method, payment_status")
+      .select("payment_method, payment_status, discount_type, discount_amount, subtotal")
       .eq("order_id", order.order_id)
       .order("transaction_date", { ascending: false }),
     supabase
@@ -64,6 +64,43 @@ export async function readPlacedOrder(
   const address =
     fulfilment === "delivery" ? order.delivery_address : null;
 
+  const lines = (items.data ?? []).map((row) => ({
+    id: row.order_item_id,
+    name: orderItemName(row.product_name, productNameOf(row.product)),
+    // `order_item` stores the line's subtotal, not its unit price, and
+    // `CartLine` wants a unit price so `lineTotal` can multiply it back
+    // out. Dividing recovers what the customer was charged per item, which
+    // is the honest figure — today's `product_price` may have moved since.
+    unitPrice: orderItemUnitPrice(
+      row.unit_price,
+      row.subtotal,
+      row.quantity,
+      null,
+    ),
+    quantity: row.quantity,
+    specialInstructions: null,
+  }));
+
+  const latestTxn = transaction.data?.[0];
+  const isSeniorPwd =
+    latestTxn?.discount_type === "senior_citizen" ||
+    latestTxn?.discount_type === "pwd";
+
+  // Read back what checkout saved rather than re-deriving it from the lines:
+  // the lines leave out order-level add-ons, and the saved figures are what
+  // the customer is actually charged (subtotal - discount_amount).
+  const discount = isSeniorPwd
+    ? {
+        type: latestTxn.discount_type as "senior_citizen" | "pwd",
+        vatExemptSales: Number(latestTxn.subtotal ?? 0),
+        discount: Number(latestTxn.discount_amount ?? 0),
+        total:
+          Math.round(
+            (Number(latestTxn.subtotal ?? 0) - Number(latestTxn.discount_amount ?? 0)) * 100,
+          ) / 100,
+      }
+    : null;
+
   return {
     orderId: order.order_id,
     orderNumber: formatOrderNumber(order.order_id),
@@ -73,26 +110,12 @@ export async function readPlacedOrder(
     ),
     address,
     fulfilment,
-    lines: (items.data ?? []).map((row) => ({
-      id: row.order_item_id,
-      name: orderItemName(row.product_name, productNameOf(row.product)),
-      // `order_item` stores the line's subtotal, not its unit price, and
-      // `CartLine` wants a unit price so `lineTotal` can multiply it back
-      // out. Dividing recovers what the customer was charged per item, which
-      // is the honest figure — today's `product_price` may have moved since.
-      unitPrice: orderItemUnitPrice(
-        row.unit_price,
-        row.subtotal,
-        row.quantity,
-        null,
-      ),
-      quantity: row.quantity,
-      specialInstructions: null,
-    })),
+    lines,
     paymentMethodLabel: paymentLabelFor(transaction.data?.[0]?.payment_method),
     paymentStatus: foldPaymentStatus(transaction.data ?? []),
     isWalletOrder: isWalletMethod(transaction.data?.[0]?.payment_method),
     orderStatus: order.order_status,
+    discount,
   };
 }
 

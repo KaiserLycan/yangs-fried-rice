@@ -184,13 +184,22 @@ describe("OrderPlacedScreen", () => {
     expect(screen.queryByText("21 Mabini St, Malate, Manila")).toBeNull();
   });
 
-  it("shows every line, the delivery fee and the amount payable", () => {
+  it("shows every line, the delivery fee and the total", () => {
     renderScreen();
     expect(screen.getByText("2× Yangzhou Special")).toBeInTheDocument();
     expect(screen.getByText("1× Lumpia (5pc)")).toBeInTheDocument();
     expect(screen.getByText("Delivery fee")).toBeInTheDocument();
-    expect(screen.getByText("Amount payable")).toBeInTheDocument();
-    expect(screen.getByText("₱500")).toBeInTheDocument();
+    expect(screen.getByText("Total")).toBeInTheDocument();
+    expect(screen.getByText("₱500.00")).toBeInTheDocument();
+  });
+
+  // Prices include VAT: ₱500 splits into ₱446.43 + ₱53.57, not ₱500 + VAT.
+  it("splits the VAT out of the total", () => {
+    renderScreen();
+    expect(screen.getByText("VATable sales")).toBeInTheDocument();
+    expect(screen.getByText("₱446.43")).toBeInTheDocument();
+    expect(screen.getByText("VAT (12%)")).toBeInTheDocument();
+    expect(screen.getByText("₱53.57")).toBeInTheDocument();
   });
 
   it("shows the chosen payment method without claiming money was taken", () => {

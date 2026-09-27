@@ -60,3 +60,14 @@ export function mapProductRow(row: RawProductRow): ProductListing {
 export function formatPeso(amount: number): string {
   return `₱${Math.round(amount).toLocaleString("en-US")}`;
 }
+
+/**
+ * "₱446.43" — to the centavo. For the VAT split (#116), where whole pesos
+ * would round the two parts so they no longer add up to the total.
+ */
+export function formatPesoCentavos(amount: number): string {
+  return `₱${amount.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}

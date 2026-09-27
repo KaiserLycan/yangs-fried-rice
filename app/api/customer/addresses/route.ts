@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { addressForGeocoding, validateNcrAddress } from "@/lib/address/validate-ncr";
 import { ADDRESS_COLUMNS, addressRowFromParts } from "@/lib/address/format";
 import { deliveryAddressSchema } from "@/lib/validation/profile";
 import {
@@ -81,18 +80,6 @@ export async function POST(request: Request) {
         error: "Some address fields need fixing.",
         fieldErrors: fieldErrorsFromIssues(parsed.error.issues),
       },
-      { status: 400 }
-    );
-  }
-
-  // Enforce NCR boundary validation
-  const validation = await validateNcrAddress(addressForGeocoding(parsed.data));
-  if (!validation.valid) {
-    const message =
-      validation.message ??
-      "Delivery is currently restricted to Metro Manila (NCR). Addresses outside NCR cannot be accepted.";
-    return NextResponse.json(
-      { error: message, fieldErrors: { city: message } },
       { status: 400 }
     );
   }
