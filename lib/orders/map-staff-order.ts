@@ -60,6 +60,9 @@ export function uiStatusFor(dbStatus: string | null): OrderData["status"] {
       return "COMPLETED";
     case "cancelled":
       return "CANCELED";
+    case "awaiting_payment":
+    case "payment_failed":
+      return "UNPAID";
     case "pending":
     default:
       return "QUEUE";
