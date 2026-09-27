@@ -30,7 +30,8 @@
 //      sign-ups), addresses/carts/notifications for missing customers, and
 //      empty carts abandoned for over 30 days.
 //
-// Afterwards run supabase/validate-constraints.sql in the SQL editor.
+// Every CHECK constraint on the live project is validated, so nothing needs
+// re-checking afterwards.
 // ============================================================================
 
 import {
@@ -342,4 +343,4 @@ for (const u of plan.updates) {
   const { error } = await db.from(u.table).update(u.patch).eq(u.key, u.id);
   if (error) console.warn(`  ! ${u.table} ${u.id}: ${error.message}`);
 }
-console.log("Done. Now run supabase/validate-constraints.sql in the Supabase SQL editor.\n");
+console.log("Done.\n");

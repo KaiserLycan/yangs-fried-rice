@@ -2,7 +2,7 @@
 -- their policies, the auth.users trigger, and the pg_cron schedule.
 -- Idempotent, so it can be replayed on a fresh project or on this one.
 --
--- Companion to 20260929100000_baseline.sql. Together they replace the 56
+-- Companion to 20260929100000_baseline.sql. Together they replace the 57
 -- incremental migrations squashed on 2026-09-29; the history is in git.
 
 -- ---------------------------------------------------------------------------
@@ -90,12 +90,40 @@ CREATE POLICY order_issue_photos_staff_select ON storage.objects AS PERMISSIVE F
   USING ((bucket_id = 'order-issue-photos'::text) AND (current_employee_role() = ANY (ARRAY['MANAGER'::text, 'STAFF'::text])));
 
 -- ---------------------------------------------------------------------------
--- auth.users: keep customer/employee.password_last_updated in step.
+-- auth.users triggers.
 -- ---------------------------------------------------------------------------
+
+-- Keep customer/employee.password_last_updated in step.
 DROP TRIGGER IF EXISTS on_auth_user_password_update ON auth.users;
 CREATE TRIGGER on_auth_user_password_update
   AFTER UPDATE OF encrypted_password ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_password_timestamp_update();
+
+-- A customer who changes their email (lib/actions/profile.ts) gets the new
+-- address copied into customer.email once they confirm it. Used to live in
+-- the hand-run supabase/profile-rls-and-triggers.sql and was never applied
+-- to the live project, so customer.email kept the old address.
+CREATE OR REPLACE FUNCTION public.sync_customer_email_on_confirm()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF new.email IS DISTINCT FROM old.email
+     OR (new.email_confirmed_at IS DISTINCT FROM old.email_confirmed_at AND new.email_confirmed_at IS NOT NULL) THEN
+    UPDATE public.customer SET email = new.email
+    WHERE customer_id = new.id AND email IS DISTINCT FROM new.email;
+  END IF;
+  RETURN new;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.sync_customer_email_on_confirm() FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS on_auth_email_confirmed ON auth.users;
+CREATE TRIGGER on_auth_email_confirmed
+  AFTER UPDATE OF email, email_confirmed_at ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.sync_customer_email_on_confirm();
 
 -- ---------------------------------------------------------------------------
 -- pg_cron. cron.schedule() replaces a job with the same name.

@@ -10,7 +10,7 @@
  *     completed, cancelled. This is the one the back office actually writes
  *     (`lib/actions/orders.ts` validates against it), so it is treated as
  *     primary here. Ticket 06 predates it and does not mention it.
- *   - `supabase/schema.sql` — pending_confirmation, confirmed, cancelled.
+ *   - the old Phase 1 draft schema (removed) — pending_confirmation, confirmed, cancelled.
  *     CLAUDE.md says not to trust this file.
  *   - `docs/reference/storage_draft.md` — Pending, Confirmed, Preparing,
  *     Completed. Draft status.
@@ -208,7 +208,7 @@ const ORDER_STATUS_STAGES: Record<string, OrderStage | "cancelled"> = {
   completed: "delivered",
   cancelled: "cancelled",
   canceled: "cancelled", // one-l spelling, seen in components/manage
-  // supabase/schema.sql.
+  // the old Phase 1 draft schema.
   pending_confirmation: "received",
   confirmed: "preparing",
   // docs/reference/storage_draft.md. "Preparing" and "Completed" fold onto

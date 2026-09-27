@@ -95,13 +95,13 @@ A **disabled** account (`is_account_disabled`) is refused by every server guard 
 
 | Trigger | Runs when | What it does | Defined in |
 |---|---|---|---|
-| `trg_guard_customer_order_update` | An `order` row is updated | For a signed-in non-employee, refuses any change except `order_status`, `cancelled_at`, `cancellation_reason` | `migrations/20260927000001_atomic_checkout_and_order_write_lockdown.sql` |
-| `trg_guard_employee_self_update` | An `employee` row is updated | Unless the caller is a manager (or the service role), refuses changing a role or the id, or re-enabling a disabled account | `migrations/20260927000002_security_hardening_indexes_and_storage.sql` |
-| `trg_guard_customer_self_update` | A `customer` row is updated | Stops a customer changing their id or re-enabling their own disabled account | `migrations/20260927000002_security_hardening_indexes_and_storage.sql` |
-| `trg_audit_employee_write` | An employee inserts, updates or deletes a row in `order`, `transaction`, `product`, `categories`, `add_on`, `employee`, `customer`, `reports`, `review` or `notification` | Writes one `audit_log` entry: who, when, the action (e.g. `order.status_change`, `product.price_change`), a readable summary and only the columns that changed. Skips customers, webhooks and the service role | `migrations/20260927000004_employee_audit_log.sql`, `…0005_audit_log_review_fixes.sql` |
-| `trg_audit_log_append_only`, `trg_audit_log_no_truncate` | Anyone tries to change, delete or truncate `audit_log` | Refuses — even the service role | `migrations/20260927000004_employee_audit_log.sql` |
-| `on_auth_user_password_update` | A user's password changes | Sets `password_last_updated` on the matching `employee` or `customer` row | `migrations/000_remote_schema.sql` |
-| `on_auth_email_confirmed` | A user confirms a new email | Copies the confirmed email into `customer.email` | `supabase/profile-rls-and-triggers.sql` (not a migration — run it by hand) |
+| `trg_guard_customer_order_update` | An `order` row is updated | For a signed-in non-employee, refuses any change except `order_status`, `cancelled_at`, `cancellation_reason` | `migrations/20260929100000_baseline.sql` |
+| `trg_guard_employee_self_update` | An `employee` row is updated | Unless the caller is a manager (or the service role), refuses changing a role or the id, or re-enabling a disabled account | `migrations/20260929100000_baseline.sql` |
+| `trg_guard_customer_self_update` | A `customer` row is updated | Stops a customer changing their id or re-enabling their own disabled account | `migrations/20260929100000_baseline.sql` |
+| `trg_audit_employee_write` | An employee inserts, updates or deletes a row in `order`, `transaction`, `product`, `categories`, `add_on`, `employee`, `customer`, `reports`, `review` or `notification` | Writes one `audit_log` entry: who, when, the action (e.g. `order.status_change`, `product.price_change`), a readable summary and only the columns that changed. Skips customers, webhooks and the service role | `migrations/20260929100000_baseline.sql` |
+| `trg_audit_log_append_only`, `trg_audit_log_no_truncate` | Anyone tries to change, delete or truncate `audit_log` | Refuses — even the service role | `migrations/20260929100000_baseline.sql` |
+| `on_auth_user_password_update` | A user's password changes | Sets `password_last_updated` on the matching `employee` or `customer` row | `migrations/20260929100001_platform_setup.sql` |
+| `on_auth_email_confirmed` | A user confirms a new email | Copies the confirmed email into `customer.email` | `migrations/20260929100001_platform_setup.sql` |
 
 ### Database functions (RPC)
 - `submit_cart_to_order` — the only way to place an order. In one transaction it locks the cart (`SELECT … FOR UPDATE`), stops if the cart is already final, refuses unavailable items, prices every line from `product` / `add_on`, writes the order, lines, add-ons and payment row, and marks the cart final. A unique index on `order.cart_id` means one cart can never make two orders. Errors carry a code in `hint` (`CART_LOCKED`, `ITEM_UNAVAILABLE`, `ACCOUNT_DISABLED`, …) that `submitCart` passes to the UI. Signed-in users only.
@@ -171,17 +171,16 @@ These need Supabase Function secrets: `PAYMONGO_SECRET_KEY`, `PAYMONGO_WEBHOOK_S
 
 3. **Database**
 
-   Apply the files in `supabase/migrations/` in filename order (`npx supabase db push`, or `npx supabase db reset` locally, which also runs `supabase/seed.sql`). Then run `supabase/profile-rls-and-triggers.sql` in the SQL editor.
+   `supabase/migrations/` holds two files: `20260929100000_baseline.sql` (the whole public schema, dumped from the live project) and `20260929100001_platform_setup.sql` (storage buckets and policies, `auth.users` triggers, the pg_cron schedule). Apply them with `npx supabase db push`, or `npx supabase db reset` locally (which also runs `supabase/seed.sql`). The 57 incremental migrations they replace are in git history at commit `a9af4d1`. The `process-refunds` cron job reads two Vault secrets, `project_url` and `refund_cron_secret`; create them on a new project.
 
    Prefer `db push` to pasting SQL into the dashboard or applying it through an MCP tool. Those record the migration under a new timestamp, and the next `db push` then reports that the history does not match. If that happens, run `npx supabase migration repair`: mark the timestamp versions `reverted` and the real file versions `applied`, but only for migrations that really ran.
 
-   Do **not** run `supabase/schema.sql`. It is the old Phase 1 draft and no longer matches the real tables.
+   Add new changes as new migration files (`npx supabase migration new <name>`); never edit the baseline.
 
    **Clean up and add demo data** (needs `SUPABASE_SERVICE_ROLE_KEY`):
    ```bash
    npm run db:cleanse                  # dry run: lists rows it would remove or repair
    npm run db:cleanse -- --apply       # does it (add --wipe-orders for an empty order history)
-   # then run supabase/validate-constraints.sql in the Supabase SQL editor
    npm run db:seed                     # menu, staff, NCR customers, 30 days of pickup orders
    npm run db:seed -- --reset          # replace the demo data
    ```
