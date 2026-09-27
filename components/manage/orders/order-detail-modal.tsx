@@ -12,6 +12,10 @@ interface OrderDetailModalProps {
 }
 
 const statusConfig = {
+  UNPAID: {
+    headerBg: "bg-[#6B3A5B]",
+    label: "UNPAID",
+  },
   QUEUE: {
     headerBg: "bg-[#C73926]",
     label: "QUEUE",
