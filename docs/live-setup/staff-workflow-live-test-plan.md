@@ -278,7 +278,7 @@ Expected: page 2 still only contains matching orders; the page count matches the
 
 **Acceptance criteria**
 - AC-02.1 Managers see a **Payment Issues** tab on `/manage/orders` (second in the list). Staff do not.
-- AC-02.2 It lists online orders still **awaiting payment** or **payment failed** 5 minutes or more after they were placed. Younger ones are left alone (the customer is usually still in the GCash screen).
+- AC-02.2 It lists every online order still **awaiting payment** or **payment failed**, from the moment it is placed. (On live, the database's scheduled job cancels unpaid ones after 30 minutes, so the list only ever holds the last half hour.)
 - AC-02.3 Cards show an **UNPAID** header (dark plum), the customer's name and contact in the detail view, and **no Confirm button** — an unpaid order can't be sent to the kitchen.
 - AC-02.4 Staff can **Cancel** a stuck order (with a reason — see AC-10).
 - AC-02.5 Unpaid orders do not appear on the **All** tab.
