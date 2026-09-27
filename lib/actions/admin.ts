@@ -962,6 +962,8 @@ export type CustomerStats = {
   total_spent: number;
 };
 
+const SORTABLE_CUSTOMER_COLUMNS = ["name", "created_at", "total_orders", "total_spent"];
+
 export async function getCustomersPaginated({
   page = 1,
   pageSize = 10,
