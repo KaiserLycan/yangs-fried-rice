@@ -3,6 +3,7 @@ import type { OrderData } from "@/types/staff-order";
 import { canCancel, primaryActionFor, statusLabelFor, type StaffAction } from "@/lib/orders/staff-actions";
 import { cn } from "@/lib/utils";
 import { DialogRoot } from "@/components/ui/dialog";
+import { FulfillmentBadge } from "@/components/manage/orders/fulfillment-badge";
 
 interface OrderDetailModalProps {
   order: OrderData | null;
