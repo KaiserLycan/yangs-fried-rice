@@ -52,9 +52,13 @@ export function primaryActionFor(
   }
 }
 
-/** Can this order still be cancelled from the staff screens? */
+/**
+ * Can this order still be cancelled from the staff screens? An unpaid order
+ * has no forward action (it can't be confirmed until the money lands), but
+ * staff may cancel one whose payment is stuck.
+ */
 export function canCancel(order: Pick<OrderData, "status">): boolean {
-  return order.status === "QUEUE" || order.status === "PREP";
+  return order.status === "UNPAID" || order.status === "QUEUE" || order.status === "PREP";
 }
 
 /** The `order.order_status` each action writes. All are legal transitions. */
