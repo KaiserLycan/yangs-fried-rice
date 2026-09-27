@@ -9,7 +9,7 @@ import {
   type PlatformPerformanceData,
 } from "@/lib/actions/reports";
 import { SALES_REPORT, normalizeReportType } from "@/lib/reports/report-types";
-import { getCashRemitted } from "@/lib/actions/reports";
+import { getCashRemittedDaily } from "@/lib/actions/reports";
 
 interface ReportsSummaryProps {
   type?: string;
