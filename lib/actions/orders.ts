@@ -281,7 +281,7 @@ export async function getDetailedOrders(
         product_name,
         unit_price,
         product:product_id ( product_name, product_price ),
-        order_item_add_on ( add_on ( add_on_name, price ) )
+        order_item_add_on ( add_on ( name, price ) )
       ),
       ${transactionJoin}
     `,
@@ -377,7 +377,7 @@ export async function getOrderDetail(
         subtotal,
         special_instructions,
         product:product_id ( product_name, product_price ),
-        order_item_add_on ( add_on ( add_on_name, price ) )
+        order_item_add_on ( add_on ( name, price ) )
       ),
       transaction (
         transaction_id,
@@ -611,7 +611,7 @@ async function _fetchPaymentIssuesBase(supabase: ReturnType<typeof createClient>
         product ( product_name, image_url ),
         order_item_add_on (
           order_item_add_on_id,
-          add_on ( add_on_name, price )
+          add_on ( name, price )
         )
       ),
       transaction ( transaction_id, payment_method, payment_status, total_paid )
