@@ -26,10 +26,18 @@ import {
  * page of ids. Fanning out per order would be N+1; this is a fixed four.
  */
 
-/** A page's worth of history. Deep paging isn't drawn, so there's no cursor. */
-const HISTORY_LIMIT = 30;
+/** How many orders a page shows; "Show older orders" adds this many again (FINALE 9.8). */
+export const HISTORY_PAGE = 30;
 
-export async function readPastOrders(): Promise<PastOrder[]> {
+/**
+ * `search`: a dish name ("chopsuey") or an order number ("1241"), so a
+ * regular can find the order they want to repeat. `limit`: how many, newest
+ * first.
+ */
+export async function readPastOrders({
+  search,
+  limit = HISTORY_PAGE,
+}: { search?: string; limit?: number } = {}): Promise<PastOrder[]> {
   const supabase = createClient();
 
   const {
@@ -41,14 +49,33 @@ export async function readPastOrders(): Promise<PastOrder[]> {
   // Scoped to the signed-in customer, the same reasoning
   // `readTrackedOrder` gives: middleware guards /orders, but only this
   // filter stops one customer reading another's history.
-  const { data: orders } = await supabase
+  let query = supabase
     .from("order")
     .select(
       "order_id, order_number, order_status, order_type, cancelled_at, created_at, delivery_fee",
     )
-    .eq("customer_id", user.id)
+    .eq("customer_id", user.id);
+
+  const term = search?.trim().replace(/^#/, "").slice(0, 60);
+  if (term) {
+    if (/^\d{1,9}$/.test(term)) {
+      query = query.eq("order_number", Number(term));
+    } else {
+      // Dish names are data, not filter syntax: .ilike() encodes the value.
+      const { data: lines } = await supabase
+        .from("order_item")
+        .select("order_id")
+        .ilike("product_name", `%${term.replace(/[%_\\]/g, (c) => `\\${c}`)}%`)
+        .limit(500);
+      const ids = [...new Set((lines ?? []).map((row) => row.order_id).filter((id): id is string => Boolean(id)))];
+      if (ids.length === 0) return [];
+      query = query.in("order_id", ids);
+    }
+  }
+
+  const { data: orders } = await query
     .order("created_at", { ascending: false })
-    .limit(HISTORY_LIMIT);
+    .limit(Math.min(Math.max(1, limit), 300));
 
   if (!orders || orders.length === 0) return [];
 

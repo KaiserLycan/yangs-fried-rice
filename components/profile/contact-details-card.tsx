@@ -21,7 +21,7 @@ import {
 } from "@/lib/validation/phone";
 import { contactDetailsSchema } from "@/lib/validation/profile";
 
-const MOBILE_HINT = `We text this number about your delivery. Format: ${PH_MOBILE_EXAMPLE}.`;
+const MOBILE_HINT = `The store calls this number if there is a problem with your order. Format: ${PH_MOBILE_EXAMPLE}.`;
 
 const EMAIL_NOTE = "This is the email you sign in with.";
 

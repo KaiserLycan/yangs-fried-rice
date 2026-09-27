@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { SiteNavBar } from "@/components/nav/site-nav-bar";
 import { PastOrdersScreen } from "@/components/orders/past-orders-screen";
 import { ToastProvider } from "@/components/ui/toast";
-import { readPastOrders } from "@/lib/orders/read-past-orders";
+import { HISTORY_PAGE, readPastOrders } from "@/lib/orders/read-past-orders";
 import { readCustomerProfile } from "@/lib/profile/customer-profile";
 import { BottomTabBar } from "@/components/nav/bottom-tab-bar";
 import { readCart } from "@/lib/cart/read-cart";
@@ -21,10 +21,16 @@ import { cartItemCount } from "@/lib/menu/cart-totals";
  * CartPage and ProfilePage give: middleware is defence in depth, not the only
  * check.
  */
-export default async function OrdersPage() {
+export default async function OrdersPage({
+  searchParams,
+}: {
+  searchParams: { q?: string; show?: string };
+}) {
+  const search = (searchParams.q ?? "").slice(0, 60);
+  const limit = Math.min(300, Math.max(HISTORY_PAGE, Number(searchParams.show) || HISTORY_PAGE));
   const [profile, orders, cart] = await Promise.all([
     readCustomerProfile(),
-    readPastOrders(),
+    readPastOrders({ search, limit }),
     readCart(),
   ]);
 
@@ -33,7 +39,7 @@ export default async function OrdersPage() {
   return (
     <ToastProvider>
       <SiteNavBar profile={profile} currentSection="orders" />
-      <PastOrdersScreen orders={orders} />
+      <PastOrdersScreen orders={orders} search={search} limit={limit} />
       <BottomTabBar current="orders" cartCount={cartItemCount(cart.lines)} />
     </ToastProvider>
   );
