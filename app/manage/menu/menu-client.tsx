@@ -303,22 +303,25 @@ function ManageMenuInner({ isManager }: { isManager?: boolean }) {
             />
           </div>
 
-          <Tooltip
-            content="Add a new dish to the menu"
-            shortcut={SHORTCUTS.newItem.combo}
-            side="bottom"
-          >
-            <button
-              type="button"
-              onClick={() => setIsAddModalOpen(true)}
-              disabled={isProcessing}
-              className="flex items-center justify-center rounded-[10px] bg-[#e8541f] px-[18px] py-[11px] transition-opacity hover:opacity-90 disabled:opacity-50"
+          {/* A new dish comes with a price, and prices are manager-only. */}
+          {isManager && (
+            <Tooltip
+              content="Add a new dish to the menu"
+              shortcut={SHORTCUTS.newItem.combo}
+              side="bottom"
             >
-              <span className="text-[13px] md:text-[15px] font-bold text-white whitespace-nowrap">
-                + Add item
-              </span>
-            </button>
-          </Tooltip>
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(true)}
+                disabled={isProcessing}
+                className="flex items-center justify-center rounded-[10px] bg-[#e8541f] px-[18px] py-[11px] transition-opacity hover:opacity-90 disabled:opacity-50"
+              >
+                <span className="text-[13px] md:text-[15px] font-bold text-white whitespace-nowrap">
+                  + Add item
+                </span>
+              </button>
+            </Tooltip>
+          )}
         </div>
       </div>
 
