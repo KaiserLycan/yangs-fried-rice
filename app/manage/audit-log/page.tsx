@@ -234,7 +234,7 @@ function ManageAuditLogInner() {
             aria-label="Search the audit log"
             aria-keyshortcuts="/"
             title="Search the audit log (press / to jump here)"
-            placeholder="Search..."
+            placeholder="Search actions, or an order like #1241"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             maxLength={80}

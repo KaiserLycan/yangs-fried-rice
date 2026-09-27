@@ -19,6 +19,7 @@ import { useNow } from "@/lib/hooks/use-now";
 import { getDetailedOrders, updateOrderStatus, getEmployeeAccess } from "@/lib/actions/orders";
 import { mapStaffOrder, type StaffOrderRow } from "@/lib/orders/map-staff-order";
 import { actionCopy, dbStatusFor, type StaffAction } from "@/lib/orders/staff-actions";
+import { OrderTodayStats } from "@/components/manage/orders/order-today-stats";
 
 // 1. Wrapper component to provide the Toast context
 export default function ManageOrdersPage() {
@@ -203,6 +204,10 @@ function ManageOrdersInner() {
             View KDS
           </Link>
         </div>
+      </div>
+
+      <div className="pb-4">
+        <OrderTodayStats refreshKey={orders.length} />
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 md:gap-8 flex-1 min-h-0">

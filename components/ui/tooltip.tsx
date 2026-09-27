@@ -50,8 +50,10 @@ export function Tooltip({
         id={id}
         role="tooltip"
         className={cn(
-          "pointer-events-none absolute left-1/2 z-50 w-max max-w-[240px] -translate-x-1/2 rounded-sm bg-foreground px-[9px] py-[6px] text-center text-sm font-medium leading-snug text-white opacity-0 shadow-lg transition-opacity delay-300 duration-150",
-          "group-hover/tooltip:opacity-100 group-focus-within/tooltip:opacity-100",
+          // Out of layout until shown: a hidden tooltip next to the edge of a
+          // scroll container otherwise widens it (the menu screen's + Add item).
+          "pointer-events-none absolute left-1/2 z-50 hidden w-max max-w-[240px] -translate-x-1/2 rounded-sm bg-foreground px-[9px] py-[6px] text-center text-sm font-medium leading-snug text-white shadow-lg",
+          "group-hover/tooltip:block group-hover/tooltip:animate-in group-hover/tooltip:fade-in group-focus-within/tooltip:block group-focus-within/tooltip:animate-in group-focus-within/tooltip:fade-in",
           side === "top" ? "bottom-[calc(100%+6px)]" : "top-[calc(100%+6px)]",
         )}
       >

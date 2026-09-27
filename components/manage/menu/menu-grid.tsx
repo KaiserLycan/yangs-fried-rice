@@ -4,15 +4,36 @@ import { ProductPhotoPlaceholder } from "@/components/menu/product-photo-placeho
 import type { MenuItem } from "@/types/menu";
 import { Button } from "@/components/ui/button";
 
+export type MenuAvailabilityFilter = "all" | "available" | "unavailable";
+export type MenuSort = "name" | "price-asc" | "price-desc" | "rating" | "prep";
+
+const SORTERS: Record<MenuSort, (a: MenuItem, b: MenuItem) => number> = {
+  name: (a, b) => a.name.localeCompare(b.name),
+  "price-asc": (a, b) => a.price - b.price,
+  "price-desc": (a, b) => b.price - a.price,
+  rating: (a, b) => b.rating - a.rating || a.name.localeCompare(b.name),
+  prep: (a, b) => (b.prepMinutes ?? 10) - (a.prepMinutes ?? 10) || a.name.localeCompare(b.name),
+};
+
 interface MenuGridProps {
   searchText: string;
+  availability?: MenuAvailabilityFilter;
+  sort?: MenuSort;
   selectedCategory: string;
   onEditItem: (item: MenuItem) => void;
   items: MenuItem[]; // ADDED: Accept live items from the parent page
   isLoading?: boolean; // ADDED: Loading state
 }
 
-export function MenuGrid({ searchText, selectedCategory, onEditItem, items, isLoading }: MenuGridProps) {
+export function MenuGrid({
+  searchText,
+  selectedCategory,
+  onEditItem,
+  items,
+  isLoading,
+  availability = "all",
+  sort = "name",
+}: MenuGridProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
@@ -21,8 +42,10 @@ export function MenuGrid({ searchText, selectedCategory, onEditItem, items, isLo
     const matchesCategory = selectedCategory === "All" || item.category === selectedCategory;
     const matchesSearch = item.name.toLowerCase().includes(searchText.toLowerCase()) || 
                           (item.description && item.description.toLowerCase().includes(searchText.toLowerCase()));
-    return matchesCategory && matchesSearch;
-  });
+    const matchesAvailability =
+      availability === "all" || (availability === "available" ? item.available : !item.available);
+    return matchesCategory && matchesSearch && matchesAvailability;
+  }).sort(SORTERS[sort]);
 
   const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
   

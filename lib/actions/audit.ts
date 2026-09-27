@@ -125,7 +125,13 @@ export async function getAuditLog(
   }
   // A value passed to .ilike() is encoded by the client: data, never syntax.
   const search = sanitiseAuditSearch(filters.search);
-  if (search) {
+  // "#1241" or an order id finds every entry about that order — its status
+  // changes, payments and problem report — not just summaries that happen
+  // to mention it (FINALE 9.7: "who cancelled the ₱3,500 order?").
+  const orderEntities = search ? await auditEntitiesForOrder(supabase, search) : null;
+  if (orderEntities) {
+    query = query.in("entity_id", orderEntities);
+  } else if (search) {
     query = query.ilike("summary", `%${search}%`);
   }
 
@@ -182,4 +188,35 @@ export async function getAuditActors(): Promise<
     .sort((a, b) => a.name.localeCompare(b.name));
 
   return { data: actors, error: null };
+}
+
+/**
+ * The audit entity ids that belong to one order, when `search` names an
+ * order ("#1241", "1241" or its id): the order, its payment rows and its
+ * problem report. Null when the search isn't an order reference, or no
+ * order matches — the caller then searches summaries as before.
+ */
+async function auditEntitiesForOrder(
+  supabase: ReturnType<typeof createClient>,
+  search: string,
+): Promise<string[] | null> {
+  const text = search.trim().replace(/^#/, "");
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(text);
+  const isNumber = /^\d{1,9}$/.test(text);
+  if (!isUuid && !isNumber) return null;
+
+  const { data: order } = isUuid
+    ? await supabase.from("order").select("order_id").eq("order_id", text).maybeSingle()
+    : await supabase.from("order").select("order_id").eq("order_number", Number(text)).maybeSingle();
+  if (!order) return null;
+
+  const [payments, issues] = await Promise.all([
+    supabase.from("transaction").select("transaction_id").eq("order_id", order.order_id),
+    supabase.from("order_issue").select("issue_id").eq("order_id", order.order_id),
+  ]);
+  return [
+    order.order_id,
+    ...(payments.data ?? []).map((row) => row.transaction_id),
+    ...(issues.data ?? []).map((row) => row.issue_id),
+  ];
 }

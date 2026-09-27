@@ -22,6 +22,8 @@ import { createClient } from "@/lib/supabase/client"; // Added for Storage uploa
 import { IMAGE_BUCKETS, imageExtensionFor } from "@/lib/storage/stored-image";
 
 import { Button } from "@/components/ui/button";
+import { QuickStats, type QuickStat } from "@/components/manage/quick-stats";
+import type { MenuAvailabilityFilter, MenuSort } from "@/components/manage/menu/menu-grid";
 /**
  * Put a menu photo in the bucket and return its public URL.
  *
@@ -69,6 +71,8 @@ function ManageMenuInner({ isManager }: { isManager?: boolean }) {
   const [searchText, setSearchText] = useState("");
   const debouncedSearchText = useDebounce(searchText, 300);
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
+  const [availability, setAvailability] = useState<MenuAvailabilityFilter>("all");
+  const [sort, setSort] = useState<MenuSort>("name");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
@@ -331,6 +335,41 @@ function ManageMenuInner({ isManager }: { isManager?: boolean }) {
         </div>
       </div>
 
+      {/* At a glance (FINALE: quick statistics on menu management) */}
+      <div className="pb-3">
+        <QuickStats label="Menu at a glance" isLoading={isLoading} stats={menuStats(menuItems, categoryStrings.length)} />
+      </div>
+
+      {/* Filter and sort */}
+      <div className="flex flex-wrap items-center gap-2 pb-2">
+        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          Show
+          <select
+            value={availability}
+            onChange={(e) => setAvailability(e.target.value as MenuAvailabilityFilter)}
+            className="h-10 rounded-md border border-field-border bg-white px-3 text-sm text-foreground"
+          >
+            <option value="all">All dishes</option>
+            <option value="available">Available</option>
+            <option value="unavailable">Unavailable</option>
+          </select>
+        </label>
+        <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          Sort
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as MenuSort)}
+            className="h-10 rounded-md border border-field-border bg-white px-3 text-sm text-foreground"
+          >
+            <option value="name">Name (A–Z)</option>
+            <option value="price-asc">Price: low to high</option>
+            <option value="price-desc">Price: high to low</option>
+            <option value="rating">Rating: highest first</option>
+            <option value="prep">Prep time: longest first</option>
+          </select>
+        </label>
+      </div>
+
       {/* Main Content: Sidebar + Grid */}
       <div className="flex flex-col md:flex-row flex-1 gap-4 md:gap-[10px] overflow-hidden pt-[10px]">
         <MenuSidebar
@@ -345,6 +384,8 @@ function ManageMenuInner({ isManager }: { isManager?: boolean }) {
         <MenuGrid
           searchText={debouncedSearchText}
           selectedCategory={selectedCategory}
+          availability={availability}
+          sort={sort}
           items={menuItems}
           isLoading={isLoading}
           onEditItem={(item) => {
@@ -378,4 +419,19 @@ function ManageMenuInner({ isManager }: { isManager?: boolean }) {
       )}
     </div>
   );
+}
+/** The numbers across the top of the menu screen (FINALE: quick statistics). */
+function menuStats(items: MenuItem[], categoryCount: number): QuickStat[] {
+  const available = items.filter((i) => i.available).length;
+  const rated = items.filter((i) => i.rating > 0);
+  const average = rated.length ? rated.reduce((sum, i) => sum + i.rating, 0) / rated.length : 0;
+  const prices = items.map((i) => i.price);
+  return [
+    { label: "Dishes", value: items.length, hint: `${categoryCount} categories` },
+    { label: "Available", value: available, tone: "good" },
+    { label: "Unavailable", value: items.length - available, tone: items.length - available > 0 ? "warn" : "default" },
+    { label: "Avg rating", value: rated.length ? average.toFixed(1) : "—", hint: `${rated.length} rated` },
+    { label: "No reviews yet", value: items.length - rated.length },
+    { label: "Price range", value: prices.length ? `₱${Math.min(...prices)}–${Math.max(...prices)}` : "—" },
+  ];
 }

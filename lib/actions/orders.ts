@@ -20,6 +20,7 @@ import {
 import { isPickupOrder } from "@/lib/orders/format";
 import { orderIdRangeFor, orderNumberSearch } from "@/lib/orders/order-number";
 import { NO_SHOW_REASONS, UNDO_PICKUP_MINUTES, type NoShowReason } from "@/lib/checkout/order-rules";
+import { manilaDayBounds } from "@/lib/time/manila";
 import { notifyOrderCancelled } from "@/lib/email/notify-order-cancelled";
 import { discardSeniorPwdIdPhoto, signSeniorPwdIdUrl } from "@/lib/storage/senior-pwd-ids";
 import type { Tables, TablesUpdate } from "@/types/database.types";
@@ -578,6 +579,74 @@ export async function updateOrderStatus(
   }
 
   return { data: updated, error: null };
+}
+
+export type TodayOrderStats = {
+  placed: number;
+  active: number;
+  completed: number;
+  cancelled: number;
+  noShows: number;
+  paymentIssues: number;
+  /** Minutes from placed to ready, averaged over today's orders that got there. */
+  avgMinutesToReady: number | null;
+  /** Completed orders' sales today (tips excluded). */
+  sales: number;
+};
+
+/**
+ * Today at a glance for the Orders page (FINALE: quick statistics on order
+ * management). "Today" is the Manila calendar day.
+ *
+ * Requires: manager or staff.
+ */
+export async function getTodayOrderStats(): Promise<ActionResult<TodayOrderStats>> {
+  const auth = await requireManageAccess();
+  if (!auth.data) return { data: null, error: auth.error };
+
+  const { start, end } = manilaDayBounds(0);
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("order")
+    .select("order_status, created_at, ready_at, no_show_reason, transaction ( total_paid )")
+    .gte("created_at", start)
+    .lte("created_at", end);
+  if (error) return { data: null, error: error.message };
+
+  const rows = (data ?? []) as {
+    order_status: string | null;
+    created_at: string | null;
+    ready_at: string | null;
+    no_show_reason: string | null;
+    transaction: { total_paid: number | null }[] | { total_paid: number | null } | null;
+  }[];
+
+  const readyTimes = rows
+    .filter((row) => row.created_at && row.ready_at)
+    .map((row) => (Date.parse(row.ready_at!) - Date.parse(row.created_at!)) / 60_000)
+    .filter((minutes) => minutes >= 0 && minutes < 24 * 60);
+
+  const paid = (row: (typeof rows)[number]) =>
+    (Array.isArray(row.transaction) ? row.transaction : row.transaction ? [row.transaction] : []).reduce(
+      (sum, t) => sum + Number(t.total_paid ?? 0),
+      0,
+    );
+
+  return {
+    data: {
+      placed: rows.length,
+      active: rows.filter((r) => ["pending", "received", "preparing", "ready"].includes(r.order_status ?? "")).length,
+      completed: rows.filter((r) => r.order_status === "completed").length,
+      cancelled: rows.filter((r) => r.order_status === "cancelled").length,
+      noShows: rows.filter((r) => r.no_show_reason !== null).length,
+      paymentIssues: rows.filter((r) => r.order_status === "awaiting_payment" || r.order_status === "payment_failed").length,
+      avgMinutesToReady: readyTimes.length
+        ? Math.round(readyTimes.reduce((a, b) => a + b, 0) / readyTimes.length)
+        : null,
+      sales: rows.filter((r) => r.order_status === "completed").reduce((sum, r) => sum + paid(r), 0),
+    },
+    error: null,
+  };
 }
 
 /**

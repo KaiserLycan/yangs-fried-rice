@@ -70,6 +70,8 @@ function ManageEmployeeInner() {
   const [roleFilterOpen, setRoleFilterOpen] = useState(false);
   const roleFilterMenu = useDropdown({ open: roleFilterOpen, onOpenChange: setRoleFilterOpen });
   const [nameSort, setNameSort] = useState<"asc" | "desc" | "none">("none");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "disabled">("all");
+  const [recentFirst, setRecentFirst] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeData | null>(null);
@@ -244,7 +246,16 @@ function ManageEmployeeInner() {
     filteredEmployees = filteredEmployees.filter((e) => e.roleKey === filterMapped);
   }
 
-  if (nameSort === "asc") {
+  if (statusFilter !== "all") {
+    filteredEmployees = filteredEmployees.filter((e) => (statusFilter === "disabled") === Boolean(e.isDisabled));
+  }
+
+  // Most recently signed in first — who has actually been working lately.
+  if (recentFirst) {
+    filteredEmployees.sort(
+      (a, b) => (b.lastAccessLog ? Date.parse(b.lastAccessLog) : 0) - (a.lastAccessLog ? Date.parse(a.lastAccessLog) : 0),
+    );
+  } else if (nameSort === "asc") {
     filteredEmployees.sort((a, b) => a.name.localeCompare(b.name));
   } else if (nameSort === "desc") {
     filteredEmployees.sort((a, b) => b.name.localeCompare(a.name));
@@ -317,6 +328,23 @@ function ManageEmployeeInner() {
               </div>
             )}
           </div>
+          <select
+            aria-label="Filter by account status"
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value as "all" | "active" | "disabled");
+              setCurrentPage(1);
+            }}
+            className="h-[42px] w-full sm:w-auto rounded-md border border-field-border bg-white px-3 text-sm text-foreground"
+          >
+            <option value="all">All statuses</option>
+            <option value="active">Active</option>
+            <option value="disabled">Disabled</option>
+          </select>
+          <label className="flex items-center gap-2 text-sm text-foreground whitespace-nowrap">
+            <input type="checkbox" checked={recentFirst} onChange={(e) => setRecentFirst(e.target.checked)} />
+            Recently active first
+          </label>
           <Tooltip
             content="Create a new staff or manager account"
             shortcut={SHORTCUTS.newItem.combo}
