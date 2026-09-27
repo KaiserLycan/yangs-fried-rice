@@ -92,7 +92,7 @@ export function KdsOrderCard({
           {/* Status & Prep Time */}
           <div className={cn("flex flex-col text-right items-end gap-1", isList && "md:items-start md:text-left")}>
             <span className="font-bold text-[#fbf6ec] text-[11px] tracking-[0.88px] uppercase mb-1">
-              {fixedBadge?.text ?? order.status}
+              {order.status}
             </span>
             {!hideTimer && (
               <span className="font-display text-[#fbf6ec] text-[22px] leading-none">
