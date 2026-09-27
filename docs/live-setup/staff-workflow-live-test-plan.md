@@ -364,6 +364,12 @@ Expected: O6 is there with a red **Payment failed** chip (an unfinished one says
 - AC-03.3 **Orders** and **Spent** (and Name, Since) are sortable ascending/descending across all pages.
 - AC-03.4 Search matches name, email or phone, and punctuation in the search box (commas, brackets, `%`) cannot break the page.
 - AC-03.5 Clicking a customer shows **Recent Orders (Last 10)** — that customer's 10 newest orders, and only theirs.
+- AC-03.6 **Advanced filters** (Filter button beside the search box), all applied on the server so counts, sorting and paging stay right:
+  - **Orders & spending period** with presets (This month, Last month, Last 30 days, This year, All time) or From/To — Orders and Spent then count only completed orders in that period (Manila days);
+  - **Min. orders** and **Min. spent (₱)**;
+  - **Activity**: Any / Ordered in this period / No orders in this period (without a period: Has ordered / Never ordered);
+  - **Joined** From/To.
+- AC-03.7 A line under the header says what Orders and Spent currently count and how many customers match; the Filter button shows how many filters are on.
 
 **TC-03-01 Totals are right** · setup: as S or M, take O1 through **Confirm → Ready → Picked Up** on the KDS or Orders page
 1. As M, `/manage/customers`, search `Tester Alpha`.
