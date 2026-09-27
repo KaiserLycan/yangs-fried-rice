@@ -2,7 +2,7 @@ import { vi, describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { CustomerLoginForm } from "@/components/auth/customer-login-form";
 import { useRouter, useSearchParams } from "next/navigation";
-import { loginCustomer } from "@/app/(auth)/actions";
+import { loginCustomer, resendConfirmationEmail } from "@/app/(auth)/actions";
 
 vi.mock("next/navigation", () => ({
   useRouter: vi.fn(),
@@ -11,6 +11,7 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/app/(auth)/actions", () => ({
   loginCustomer: vi.fn(),
+  resendConfirmationEmail: vi.fn(),
 }));
 
 describe("US-01: CustomerLoginForm Validations", () => {
@@ -97,5 +98,33 @@ describe("US-01: CustomerLoginForm Validations", () => {
     expect(
       screen.queryByRole("link", { name: /employee/i }),
     ).not.toBeInTheDocument();
+  });
+
+  // Persona reviews (new customer, senior customer): a missed confirmation
+  // email was a dead end with no way to get another.
+  it("offers to resend the confirmation email when the address is unconfirmed", async () => {
+    (loginCustomer as any).mockResolvedValue({
+      success: false,
+      error: "Confirm your email first — tap the link we sent when you signed up.",
+      code: "EMAIL_NOT_CONFIRMED",
+    });
+    (resendConfirmationEmail as any).mockResolvedValue({ success: true });
+
+    render(<CustomerLoginForm />);
+    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "ana@example.com" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "password123" } });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /log in/i })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /log in/i }));
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Resend confirmation email" }),
+    );
+
+    await waitFor(() =>
+      expect(resendConfirmationEmail).toHaveBeenCalledWith("ana@example.com"),
+    );
+    expect(await screen.findByText(/Check ana@example.com/)).toBeInTheDocument();
   });
 });

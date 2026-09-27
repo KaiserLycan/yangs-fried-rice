@@ -7,6 +7,7 @@ import { ArrowLeft, ArrowDownWideNarrow, ArrowUpNarrowWide, Bell, BellOff, Layou
 import { KdsOrderCard } from "@/components/manage/kds/kds-order-card";
 import { CancelReasonModal } from "@/components/manage/orders/cancel-reason-modal";
 import { PickupModal } from "@/components/manage/kds/pickup-modal";
+import { SoldOutButton } from "@/components/manage/kds/sold-out-dialog";
 import type { OrderData } from "@/types/staff-order";
 import { getDetailedOrders, updateOrderStatus, getPaymentIssuesForKds, type PaymentIssueOrder } from "@/lib/actions/orders";
 import { mapStaffOrder, type StaffOrderRow } from "@/lib/orders/map-staff-order";
@@ -348,12 +349,14 @@ function KdsInner() {
           </Button>
         </div>
 
+        <SoldOutButton className={cn(toggleBase, "ml-auto rounded-lg border border-field-border", toggleOff)} />
+
         <Button variant="unstyled"
           onClick={handleToggleSound}
           aria-pressed={soundEnabled}
           className={cn(
             toggleBase,
-            "ml-auto rounded-lg border",
+            "rounded-lg border",
             soundEnabled
               ? "bg-status-done text-white border-success"
               : "bg-background text-backoffice border-backoffice animate-pulse",

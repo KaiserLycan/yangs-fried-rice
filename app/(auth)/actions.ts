@@ -44,7 +44,10 @@ import {
  */
 type ActionResult =
   | { success: true }
-  | { success: false; error: string; fieldErrors?: FieldErrors };
+  | { success: false; error: string; fieldErrors?: FieldErrors; code?: string };
+
+/** The login was right but the address was never confirmed. */
+const EMAIL_NOT_CONFIRMED = "EMAIL_NOT_CONFIRMED";
 
 /**
  * `signedIn: false` means the account exists but has no session yet — the
@@ -234,6 +237,16 @@ export async function loginCustomer(
     password,
   });
 
+  // Supabase only says this once the password has matched, so telling the
+  // customer tells them nothing a stranger could learn.
+  if (error?.code === "email_not_confirmed") {
+    return {
+      success: false,
+      error: "Confirm your email first — tap the link we sent when you signed up.",
+      code: EMAIL_NOT_CONFIRMED,
+    };
+  }
+
   if (error || !data.user) {
     await recordLoginFailure(email, ip);
     // Same generic message either way — don't reveal whether the email
@@ -271,6 +284,33 @@ export async function loginCustomer(
   // browser must not ride along with a customer session.
   deleteSession();
 
+  return { success: true };
+}
+
+/**
+ * Send the sign-up confirmation email again (new-customer and senior
+ * persona reviews: a missed or expired link was a dead end).
+ *
+ * Offered on the login form after "Confirm your email first". Always reports
+ * success, like the password reset, so it cannot be used to test which
+ * addresses have accounts; Supabase rate-limits the sending itself.
+ */
+export async function resendConfirmationEmail(email: string): Promise<ActionResult> {
+  const parsed = forgotPasswordSchema.safeParse({ email });
+  if (!parsed.success) {
+    return { success: false, error: "Enter a valid email address." };
+  }
+
+  const origin = headers().get("origin");
+  const supabase = createClient();
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email: parsed.data.email,
+    options: origin ? { emailRedirectTo: `${origin}/auth/confirm?next=/menu` } : undefined,
+  });
+  if (error) {
+    console.error("resendConfirmationEmail:", error);
+  }
   return { success: true };
 }
 

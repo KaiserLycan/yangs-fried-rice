@@ -58,6 +58,15 @@ function signOutDisabled(request: NextRequest, loginPath: string) {
  * signed-out visitor to a page that redirects them again, forever.
  */
 export async function middleware(request: NextRequest) {
+  // The API description is a development aid (security review S12). The
+  // page itself 404s from its layout; this covers the file behind it.
+  if (
+    process.env.NODE_ENV === "production" &&
+    request.nextUrl.pathname === "/openapi.json"
+  ) {
+    return new NextResponse(null, { status: 404 });
+  }
+
   let response = NextResponse.next({ request: { headers: request.headers } });
 
   const supabase = createServerClient<Database, "public">(

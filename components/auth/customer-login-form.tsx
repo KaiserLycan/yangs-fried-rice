@@ -15,7 +15,8 @@ import { useLiveValidation } from "@/lib/forms/use-live-validation";
 import { useSubmitShortcut } from "@/lib/hooks/use-shortcut";
 import { lengthProps } from "@/lib/validation/fields";
 import { loginSchema } from "@/lib/validation/login";
-import { loginCustomer } from "@/app/(auth)/actions";
+import { loginCustomer, resendConfirmationEmail } from "@/app/(auth)/actions";
+import { Button } from "@/components/ui/button";
 import { safeNextPath } from "@/lib/auth/safe-next";
 import {
   ACCOUNT_DISABLED_LOGIN_ERROR,
@@ -51,6 +52,10 @@ function LoginFormInner() {
     return null;
   });
   const [showPassword, setShowPassword] = useState(false);
+  // Set when the login was refused only because the email is unconfirmed:
+  // the address to send the link to again.
+  const [unconfirmedEmail, setUnconfirmedEmail] = useState<string | null>(null);
+  const [resend, setResend] = useState<"idle" | "sending" | "sent">("idle");
   const [isPending, startTransition] = useTransition();
   const justRegistered = searchParams.get("registered") === "1";
   /** Arrived from /reset-password, which signs the recovery session out. */
@@ -70,10 +75,13 @@ function LoginFormInner() {
 
   const handleSubmit = live.handleSubmit(async (values) => {
     setServerError(null);
+    setUnconfirmedEmail(null);
+    setResend("idle");
     startTransition(async () => {
       const outcome = await loginCustomer(values);
       if (!outcome.success) {
         setServerError(outcome.error);
+        if (outcome.code === "EMAIL_NOT_CONFIRMED") setUnconfirmedEmail(values.email);
         live.setServerErrors(outcome.fieldErrors);
         return;
       }
@@ -124,6 +132,27 @@ function LoginFormInner() {
 
         {serverError ? (
           <Alert>{serverError}</Alert>
+        ) : null}
+
+        {unconfirmedEmail ? (
+          resend === "sent" ? (
+            <Alert tone="success" role="status">
+              Sent. Check {unconfirmedEmail} — and the spam folder — for the new link.
+            </Alert>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={resend === "sending"}
+              onClick={async () => {
+                setResend("sending");
+                await resendConfirmationEmail(unconfirmedEmail).catch(() => undefined);
+                setResend("sent");
+              }}
+            >
+              {resend === "sending" ? "Sending…" : "Resend confirmation email"}
+            </Button>
+          )
         ) : null}
 
         <Field label="Email" htmlFor="email" error={errors.email}>
