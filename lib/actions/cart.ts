@@ -783,12 +783,15 @@ export async function submitCart(
 
   const supabase = createClient();
 
+  // The generated database types predate `p_fulfillment_method`
+  // (20260928000010), hence the widened argument type.
   const { data, error } = await supabase.rpc("submit_cart_to_order", {
     p_cart_id: parsed.data.cart_id,
     p_order_type: parsed.data.order_type,
     p_special_instructions: parsed.data.special_instructions ?? undefined,
     p_payment_method: parsed.data.payment_method,
-  });
+    p_fulfillment_method: parsed.data.fulfillment_method,
+  } as Parameters<typeof supabase.rpc<"submit_cart_to_order">>[1]);
 
   if (error || !data) {
     // The function raises with a customer-facing message and a stable code
