@@ -404,13 +404,25 @@ function KdsInner() {
                     order={order}
                     onAction={handleAction}
                     layout={viewMode}
-                    timerTimestamp={isPickupTab ? order.rawReadyAt : order.rawCreatedAt}
-                    amberMins={activeTab === "active" ? 15 : 999}
-                    redMins={activeTab === "active" ? 25 : 90}
-                    hideTimer={activeTab === "payment_issues" || activeTab === "cancelled"}
+                    timerTimestamp={isPickupTab ? order.rawReadyAt ?? order.rawCreatedAt : order.rawCreatedAt}
+                    // Active: 15 / 25 min since ordered. Payment: how long the
+                    // customer has been stuck. Pick-up: red once it is overdue.
+                    amberMins={
+                      activeTab === "active" ? 15
+                        : activeTab === "payment_issues" ? STUCK_PAYMENT_MINUTES
+                        : 999
+                    }
+                    redMins={
+                      activeTab === "active" ? 25
+                        : activeTab === "payment_issues" ? STUCK_PAYMENT_MINUTES * 3
+                        : FAILED_PICKUP_MINUTES
+                    }
+                    hideTimer={activeTab === "cancelled"}
                     fixedBadge={
                       activeTab === "payment_issues"
-                        ? { text: "Payment Issue", bgClass: "bg-red-200", textClass: "text-red-900" }
+                        ? order.dbStatus === "payment_failed"
+                          ? { text: "Payment failed", bgClass: "bg-red-200", textClass: "text-red-900" }
+                          : { text: "Awaiting payment", bgClass: "bg-amber-100", textClass: "text-amber-900" }
                         : isPickupTab && isCash
                         ? { text: "Pay In-store", bgClass: "bg-blue-100", textClass: "text-blue-700" }
                         : undefined
