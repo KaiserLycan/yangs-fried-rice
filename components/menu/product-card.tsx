@@ -30,11 +30,17 @@ export function ProductCard({
   product,
   onSelect,
   isGuest = false,
+  cartFull = false,
 }: {
   product: ProductListing;
   onSelect: (product: ProductListing) => void;
   /** True once we know nobody is signed in. Unknown reads as signed in. */
   isGuest?: boolean;
+  /**
+   * The cart holds 30 items, the most one order can (issue #115). Add is
+   * disabled; the card itself still opens the dish to read about it.
+   */
+  cartFull?: boolean;
 }) {
   const unavailable = !product.isAvailable;
 
@@ -84,7 +90,9 @@ export function ProductCard({
           <Button variant="unstyled"
             type="button"
             onClick={() => onSelect(product)}
-            className="flex min-h-[44px] shrink-0 items-center whitespace-nowrap rounded-md bg-accent px-[16px] text-sm font-bold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            disabled={cartFull}
+            title={cartFull ? "Your cart is full (30 items)." : undefined}
+            className="flex min-h-[44px] shrink-0 items-center whitespace-nowrap rounded-md bg-accent px-[16px] text-sm font-bold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:bg-secondary disabled:text-muted-foreground disabled:hover:opacity-100"
           >
             Add
             <span className="sr-only"> {product.name}</span>

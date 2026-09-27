@@ -4,6 +4,7 @@ import {
   seniorPwdBreakdown,
   vatBreakdown,
   type CartLine,
+  dishQuantityInCart,
 } from "./cart-totals";
 
 const line = (overrides: Partial<CartLine> = {}): CartLine => ({
@@ -109,5 +110,32 @@ describe("seniorPwdBreakdown", () => {
   it("rounds to the centavo, half up", () => {
     expect(seniorPwdBreakdown(0.14).vatExemptSales).toBe(0.13); // 12.5 centavos
     expect(seniorPwdBreakdown(459)).toEqual({ vatExemptSales: 409.82, discount: 81.96, total: 327.86 });
+  });
+});
+
+describe("dishQuantityInCart (issue #115)", () => {
+  const dish = { id: "p-1", name: "Yang's Halo-Halo" };
+  const product = { id: "p-1", name: "Yang's Halo-Halo" } as never;
+
+  it("adds up every line of the dish, notes or not", () => {
+    expect(
+      dishQuantityInCart(
+        [
+          { id: "a", name: dish.name, unitPrice: 120, quantity: 13, specialInstructions: null, product },
+          { id: "b", name: dish.name, unitPrice: 120, quantity: 10, specialInstructions: "less ice", product },
+          { id: "c", name: "Bottled Water", unitPrice: 30, quantity: 5, specialInstructions: null, product: { id: "p-2", name: "Bottled Water" } as never },
+        ],
+        dish,
+      ),
+    ).toBe(23);
+  });
+
+  it("matches an optimistic line (no product yet) by name", () => {
+    expect(
+      dishQuantityInCart(
+        [{ id: "optimistic-1", name: dish.name, unitPrice: 120, quantity: 2, specialInstructions: null }],
+        dish,
+      ),
+    ).toBe(2);
   });
 });

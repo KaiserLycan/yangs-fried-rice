@@ -8,10 +8,14 @@ import { ProductPhotoPlaceholder } from "@/components/menu/product-photo-placeho
 import { addCartItem, updateCartItem } from "@/lib/actions/cart";
 import { useCartAction } from "@/lib/cart/use-cart-action";
 import { formatPeso, type ProductListing } from "@/lib/menu/product-listing";
-import { MIN_QUANTITY, MAX_QUANTITY } from "@/lib/menu/quantity";
-import { wouldExceedOrderCap, BIG_ORDER_MESSAGE } from "@/lib/cart/limits";
+import { MIN_QUANTITY } from "@/lib/menu/quantity";
+import {
+  BULK_ORDER_NOTE,
+  dishLimitMessage,
+  quantityRoom,
+} from "@/lib/cart/limits";
+import { BULK_ORDER_CONTACT_HREF } from "@/lib/site/site-info";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/toast";
 
 const SPECIAL_INSTRUCTIONS_PLACEHOLDER = "e.g. extra chili, no egg";
 
@@ -72,11 +76,15 @@ export function ItemDetailModal({
   onAdd?: (quantity: number, instructions: string) => void;
   editing?: CartLineEdit;
   isGuest?: boolean;
+  /**
+   * Items in the whole cart, and of this dish across all its lines, so the
+   * stepper stops at what still fits (issue #115): 30 per order, 20 per
+   * dish. When editing, both include the line being edited.
+   */
   cartTotalItems?: number;
   cartProductItems?: number;
 }) {
   const { run, pending } = useCartAction();
-  const showToast = useToast();
   const ref = React.useRef<HTMLDialogElement>(null);
   const [quantity, setQuantity] = React.useState(MIN_QUANTITY);
   const [instructions, setInstructions] = React.useState("");
@@ -125,19 +133,30 @@ export function ItemDetailModal({
     return sum + (addon?.price ?? 0);
   }, 0);
 
-  const lineTotal = formatPeso((product.price + addOnsTotal) * quantity);
 
-  const delta = editing ? quantity - editing.quantity : quantity;
-  const isOverOrderCap = wouldExceedOrderCap(cartTotalItems, delta);
-  const isOverProductCap = (cartProductItems + delta) > MAX_QUANTITY;
-  const isCapped = isOverOrderCap || isOverProductCap;
+  // How many of this dish the stepper may show: what still fits in the
+  // order (30) and of this dish across all its lines (20). An edited line's
+  // own quantity is given back first. At 0 nothing can be added, and the
+  // dialog says why instead of letting the server refuse it.
+  const { room, limitedBy } = quantityRoom({
+    cartTotalItems,
+    dishItems: cartProductItems,
+    baseline: editing?.quantity ?? 0,
+  });
+  const isCapped = room < MIN_QUANTITY;
+  const stepperMax = Math.max(MIN_QUANTITY, room);
+  // The cart can change while the dialog is open (another tab, the rail);
+  // what is shown and sent never exceeds what fits now.
+  const chosenQuantity = Math.min(quantity, stepperMax);
+
+  const lineTotal = formatPeso((product.price + addOnsTotal) * chosenQuantity);
 
   // Optimistic UI requested by user: The modal closes immediately and updates the cart 
   // without waiting for the server roundtrip, making the interaction feel instantaneous.
   function handleAddToCart() {
     if (!product) return;
     const { id: product_id } = product;
-    const qty = quantity;
+    const qty = chosenQuantity;
     const inst = instructions.trim();
     
     onAdd?.(qty, inst);
@@ -151,11 +170,6 @@ export function ItemDetailModal({
           special_instructions: inst || null,
           add_on_ids: Array.from(selectedAddOns),
         }),
-      () => {
-        if (cartTotalItems + qty === 30) {
-          showToast(`That's a big order! ${BIG_ORDER_MESSAGE}`);
-        }
-      }
     );
   }
 
@@ -163,7 +177,7 @@ export function ItemDetailModal({
     if (!editing) return;
     const { cartItemId } = editing;
     const payload = {
-      quantity,
+      quantity: chosenQuantity,
       special_instructions: instructions.trim() || null,
       add_on_ids: Array.from(selectedAddOns),
     };
@@ -178,6 +192,25 @@ export function ItemDetailModal({
     : editing
     ? "Save changes"
     : "Add to cart";
+
+  /** Why nothing more can be added, with the way to order more. */
+  function capNotice() {
+    if (!isCapped || isGuest) return null;
+    return (
+      <p role="status" className="text-sm font-bold text-destructive">
+        {limitedBy === "dish" ? (
+          dishLimitMessage(product!.name)
+        ) : (
+          <>
+            That&apos;s a big order!{" "}
+            <Link href={BULK_ORDER_CONTACT_HREF} className="underline">
+              {BULK_ORDER_NOTE}
+            </Link>
+          </>
+        )}
+      </p>
+    );
+  }
 
   /** The dialog's one action, drawn at each breakpoint's size. */
   function primaryAction(className: string) {
@@ -272,7 +305,7 @@ export function ItemDetailModal({
           <div className="h-px w-full bg-field-border" />
 
           <LabelledSection label="Quantity">
-            <QuantityStepper value={quantity} onChange={setQuantity} size="mobile" />
+            <QuantityStepper value={chosenQuantity} onChange={setQuantity} size="mobile" max={stepperMax} />
           </LabelledSection>
 
           <AddOnsSection
@@ -289,6 +322,7 @@ export function ItemDetailModal({
             />
           </LabelledSection>
 
+          {capNotice()}
           {primaryAction(
             "flex items-center justify-between rounded-md bg-accent p-[17px] text-base font-bold text-white",
           )}
@@ -310,7 +344,7 @@ export function ItemDetailModal({
         <div className="flex flex-1 flex-col gap-[14px] px-[26px] pb-[26px] pt-[25px] overflow-y-auto">
           <ItemSummary product={product} titleClassName="text-3xl" />
 
-          <QuantityStepper value={quantity} onChange={setQuantity} size="desktop" />
+          <QuantityStepper value={chosenQuantity} onChange={setQuantity} size="desktop" max={stepperMax} />
 
           <AddOnsSection
             addOns={product.add_ons}
@@ -327,6 +361,7 @@ export function ItemDetailModal({
             placeholder={`Special instructions — ${SPECIAL_INSTRUCTIONS_PLACEHOLDER}`}
           />
 
+          {capNotice()}
           <div className="grid grid-cols-[1fr_2fr] gap-[14px]">
             <Button variant="unstyled"
               type="button"

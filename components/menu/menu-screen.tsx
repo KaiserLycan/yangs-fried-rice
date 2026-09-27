@@ -24,6 +24,7 @@ import {
 } from "@/lib/menu/fetch-menu";
 import {
   cartItemCount,
+  dishQuantityInCart,
   type CartLine,
   type Fulfilment,
 } from "@/lib/menu/cart-totals";
@@ -33,6 +34,7 @@ import type { CartRead } from "@/lib/cart/read-cart";
 import type { RecentOrder } from "@/lib/orders/read-recent-orders";
 import { createClient } from "@/lib/supabase/client";
 import { uniqueChannelName } from "@/lib/supabase/channel-name";
+import { MAX_ITEMS_PER_ORDER } from "@/lib/cart/limits";
 import { useStoreStatus } from "@/lib/hooks/use-store-status";
 import { BUSY_MESSAGE, formatStoreHours } from "@/lib/store/store-status";
 
@@ -207,6 +209,10 @@ export function MenuScreen({
 
   const hasFilter = search.trim().length > 0 || selectedCategory !== null;
 
+  // At 30 items nothing more can be added (issue #115): the cards' Add is
+  // disabled, and the item dialog explains why.
+  const cartFull = cartItemCount(optimisticCartLines ?? []) >= MAX_ITEMS_PER_ORDER;
+
   // Open / paused / busy, from the database's hours and the manager's pause
   // (issue #115). Null until the first answer, so no banner flashes on load.
   const storeStatus = useStoreStatus();
@@ -310,7 +316,7 @@ export function MenuScreen({
               <>
                 <div className="hidden gap-[16px] pt-[24px] md:grid md:grid-cols-3">
                   {products.map((product) => (
-                    <ProductCard key={product.id} product={product} onSelect={setSelectedProduct} isGuest={isGuest} />
+                    <ProductCard key={product.id} product={product} onSelect={setSelectedProduct} isGuest={isGuest} cartFull={cartFull} />
                   ))}
                 </div>
                 <div className="flex flex-col md:hidden">
@@ -326,6 +332,7 @@ export function MenuScreen({
                 productsPromise={productsPromise} 
                 onSelect={setSelectedProduct} 
                 isGuest={isGuest}
+                cartFull={cartFull}
               />
             </Suspense>
           )}
@@ -379,8 +386,10 @@ export function MenuScreen({
       <ItemDetailModal
         product={selectedProduct}
         isGuest={isGuest}
-        cartTotalItems={(optimisticCartLines ?? []).reduce((acc, line) => acc + line.quantity, 0)}
-        cartProductItems={(optimisticCartLines ?? []).filter(l => l.name === selectedProduct?.name).reduce((acc, line) => acc + line.quantity, 0)}
+        cartTotalItems={cartItemCount(optimisticCartLines ?? [])}
+        cartProductItems={
+          selectedProduct ? dishQuantityInCart(optimisticCartLines ?? [], selectedProduct) : 0
+        }
         onClose={() => setSelectedProduct(null)}
         onAdd={(quantity, instructions) => {
           if (!selectedProduct) return;
@@ -496,10 +505,12 @@ function ResolvedProductGrid({
   productsPromise,
   onSelect,
   isGuest,
+  cartFull,
 }: {
   productsPromise: Promise<ProductListing[]>;
   onSelect: (product: ProductListing) => void;
   isGuest: boolean;
+  cartFull: boolean;
 }) {
   const [products, setProducts] = useState<ProductListing[]>([]);
   useEffect(() => {
@@ -516,7 +527,7 @@ function ResolvedProductGrid({
     <>
       <div className="hidden gap-[16px] pt-[24px] md:grid md:grid-cols-3">
         {products.map((product) => (
-          <ProductCard key={product.id} product={product} onSelect={onSelect} isGuest={isGuest} />
+          <ProductCard key={product.id} product={product} onSelect={onSelect} isGuest={isGuest} cartFull={cartFull} />
         ))}
       </div>
       <div className="flex flex-col md:hidden">

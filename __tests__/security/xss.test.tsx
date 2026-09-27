@@ -194,7 +194,9 @@ describe("E5. no unsafe rendering escape hatch exists", () => {
       // literal /login path; the product id only goes into `next`, encoded,
       // and login's safeNextPath() refuses anything but a same-site path.
       ["components/menu/product-card.tsx", "href={signInToOrderHref(product.id)} — /login?next=/menu?item=<encoded id>"],
-      ["components/menu/item-detail-modal.tsx", "href={signInToOrderHref(product?.id)} — /login?next=/menu?item=<encoded id>"],
+      ["components/menu/item-detail-modal.tsx", "href={signInToOrderHref(product?.id)} — /login?next=/menu?item=<encoded id>; href={BULK_ORDER_CONTACT_HREF} — a constant from lib/site/site-info.ts"],
+      // Issue #115: the bulk-order / catering contact link, a constant.
+      ["components/cart/cart-totals-summary.tsx", "href={BULK_ORDER_CONTACT_HREF} — a constant from lib/site/site-info.ts"],
     ]);
 
     const offenders: string[] = [];
