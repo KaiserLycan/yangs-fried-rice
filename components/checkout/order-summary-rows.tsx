@@ -1,4 +1,5 @@
 import { formatPeso, formatPesoCentavos } from "@/lib/menu/product-listing";
+import type { LineFlags } from "@/lib/checkout/cart-recheck";
 import {
   lineTotal,
   type CartLine,
@@ -33,6 +34,7 @@ export function OrderSummaryRows({
   lines,
   totals,
   discount,
+  flags = {},
 }: {
   customerName: string;
   placedAtLabel: string;
@@ -40,6 +42,8 @@ export function OrderSummaryRows({
   lines: CartLine[];
   totals: CartTotals;
   discount?: OrderSummaryDiscount | null;
+  /** Lines checkout found sold out or re-priced (FINALE 9.1, 9.10). */
+  flags?: LineFlags;
 }) {
   return (
     <>
@@ -51,12 +55,31 @@ export function OrderSummaryRows({
         value={fulfilment === "delivery" ? "Delivery" : "Pickup"}
       />
 
-      {lines.map((line) => (
-        <div key={line.id} className="flex flex-col gap-1">
+      {lines.map((line) => {
+        const flag = flags[line.id];
+        return (
+        <div
+          key={line.id}
+          data-flag={flag?.kind}
+          className={
+            flag
+              ? "-mx-[8px] flex flex-col gap-1 rounded-md bg-warning-surface px-[8px] py-[6px]"
+              : "flex flex-col gap-1"
+          }
+        >
           <SummaryRow
             label={`${line.quantity}× ${line.name}`}
             value={formatPeso(lineTotal(line))}
           />
+          {flag?.kind === "unavailable" ? (
+            <p className="text-sm font-bold text-warning-text">
+              Sold out — remove it to place your order
+            </p>
+          ) : flag?.kind === "price" ? (
+            <p className="text-sm font-bold text-warning-text">
+              Now {formatSummaryMoney(flag.now)} each (was {formatSummaryMoney(flag.was)})
+            </p>
+          ) : null}
           {line.addOns && line.addOns.length > 0 && (
             <ul className="flex flex-col gap-0.5 -mt-1 pl-4 text-sm text-muted-foreground">
               {line.addOns.map((addon) => (
@@ -65,7 +88,8 @@ export function OrderSummaryRows({
             </ul>
           )}
         </div>
-      ))}
+        );
+      })}
 
       {/* No delivery fee row on a pickup order. `computeCartTotals` correctly
           zeroes the fee, but printing "Delivery fee ₱0" on an order nobody is

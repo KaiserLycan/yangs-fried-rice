@@ -50,6 +50,12 @@ export function useCartAction() {
     <R extends ActionResult>(
       action: () => Promise<R>,
       onSuccess?: (data: NonNullable<R["data"]>) => void | Promise<void>,
+      /**
+       * Sees a refusal before the toast does. Returning true means the
+       * caller explains it on the screen itself (checkout's cart re-check),
+       * so no toast is shown. The page is re-read either way.
+       */
+      onError?: (failure: R & { error: string }) => boolean | Promise<boolean>,
     ) => {
       setInFlight(true);
       void (async () => {
@@ -74,7 +80,8 @@ export function useCartAction() {
               window.location.assign(`/login?error=${ACCOUNT_DISABLED_LOGIN_ERROR}`);
               return;
             }
-            showToast(result.error, "error");
+            const handled = await onError?.(result as R & { error: string });
+            if (!handled) showToast(result.error, "error");
             startTransition(() => router.refresh());
             return;
           }

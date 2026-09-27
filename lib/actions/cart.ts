@@ -36,6 +36,11 @@ import {
   dishLimitMessage,
   wouldExceedOrderCap,
 } from "@/lib/cart/limits";
+import {
+  compareCart,
+  type CartRecheck,
+  type LiveCartLine,
+} from "@/lib/checkout/cart-recheck";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -977,6 +982,69 @@ export async function submitCart(
     },
     error: null,
   };
+}
+
+// ---------------------------------------------------------------------------
+// 5a. Re-check the cart after checkout was refused (FINALE 9.1, 9.10)
+// ---------------------------------------------------------------------------
+
+/**
+ * Each line of the customer's open cart against the menu as it is now:
+ * which dishes can no longer be ordered, and which cost something other
+ * than the price checkout showed. Called after `submitCart` comes back with
+ * ITEM_UNAVAILABLE or PRICE_CHANGED, so checkout can point at the lines.
+ *
+ * Read-only. Priced the way `submit_cart_to_order` prices a line: the dish
+ * plus its add-ons.
+ */
+export async function recheckCart(
+  cartId: string,
+  shownPrices: Record<string, number>,
+): Promise<ActionResult<CartRecheck>> {
+  const auth = await requireCustomer();
+  if (!auth.data) return { data: null, error: auth.error, code: auth.code };
+
+  const supabase = createClient();
+  const { data: cart } = await supabase
+    .from("cart")
+    .select("cart_id")
+    .eq("cart_id", cartId)
+    .eq("customer_id", auth.data.customer_id)
+    .eq("is_final", false)
+    .maybeSingle();
+  if (!cart) return { data: null, error: "Cart not found." };
+
+  const { data: rows, error } = await supabase
+    .from("cart_item")
+    .select(
+      `cart_item_id,
+       product ( product_name, product_price, is_available, archived_at ),
+       cart_item_add_on ( add_on ( price ) )`,
+    )
+    .eq("cart_id", cartId);
+  if (error) return { data: null, error: "We couldn't check your cart. Please try again." };
+
+  const live: LiveCartLine[] = (rows ?? []).map((row: any) => {
+    const product = (Array.isArray(row.product) ? row.product[0] : row.product) as {
+      product_name: string;
+      product_price: number;
+      is_available: boolean | null;
+      archived_at: string | null;
+    } | null;
+    const addOns = (row.cart_item_add_on ?? []).reduce(
+      (sum: number, link: any) => sum + Number(link.add_on?.price ?? 0),
+      0,
+    );
+    return {
+      id: row.cart_item_id,
+      name: product?.product_name ?? "An item that was removed from the menu",
+      unitPrice: Number(product?.product_price ?? 0) + addOns,
+      available:
+        product !== null && product.archived_at === null && product.is_available !== false,
+    };
+  });
+
+  return { data: compareCart(shownPrices, live), error: null };
 }
 
 // ---------------------------------------------------------------------------

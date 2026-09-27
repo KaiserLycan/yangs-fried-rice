@@ -6,7 +6,13 @@ import { SHORTCUTS, useShortcut } from "@/lib/hooks/use-shortcut";
 import { useRouter } from "next/navigation";
 import { OrderSummaryRows } from "@/components/checkout/order-summary-rows";
 import { useToast } from "@/components/ui/toast";
-import { submitCart } from "@/lib/actions/cart";
+import { recheckCart, removeCartItem, submitCart } from "@/lib/actions/cart";
+import {
+  RECHECK_CODES,
+  hasCartProblems,
+  lineFlagsFor,
+  type CartRecheck,
+} from "@/lib/checkout/cart-recheck";
 import { useCartAction } from "@/lib/cart/use-cart-action";
 import { orderTypeFor } from "@/lib/checkout/fulfilment-param";
 import type { PickupBy } from "@/components/checkout/pickup-by-picker";
@@ -102,6 +108,14 @@ export function OrderSummaryCard({
   // A ref, not state: the back/forward cache restores this page's JavaScript
   // heap intact, so whatever was written here survives the round trip.
   const walletReceipt = React.useRef<string | null>(null);
+
+  // What changed in the cart since this screen was drawn, after the database
+  // refused the order for it (FINALE 9.1, 9.10). Place order waits until the
+  // customer has dealt with it.
+  const [recheck, setRecheck] = React.useState<CartRecheck | null>(null);
+  const [fixing, startFixing] = React.useTransition();
+  const [removing, setRemoving] = React.useState(false);
+  const cartProblems = hasCartProblems(recheck);
 
   // Back from the wallet page restores this screen from the browser's cache:
   // same DOM, same state, button still disabled, and — because nothing was
@@ -214,6 +228,14 @@ export function OrderSummaryCard({
     // for now; it is pointed at the wallet once PayMongo has answered.
     const walletTab = paymentMethod === "wallet" ? openWalletTab() : null;
 
+    // What each line cost on this screen. If the menu moved since, the
+    // database refuses with PRICE_CHANGED or ITEM_UNAVAILABLE; the re-check
+    // below then points at the lines (issue #115, FINALE 9.1, 9.10).
+    const shownPrices = Object.fromEntries(
+      lines.map((line) => [line.id, line.unitPrice]),
+    );
+    setRecheck(null);
+
     run(
       async () => {
         try {
@@ -261,13 +283,7 @@ export function OrderSummaryCard({
             // so the kitchen never sees a payment that was abandoned or
             // refused.
             payment_method: chosenMethod,
-            // What each line cost on this screen. If the menu price moved
-            // since, the database refuses with PRICE_CHANGED and names the
-            // dishes; the toast shows that and the refresh brings in the
-            // new prices, so the customer re-confirms (issue #115).
-            expected_prices: Object.fromEntries(
-              lines.map((line) => [line.id, line.unitPrice]),
-            ),
+            expected_prices: shownPrices,
             wallet,
             tip,
             cash_tendered: cashTendered,
@@ -339,7 +355,43 @@ export function OrderSummaryCard({
           router.push(`${receiptForWallet}&pay_error=1`);
         }
       },
+      // Sold out or re-priced: find out which lines, and say so beside them
+      // instead of in a toast. The refresh that follows brings in the new
+      // prices, so accepting them is only acknowledging what is on screen.
+      async (failure) => {
+        if (!failure.code || !RECHECK_CODES.has(failure.code)) return false;
+        try {
+          const checked = await recheckCart(cartId, shownPrices);
+          if (checked.data && hasCartProblems(checked.data)) {
+            setRecheck(checked.data);
+            return true;
+          }
+        } catch {
+          // Fall back to the toast with the database's own sentence.
+        }
+        return false;
+      },
     );
+  }
+
+  async function removeSoldOut() {
+    if (!recheck) return;
+    setRemoving(true);
+    try {
+      for (const line of recheck.unavailable) {
+        const result = await removeCartItem(line.id);
+        if (result.error !== null) {
+          showToast(result.error, "error");
+          return;
+        }
+      }
+      setRecheck({ ...recheck, unavailable: [] });
+    } catch {
+      showToast("Couldn’t reach the server. Please try again.", "error");
+    } finally {
+      setRemoving(false);
+      startFixing(() => router.refresh());
+    }
   }
 
   return (
@@ -354,6 +406,7 @@ export function OrderSummaryCard({
         fulfilment={fulfilment}
         lines={lines}
         totals={totals}
+        flags={lineFlagsFor(recheck)}
         discount={
           isDiscountActive && discountTotals
             ? {
@@ -365,6 +418,15 @@ export function OrderSummaryCard({
             : null
         }
       />
+
+      {cartProblems && recheck ? (
+        <CartRecheckNotice
+          recheck={recheck}
+          busy={removing || fixing}
+          onRemoveSoldOut={removeSoldOut}
+          onAcceptPrices={() => setRecheck({ ...recheck, priceChanges: [] })}
+        />
+      ) : null}
 
       {tip > 0 && (
         <div className="flex items-center justify-between text-sm text-foreground">
@@ -393,7 +455,7 @@ export function OrderSummaryCard({
         <Button variant="unstyled"
           type="button"
           onClick={handlePlaceOrder}
-          disabled={pending || redirecting || shortOfMinimum > 0}
+          disabled={pending || redirecting || shortOfMinimum > 0 || cartProblems}
           className="w-full rounded-md bg-accent p-[16px] text-base font-bold text-accent-foreground disabled:opacity-60"
         >
           {redirecting
@@ -406,6 +468,70 @@ export function OrderSummaryCard({
         </Button>
       </Tooltip>
     </section>
+  );
+}
+
+/**
+ * What checkout found after the order was refused, with the fix for each
+ * part: sold-out dishes come out of the cart, new prices are accepted. The
+ * lines themselves are highlighted in the summary above.
+ */
+function CartRecheckNotice({
+  recheck,
+  busy,
+  onRemoveSoldOut,
+  onAcceptPrices,
+}: {
+  recheck: CartRecheck;
+  busy: boolean;
+  onRemoveSoldOut: () => void;
+  onAcceptPrices: () => void;
+}) {
+  const { unavailable, priceChanges } = recheck;
+  return (
+    <div
+      role="alert"
+      className="flex flex-col gap-[10px] rounded-md border border-warning bg-warning-surface p-[12px] text-sm text-warning-text"
+    >
+      {unavailable.length > 0 ? (
+        <div className="flex flex-col gap-[8px]">
+          <p>
+            <strong>Sold out since you added {unavailable.length === 1 ? "it" : "them"}:</strong>{" "}
+            {unavailable.map((line) => line.name).join(", ")}.
+          </p>
+          <Button
+            variant="outline"
+            className="self-start"
+            disabled={busy}
+            onClick={onRemoveSoldOut}
+          >
+            {busy ? "Removing…" : unavailable.length === 1 ? "Remove sold-out item" : "Remove sold-out items"}
+          </Button>
+        </div>
+      ) : null}
+      {priceChanges.length > 0 ? (
+        <div className="flex flex-col gap-[8px]">
+          <p>
+            <strong>Prices changed:</strong>{" "}
+            {priceChanges
+              .map(
+                (change) =>
+                  `${change.name} ${formatSummaryMoney(change.was)} → ${formatSummaryMoney(change.now)}`,
+              )
+              .join(", ")}
+            . The total above uses the new prices.
+          </p>
+          <Button
+            variant="outline"
+            className="self-start"
+            disabled={busy}
+            onClick={onAcceptPrices}
+          >
+            Accept new prices
+          </Button>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
