@@ -22,10 +22,10 @@ import { Button } from "@/components/ui/button";
  * dot and a flame-coloured border, so the dot is decorative here
  * (`aria-hidden`) — `aria-checked` is what actually carries the state.
  *
- * Choosing "GCash / Maya wallet" opens one more row, GCash or Maya, because
+ * Choosing "GCash / Maya wallet" opens a dropdown, GCash or Maya, because
  * PayMongo sends the customer to one wallet's page or the other and has to be
- * told which before "Place order" fires. No frame draws that row; it borrows
- * the option treatment above it and stays hidden for every other method.
+ * told which before "Place order" fires. No frame draws it; it is a native
+ * `<select>` styled like the contact form's, hidden for every other method.
  */
 export function PaymentMethodPicker({
   value,
@@ -94,32 +94,18 @@ export function PaymentMethodPicker({
       ))}
 
       {value === "wallet" ? (
-        <div
-          role="radiogroup"
+        <select
           aria-label="Wallet"
-          className="grid grid-cols-2 gap-[8px] md:gap-[10px]"
+          value={wallet}
+          onChange={(e) => onWalletChange(e.target.value as WalletProvider)}
+          className="w-full rounded-md border border-field-border bg-white px-[14px] py-[13px] text-sm font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 md:p-[14px]"
         >
-          {WALLET_PROVIDERS.map((provider) => {
-            const isSelected = provider.id === wallet;
-            return (
-              <Button variant="unstyled"
-                key={provider.id}
-                type="button"
-                role="radio"
-                aria-checked={isSelected}
-                onClick={() => onWalletChange(provider.id)}
-                className={cn(
-                  "rounded-md border p-[12px] text-center text-sm font-bold text-foreground",
-                  isSelected
-                    ? "border-accent bg-secondary/50"
-                    : "border-rule bg-card",
-                )}
-              >
-                {provider.label}
-              </Button>
-            );
-          })}
-        </div>
+          {WALLET_PROVIDERS.map((provider) => (
+            <option key={provider.id} value={provider.id}>
+              {provider.label}
+            </option>
+          ))}
+        </select>
       ) : null}
     </div>
   );
