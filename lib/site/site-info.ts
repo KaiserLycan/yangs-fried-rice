@@ -16,6 +16,16 @@ export const SITE_NAME = "Yang's Fried Rice";
 /** Matches what the manager's PDF reports already print as the letterhead. */
 export const SITE_BRANCH = "Malate Branch, Manila";
 
+/**
+ * The seller, as the Internet Transactions Act (RA 11967) asks every online
+ * shop to show it: business name, address and contact (issue #116).
+ *
+ * TODO(owner): replace with the registered business name and the full street
+ * address of the branch. The repository only knows the branch name.
+ */
+export const SELLER_NAME = SITE_NAME;
+export const SELLER_ADDRESS = SITE_BRANCH;
+
 /** The year the copyright line starts from. */
 export const SITE_FOUNDED_YEAR = 2025;
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
-  SITE_BRANCH,
+  SELLER_ADDRESS,
+  SELLER_NAME,
   SITE_NAME,
   SOCIAL_LINKS,
   SUPPORT_EMAIL,
@@ -19,18 +20,16 @@ import {
  * the same kind of reason: they are a two-column full-bleed composition with
  * artwork, and a cream band under it belongs to neither column.
  *
- * Every link here points at a route that exists. Contact details and social
- * accounts are read from `lib/site/site-info.ts`, which holds `null` for all
- * of them today — the repository has no real ones — so those blocks do not
- * render at all rather than showing an address nobody reads.
+ * Every link here points at a route that exists. The seller block is always
+ * there — the Internet Transactions Act asks for the seller's name, address
+ * and contact (issue #116). Email, phone and social accounts come from
+ * `lib/site/site-info.ts` and only render once they are filled in.
  *
  * Server component: `copyrightYears()` reads the clock, and doing that in a
  * client component is how a footer ends up with one year on the server and
  * another in the browser.
  */
 export function SiteFooter() {
-  const hasContact = Boolean(SUPPORT_EMAIL || SUPPORT_PHONE);
-
   return (
     <footer
       // The bottom padding clears `BottomTabBar`, which is fixed to the
@@ -44,10 +43,9 @@ export function SiteFooter() {
             YANG&apos;S <span className="text-foreground">FRIED RICE</span>
           </span>
           <p className="text-[13px] leading-[19px] text-muted-foreground">
-            Fried rice, silog plates and sides, cooked to order for delivery
-            across Metro Manila or collection in store.
+            Fried rice, silog plates and sides, cooked to order for pickup in
+            store.
           </p>
-          <p className="text-[12px] text-muted-foreground">{SITE_BRANCH}</p>
         </div>
 
         <nav aria-label="Footer" className="flex flex-col gap-[8px]">
@@ -65,42 +63,48 @@ export function SiteFooter() {
           ))}
         </nav>
 
-        {hasContact || SOCIAL_LINKS.length > 0 ? (
-          <div className="flex flex-col gap-[8px]">
-            <h2 className="text-[11px] font-bold uppercase tracking-[1.1px] text-muted-foreground">
-              Get in touch
-            </h2>
-            {SUPPORT_EMAIL ? (
-              <a
-                href={`mailto:${SUPPORT_EMAIL}`}
-                className="text-[13px] text-foreground hover:text-primary hover:underline"
-              >
-                {SUPPORT_EMAIL}
-              </a>
-            ) : null}
-            {SUPPORT_PHONE ? (
-              <a
-                href={`tel:${SUPPORT_PHONE.replace(/\s/g, "")}`}
-                className="text-[13px] text-foreground hover:text-primary hover:underline"
-              >
-                {SUPPORT_PHONE}
-              </a>
-            ) : null}
-            {SOCIAL_LINKS.map(({ href, label }) => (
-              <a
-                key={href}
-                href={href}
-                // These leave the site, so they are plain anchors rather than
-                // `Link`, and they carry the usual new-tab protections.
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[13px] text-foreground hover:text-primary hover:underline"
-              >
-                {label}
-              </a>
-            ))}
-          </div>
-        ) : null}
+        <section
+          aria-labelledby="footer-seller"
+          className="flex flex-col gap-[8px]"
+        >
+          <h2
+            id="footer-seller"
+            className="text-[11px] font-bold uppercase tracking-[1.1px] text-muted-foreground"
+          >
+            Seller
+          </h2>
+          <p className="text-[13px] text-foreground">{SELLER_NAME}</p>
+          <p className="text-[13px] text-muted-foreground">{SELLER_ADDRESS}</p>
+          {SUPPORT_EMAIL ? (
+            <a
+              href={`mailto:${SUPPORT_EMAIL}`}
+              className="text-[13px] text-foreground hover:text-primary hover:underline"
+            >
+              {SUPPORT_EMAIL}
+            </a>
+          ) : null}
+          {SUPPORT_PHONE ? (
+            <a
+              href={`tel:${SUPPORT_PHONE.replace(/\s/g, "")}`}
+              className="text-[13px] text-foreground hover:text-primary hover:underline"
+            >
+              {SUPPORT_PHONE}
+            </a>
+          ) : null}
+          {SOCIAL_LINKS.map(({ href, label }) => (
+            <a
+              key={href}
+              href={href}
+              // These leave the site, so they are plain anchors rather than
+              // `Link`, and they carry the usual new-tab protections.
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[13px] text-foreground hover:text-primary hover:underline"
+            >
+              {label}
+            </a>
+          ))}
+        </section>
       </div>
 
       <div className="mx-auto mt-[24px] flex max-w-[1100px] flex-col gap-[6px] border-t border-rule pt-[16px] md:flex-row md:items-center md:justify-between">
@@ -108,7 +112,7 @@ export function SiteFooter() {
           © {copyrightYears()} {SITE_NAME}. All rights reserved.
         </p>
         <p className="text-[12px] text-muted-foreground">
-          Prices in Philippine peso. Delivery within Metro Manila only.
+          Prices in Philippine peso, VAT included. Pickup only.
         </p>
       </div>
     </footer>
@@ -121,4 +125,5 @@ const FOOTER_LINKS: { href: string; label: string }[] = [
   { href: "/orders", label: "My orders" },
   { href: "/profile", label: "Account" },
   { href: "/terms", label: "Terms & Policy" },
+  { href: "/privacy", label: "Privacy" },
 ];
