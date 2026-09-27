@@ -158,15 +158,30 @@ function ReceiptBody({ order }: { order: ReceiptOrder }) {
         <dd className="text-right">{formatReceiptPeso(totals.fee)}</dd>
         <dt>
           Discount
-          {payment?.discountType ? ` (${payment.discountType})` : ""}
+          {payment?.discountType
+            ? payment.discountType === "senior_citizen"
+              ? " (Senior Citizen)"
+              : payment.discountType === "pwd"
+                ? " (PWD)"
+                : ` (${payment.discountType})`
+            : ""}
         </dt>
         <dd className="text-right">
           {totals.discount > 0 ? `−${formatReceiptPeso(totals.discount)}` : formatReceiptPeso(0)}
         </dd>
-        <dt>VATable sales</dt>
-        <dd className="text-right">{formatReceiptPeso(totals.vatableSales)}</dd>
-        <dt>VAT (12%)</dt>
-        <dd className="text-right">{formatReceiptPeso(totals.vat)}</dd>
+        {payment?.discountType === "senior_citizen" || payment?.discountType === "pwd" ? (
+          <>
+            <dt>VAT exempt</dt>
+            <dd className="text-right">{formatReceiptPeso(0)}</dd>
+          </>
+        ) : (
+          <>
+            <dt>VATable sales</dt>
+            <dd className="text-right">{formatReceiptPeso(totals.vatableSales)}</dd>
+            <dt>VAT (12%)</dt>
+            <dd className="text-right">{formatReceiptPeso(totals.vat)}</dd>
+          </>
+        )}
         <dt className="pt-[6px] text-[16px] font-bold">Total</dt>
         <dd className="pt-[6px] text-right text-[16px] font-bold">{formatReceiptPeso(totals.total)}</dd>
       </dl>

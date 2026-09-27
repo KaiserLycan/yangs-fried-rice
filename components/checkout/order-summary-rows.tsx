@@ -19,6 +19,13 @@ import {
  * `totals` arrives already computed by `computeCartTotals`. Nothing in here
  * does arithmetic beyond `lineTotal`.
  */
+export type OrderSummaryDiscount = {
+  type: "senior_citizen" | "pwd";
+  vatExemptSales: number;
+  discount: number;
+  total: number;
+};
+
 export function OrderSummaryRows({
   customerName,
   placedAtLabel,
@@ -26,6 +33,7 @@ export function OrderSummaryRows({
   fulfilment,
   lines,
   totals,
+  discount,
 }: {
   customerName: string;
   placedAtLabel: string;
@@ -33,6 +41,7 @@ export function OrderSummaryRows({
   fulfilment: Fulfilment;
   lines: CartLine[];
   totals: CartTotals;
+  discount?: OrderSummaryDiscount | null;
 }) {
   return (
     <>
@@ -74,13 +83,27 @@ export function OrderSummaryRows({
       {fulfilment === "delivery" ? (
         <SummaryRow label="Delivery fee" value={formatPeso(totals.deliveryFee)} />
       ) : null}
-      {/* Prices include VAT, so these split the total rather than add to
-          it (#116). Centavos, so the three visibly add up. */}
-      <SummaryRow label="VATable sales" value={formatPesoCentavos(totals.vatableSales)} />
-      <SummaryRow label="VAT (12%)" value={formatPesoCentavos(totals.vat)} />
-      <SummaryRow label="Total" value={formatPesoCentavos(totals.total)} />
+      {/* When a Senior / PWD discount applies: VAT exempt ₱0, discount, and net total.
+          Otherwise: standard VATable sales + 12% VAT split (#116). */}
+      {discount ? (
+        <>
+          <SummaryRow label="VAT exempt" value={formatSummaryMoney(0)} />
+          <SummaryRow label="Discount" value={formatSummaryMoney(discount.discount)} />
+          <SummaryRow label="Total" value={formatSummaryMoney(discount.total)} />
+        </>
+      ) : (
+        <>
+          <SummaryRow label="VATable sales" value={formatPesoCentavos(totals.vatableSales)} />
+          <SummaryRow label="VAT (12%)" value={formatPesoCentavos(totals.vat)} />
+          <SummaryRow label="Total" value={formatPesoCentavos(totals.total)} />
+        </>
+      )}
     </>
   );
+}
+
+function formatSummaryMoney(amount: number): string {
+  return Number.isInteger(amount) ? formatPeso(amount) : formatPesoCentavos(amount);
 }
 
 function SummaryRow({

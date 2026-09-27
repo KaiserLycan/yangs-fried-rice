@@ -1,5 +1,5 @@
 import type { TrackedOrder } from "@/lib/orders/read-tracked-order";
-import { vatBreakdown } from "@/lib/menu/cart-totals";
+import { seniorPwdBreakdown, vatBreakdown } from "@/lib/menu/cart-totals";
 
 /**
  * The figures on the printable receipt (limitations #12, issue #118).
@@ -29,6 +29,24 @@ export function receiptTotals(
   const orderAddOns = order.orderAddOns.reduce((sum, addOn) => sum + toCentavos(addOn.price), 0);
   const subtotal = lines + orderAddOns;
   const fee = Math.max(0, toCentavos(order.fee));
+
+  const isSeniorPwd =
+    order.payment?.discountType === "senior_citizen" ||
+    order.payment?.discountType === "pwd";
+
+  if (isSeniorPwd) {
+    const rawTotal = (subtotal + fee) / 100;
+    const breakdown = seniorPwdBreakdown(rawTotal);
+    return {
+      subtotal: breakdown.vatExemptSales,
+      fee: fee / 100,
+      discount: breakdown.discount,
+      total: breakdown.total,
+      vatableSales: 0,
+      vat: 0,
+    };
+  }
+
   // A discount can never take the total below zero.
   const discount = Math.min(Math.max(0, toCentavos(order.payment?.discountAmount ?? 0)), subtotal + fee);
 
