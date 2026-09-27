@@ -55,3 +55,6 @@ next-env.d.ts
 /supabase/.branches
 /supabase/.temp
 .env*
+
+# Per-developer Claude Code permissions
+.claude/settings.local.json
