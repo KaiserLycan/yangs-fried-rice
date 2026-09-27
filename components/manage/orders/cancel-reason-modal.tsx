@@ -33,6 +33,12 @@ export function CancelReasonModal({ order, isOpen, isProcessing, onClose, onConf
     setShowError(false);
   }
 
+  // Confirm stays greyed out until there is a reason to send: a preset, or
+  // typed text when "Other" is picked.
+  const hasReason =
+    selectedPreset !== "" &&
+    (selectedPreset !== "Other" || otherReason.trim() !== "");
+
   const handleConfirm = () => {
     if (!selectedPreset) {
       setShowError(true);
@@ -66,7 +72,7 @@ export function CancelReasonModal({ order, isOpen, isProcessing, onClose, onConf
           <Button 
             variant="confirm"
             onClick={handleConfirm}
-            disabled={isProcessing}
+            disabled={isProcessing || !hasReason}
           >
             {isProcessing ? "Processing..." : actionCopy("Cancel", order.orderNumber).confirm}
           </Button>
