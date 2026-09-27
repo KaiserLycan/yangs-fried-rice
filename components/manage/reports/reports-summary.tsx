@@ -69,15 +69,17 @@ export function ReportsSummary({ type: rawType = SALES_REPORT, startDate, endDat
               end_date: endDate,
               frequency: "daily",
             }),
-            getCashRemitted({ start_date: startDate, end_date: endDate })
+            getCashRemittedDaily({ start_date: startDate, end_date: endDate })
           ]);
-          
+
           if (!cancelled) {
             if (result.error) {
               setError(result.error);
             } else if (result.data) {
               setSalesData(result.data);
-              setCashRemitted(cashResult.data || 0);
+              // null (shown as N/A) when the caller may not see it, rather
+              // than a misleading ₱0.00.
+              setCashRemitted(cashResult.data ? cashResult.data.total : null);
             }
           }
           } else {
