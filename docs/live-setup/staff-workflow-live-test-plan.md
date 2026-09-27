@@ -173,7 +173,7 @@ Conventions: **M** = manager, **S** = staff, **C1/C2** = customers. "Card" = an 
 
 **Acceptance criteria**
 - AC-01.1 A **Filter** button sits next to "Search order #" on `/manage/orders`.
-- AC-01.2 The filter panel offers: **From** / **To** dates, **Customer name**, **Customer phone**, **Payment** (Any / Pay in store / GCash / e-wallet), **Type** (Any / Take out / Dine in).
+- AC-01.2 The filter panel offers: **From** / **To** dates, **Customer name**, **Customer phone**, **Payment** (Any / Pay in store / GCash / e-wallet), **Type** (Any / Take out / Dine in), **Total from / up to (₱)**.
 - AC-01.3 Filters are applied by the server: the page count and every page reflect the filter, not just the page currently shown.
 - AC-01.4 Filters combine with each other, with the order-number search and with the status tab.
 - AC-01.5 The Filter button shows how many filters are active; **Clear** removes all of them.
