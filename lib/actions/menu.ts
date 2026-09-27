@@ -293,6 +293,20 @@ export async function updateProduct(
 
   const changes: TablesUpdate<"product"> = { ...parsed.data };
 
+  // The edit form always sends the price. For staff that is only allowed
+  // when it is unchanged, and then it is dropped from the update.
+  if (changes.product_price !== undefined && !(await callerIsManager())) {
+    const { data: current } = await supabase
+      .from("product")
+      .select("product_price")
+      .eq("product_id", productId)
+      .maybeSingle();
+    if (!current || Number(current.product_price) !== Number(changes.product_price)) {
+      return { data: null, error: PRICE_MANAGER_ONLY };
+    }
+    delete changes.product_price;
+  }
+
   // Read the image being replaced *before* the update, so it can be removed
   // once the new one is saved. Every edit uploads a fresh file under a new
   // name, and without this the old one stayed in the bucket forever.
