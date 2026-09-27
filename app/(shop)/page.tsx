@@ -30,7 +30,7 @@ export default async function HomePage() {
             {storeStatus.isOpen && !storeStatus.isPaused ? "We are open" : "Currently closed"}
           </div>
           <Link href="/menu" className="inline-block w-full sm:w-auto">
-            <Button size="lg" className="w-full sm:w-auto text-lg px-12 py-8 rounded-full font-bold shadow-lg shadow-primary/20 hover:scale-105 hover:shadow-primary/30 transition-all duration-300">
+            <Button className="w-full sm:w-auto text-lg px-12 py-8 rounded-full font-bold shadow-lg shadow-primary/20 hover:scale-105 hover:shadow-primary/30 transition-all duration-300">
               Order Now
             </Button>
           </Link>

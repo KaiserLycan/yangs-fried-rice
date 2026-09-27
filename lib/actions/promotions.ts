@@ -1,8 +1,10 @@
 "use server";
 
-import { createServerClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { type Database } from "@/types/database.types";
 import { z } from "zod";
+import { imageUploadProblem, imageExtensionFor, IMAGE_BUCKETS } from "@/lib/storage/stored-image";
+import { removeStoredImage } from "@/lib/storage/remove-stored-image";
 
 type PromotionRow = Database["public"]["Tables"]["promotion"]["Row"];
 
@@ -56,32 +58,84 @@ const promotionSchema = z.object({
   category_id: z.string().uuid().optional().nullable(),
 });
 
-export async function upsertPromotion(id: string | null, payload: unknown) {
+export async function createPromotion(payload: unknown, formData: FormData) {
   const parsed = promotionSchema.safeParse(payload);
   if (!parsed.success) {
     return { error: parsed.error.errors[0].message };
   }
 
-  const supabase = createServerClient();
+  const supabase = createClient();
+  const file = formData.get("file");
   
-  if (id) {
-    const { error } = await supabase
-      .from("promotion")
-      .update(parsed.data)
-      .eq("id", id);
-    if (error) return { error: error.message };
-  } else {
-    const { error } = await supabase
-      .from("promotion")
-      .insert(parsed.data);
-    if (error) return { error: error.message };
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Choose an image to upload." };
+  }
+  
+  const problem = imageUploadProblem(file);
+  if (problem) return { error: problem };
+
+  const id = crypto.randomUUID();
+  const filePath = `promo-${id}-${Date.now()}.${imageExtensionFor(file)}`;
+  const { error: uploadError } = await supabase.storage
+    .from(IMAGE_BUCKETS.promotions)
+    .upload(filePath, file, { contentType: file.type });
+    
+  if (uploadError) return { error: uploadError.message };
+
+  const { data: { publicUrl } } = supabase.storage.from(IMAGE_BUCKETS.promotions).getPublicUrl(filePath);
+
+  const { error } = await supabase
+    .from("promotion")
+    .insert({ ...parsed.data, id, image_url: publicUrl });
+
+  if (error) return { error: error.message };
+  return { error: null };
+}
+
+export async function updatePromotion(id: string, payload: unknown, formData?: FormData) {
+  const parsed = promotionSchema.safeParse(payload);
+  if (!parsed.success) {
+    return { error: parsed.error.errors[0].message };
   }
 
+  const supabase = createClient();
+  
+  let publicUrl = parsed.data.image_url;
+  
+  if (formData) {
+    const file = formData.get("file");
+    if (file instanceof File && file.size > 0) {
+      const problem = imageUploadProblem(file);
+      if (problem) return { error: problem };
+      
+      const filePath = `promo-${id}-${Date.now()}.${imageExtensionFor(file)}`;
+      const { error: uploadError } = await supabase.storage
+        .from(IMAGE_BUCKETS.promotions)
+        .upload(filePath, file, { contentType: file.type });
+        
+      if (uploadError) return { error: uploadError.message };
+      
+      const { data: urlData } = supabase.storage.from(IMAGE_BUCKETS.promotions).getPublicUrl(filePath);
+      publicUrl = urlData.publicUrl;
+      
+      // Cleanup old image if different
+      if (parsed.data.image_url && parsed.data.image_url !== publicUrl) {
+         await removeStoredImage(IMAGE_BUCKETS.promotions, parsed.data.image_url);
+      }
+    }
+  }
+
+  const { error } = await supabase
+    .from("promotion")
+    .update({ ...parsed.data, image_url: publicUrl })
+    .eq("id", id);
+    
+  if (error) return { error: error.message };
   return { error: null };
 }
 
 export async function deletePromotion(id: string) {
-  const supabase = createServerClient();
+  const supabase = createClient();
   const { error } = await supabase
     .from("promotion")
     .delete()

@@ -45,11 +45,11 @@ export default function ManagePromotionsPage() {
 
   const loadPromotions = useCallback(async () => {
     setIsLoading(true);
-    const result = await getAllPromotions();
-    if (result.error) {
-      showToast(`Failed to load promotions: ${result.error}`, "error");
-    } else {
-      setPromotions(result.data || []);
+    try {
+      const data = await getAllPromotions();
+      setPromotions(data || []);
+    } catch (e: any) {
+      showToast(`Failed to load promotions: ${e.message}`, "error");
     }
     setIsLoading(false);
   }, [showToast]);

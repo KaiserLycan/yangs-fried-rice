@@ -205,6 +205,7 @@ function ManageMenuInner() {
       product_details: item.description,
       category_id: targetCat?.category_id,
       is_available: item.available ?? true,
+      is_featured: false,
       image_url: uploadedUrl, // Send new URL to backend
     });
 
@@ -249,6 +250,7 @@ function ManageMenuInner() {
       product_details: updatedItem.description,
       category_id: targetCat?.category_id,
       is_available: updatedItem.available,
+      is_featured: (updatedItem as any).is_featured ?? false,
     };
 
     // Only update the image column if a new image was actually uploaded
