@@ -41,8 +41,10 @@ export function quoteArrivalWindow({
   distanceKm?: number | null;
   /** The manager's extra prep buffer from `store_setting` (issue #115). */
   extraPrepMinutes?: number;
+  /** Number of items in the current cart. Defaults to 1 for generic quotes. */
+  currentCartItemCount?: number;
 }): string {
-  const prep = calculateKitchenPrepMinutes(activeOrdersAhead, extraPrepMinutes);
+  const prep = calculateKitchenPrepMinutes(activeOrdersAhead, extraPrepMinutes, currentCartItemCount);
   const transit = calculateTransitMinutes(
     distanceKm,
     fulfilment === "pickup" ? "take_out" : "delivery",

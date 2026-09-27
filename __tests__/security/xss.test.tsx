@@ -178,7 +178,7 @@ describe("E5. no unsafe rendering escape hatch exists", () => {
       ["components/nav/site-nav-bar.tsx", "href={href} — from the NAV_LINKS constant"],
       ["components/nav/bottom-tab-bar.tsx", "href={href} — from the TABS constant"],
       // The landing page: SectionHeading is only ever given "/menu"; directions is a constant.
-      ["app/(shop)/page.tsx", "href={href} — the SectionHeading prop, given /menu literally; href={DIRECTIONS_HREF} — a constant from lib/site/site-info.ts"],
+      ["app/(shop)/page.tsx", "href={href} — the SectionHeading prop, given /menu literally; href={DIRECTIONS_HREF} — a constant from lib/site/site-info.ts; href={telHref(SUPPORT_PHONE)} and mailto: — tel:/mailto: of constants from lib/site/site-info.ts"],
       // Promo banners: server-built /menu?item= / ?category= links, and sameSiteHref() refuses anything not starting with a single /.
       ["components/landing/promo-carousel.tsx", "href={sameSiteHref(slide.href)} — same-site paths only"],
       // All four of this file's bindings read from `lib/site/site-info.ts`:

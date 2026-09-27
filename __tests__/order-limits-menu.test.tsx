@@ -82,7 +82,7 @@ describe("item dialog limits", () => {
       within(notices[0]).getByRole("link", {
         name: "Please contact us for a bulk order or catering.",
       }),
-    ).toHaveAttribute("href", "/");
+    ).toHaveAttribute("href", "/#bulk-orders");
   });
 
   it("counts the dish across all its lines: 20 already, nothing more", () => {

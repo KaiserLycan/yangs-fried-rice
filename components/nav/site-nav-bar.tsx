@@ -43,7 +43,7 @@ import { cn } from "@/lib/utils";
  * this component must be mounted under a `ToastProvider`.
  */
 
-export type NavSection = "menu" | "track-order" | "orders" | "account";
+export type NavSection = "home" | "menu" | "track-order" | "orders" | "account";
 
 /**
  * `id` is what decides the current link, never the label — renaming or
@@ -143,7 +143,7 @@ export function SiteNavBar({
   return (
     <nav className="hidden h-[58px] items-center gap-[26px] bg-primary px-[22px] md:flex">
       <Link
-        href="/menu"
+        href="/"
         className="font-display text-lg tracking-[0.57px]"
       >
         <span className="text-on-brand-accent">YANG&apos;S</span>{" "}

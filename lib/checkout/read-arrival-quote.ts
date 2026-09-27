@@ -18,9 +18,11 @@ import { readStoreStatus } from "@/lib/store/read-store-status";
 export async function readArrivalQuote({
   fulfilment,
   distanceKm = null,
+  currentCartItemCount = 1,
 }: {
   fulfilment: "delivery" | "pickup";
   distanceKm?: number | null;
+  currentCartItemCount?: number;
 }): Promise<string> {
   const [activeOrdersAhead, store] = await Promise.all([
     countActiveKitchenOrders(createClient()).catch(() => 0),
@@ -33,5 +35,6 @@ export async function readArrivalQuote({
     activeOrdersAhead,
     distanceKm,
     extraPrepMinutes: store.extraPrepMinutes,
+    currentCartItemCount,
   });
 }

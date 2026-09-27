@@ -363,7 +363,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
       dirty={isDirty}
       className="m-auto max-w-[480px] w-[calc(100%-2rem)] md:w-full overflow-hidden rounded-lg bg-background shadow-[0_30px_70px_rgba(26,18,16,0.26)] border-0 p-0"
     >
-      <div className="flex flex-col w-full max-h-[90vh]">
+      <div className="flex flex-col w-full max-h-[90vh] overflow-y-auto">
 
         {/* Avatar Section — doubles as the photo picker. */}
         <div className="flex flex-col items-center gap-2 pt-[30px] shrink-0">

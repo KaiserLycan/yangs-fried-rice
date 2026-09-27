@@ -50,13 +50,22 @@ export async function getAllPromotions(): Promise<Promotion[]> {
 const promotionSchema = z.object({
   title: z.string().min(1, "Title is required").max(100),
   description: z.string().optional().nullable(),
-  image_url: z.string().url("Valid image URL is required"),
-  starts_at: z.string().datetime(),
-  ends_at: z.string().datetime(),
+  image_url: z.string().url("Valid image URL is required").optional().nullable(),
+  starts_at: z.string().min(1, "Start date is required"),
+  ends_at: z.string().min(1, "End date is required"),
   is_active: z.boolean(),
   product_id: z.string().uuid().optional().nullable(),
   category_id: z.string().uuid().optional().nullable(),
 });
+
+/** Normalise a datetime-local value ("2026-09-28T06:43") into ISO with seconds and Z. */
+function toISO(dt: string): string {
+  if (!dt) return dt;
+  // Already full ISO → keep it
+  if (dt.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(dt)) return dt;
+  // datetime-local → append seconds and Z
+  return dt.includes("T") ? `${dt}${dt.length <= 16 ? ":00" : ""}Z` : `${dt}T00:00:00Z`;
+}
 
 export async function createPromotion(payload: unknown, formData: FormData) {
   const parsed = promotionSchema.safeParse(payload);
@@ -84,9 +93,10 @@ export async function createPromotion(payload: unknown, formData: FormData) {
 
   const { data: { publicUrl } } = supabase.storage.from(IMAGE_BUCKETS.promotions).getPublicUrl(filePath);
 
+  const { image_url: _ignored, ...rest } = parsed.data;
   const { error } = await supabase
     .from("promotion")
-    .insert({ ...parsed.data, id, image_url: publicUrl });
+    .insert({ ...rest, id, image_url: publicUrl, starts_at: toISO(rest.starts_at), ends_at: toISO(rest.ends_at) });
 
   if (error) return { error: error.message };
   return { error: null };
@@ -100,7 +110,7 @@ export async function updatePromotion(id: string, payload: unknown, formData?: F
 
   const supabase = createClient();
   
-  let publicUrl = parsed.data.image_url;
+  let publicUrl = parsed.data.image_url ?? null;
   
   if (formData) {
     const file = formData.get("file");
@@ -125,9 +135,10 @@ export async function updatePromotion(id: string, payload: unknown, formData?: F
     }
   }
 
+  const { image_url: _ignored, ...rest } = parsed.data;
   const { error } = await supabase
     .from("promotion")
-    .update({ ...parsed.data, image_url: publicUrl })
+    .update({ ...rest, image_url: publicUrl ?? undefined, starts_at: toISO(rest.starts_at), ends_at: toISO(rest.ends_at) })
     .eq("id", id);
     
   if (error) return { error: error.message };

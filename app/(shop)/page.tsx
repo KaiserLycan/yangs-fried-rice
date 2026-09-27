@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Clock, CreditCard, MapPin, ShoppingBag, Store, UtensilsCrossed } from "lucide-react";
+import { Clock, CreditCard, Mail, MapPin, Phone, ShoppingBag, Store, Users, UtensilsCrossed } from "lucide-react";
+import { ContactForm } from "@/components/landing/contact-form";
 import { PromoCarousel, type PromoSlide } from "@/components/landing/promo-carousel";
 import { MobileMenuHeader } from "@/components/menu/mobile-menu-header";
 import { BottomTabBar } from "@/components/nav/bottom-tab-bar";
@@ -11,7 +12,16 @@ import { cartItemCount } from "@/lib/menu/cart-totals";
 import { readBestSellers, readCategoryTiles, type LandingProduct } from "@/lib/menu/landing";
 import { formatPeso } from "@/lib/menu/product-listing";
 import { readCustomerProfile } from "@/lib/profile/customer-profile";
-import { DIRECTIONS_HREF, PICKUP_COUNTER, SELLER_ADDRESS, SITE_BRANCH, SITE_DESCRIPTION } from "@/lib/site/site-info";
+import {
+  DIRECTIONS_HREF,
+  PICKUP_COUNTER,
+  SELLER_ADDRESS,
+  SITE_BRANCH,
+  SITE_DESCRIPTION,
+  SUPPORT_EMAIL,
+  SUPPORT_PHONE,
+} from "@/lib/site/site-info";
+import { telHref } from "@/lib/contact/tel-href";
 import { formatStoreHours, type StoreStatus } from "@/lib/store/store-status";
 import { readStoreStatus } from "@/lib/store/read-store-status";
 
@@ -19,8 +29,9 @@ import { readStoreStatus } from "@/lib/store/read-store-status";
  * The storefront's front door, laid out the way Filipino fast-food chains do
  * theirs (Jollibee, McDonald's PH): a banner carousel of what's on promo, a
  * row of category tiles, the best sellers with an order button each, how
- * pickup works, and where the store is. Every section links into /menu, which
- * stays the one place ordering happens.
+ * pickup works, bulk orders (by phone, not online), and how to reach the
+ * store. Every section links into /menu, which stays the one place ordering
+ * happens.
  */
 export default async function HomePage() {
   const profilePromise = readCustomerProfile();
@@ -65,7 +76,7 @@ export default async function HomePage() {
 
   return (
     <div className="flex flex-col bg-background pb-[var(--tab-bar-height)] md:pb-0">
-      <SiteNavBar profilePromise={profilePromise} currentSection="menu" />
+      <SiteNavBar profilePromise={profilePromise} currentSection="home" />
       <MobileMenuHeader profilePromise={profilePromise} />
 
       <PromoCarousel slides={slides} />
@@ -112,8 +123,9 @@ export default async function HomePage() {
       </div>
 
       <HowItWorks />
+      <BulkOrders />
 
-      <section aria-labelledby="visit-heading" className="mx-auto grid w-full max-w-[1200px] gap-6 px-4 py-12 md:grid-cols-2 md:items-center md:gap-10 md:px-10 md:py-16">
+      <section id="contact" aria-labelledby="visit-heading" className="mx-auto grid w-full max-w-[1200px] scroll-mt-20 gap-8 px-4 py-12 md:grid-cols-2 md:items-start md:gap-10 md:px-10 md:py-16">
         <div className="flex flex-col gap-4">
           <h2 id="visit-heading" className="font-display text-3xl uppercase text-foreground md:text-5xl">
             Visit <span className="text-primary">Yang&apos;s</span>
@@ -137,6 +149,32 @@ export default async function HomePage() {
                 <dd className="text-foreground">Open daily, {formatStoreHours(storeStatus)}</dd>
               </div>
             </div>
+            {SUPPORT_PHONE && (
+              <div className="flex items-start gap-3">
+                <Phone className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden />
+                <div>
+                  <dt className="sr-only">Phone</dt>
+                  <dd>
+                    <a href={telHref(SUPPORT_PHONE)} className="font-bold text-foreground hover:text-primary hover:underline">
+                      {SUPPORT_PHONE}
+                    </a>
+                  </dd>
+                </div>
+              </div>
+            )}
+            {SUPPORT_EMAIL && (
+              <div className="flex items-start gap-3">
+                <Mail className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden />
+                <div className="min-w-0">
+                  <dt className="sr-only">Email</dt>
+                  <dd>
+                    <a href={`mailto:${SUPPORT_EMAIL}`} className="break-all font-bold text-foreground hover:text-primary hover:underline">
+                      {SUPPORT_EMAIL}
+                    </a>
+                  </dd>
+                </div>
+              </div>
+            )}
           </dl>
           <div className="flex flex-wrap gap-3 pt-2">
             <Link
@@ -154,17 +192,18 @@ export default async function HomePage() {
               Get directions
             </a>
           </div>
-        </div>
-        <div className="relative aspect-[4/3] overflow-hidden rounded-lg bg-primary shadow-lg">
-          <Image src="/images/login-hero.jpg" alt="" fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover opacity-90" />
-          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-primary to-transparent p-6">
-            <p className="font-display text-3xl uppercase text-on-brand">{SITE_BRANCH}</p>
+          <div className="relative mt-2 aspect-[16/9] overflow-hidden rounded-lg bg-primary shadow-lg">
+            <Image src="/images/login-hero.jpg" alt="" fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover opacity-90" />
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-primary to-transparent p-6">
+              <p className="font-display text-3xl uppercase text-on-brand">{SITE_BRANCH}</p>
+            </div>
           </div>
         </div>
+        <ContactForm />
       </section>
 
       <div className="md:hidden">
-        <BottomTabBar current="menu" cartCount={cart ? cartItemCount(cart.lines) : 0} />
+        <BottomTabBar current="home" cartCount={cart ? cartItemCount(cart.lines) : 0} />
       </div>
     </div>
   );
@@ -250,11 +289,8 @@ function BestSellerCard({ product, rank }: { product: LandingProduct; rank: numb
           <span className="text-sm uppercase tracking-[1px] text-muted-foreground">{product.categoryName}</span>
         )}
         <h3 className="line-clamp-2 text-base font-bold leading-tight text-foreground md:text-lg">{product.name}</h3>
-        <div className="mt-auto flex items-center justify-between gap-2 pt-3">
+        <div className="mt-auto pt-3">
           <span className="font-display text-2xl text-primary">{formatPeso(product.price)}</span>
-          <span className="inline-flex min-h-[40px] items-center rounded-full bg-accent px-4 text-sm font-bold text-white group-hover:bg-accent/90">
-            Order
-          </span>
         </div>
       </div>
     </Link>
@@ -289,6 +325,54 @@ function HowItWorks() {
             </li>
           ))}
         </ol>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Bulk orders and catering are taken by phone, not through the online
+ * ordering system: they need a date, a headcount and a kitchen that has
+ * planned for them, which the per-order limits at checkout exist to protect.
+ * The cart and item dialog point here (BULK_ORDER_CONTACT_HREF) when an
+ * order goes over those limits.
+ */
+function BulkOrders() {
+  return (
+    <section id="bulk-orders" aria-labelledby="bulk-heading" className="scroll-mt-20 border-b border-rule bg-card">
+      <div className="mx-auto flex max-w-[1200px] flex-col gap-6 px-4 py-12 md:flex-row md:items-center md:justify-between md:gap-10 md:px-10 md:py-16">
+        <div className="flex max-w-[640px] gap-4">
+          <span className="flex size-[52px] shrink-0 items-center justify-center rounded-full bg-highlight text-primary">
+            <Users className="size-6" aria-hidden />
+          </span>
+          <div className="flex flex-col gap-3">
+            <h2 id="bulk-heading" className="font-display text-3xl uppercase text-foreground md:text-5xl">
+              Bulk orders <span className="text-primary">&amp; catering</span>
+            </h2>
+            <p className="text-base text-muted-strong">
+              Feeding a party, an office or an event? Bulk orders are an <strong className="text-foreground">on-call service</strong>{" "}
+              and are <strong className="text-foreground">not covered by the online ordering system</strong>. Call or message
+              us with your date, pickup time, headcount and the dishes you have in mind, and we&apos;ll confirm
+              availability and the total with you directly.
+            </p>
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-col gap-3 sm:flex-row md:flex-col">
+          {SUPPORT_PHONE && (
+            <a
+              href={telHref(SUPPORT_PHONE)}
+              className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full bg-primary px-7 text-base font-bold text-white hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            >
+              <Phone className="size-5" aria-hidden /> Call {SUPPORT_PHONE}
+            </a>
+          )}
+          <a
+            href="#contact"
+            className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full border-2 border-primary px-7 text-base font-bold text-primary hover:bg-highlight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          >
+            <Mail className="size-5" aria-hidden /> Send a message
+          </a>
+        </div>
       </div>
     </section>
   );

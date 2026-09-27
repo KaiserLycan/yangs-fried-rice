@@ -78,7 +78,8 @@ export function MenuItemDetailModal({
                   price !== item.price.toFixed(2) ||
                   available !== item.available ||
                   prepMinutes !== (item.prepMinutes ?? 10) ||
-                  selectedFile !== null;
+                  selectedFile !== null ||
+                  addOns.length !== (item.add_ons || []).length;
 
   // Live validation — the same rules as the Add Item dialog.
   const itemValues = useMemo(() => ({ name, price, description }), [name, price, description]);

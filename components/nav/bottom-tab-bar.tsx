@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
  * rather than pulling in an icon library for four marks.
  */
 
-export type BottomTab = "menu" | "cart" | "orders" | "account";
+export type BottomTab = "home" | "menu" | "cart" | "orders" | "account";
 
 const TABS: { id: BottomTab; href: string; icon: string; label: string }[] = [
   { id: "menu", href: "/menu", icon: "☰", label: "Menu" },

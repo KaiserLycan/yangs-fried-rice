@@ -90,7 +90,7 @@ export function OrderDetailModal({ order, isOpen, onClose, onAction, onChanged }
         // DialogRoot already supplies standard m-auto, w-full, p-0, and backdrop classes
       )}
     >
-      <div className="flex flex-col w-full h-full bg-background">
+      <div className="flex flex-col w-full max-h-[90vh] overflow-y-auto bg-background">
         
         {/* Header (Same as Card) */}
         <div className={cn("flex justify-between items-start p-4 text-white shrink-0", config.headerBg)}>

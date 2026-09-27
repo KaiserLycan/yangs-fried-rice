@@ -297,7 +297,7 @@ describe("CartLineRow lower bound", () => {
     const note = screen.getByRole("link", {
       name: "Please contact us for a bulk order or catering.",
     });
-    expect(note).toHaveAttribute("href", "/");
+    expect(note).toHaveAttribute("href", "/#bulk-orders");
     // Above the line: it comes before "Subtotal" in the document.
     expect(
       note.compareDocumentPosition(screen.getByText("Subtotal")) &

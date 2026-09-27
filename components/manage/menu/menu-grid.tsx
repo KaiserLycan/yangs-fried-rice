@@ -114,8 +114,8 @@ export function MenuGrid({
                     <h3 className="font-sans text-base font-bold leading-[18px] text-foreground line-clamp-2">
                       {item.name}
                     </h3>
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                      ★ {item.rating.toFixed(1)}
+                    <span className="shrink-0 text-xs text-muted-foreground hidden">
+                      {/* Rating removed to avoid confusion */}
                     </span>
                   </div>
                   <div className="w-full flex-1 min-h-[34px]">

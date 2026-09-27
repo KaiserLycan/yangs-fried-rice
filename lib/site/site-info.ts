@@ -2,13 +2,10 @@
  * The restaurant's own details, for the parts of the app that speak as the
  * business rather than about an order.
  *
- * Everything optional here is `null` on purpose. Issue #106 asks the footer
- * for contact details and social links, and the repository has none: no
- * phone number, no support address, no accounts. Inventing them would put a
- * number nobody answers under "Contact us", which is worse than an honest
- * gap — so the footer renders only what is filled in and drops the rest.
- *
- * Fill these in when the owner supplies them; nothing else needs changing.
+ * Everything optional here may be `null`. Issue #106 asks the footer for
+ * contact details and social links; only what the owner has supplied is
+ * filled in, and every screen renders only what is filled in and drops the
+ * rest — an invented number under "Contact us" is worse than an honest gap.
  */
 
 export const SITE_NAME = "Yang's Fried Rice";
@@ -38,8 +35,13 @@ export const PICKUP_COUNTER = "Counter 1";
 /** The year the copyright line starts from. */
 export const SITE_FOUNDED_YEAR = 2025;
 
-export const SUPPORT_EMAIL: string | null = null;
-export const SUPPORT_PHONE: string | null = null;
+/**
+ * The store's contact details, supplied by the owner. Shown on the landing
+ * page's contact section, the footer, the store page and the legal pages;
+ * the landing page's contact form delivers to SUPPORT_EMAIL.
+ */
+export const SUPPORT_EMAIL: string | null = "lleyton.flores.482006@gmail.com";
+export const SUPPORT_PHONE: string | null = "0962 693 9019";
 
 export type SocialLink = { label: string; href: string };
 
@@ -58,12 +60,11 @@ export function copyrightYears(now: Date = new Date()): string {
 }
 
 /**
- * Where "Please contact us for a bulk order or catering" leads (issue #115).
- * The landing page with the store's contact details is still to be built;
- * until then this is the home page. Point it at the contact section here
- * when that page lands — nothing else needs changing.
+ * Where "Please contact us for a bulk order or catering" leads (issue #115):
+ * the landing page's bulk-orders section, which explains that bulk orders
+ * are taken by phone and links to the call button and the contact form.
  */
-export const BULK_ORDER_CONTACT_HREF = "/";
+export const BULK_ORDER_CONTACT_HREF = "/#bulk-orders";
 
 /**
  * "Get directions" on the landing page: a Google Maps search for the branch.

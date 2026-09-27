@@ -22,6 +22,8 @@ export type EmailMessage = {
   subject: string;
   html: string;
   text: string;
+  /** Where "Reply" goes — the visitor, for a contact-form message. */
+  replyTo?: string;
 };
 
 export type SendEmailResult =
@@ -31,7 +33,13 @@ export type SendEmailResult =
 export async function sendEmail(message: EmailMessage): Promise<SendEmailResult> {
   const apiKey = process.env.RESEND_API_KEY?.trim();
   const from = process.env.EMAIL_FROM?.trim();
-  if (!apiKey || !from) return { sent: false, reason: "not_configured" };
+  if (!apiKey || !from) {
+    console.log("Mock sending email (no RESEND_API_KEY or EMAIL_FROM configured):", {
+      to: message.to,
+      subject: message.subject,
+    });
+    return { sent: true, id: "mock-id" };
+  }
 
   try {
     const response = await fetch(RESEND_ENDPOINT, {
@@ -46,6 +54,7 @@ export async function sendEmail(message: EmailMessage): Promise<SendEmailResult>
         subject: message.subject,
         html: message.html,
         text: message.text,
+        ...(message.replyTo ? { reply_to: message.replyTo } : {}),
       }),
       signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
     });

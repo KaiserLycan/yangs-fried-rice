@@ -61,7 +61,7 @@ export default async function CheckoutPage({
   // here is produced by the same engine that will tell them where their
   // order is a minute later (issue #106).
   const [arrivalEstimate, cashHistory] = await Promise.all([
-    readArrivalQuote({ fulfilment, distanceKm }),
+    readArrivalQuote({ fulfilment, distanceKm, currentCartItemCount: count }),
     readCashHistory(),
   ]);
 

@@ -53,7 +53,7 @@ export function CustomerModal({ customer, isOpen, onClose, onAction }: CustomerM
         "m-auto max-w-[480px] w-[calc(100%-2rem)] md:w-full overflow-hidden rounded-lg border-0 shadow-[0_30px_70px_rgba(26,18,16,0.26)]",
       )}
     >
-      <div className="flex flex-col w-full bg-background max-h-[90vh]">
+      <div className="flex flex-col w-full bg-background max-h-[90vh] overflow-y-auto">
         
         {/* Avatar Section */}
         <div className="flex justify-center pt-[30px] pb-4 shrink-0">

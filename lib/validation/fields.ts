@@ -22,6 +22,11 @@ export const FIELD_LIMITS = {
   addonName: { min: 2, max: 60 },
   specialInstructions: { min: 0, max: 500 },
   reviewComment: { min: 0, max: 1000 },
+  // The landing page's contact form. Nothing is stored, so there is no CHECK
+  // constraint to mirror — these only keep an email to the store readable.
+  contactName: { min: 2, max: 100 },
+  contactSubject: { min: 3, max: 120 },
+  contactMessage: { min: 10, max: 2000 },
 } as const;
 
 export type LimitedField = keyof typeof FIELD_LIMITS;
@@ -43,7 +48,7 @@ export function lengthProps(field: LimitedField): {
 export const PERSON_NAME_PATTERN = /^\p{L}[\p{L}\p{M} .'-]*$/u;
 
 /** Trimmed text within the field's length bounds. `label` starts the message: "Street must be…". */
-function boundedText(field: LimitedField, label: string) {
+export function boundedText(field: LimitedField, label: string) {
   const { min, max } = FIELD_LIMITS[field];
   let schema = z.string().trim();
   if (min > 1) {
@@ -53,7 +58,7 @@ function boundedText(field: LimitedField, label: string) {
 }
 
 /** A required text field: blank gets `blankMessage`, then the length bounds apply. */
-function requiredText(field: LimitedField, label: string, blankMessage: string) {
+export function requiredText(field: LimitedField, label: string, blankMessage: string) {
   return z.string().trim().min(1, blankMessage).pipe(boundedText(field, label));
 }
 

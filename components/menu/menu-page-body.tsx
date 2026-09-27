@@ -68,8 +68,11 @@ export function MenuPageBody({
   // For the desktop cart rail's estimate. Pickup: the shop no longer delivers
   // (issue #114), so there is no travel time to add — the kitchen queue is
   // the whole figure (issue #106).
-  const arrivalEstimatePromise = readArrivalQuote({ fulfilment: "pickup" })
-    .then((window): string | null => window)
+  const arrivalEstimatePromise = cartPromise.then((cart) => {
+    let count = 0;
+    for (const line of cart.lines) count += line.quantity;
+    return readArrivalQuote({ fulfilment: "pickup", currentCartItemCount: count });
+  }).then((window): string | null => window)
     // A rail with no estimate beats a menu that will not render.
     .catch(() => null);
 

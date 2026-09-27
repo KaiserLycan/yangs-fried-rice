@@ -97,9 +97,11 @@ export function calculateHaversineDistanceKm(
 export function calculateKitchenPrepMinutes(
   activeOrdersAhead: number,
   extraPrepMinutes = 0,
+  currentCartItemCount = 1,
 ): number {
   const safeCount = Math.max(0, activeOrdersAhead);
-  const total = BASE_KITCHEN_PREP_MINUTES + safeCount * MINUTES_PER_QUEUE_ORDER;
+  const itemBuffer = Math.max(0, currentCartItemCount - 1) * 2;
+  const total = BASE_KITCHEN_PREP_MINUTES + itemBuffer + safeCount * MINUTES_PER_QUEUE_ORDER;
   return Math.min(MAX_KITCHEN_PREP_MINUTES, total) + Math.max(0, extraPrepMinutes);
 }
 

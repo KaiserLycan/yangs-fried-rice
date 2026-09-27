@@ -113,7 +113,7 @@ export function DialogRoot({
         if (event.target === ref.current && !confirmingDiscard) requestClose();
       }}
       className={cn(
-        "max-w-[440px] overflow-visible bg-transparent p-0",
+        "max-h-[calc(100vh-2rem)] overflow-y-auto bg-transparent p-0",
         // A sheet is pushed to the bottom edge by the auto margin above it,
         // and inset 18px from the three edges it touches. From `md` up it is
         // the centred modal again, so the desktop frame is unaffected.
@@ -190,7 +190,7 @@ export function Dialog({
   const sheet = placement === "sheet";
 
   return (
-    <DialogRoot open={open} onClose={onClose} placement={placement}>
+    <DialogRoot open={open} onClose={onClose} placement={placement} className="max-w-[440px]">
       <div
         className={cn(
           "flex flex-col gap-[12px] bg-background",
