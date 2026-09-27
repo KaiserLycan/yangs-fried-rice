@@ -931,7 +931,7 @@ Things this release touched indirectly. Quick pass, each should behave as before
 ## Known limitations (not defects)
 
 - **Sound must be enabled on every page load.** Browsers block audio until the user clicks; the KDS can't remember that permission.
-- **Payment Issues waits 5 minutes** before listing a refused or unfinished online payment, on both the Orders page and the KDS.
+- **Unpaid orders disappear after 30 minutes** from Payment Issues / Payment Pending: live's scheduled `expire-abandoned-orders` job cancels them ("Payment wasn't completed…"). They then show on Canceled / Cancelled (Today).
 - **Add-on prices** (rice, drinks) are not in the price log or manager-only; the requirement covered menu item prices.
 - **Older report widgets** (Total Revenue, charts) still cut days at UTC midnight (8 AM Manila). The new breakdowns, cash remitted table and CSV use Manila days, so a late-night order can sit on different days in the two.
 - **Staff can't add dishes** anymore, because adding one sets a price.
