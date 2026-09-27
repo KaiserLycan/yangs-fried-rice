@@ -32,7 +32,7 @@ Each point from the feedback was checked in the code (branch `more-things-to-upd
 | F13 | Fake accounts: CAPTCHA | ❌ | Yes (lacking) | 🕐 |
 | F14 | Customer no-show: staff option, or ban the account | ❌ | Yes (lacking, L18) | 🕐 |
 | F15 | (Removed) | | | |
-| F16 | Sign-up: go to login, password strength, remove birthday | ◐ | Partly (persona 1, lawyer J6) | ⚡ |
+| F16 | Sign-up: go to login, password strength, remove birthday | ✅ | Birthday removed everywhere (customers and employees, UI and database); age checkbox instead | ⚡ |
 | F17 | Checkout: show tax | ❌ | Yes (persona 14) | ⚡ |
 | F18 | Prep time should grow with items; per-item prep time; checkout and tracking consistent | ◐ | Partly (lacking round 3) | 🕐 |
 | F19 | Staff tips with preset amounts | ❌ | Yes (lacking) | 🕐 |

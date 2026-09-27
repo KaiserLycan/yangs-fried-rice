@@ -16,13 +16,6 @@ vi.mock("@/app/(auth)/actions", () => ({
   loginCustomer: vi.fn(),
 }));
 
-vi.mock("@/components/checkout/address-validation-note", () => ({
-  AddressValidationNote: ({ onStatusChange }: { onStatusChange?: (s: string) => void }) => {
-    onStatusChange?.("valid");
-    return null;
-  },
-}));
-
 beforeEach(() => {
   vi.clearAllMocks();
   (useRouter as any).mockReturnValue({ push: vi.fn(), refresh: vi.fn() });
@@ -72,7 +65,7 @@ describe("sign-up form copy", () => {
    */
   it("shows the instructions at phone width, not only on desktop", () => {
     render(<CustomerSignupForm />);
-    const intro = screen.getByText(/Fill in your details and your address/);
+    const intro = screen.getByText(/Fields marked \* are required/);
 
     expect(intro).toBeInTheDocument();
     expect(intro.className).not.toMatch(/\bhidden\b/);

@@ -62,6 +62,21 @@ Item 21 came from the persona walkthroughs in [`user-simulation.md`](user-simula
 to 7, 10, 13 and 18, came from the third round (UX case studies, ordering-platform help centers, app-store reviews,
 Philippine news and social media reports); see [`lacking.md`](lacking.md#round-3--web-articles-app-reviews-and-social-media).
 
+**Progress (28 Sep 2026, late):** migrations `20260928000003` through `20260928000015` partially address several items:
+
+- **Store hours server-side (1):** `store_setting` table, `store-control-panel.tsx`, and `submitCart` now checks store status. Still missing: a closing cut-off and `FORCE_STORE_OPEN` env flag.
+- **Unpaid order expiry (3):** `pg_cron` scheduling migration exists (`20260928000010`). Needs verification on the live database.
+- **Senior/PWD discount (4):** `SeniorPwdDiscountPicker` component, `senior_pwd_discount` migration (`20260928000011`), and private `senior-pwd-ids` bucket are in place. End-to-end flow (verification badge, auto-delete photos, report integration) needs testing.
+- **Minimum order / cash cap (6):** `checkout_business_rules` migration (`20260928000006`) and `submit_cart_to_order_limits` (`20260928000014`) add limits. UI "Add ₱X more" needs verification.
+- **Pause store / busy mode (7):** `store_setting` table (`20260928000003`, `20260928000013`) with `is_paused`, `paused_until`, `max_active_orders`. Manual and auto-pause exist. Customer-facing countdown needs verification.
+- **Order status history (9):** `order_status_log` table with trigger (`20260928000005`). Customer timeline updated. Real timestamps need verification.
+- **Unaccepted order timeout (22):** `expire_unaccepted_orders` migration (`20260928000009`) and `pg_cron` scheduling. Staff flash and customer messaging need verification.
+- **Pay-in-store fix (27):** `mark_pay_in_store_paid()` trigger (`20260928000005`, `20260928000011`). Payment spelling CHECK constraints need verification.
+- **Readable order number:** `order_no` sequence and column (`20260928000012`). UI usage needs verification.
+- **VAT on transactions:** `checkout_wallet_vat_promise` migration (`20260928000008`) adds VAT calculation. Checkout UI showing "VATable sales / VAT (12%) / Total" not yet verified.
+
+Remaining items are tracked in [`FINALE.md`](../FINALE.md). Items 30, 31, 32 and the KDS/cancel-reason enhancements are assigned to issue #117.
+
 ---
 
 ## P1 — do first
@@ -112,8 +127,9 @@ Philippine news and social media reports); see [`lacking.md`](lacking.md#round-3
 - **Fix:** add `async headers()` in `next.config.mjs` with `X-Frame-Options: DENY`,
   `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`,
   `Permissions-Policy: camera=(self), geolocation=(self)`, `Strict-Transport-Security`, and a
-  basic `Content-Security-Policy` that allows Supabase, PayMongo, LocationIQ and the map tile hosts.
-  Check the map, image uploads and PayMongo redirect still work afterwards.
+  basic `Content-Security-Policy` that allows Supabase and PayMongo.
+  Check image uploads and the PayMongo redirect still work afterwards.
+- **✅ Done in #116:** `next.config.mjs` sends all of these. The map and LocationIQ were removed, so the CSP doesn't allow them.
 
 ### 6. No minimum order or cash-on-delivery cap
 - **Now:** a ₱15 order is allowed, and so is a ₱20,000 cash order. The second is

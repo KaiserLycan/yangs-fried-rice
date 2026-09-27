@@ -95,13 +95,13 @@ function EmployeeLoginFormInner() {
       <form
         {...live.formProps}
         onSubmit={handleSubmit}
-        className="flex flex-col gap-[14px] rounded-[20px] bg-background p-5 md:gap-[18px] md:rounded-none md:bg-transparent md:p-0"
+        className="flex flex-col gap-[14px] rounded-lg bg-background p-5 md:gap-[18px] md:rounded-none md:bg-transparent md:p-0"
       >
         <div className="flex flex-col gap-1 md:gap-[5px]">
-          <h1 className="font-display text-[24px] leading-[26.4px] text-foreground md:text-[30px] md:leading-[33px]">
+          <h1 className="font-display text-2xl leading-[26.4px] text-foreground md:text-3xl md:leading-[33px]">
             Employee sign-in
           </h1>
-          <p className="text-[12.5px] text-muted-foreground md:text-[13px]">
+          <p className="text-sm text-muted-foreground md:text-sm">
             Use the work account issued by your manager.
           </p>
         </div>
@@ -156,7 +156,7 @@ function EmployeeLoginFormInner() {
         <div className="flex justify-end">
           <Link
             href="/forgot-password?from=employee"
-            className="text-[13px] font-bold text-primary"
+            className="text-sm font-bold text-primary"
           >
             Forgot password?
           </Link>
@@ -176,7 +176,7 @@ function EmployeeLoginFormInner() {
         <div className="flex justify-end">
           <Link
             href="/login"
-            className="pb-[2px] text-[13px] font-bold text-primary"
+            className="pb-[2px] text-sm font-bold text-primary"
           >
             I&apos;m a customer &rarr;
           </Link>
@@ -186,7 +186,7 @@ function EmployeeLoginFormInner() {
       {/* One string, two treatments. On mobile it sits on the dark page below
           the card and is pushed to the bottom by the auto margin; on desktop
           it is the last row of the cream column, under a hairline rule. */}
-      <p className="mt-auto pt-[18px] text-[11px] leading-[16.5px] text-on-console-faint md:mt-0 md:border-t md:border-rule md:pt-[14px] md:text-placeholder">
+      <p className="mt-auto pt-[18px] text-sm leading-[16.5px] text-on-console-faint md:mt-0 md:border-t md:border-rule md:pt-[14px] md:text-placeholder">
         {FOOTER_NOTE}
       </p>
     </div>

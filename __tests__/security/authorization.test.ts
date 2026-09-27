@@ -136,8 +136,6 @@ describe("D4. no API route is left unguarded", () => {
     "getProductById",
     "getProductAddons",
     "getAddonById",
-    // Address checking is a lookup used by the sign-up form, before any account exists.
-    "validateAddress",
     // Sign-in and sign-out must be reachable without being signed in.
     "customerLogin",
     "employeeLogin",
@@ -151,7 +149,6 @@ describe("D4. no API route is left unguarded", () => {
     "transactions",
     "admin",
     "notifications",
-    "address",
     "auth",
     "orders",
     "profile",

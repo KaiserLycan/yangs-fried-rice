@@ -26,6 +26,13 @@ export type OrderData = {
   dbStatus?: string | null;
   paymentMethod?: string | null;
   /**
+   * When the order started waiting for staff to accept it — set only while
+   * it is still `pending` (issue #115). The staff screens flash a card once
+   * this is 5 minutes old; `received` shares the QUEUE column but has been
+   * accepted, so it has none.
+   */
+  pendingAt?: string | null;
+  /**
    * True only for an order placed before the shop went pickup-only
    * (issue #114). Such orders still exist and still need finishing, so the
    * wording on their card differs; nothing new is ever a delivery.
@@ -47,8 +54,6 @@ export type OrderData = {
   }[];
   contactInfo: {
     name: string;
-    /** Only ever filled for a legacy delivery order. */
-    address: string;
     phone: string;
   };
   orderInfo: {
@@ -57,5 +62,18 @@ export type OrderData = {
   };
   /** 0 for every pickup order; kept for legacy delivery orders. */
   deliveryFee: number;
+  /** What the customer owes — after any Senior Citizen / PWD discount. */
   total: number;
+  /**
+   * Set when the customer claimed the Senior Citizen / PWD discount
+   * (issue #116). Staff check the ID before releasing the order.
+   */
+  seniorPwd?: {
+    type: "senior_citizen" | "pwd";
+    idNumber: string;
+    nameOnId: string;
+    discount: number;
+    /** False once the photo is deleted (order completed or cancelled). */
+    hasPhoto: boolean;
+  };
 };

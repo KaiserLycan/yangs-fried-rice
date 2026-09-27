@@ -1,4 +1,4 @@
-import { formatPeso } from "@/lib/menu/product-listing";
+import { formatPeso, formatPesoCentavos } from "@/lib/menu/product-listing";
 import {
   lineTotal,
   type CartLine,
@@ -19,35 +19,35 @@ import {
  * `totals` arrives already computed by `computeCartTotals`. Nothing in here
  * does arithmetic beyond `lineTotal`.
  */
+export type OrderSummaryDiscount = {
+  type: "senior_citizen" | "pwd";
+  vatExemptSales: number;
+  discount: number;
+  total: number;
+};
+
 export function OrderSummaryRows({
   customerName,
   placedAtLabel,
-  address,
   fulfilment,
   lines,
   totals,
+  discount,
 }: {
   customerName: string;
   placedAtLabel: string;
-  address: string | null;
   fulfilment: Fulfilment;
   lines: CartLine[];
   totals: CartTotals;
+  discount?: OrderSummaryDiscount | null;
 }) {
   return (
     <>
       <SummaryRow label={customerName || "Your order"} value={placedAtLabel} />
-      {/* The address in full, not the nav bar's shortened form. This is the
-          only place a mobile customer sees where the order is going — there
-          is no delivery details card at that width — and a summary that
-          truncates the destination to "Blk 12 Lot 4…" cannot be checked
-          against, which is the whole point of Browsing9. */}
+      {/* Pickup-only (#114): there is no address to show. A legacy delivery
+          order from before the switch still says what it was. */}
       <SummaryRow
-        label={
-          fulfilment === "delivery"
-            ? (address ?? "No saved address")
-            : "Collect in store"
-        }
+        label={fulfilment === "delivery" ? "Delivered order" : "Collect in store"}
         value={fulfilment === "delivery" ? "Delivery" : "Pickup"}
       />
 
@@ -58,7 +58,7 @@ export function OrderSummaryRows({
             value={formatPeso(lineTotal(line))}
           />
           {line.addOns && line.addOns.length > 0 && (
-            <ul className="flex flex-col gap-0.5 -mt-1 pl-4 text-[14px] text-muted-foreground">
+            <ul className="flex flex-col gap-0.5 -mt-1 pl-4 text-sm text-muted-foreground">
               {line.addOns.map((addon) => (
                 <li key={addon.addon_id}>+ {addon.name}</li>
               ))}
@@ -74,9 +74,27 @@ export function OrderSummaryRows({
       {fulfilment === "delivery" ? (
         <SummaryRow label="Delivery fee" value={formatPeso(totals.deliveryFee)} />
       ) : null}
-      <SummaryRow label="Amount payable" value={formatPeso(totals.total)} />
+      {/* When a Senior / PWD discount applies: VAT exempt ₱0, discount, and net total.
+          Otherwise: standard VATable sales + 12% VAT split (#116). */}
+      {discount ? (
+        <>
+          <SummaryRow label="VAT exempt" value={formatSummaryMoney(0)} />
+          <SummaryRow label="Discount" value={formatSummaryMoney(discount.discount)} />
+          <SummaryRow label="Total" value={formatSummaryMoney(discount.total)} />
+        </>
+      ) : (
+        <>
+          <SummaryRow label="VATable sales" value={formatPesoCentavos(totals.vatableSales)} />
+          <SummaryRow label="VAT (12%)" value={formatPesoCentavos(totals.vat)} />
+          <SummaryRow label="Total" value={formatPesoCentavos(totals.total)} />
+        </>
+      )}
     </>
   );
+}
+
+function formatSummaryMoney(amount: number): string {
+  return Number.isInteger(amount) ? formatPeso(amount) : formatPesoCentavos(amount);
 }
 
 function SummaryRow({
@@ -88,8 +106,8 @@ function SummaryRow({
 }) {
   return (
     <div className="flex items-start justify-between gap-[12px]">
-      <span className="text-[14px] text-muted-strong">{label}</span>
-      <span className="text-right text-[14px] font-bold text-foreground">
+      <span className="text-sm text-muted-strong">{label}</span>
+      <span className="text-right text-sm font-bold text-foreground">
         {value}
       </span>
     </div>

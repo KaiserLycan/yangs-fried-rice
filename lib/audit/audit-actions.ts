@@ -137,7 +137,6 @@ export function auditFieldLabel(field: string): string {
     is_account_disabled: "Disabled",
     schedule_shift: "Shift",
     phone_number: "Mobile number",
-    date_of_birth: "Date of birth",
     profileImage_URL: "Photo",
     image_url: "Photo",
   };

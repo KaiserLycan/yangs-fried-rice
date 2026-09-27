@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import type { CategoryOption } from "@/lib/menu/fetch-menu";
+import { Button } from "@/components/ui/button";
 
 /**
  * Mobile's horizontally scrolling category row (`132:110`) — the same
@@ -44,18 +45,18 @@ function ChipButton({
   onClick: () => void;
 }) {
   return (
-    <button
+    <Button variant="unstyled"
       type="button"
       aria-pressed={isSelected}
       onClick={onClick}
       className={cn(
-        "min-h-[44px] shrink-0 whitespace-nowrap rounded-pill px-[15px] py-[9px] text-[14px]",
+        "min-h-[44px] shrink-0 whitespace-nowrap rounded-full px-[15px] py-[9px] text-sm",
         isSelected
           ? "bg-primary text-primary-foreground"
           : "bg-secondary/40 text-foreground",
       )}
     >
       {label}
-    </button>
+    </Button>
   );
 }

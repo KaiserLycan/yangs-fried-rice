@@ -41,30 +41,12 @@ const profile: CustomerProfile = {
   firstName: "Liza",
   lastName: "Reyes",
   name: "Liza Reyes",
-  dateOfBirth: null,
   mobile: "09175550123",
   email: "liza@example.com",
   passwordLastUpdated: null,
   profileImageUrl: null,
-  activeAddressId: "addr-1",
   memberSince: null,
   orderCount: 0,
-  deliverToAddress: "21 Mabini St, Malate, Manila",
-  deliverToNote: null,
-  addresses: [
-    {
-      id: "addr-1",
-      addressDetails: "21 Mabini St, Malate, Manila",
-      buildingNo: "21",
-      street: "Mabini St",
-      barangay: "Malate",
-      city: "Manila",
-      zip: "",
-      label: "Home",
-      deliveryNote: "",
-      isDefault: true,
-    }
-  ],
 };
 
 const lines: CartLine[] = [
@@ -113,30 +95,20 @@ function countOf(text: string | RegExp) {
   return screen.queryAllByText(text).length;
 }
 
-  beforeEach(() => {
-    // The address note calls the real validation route on mount. Stubbed so
-    // these tests don't depend on Nominatim being reachable.
-    // Return an unresolved promise by default to prevent act() warnings in
-    // tests that don't wait for the validation note to settle.
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockReturnValue(new Promise(() => {}))
-    );
-  });
-
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.clearAllMocks();
 });
 
 describe("Checkout order summary", () => {
-  it("shows the customer, time, address and fulfilment type", () => {
+  it("shows the customer, time and fulfilment type, and no address", () => {
     renderCheckout();
 
     expect(countOf("Liza Reyes")).toBeGreaterThan(0);
     expect(countOf("Aug 30, 6:40 PM")).toBeGreaterThan(0);
-    expect(countOf(/21 Mabini St/)).toBeGreaterThan(0);
     expect(countOf("Delivery")).toBeGreaterThan(0);
+    // Pickup-only with no delivery service: addresses are not collected.
+    expect(countOf(/Mabini St|No saved address/)).toBe(0);
   });
 
   it("lists every line with its quantity and price", () => {
@@ -152,13 +124,13 @@ describe("Checkout order summary", () => {
     renderCheckout();
 
     expect(countOf("₱50")).toBeGreaterThan(0);
-    expect(countOf("₱500")).toBeGreaterThan(0);
+    expect(countOf("₱500.00")).toBeGreaterThan(0);
   });
 
   it("drops the delivery fee for pickup and follows it through to the total", () => {
     renderCheckout({ fulfilment: "pickup" });
 
-    expect(countOf("₱450")).toBeGreaterThan(0);
+    expect(countOf("₱450.00")).toBeGreaterThan(0);
     expect(countOf("Pickup")).toBeGreaterThan(0);
     // No "Delivery fee ₱0" row on an order nobody is delivering.
     expect(countOf("Delivery fee")).toBe(0);
@@ -167,34 +139,6 @@ describe("Checkout order summary", () => {
   // The nav bar's shortened form clips at 18 characters, and mobile has no
   // delivery details card, so this row is the only place the destination
   // appears at that width.
-  it("shows the delivery address in full, not the nav bar's short form", async () => {
-    renderCheckout({
-      profile: {
-        ...profile,
-        deliverToAddress: "Blk 12 Lot 4 Barangay San Isidro, Quezon City",
-        addresses: [
-          {
-            id: "addr-2",
-            addressDetails: "Blk 12 Lot 4 Barangay San Isidro, Quezon City",
-            buildingNo: "Blk",
-            street: "12 Lot 4 Barangay San Isidro",
-            barangay: "",
-            city: "Quezon City",
-            zip: "",
-            label: "Home",
-            deliveryNote: "",
-            isDefault: true,
-          }
-        ]
-      },
-    });
-
-    // The nav bar's own "Deliver to" affordance still shortens it — that is
-    // what it is for. What matters is that the review rows do not.
-    expect(
-      countOf("Blk 12 Lot 4 Barangay San Isidro, Quezon City"),
-    ).toBeGreaterThan(0);
-  });
 
   it("presents the arrival time as an estimate, not a promise", () => {
     renderCheckout();
@@ -320,7 +264,6 @@ describe("Checkout place order", () => {
         cart_id: "cart-1",
         order_type: "take_out",
         delivery_fee: 0,
-        delivery_address: "21 Mabini St, Malate, Manila",
         // The picker's default *for a pickup*. Tells `submitCart` the order
         // is payable on collection, so it is `pending` and cookable straight
         // away rather than held at `awaiting_payment` like a wallet order.
@@ -329,6 +272,11 @@ describe("Checkout place order", () => {
         payment_method: "pay-in-store",
         // Nobody chose a courier, so the customer collects it themself.
         fulfillment_method: "self_pickup",
+        // The unit price of each line as this screen showed it, so the
+        // database can refuse with PRICE_CHANGED if the menu moved
+        // (issue #115).
+        expected_prices: { "1": 180, "2": 90 },
+        wallet: "gcash",
       }),
     );
     await waitFor(() =>

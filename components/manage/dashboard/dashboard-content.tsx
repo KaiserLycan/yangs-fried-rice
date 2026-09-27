@@ -3,6 +3,14 @@
 import { StatCard } from "./stat-card";
 import { SalesChart } from "./sales-chart";
 import { ProductRanking } from "./product-ranking";
+import { StoreControlPanel } from "./store-control-panel";
+import { RefundsPanel } from "./refunds-panel";
+import type { RefundRow } from "@/lib/actions/refunds";
+import {
+  EMPTY_STATUS_COUNTS,
+  type OrderStatusCounts,
+} from "@/lib/orders/status-counts";
+import type { StoreStatus } from "@/lib/store/store-status";
 import type { DailySales, RankedProduct, DashboardStats } from "@/lib/actions/dashboard";
 
 export interface DashboardContentProps {
@@ -11,6 +19,12 @@ export interface DashboardContentProps {
   topSellers: RankedProduct[];
   dateStr: string;
   branchName: string;
+  /** Open / paused / busy and the settings behind it (issue #115). */
+  storeStatus: StoreStatus;
+  /** Cancelled paid orders' refunds (issue #115); the panel hides when empty. */
+  refunds?: RefundRow[];
+  /** Orders per stage for the store panel (issue #115 follow-up). */
+  orderCounts?: OrderStatusCounts;
 }
 
 /**
@@ -37,6 +51,9 @@ export function DashboardContent({
   topSellers,
   dateStr,
   branchName,
+  storeStatus,
+  refunds = [],
+  orderCounts = EMPTY_STATUS_COUNTS,
 }: DashboardContentProps) {
   return (
     <div className="flex flex-col gap-6">
@@ -44,14 +61,18 @@ export function DashboardContent({
         <div className="flex flex-col md:flex-row md:items-baseline gap-1 md:gap-3.5">
           <h1
             id="dashboard-today"
-            className="font-display text-[24px] md:text-[30px] leading-normal text-[#1a1210]"
+            className="font-display text-2xl md:text-3xl leading-normal text-foreground"
           >
             Today at a glance
           </h1>
-          <span className="text-[13px] text-[#7a6a60]">
+          <span className="text-sm text-muted-foreground">
             {dateStr} · {branchName}
           </span>
         </div>
+
+        {/* Pause / busy / hours (issue #115), above the numbers it affects. */}
+        <StoreControlPanel status={storeStatus} counts={orderCounts} />
+        <RefundsPanel refunds={refunds} />
 
         {/* KPI stat cards row */}
         <div className="flex flex-col md:flex-row gap-3.5">
@@ -84,7 +105,7 @@ export function DashboardContent({
       <section aria-labelledby="dashboard-week" className="flex flex-col gap-3.5">
         <h2
           id="dashboard-week"
-          className="font-display text-[20px] md:text-[24px] leading-normal text-[#1a1210]"
+          className="font-display text-lg md:text-2xl leading-normal text-foreground"
         >
           Last 7 days
         </h2>

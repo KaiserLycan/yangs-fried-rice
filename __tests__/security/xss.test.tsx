@@ -67,7 +67,7 @@ describe("E2. a customer's own text on the staff order screen", () => {
       status: "QUEUE",
       isDelivery: false,
       timer: "20:00",
-      contactInfo: { name: payload, address: payload, phone: payload },
+      contactInfo: { name: payload, phone: payload },
       orderInfo: { type: "Take Out", specialInstructions: payload },
       deliveryFee: 0,
       total: 100,
@@ -190,6 +190,13 @@ describe("E5. no unsafe rendering escape hatch exists", () => {
       // path that isOrderIssuePhotoPath() validated; always https on the
       // Supabase host, never text a customer typed.
       ["components/manage/orders/open-issues-panel.tsx", "href={issue.photoUrl} — a server-signed Storage URL"],
+      // UI/UX review: "Sign in to order" returns to the dish. Always the
+      // literal /login path; the product id only goes into `next`, encoded,
+      // and login's safeNextPath() refuses anything but a same-site path.
+      ["components/menu/product-card.tsx", "href={signInToOrderHref(product.id)} — /login?next=/menu?item=<encoded id>"],
+      ["components/menu/item-detail-modal.tsx", "href={signInToOrderHref(product?.id)} — /login?next=/menu?item=<encoded id>; href={BULK_ORDER_CONTACT_HREF} — a constant from lib/site/site-info.ts"],
+      // Issue #115: the bulk-order / catering contact link, a constant.
+      ["components/cart/cart-totals-summary.tsx", "href={BULK_ORDER_CONTACT_HREF} — a constant from lib/site/site-info.ts"],
     ]);
 
     const offenders: string[] = [];

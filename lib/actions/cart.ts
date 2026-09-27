@@ -3,6 +3,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
+  SENIOR_PWD_ID_BUCKET,
+  discardSeniorPwdIdPhoto,
+  isSeniorPwdIdPath,
+} from "@/lib/storage/senior-pwd-ids";
+import {
   addCartItemSchema,
   updateCartItemSchema,
   submitCartSchema,
@@ -21,6 +26,16 @@ import {
   ACCOUNT_DISABLED_MESSAGE,
 } from "@/lib/auth/account-status";
 import { notifyOrderCancelled } from "@/lib/email/notify-order-cancelled";
+import { readStoreStatus } from "@/lib/store/read-store-status";
+import { storeBlockFor } from "@/lib/store/store-status";
+import { MAX_QUANTITY } from "@/lib/menu/quantity";
+import {
+  BIG_ORDER_MESSAGE,
+  DISH_LIMIT_CODE,
+  ORDER_TOO_LARGE_CODE,
+  dishLimitMessage,
+  wouldExceedOrderCap,
+} from "@/lib/cart/limits";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -168,6 +183,68 @@ async function replaceLineAddOns(
     if (deleteError) return failed;
   }
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// Order size (issue #115)
+// ---------------------------------------------------------------------------
+
+/**
+ * Every line of a cart, reduced to what the order limits need: which dish,
+ * and how many (issue #115).
+ *
+ * Every path that grows a cart — adding a dish, the stepper, reorder — checks
+ * these against the two limits, so the customer hears about them while
+ * building the cart rather than at checkout:
+ *   - 30 items per order (MAX_ITEMS_PER_ORDER), and
+ *   - 20 of one dish across ALL its lines (MAX_QUANTITY): a line with a note
+ *     or different add-ons is still the same dish.
+ * `submit_cart_to_order` checks both again (20260928000014).
+ */
+type CartLineQuantity = { cart_item_id: string; product_id: string | null; quantity: number };
+
+async function readCartQuantities(
+  supabase: ReturnType<typeof createClient>,
+  cartId: string,
+): Promise<CartLineQuantity[]> {
+  const { data } = await supabase
+    .from("cart_item")
+    .select("cart_item_id, product_id, quantity")
+    .eq("cart_id", cartId);
+  return (data ?? []).map((row) => ({
+    cart_item_id: row.cart_item_id,
+    product_id: row.product_id,
+    quantity: row.quantity ?? 0,
+  }));
+}
+
+/** Items in the cart, leaving out one line (the one being changed). */
+function itemsIn(lines: CartLineQuantity[], excludeCartItemId?: string): number {
+  return lines
+    .filter((line) => line.cart_item_id !== excludeCartItemId)
+    .reduce((sum, line) => sum + line.quantity, 0);
+}
+
+/** Of one dish across all its lines, leaving out one line. */
+function dishItemsIn(
+  lines: CartLineQuantity[],
+  productId: string,
+  excludeCartItemId?: string,
+): number {
+  return itemsIn(
+    lines.filter((line) => line.product_id === productId),
+    excludeCartItemId,
+  );
+}
+
+const TOO_LARGE = {
+  data: null,
+  error: BIG_ORDER_MESSAGE,
+  code: ORDER_TOO_LARGE_CODE,
+} as const;
+
+function dishLimit(dishName: string) {
+  return { data: null, error: dishLimitMessage(dishName), code: DISH_LIMIT_CODE } as const;
 }
 
 // ---------------------------------------------------------------------------
@@ -350,6 +427,17 @@ export async function addCartItem(
   const addOnError = await addOnProblem(supabase, product.product_id, addOnIds);
   if (addOnError) return { data: null, error: addOnError };
 
+  // Merged into an existing line or added as a new one, the cart grows by
+  // the same number of items — and so does this dish, whichever line it
+  // lands on (a note makes a new line, not a new dish).
+  const cartLines = await readCartQuantities(supabase, cart.cart_id);
+  if (wouldExceedOrderCap(itemsIn(cartLines), parsed.data.quantity)) {
+    return TOO_LARGE;
+  }
+  if (dishItemsIn(cartLines, product.product_id) + parsed.data.quantity > MAX_QUANTITY) {
+    return dishLimit(product.product_name);
+  }
+
   // Adding a dish that is already in the cart raises its quantity instead of
   // creating a second identical line — unless the customer attached special
   // notes, in which case they mean this portion to be different. "Identical"
@@ -374,7 +462,9 @@ export async function addCartItem(
     });
 
     if (match) {
-      const mergedQuantity = Math.min(99, match.quantity + parsed.data.quantity);
+      // Within 20: the dish total, which includes this line, was checked
+      // above. (It used to clamp silently at 99.)
+      const mergedQuantity = match.quantity + parsed.data.quantity;
       const now = new Date().toISOString();
 
       const [mergeResult] = await Promise.all([
@@ -536,6 +626,31 @@ export async function updateCartItem(
       error: "Cart is locked and cannot be modified.",
       code: "CART_LOCKED",
     };
+  }
+
+  // Raising a line's quantity grows the cart; lowering it is always allowed.
+  if (
+    parsed.data.quantity !== undefined &&
+    parsed.data.quantity > item.quantity
+  ) {
+    const cartLines = await readCartQuantities(supabase, parentCart.cart_id);
+    const otherLines = itemsIn(cartLines, item.cart_item_id);
+    if (
+      wouldExceedOrderCap(
+        otherLines + item.quantity,
+        parsed.data.quantity - item.quantity,
+      )
+    ) {
+      return TOO_LARGE;
+    }
+    if (
+      item.product_id &&
+      dishItemsIn(cartLines, item.product_id, item.cart_item_id) + parsed.data.quantity >
+        MAX_QUANTITY
+    ) {
+      const dish = item.product as { product_name: string } | null;
+      return dishLimit(dish?.product_name ?? "this dish");
+    }
   }
 
   const updatePayload: { quantity?: number; special_instructions?: string | null } = {};
@@ -760,8 +875,14 @@ export async function clearCart(): Promise<
  * way left an order with no lines — and it relied on customers being allowed
  * to insert into the order tables directly, which they no longer are.
  *
- * The browser's `delivery_fee` and `delivery_address` are not sent on: the
- * shop is pickup-only, and the function charges no fee.
+ * The browser's `delivery_fee` is not sent on: the shop is pickup-only, and
+ * the function charges no fee.
+ *
+ * Closed, paused or busy (issue #115) is checked here first, so the
+ * customer gets the same wording the menu banner uses without a trip to the
+ * database, and `FORCE_STORE_OPEN` applies. The function checks again from
+ * `store_setting` — the env flag cannot reach it — so this is the friendly
+ * first line, not the only one.
  */
 export async function submitCart(
   rawInput: SubmitCartInput
@@ -781,6 +902,11 @@ export async function submitCart(
     return { data: null, error: parsed.error.issues[0]?.message ?? "Invalid submit input." };
   }
 
+  const block = storeBlockFor(await readStoreStatus());
+  if (block) {
+    return { data: null, error: block.message, code: block.code };
+  }
+
   const supabase = createClient();
 
   // The generated database types predate `p_fulfillment_method`
@@ -793,11 +919,35 @@ export async function submitCart(
     p_cart_id: parsed.data.cart_id,
     p_order_type: parsed.data.order_type,
     p_special_instructions: parsed.data.special_instructions ?? undefined,
-    p_payment_method: parsed.data.payment_method,
+    p_payment_method:
+      parsed.data.payment_method === "wallet"
+        ? parsed.data.wallet
+        : "pay-in-store",
     p_fulfillment_method: parsed.data.fulfillment_method,
+    // Senior Citizen / PWD (issue #116). The function re-checks all of it,
+    // including that the photo is in this customer's own folder.
+    p_discount: parsed.data.discount ?? undefined,
+    // The prices the customer was shown; the function refuses with
+    // PRICE_CHANGED, naming the dishes, if the menu has moved since.
+    p_expected_prices: parsed.data.expected_prices,
   });
 
   if (error || !data) {
+    // No order was made, so the ID photo uploaded for it is not needed.
+    // The customer can't delete from the bucket (staff-only), so the
+    // service role does — only inside this customer's own folder.
+    const photoPath = parsed.data.discount?.photo_path;
+    if (
+      photoPath &&
+      isSeniorPwdIdPath(photoPath) &&
+      photoPath.startsWith(`${auth.data.customer_id}/`)
+    ) {
+      await createAdminClient()
+        .storage.from(SENIOR_PWD_ID_BUCKET)
+        .remove([photoPath])
+        .catch(() => undefined);
+    }
+
     // The function raises with a customer-facing message and a stable code
     // in `hint` (CART_LOCKED, ITEM_UNAVAILABLE, ACCOUNT_DISABLED, …). Anything
     // without a hint is unexpected, so its raw text is logged, not shown.
@@ -900,7 +1050,7 @@ export async function switchOrderToCashOnDelivery(
   // `markDelivered` scopes its own.
   const admin = createAdminClient();
 
-  // Point the payment at cash. Clearing the provider reference means a late
+  // Point the payment at the counter. Clearing the provider reference means a late
   // webhook for the abandoned wallet intent no longer matches this row and
   // cannot mark a cash order as failed.
   const { error: paymentError } = await admin
@@ -1036,6 +1186,9 @@ export async function cancelCustomerOrder(
 
   if (!rpcError && rpcData) {
     await notifyOrderCancelled(supabase, orderId, "customer");
+    // The RPC only cancels the customer's own order. They can't delete from
+    // the ID bucket (staff-only), so the service role does (issue #116).
+    await discardSeniorPwdIdPhoto(createAdminClient(), orderId);
     return {
       data: rpcData as {
         order_id: string;
@@ -1097,6 +1250,8 @@ export async function cancelCustomerOrder(
 
   // A confirmation, and for a paid order what happens to the money (F23).
   await notifyOrderCancelled(supabase, orderId, "customer");
+  // Ownership was checked above (issue #116).
+  await discardSeniorPwdIdPhoto(createAdminClient(), orderId);
 
   return {
     data: {
@@ -1149,6 +1304,7 @@ export async function reorderPastOrder(
       special_instructions,
       product!inner (
         product_id,
+        product_name,
         is_available,
         archived_at
       ),
@@ -1205,8 +1361,9 @@ export async function reorderPastOrder(
     };
   }
 
-  // 5. Insert available items into cart. Ids are chosen here so each line's
-  // add-ons can be attached to it below.
+  // 5. Insert available items into cart, as they were ordered: same
+  // quantities and notes. Ids are chosen here so each line's add-ons can be
+  // attached to it below.
   const cartItemsToInsert = availableItems.map((item) => {
     const p = (Array.isArray(item.product) ? item.product[0] : item.product) as unknown as { product_id: string };
     return {
@@ -1217,6 +1374,32 @@ export async function reorderPastOrder(
       special_instructions: item.special_instructions,
     };
   });
+
+  // The same list or nothing (issue #115): if the order would not fit the
+  // cart — 30 items, or 20 of a dish counting what is already there — say
+  // so, rather than quietly adding a smaller order than the one asked for.
+  const cartLines = await readCartQuantities(supabase, cart.cart_id);
+  const reorderedItems = cartItemsToInsert.reduce((sum, line) => sum + line.quantity, 0);
+  if (wouldExceedOrderCap(itemsIn(cartLines), reorderedItems)) {
+    return TOO_LARGE;
+  }
+  const dishNames = new Map(
+    availableItems.map((item) => {
+      const p = (Array.isArray(item.product) ? item.product[0] : item.product) as unknown as {
+        product_id: string;
+        product_name: string;
+      };
+      return [p.product_id, p.product_name] as const;
+    }),
+  );
+  for (const [productId, name] of dishNames) {
+    const reorderedOfDish = cartItemsToInsert
+      .filter((line) => line.product_id === productId)
+      .reduce((sum, line) => sum + line.quantity, 0);
+    if (dishItemsIn(cartLines, productId) + reorderedOfDish > MAX_QUANTITY) {
+      return dishLimit(name);
+    }
+  }
 
   // Add-ons still offered for each dish. One that was deleted since, or
   // that belongs to another dish, is dropped rather than failing the reorder.
@@ -1267,6 +1450,42 @@ export async function reorderPastOrder(
         .delete()
         .in("cart_item_id", cartItemsToInsert.map((line) => line.cart_item_id));
       return { data: null, error: "Couldn't add the add-ons from that order. Please try again." };
+    }
+  }
+
+  // Order-wide add-ons (rice, drinks …) come back too (issue #115), so the
+  // cart holds the same list as the order. One since removed from the menu
+  // is skipped, the same as a dish's own add-ons above.
+  const { data: orderAddOns } = await supabase
+    .from("order_add_on")
+    .select("addon_id")
+    .eq("order_id", orderId);
+  const orderAddOnIds = (orderAddOns ?? [])
+    .map((row) => row.addon_id)
+    .filter((id): id is string => Boolean(id));
+  if (orderAddOnIds.length > 0) {
+    const { data: stillOffered } = await supabase
+      .from("add_on")
+      .select("addon_id")
+      .in("addon_id", Array.from(new Set(orderAddOnIds)));
+    const offered = new Set((stillOffered ?? []).map((row) => row.addon_id));
+    const cartAddOns = orderAddOnIds
+      .filter((id) => offered.has(id))
+      .map((addonId) => ({ cart_id: cart!.cart_id, addon_id: addonId }));
+    if (cartAddOns.length > 0) {
+      const { error: cartAddOnError } = await supabase.from("cart_add_on").insert(cartAddOns);
+      if (cartAddOnError) {
+        // The dishes are in; the rice and drinks are not. Say so rather than
+        // let the customer check out believing they are.
+        console.error("reorderPastOrder: order add-ons not copied:", cartAddOnError);
+        const { revalidatePath } = await import("next/cache");
+        revalidatePath("/", "layout");
+        return {
+          data: null,
+          error:
+            "The dishes were added, but not the rice and drinks from that order. Please add them again.",
+        };
+      }
     }
   }
 

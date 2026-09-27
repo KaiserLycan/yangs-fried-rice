@@ -30,6 +30,7 @@ import {
 import { useCardEditor } from "@/components/profile/use-card-editor";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useToast } from "@/components/ui/toast";
+import { Button } from "@/components/ui/button";
 
 const ROLES = ["Manager", "Staff"];
 const SHIFTS = ["MWF – 12-3PM", "TThS – 9-5PM", "Weekends – 10-10PM", "Mon-Fri – 8-4PM"];
@@ -123,36 +124,36 @@ export function EmployeeRoleDetailsCard({
             <CardField label="Role" htmlFor="role" error={errors.role}>
               <input type="hidden" name="role" value={roleValue} />
               <div className="relative">
-                <button
+                <Button variant="unstyled"
                   {...roleMenu.triggerProps}
                   // The card's <label htmlFor="role"> names the button.
                   id="role"
                   aria-labelledby={undefined}
                   className={cn(
-                    "flex w-full items-center justify-between rounded-sm bg-card px-[12px] py-[13px] text-[15px] md:py-[11px] md:text-[14px]",
+                    "flex w-full items-center justify-between rounded-sm bg-card px-[12px] py-[13px] text-base md:py-[11px] md:text-sm",
                     "border border-input transition-colors hover:bg-background focus:outline-none focus:ring-2 focus:ring-ring/40",
                     Boolean(errors.role) && "border-primary"
                   )}
                 >
                   <span>{roleValue}</span>
                   {roleOpen ? <ChevronDown aria-hidden="true" className="w-5 h-5" /> : <ChevronRight aria-hidden="true" className="w-5 h-5" />}
-                </button>
+                </Button>
                 {roleOpen && (
                   <>
-                    <div {...roleMenu.listProps} aria-labelledby={undefined} aria-label="Role" className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 bg-card border border-input rounded-[8px] p-1 shadow-lg max-h-[160px] overflow-y-auto">
+                    <div {...roleMenu.listProps} aria-labelledby={undefined} aria-label="Role" className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 bg-card border border-input rounded-sm p-1 shadow-lg max-h-[160px] overflow-y-auto">
                       {ROLES.map(r => (
-                        <button
+                        <Button variant="unstyled"
                           key={r}
                           {...roleMenu.optionProps(roleValue === r)}
                           onClick={() => { setRoleValue(r); roleMenu.close(); }}
                           className={cn(
-                            "w-full text-left px-3 py-2 rounded-md text-[14px] transition-colors",
+                            "w-full text-left px-3 py-2 rounded-md text-sm transition-colors",
                             DROPDOWN_FOCUS_RING,
                             roleValue === r ? "bg-accent/50 font-bold" : "hover:bg-background"
                           )}
                         >
                           {r}
-                        </button>
+                        </Button>
                       ))}
                     </div>
                   </>
@@ -163,36 +164,36 @@ export function EmployeeRoleDetailsCard({
             <CardField label="Shift" htmlFor="shift" error={errors.shift}>
               <input type="hidden" name="shift" value={shiftValue} />
               <div className="relative">
-                <button
+                <Button variant="unstyled"
                   {...shiftMenu.triggerProps}
                   // The card's <label htmlFor="shift"> names the button.
                   id="shift"
                   aria-labelledby={undefined}
                   className={cn(
-                    "flex w-full items-center justify-between rounded-sm bg-card px-[12px] py-[13px] text-[15px] md:py-[11px] md:text-[14px]",
+                    "flex w-full items-center justify-between rounded-sm bg-card px-[12px] py-[13px] text-base md:py-[11px] md:text-sm",
                     "border border-input transition-colors hover:bg-background focus:outline-none focus:ring-2 focus:ring-ring/40",
                     Boolean(errors.shift) && "border-primary"
                   )}
                 >
                   <span>{shiftValue}</span>
                   {shiftOpen ? <ChevronDown aria-hidden="true" className="w-5 h-5" /> : <ChevronRight aria-hidden="true" className="w-5 h-5" />}
-                </button>
+                </Button>
                 {shiftOpen && (
                   <>
-                    <div {...shiftMenu.listProps} aria-labelledby={undefined} aria-label="Shift" className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 bg-card border border-input rounded-[8px] p-1 shadow-lg max-h-[160px] overflow-y-auto">
+                    <div {...shiftMenu.listProps} aria-labelledby={undefined} aria-label="Shift" className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 bg-card border border-input rounded-sm p-1 shadow-lg max-h-[160px] overflow-y-auto">
                       {SHIFTS.map(s => (
-                        <button
+                        <Button variant="unstyled"
                           key={s}
                           {...shiftMenu.optionProps(shiftValue === s)}
                           onClick={() => { setShiftValue(s); shiftMenu.close(); }}
                           className={cn(
-                            "w-full text-left px-3 py-2 rounded-md text-[14px] transition-colors",
+                            "w-full text-left px-3 py-2 rounded-md text-sm transition-colors",
                             DROPDOWN_FOCUS_RING,
                             shiftValue === s ? "bg-accent/50 font-bold" : "hover:bg-background"
                           )}
                         >
                           {s}
-                        </button>
+                        </Button>
                       ))}
                     </div>
                   </>

@@ -66,7 +66,6 @@ export async function getMyEmployeeProfile(): Promise<
     name: string;
     email: string;
     phoneNumber: string | null;
-    dateOfBirth: string | null;
     role: EmployeeRole;
     scheduleShift: string | null;
     profileImageUrl: string | null;
@@ -83,7 +82,7 @@ export async function getMyEmployeeProfile(): Promise<
   const { data: employee, error: employeeError } = await supabase
     .from("employee")
     .select(
-      'first_name, last_name, name, email, role, schedule_shift, profileImage_URL, date_of_birth, phone_number, password_last_updated, is_account_disabled',
+      'first_name, last_name, name, email, role, schedule_shift, profileImage_URL, phone_number, password_last_updated, is_account_disabled',
     )
     .eq("employee_id", caller.employeeId)
     .single();
@@ -102,7 +101,6 @@ export async function getMyEmployeeProfile(): Promise<
       name: employee.name ?? joinFullName(employee.first_name, employee.last_name),
       email: employee.email,
       phoneNumber: employee.phone_number ?? null,
-      dateOfBirth: employee.date_of_birth ?? null,
       role: (resolveEmployeeRole(employee.role) ?? employee.role) as EmployeeRole,
       scheduleShift: employee.schedule_shift,
       profileImageUrl: employee.profileImage_URL,
@@ -142,7 +140,7 @@ export async function updateMyEmployeeProfile(
       fieldErrors: fieldErrorsFromIssues(parsed.error.issues),
     };
   }
-  const { firstName, lastName, mobile, dateOfBirth, scheduleShift, role } = parsed.data;
+  const { firstName, lastName, mobile, scheduleShift, role } = parsed.data;
 
   if (role !== undefined && !isManager(caller.role)) {
     return {
@@ -176,9 +174,6 @@ export async function updateMyEmployeeProfile(
   if (lastName !== undefined) updatePayload.last_name = lastName;
   if (scheduleShift !== undefined) updatePayload.schedule_shift = scheduleShift;
   if (role !== undefined) updatePayload.role = role;
-  if (dateOfBirth !== undefined) {
-    (updatePayload as Record<string, string | null>).date_of_birth = dateOfBirth || null;
-  }
   if (mobile !== undefined) {
     updatePayload.phone_number = toInternationalMobile(mobile) || null;
   }

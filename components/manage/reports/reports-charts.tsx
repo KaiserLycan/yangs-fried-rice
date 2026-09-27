@@ -21,15 +21,15 @@ interface ReportsChartsProps {
 /** One ranking-card placeholder: a title and a few label + bar rows. */
 function RankingSkeleton({ rows = 4 }: { rows?: number }) {
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-[#e3d6c3] bg-white px-[18px] pb-[62px] pt-[18px]">
-      <div className="h-3 w-24 bg-[#efe6d8] rounded-full animate-pulse" />
+    <div className="flex flex-col gap-3 rounded-lg border border-rule bg-white px-[18px] pb-[62px] pt-[18px]">
+      <div className="h-3 w-24 bg-track rounded-full animate-pulse" />
       {Array.from({ length: rows }).map((_, i) => (
         <div key={i} className="flex flex-col gap-[5px]">
           <div className="flex items-center justify-between">
-            <div className="h-3 w-28 bg-[#efe6d8] rounded-full animate-pulse" />
-            <div className="h-3 w-14 bg-[#efe6d8] rounded-full animate-pulse" />
+            <div className="h-3 w-28 bg-track rounded-full animate-pulse" />
+            <div className="h-3 w-14 bg-track rounded-full animate-pulse" />
           </div>
-          <div className="h-[7px] w-full rounded-full bg-[#efe6d8] animate-pulse" />
+          <div className="h-[7px] w-full rounded-full bg-track animate-pulse" />
         </div>
       ))}
     </div>
@@ -58,9 +58,9 @@ function ChartSkeleton({ variant }: { variant: "sales" | "menu" }) {
 
   return (
     <div className="flex flex-col gap-3 md:grid md:grid-cols-[1.4fr_1fr] md:gap-4">
-      <div className="flex flex-col gap-[18px] rounded-2xl border border-[#e3d6c3] bg-white p-[18px]">
-        <div className="h-3 w-32 bg-[#efe6d8] rounded-full animate-pulse" />
-        <div className="h-[190px] w-full bg-[#efe6d8]/50 rounded-xl animate-pulse" />
+      <div className="flex flex-col gap-[18px] rounded-lg border border-rule bg-white p-[18px]">
+        <div className="h-3 w-32 bg-track rounded-full animate-pulse" />
+        <div className="h-[190px] w-full bg-track/50 rounded-md animate-pulse" />
       </div>
       <RankingSkeleton />
     </div>
@@ -139,7 +139,7 @@ export function ReportsCharts({
 
   if (error) {
     return (
-      <div className="flex items-center justify-center rounded-2xl border border-[#e3d6c3] bg-white p-8 text-[13px] text-[#7a6a60]">
+      <div className="flex items-center justify-center rounded-lg border border-rule bg-white p-8 text-sm text-muted-foreground">
         {error}
       </div>
     );

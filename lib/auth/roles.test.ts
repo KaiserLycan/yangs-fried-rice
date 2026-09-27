@@ -179,6 +179,6 @@ describe("role display + routing", () => {
 
   it("sends each role to its own home page", () => {
     expect(homePathForRole("MANAGER")).toBe("/manage/dashboard");
-    expect(homePathForRole("STAFF")).toBe("/manage/orders");
+    expect(homePathForRole("STAFF")).toBe("/manage/kds");
   });
 });

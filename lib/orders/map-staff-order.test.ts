@@ -8,7 +8,6 @@ function row(over: Partial<StaffOrderRow> = {}): StaffOrderRow {
     order_status: "preparing",
     order_type: "delivery",
     delivery_fee: 58.9,
-    delivery_address: "21 Mabini St., Malate, Manila 1004",
     special_instructions: null,
     customer: { name: "Liza Reyes", email: null, phone_number: "+639172200000" },
     order_item: [],
@@ -57,5 +56,84 @@ describe("mapStaffOrder — special instructions (P30)", () => {
       mapStaffOrder({ ...twoLines, special_instructions: null }).orderInfo
         .specialInstructions,
     ).toBe("");
+  });
+});
+
+describe("mapStaffOrder pendingAt (issue #115)", () => {
+  it("carries pending_at while the order is still pending", () => {
+    const mapped = mapStaffOrder(
+      row({ order_status: "pending", pending_at: "2026-09-28T04:00:00.000Z" }),
+    );
+    expect(mapped.pendingAt).toBe("2026-09-28T04:00:00.000Z");
+  });
+
+  it("falls back to created_at for a pending order from before pending_at", () => {
+    const mapped = mapStaffOrder(
+      row({ order_status: "pending", pending_at: null, created_at: "2026-09-28T03:00:00.000Z" }),
+    );
+    expect(mapped.pendingAt).toBe("2026-09-28T03:00:00.000Z");
+  });
+
+  it("has none once staff accepted it, even in the QUEUE column", () => {
+    expect(
+      mapStaffOrder(row({ order_status: "received", pending_at: "2026-09-28T04:00:00.000Z" }))
+        .pendingAt,
+    ).toBeNull();
+    expect(
+      mapStaffOrder(row({ order_status: "preparing", pending_at: "2026-09-28T04:00:00.000Z" }))
+        .pendingAt,
+    ).toBeNull();
+  });
+});
+
+describe("mapStaffOrder — Senior Citizen / PWD discount (#116)", () => {
+  const line = {
+    quantity: 1,
+    subtotal: 112,
+    special_instructions: null,
+    product_name: "Yang Chow",
+    product: null,
+    order_item_add_on: [],
+  };
+
+  it("totals a discounted order at what is owed, not at menu prices", () => {
+    const mapped = mapStaffOrder(
+      row({
+        order_type: "take_out",
+        delivery_fee: 0,
+        order_item: [line],
+        transaction: [
+          {
+            subtotal: 100,
+            discount_amount: 20,
+            discount_type: "senior_citizen",
+            discount_id_number: "OSCA-123",
+            name_on_id: "Liza Reyes",
+            discount_id_photo_path: "x/y.jpg",
+          },
+        ],
+      }),
+    );
+    expect(mapped.total).toBe(80);
+    expect(mapped.seniorPwd).toEqual({
+      type: "senior_citizen",
+      idNumber: "OSCA-123",
+      nameOnId: "Liza Reyes",
+      discount: 20,
+      hasPhoto: true,
+    });
+  });
+
+  it("leaves an ordinary order at menu prices with no badge", () => {
+    const mapped = mapStaffOrder(
+      row({
+        order_type: "take_out",
+        delivery_fee: 0,
+        order_item: [line],
+        transaction: [{ subtotal: 112, discount_amount: 0, discount_type: null }],
+      }),
+    );
+    expect(mapped.total).toBe(112);
+    expect(mapped.seniorPwd).toBeUndefined();
   });
 });

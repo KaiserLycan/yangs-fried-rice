@@ -6,7 +6,6 @@ import { ChevronLeft } from "lucide-react";
 import { redirect } from "next/navigation";
 import { AccountActions } from "@/components/profile/account-actions";
 import { ContactDetailsCard } from "@/components/profile/contact-details-card";
-import { DeliveryAddressesCard } from "@/components/profile/delivery-addresses-card";
 import { PasswordCard } from "@/components/profile/password-card";
 import { PersonalDetailsCard } from "@/components/profile/personal-details-card";
 import { ProfileAvatarCard } from "@/components/profile/profile-avatar-card";
@@ -18,12 +17,13 @@ import { initialsFrom } from "@/lib/profile/identity";
 import { BottomTabBar } from "@/components/nav/bottom-tab-bar";
 import { readCart } from "@/lib/cart/read-cart";
 import { cartItemCount } from "@/lib/menu/cart-totals";
+import { readMyActiveOrderCount } from "@/lib/orders/active-orders";
 
 /**
  * Customer profile (Cust3, Cust4, Cust5).
  *
- * The shell, log out and delete account came first; personal, contact,
- * delivery addresses and password followed.
+ * The shell, log out and delete account came first; personal, contact and
+ * password followed. There is no address: the shop is pickup-only.
  *
  * Reads are real; writes are not. Everything displayed here comes from live
  * data so the screen can be reviewed against the design, but every mutation
@@ -32,9 +32,12 @@ import { cartItemCount } from "@/lib/menu/cart-totals";
  * `.scratch/profile-page/issues/05-backend-handoff.md`.
  */
 export default async function ProfilePage() {
-  const [profile, cart] = await Promise.all([
+  const [profile, cart, activeOrderCount] = await Promise.all([
     readCustomerProfile(),
     readCart(),
+    // Delete account is refused while any order is in progress (issue #115);
+    // the dialog says so up front instead of after the press.
+    readMyActiveOrderCount(),
   ]);
 
   // Middleware already turns signed-out visitors away, so reaching this is
@@ -61,17 +64,17 @@ export default async function ProfilePage() {
               <Link href="/menu" aria-label="Back to menu">
                 <ChevronLeft className="size-[24px] text-foreground" />
               </Link>
-              <h1 className="font-display text-[24px] uppercase text-foreground">
+              <h1 className="font-display text-2xl uppercase text-foreground">
                 ACCOUNT
               </h1>
             </div>
             <div className="flex flex-col gap-[12px] md:mx-auto md:max-w-[880px] md:gap-[18px]">
               <div className="hidden items-baseline gap-[12px] md:flex">
-                <h1 className="font-display text-[32px] tracking-[0.32px] text-foreground">
+                <h1 className="font-display text-3xl tracking-[0.32px] text-foreground">
                   MY PROFILE
                 </h1>
-                <p className="text-[13px] text-muted-foreground">
-                  name, contact, addresses and password
+                <p className="text-sm text-muted-foreground">
+                  name, contact and password
                 </p>
               </div>
 
@@ -91,11 +94,9 @@ export default async function ProfilePage() {
 
               <ContactDetailsCard profile={profile} />
 
-              <DeliveryAddressesCard addresses={profile.addresses} />
-
               <PasswordCard lastUpdated={profile.passwordLastUpdated} />
 
-              <AccountActions />
+              <AccountActions activeOrderCount={activeOrderCount} />
             </div>
           </main>
         </div>

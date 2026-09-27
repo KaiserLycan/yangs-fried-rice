@@ -1,22 +1,18 @@
 import { z } from "zod";
 import { customerEmailSchema, customerNewPasswordSchema } from "./login";
 import { phoneSchema } from "./phone";
-import {
-  addressPartsSchema,
-  firstNameSchema,
-  lastNameSchema,
-} from "./fields";
+import { firstNameSchema, lastNameSchema } from "./fields";
 
 /**
- * Customer sign-up (Cust1): first name, last name, email, phone, password,
- * the address as five atomic parts, and an age confirmation.
+ * Customer sign-up (Cust1): first name, last name, email, phone, password
+ * and an age confirmation.
  *
- * The date of birth used to be asked here (optional, 13+). The panel asked
- * for it to go (F16); it was also the only age check, so a checkbox replaces
- * it: "I am at least 18, or have a parent's permission". A birthday can
- * still be added later from the profile.
+ * No address and no birthday: the shop is pickup-only with no delivery
+ * service, and runs no birthday promotion, so neither is asked for or kept.
+ * The age checkbox ("I am at least 18, or have a parent's permission") is
+ * the only age check (F16).
  *
- * Every rule is imported rather than restated — names and address parts from
+ * Every rule is imported rather than restated — names from
  * `fields.ts`, email and password from `login.ts` — so sign-up, the profile
  * screen and the server actions cannot disagree about what is valid, and the
  * length limits match the database's CHECK constraints.
@@ -41,8 +37,6 @@ export const customerMobileSchema = phoneSchema;
 export const customerFirstNameSchema = firstNameSchema;
 export const customerLastNameSchema = lastNameSchema;
 
-export const DEFAULT_ADDRESS_LABEL = "Home";
-
 export const signupSchema = z
   .object({
     firstName: customerFirstNameSchema,
@@ -59,8 +53,7 @@ export const signupSchema = z
         message: "Confirm you are at least 18, or have a parent's permission.",
       }),
     }),
-  })
-  .merge(addressPartsSchema);
+  });
 
 /**
  * What the sign-up *form* checks: the server schema plus the terms box,

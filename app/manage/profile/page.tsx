@@ -30,9 +30,9 @@ export default async function ProfilePage() {
     return (
       <ToastProvider>
         <div className="flex h-full w-full items-center justify-center p-6">
-          <div className="rounded-[16px] border border-[#DDCDB8] bg-[#FAF5EB] p-6 text-center text-[#1a1210]">
-            <p className="font-display text-[24px] uppercase">Profile unavailable</p>
-            <p className="mt-2 text-sm text-[#7A6A60]">{result.error}</p>
+          <div className="rounded-lg border border-field-border bg-background p-6 text-center text-foreground">
+            <p className="font-display text-2xl uppercase">Profile unavailable</p>
+            <p className="mt-2 text-sm leading-5 text-muted-foreground">{result.error}</p>
           </div>
         </div>
       </ToastProvider>
@@ -43,7 +43,6 @@ export default async function ProfilePage() {
     firstName: result.data.firstName,
     lastName: result.data.lastName,
     name: result.data.name,
-    dateOfBirth: result.data.dateOfBirth ?? null,
     role: result.data.role,
     shift: result.data.scheduleShift ?? "Not set",
     mobile: result.data.phoneNumber ?? "",
@@ -63,11 +62,11 @@ export default async function ProfilePage() {
       <div className="flex flex-col h-full w-full">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-end gap-1 md:gap-4 mb-[16px] md:mb-[24px]">
-          <h1 className="font-display text-[24px] md:text-[32px] leading-none tracking-[0.32px] text-[#1a1210]">
+          <h1 className="font-display text-2xl md:text-3xl leading-none tracking-[0.32px] text-foreground">
             MY PROFILE
           </h1>
-          <p className="font-sans text-[13px] text-[#7a6a60] pb-[2px]">
-            name, contact, addresses and password
+          <p className="font-sans text-sm text-muted-foreground pb-[2px]">
+            name, contact and password
           </p>
         </div>
 

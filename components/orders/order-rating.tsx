@@ -30,7 +30,7 @@ import { cn } from "@/lib/utils";
  * drawn in it read as brown.
  */
 
-const STAR_COLOUR = "#e8a33f";
+const STAR_COLOUR = "hsl(var(--star))";
 const MAX_COMMENT = 1000;
 
 const SCORE_WORDS = ["", "Poor", "Fair", "Good", "Great", "Excellent"];
@@ -95,17 +95,17 @@ export function RateOrderButton({
 
   return (
     <>
-      <button
+      <Button variant="unstyled"
         type="button"
         onClick={() => setOpen(true)}
         className={cn(
-          "shrink-0 text-[14px] font-bold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+          "shrink-0 text-sm font-bold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
           className,
         )}
       >
         Rate order
         <span className="sr-only"> #{orderNumber}</span>
-      </button>
+      </Button>
       <RateOrderDialog
         open={open}
         onClose={() => setOpen(false)}
@@ -208,14 +208,14 @@ function RateOrderDialog({
           <div
             role="radiogroup"
             aria-label={`Score for order #${orderNumber}`}
-            className="flex text-[34px] leading-none"
+            className="flex text-3xl leading-none"
             style={{ color: STAR_COLOUR }}
             onMouseLeave={() => setPreview(0)}
           >
             {Array.from({ length: MAX_RATING }, (_, index) => {
               const score = index + 1;
               return (
-                <button
+                <Button variant="unstyled"
                   key={score}
                   type="button"
                   role="radio"
@@ -227,11 +227,11 @@ function RateOrderDialog({
                   className="px-[2px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-default"
                 >
                   <span aria-hidden="true">{score <= shown ? "★" : "☆"}</span>
-                </button>
+                </Button>
               );
             })}
           </div>
-          <span className="text-[14px] font-bold text-muted-strong" aria-live="polite">
+          <span className="text-sm font-bold text-muted-strong" aria-live="polite">
             {shown ? SCORE_WORDS[shown] : "Tap a star"}
           </span>
         </div>
@@ -239,7 +239,7 @@ function RateOrderDialog({
         <div className="flex flex-col gap-[6px]">
           <label
             htmlFor={commentId}
-            className="text-[14px] font-bold uppercase tracking-[1.5px] text-muted-foreground"
+            className="text-sm font-bold uppercase tracking-[1.5px] text-muted-foreground"
           >
             Comment (optional)
           </label>

@@ -55,7 +55,7 @@ export async function startWalletPayment({
   const publicKey = process.env.NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY;
   if (!publicKey) throw new Error(NOT_CONFIGURED);
 
-  const intent = await createPaymentIntent(orderId);
+  const intent = await createPaymentIntent(orderId, wallet);
 
   const paymentMethodId = await paymongo<{ data: { id: string } }>(
     publicKey,
@@ -96,12 +96,12 @@ export async function startWalletPayment({
   );
 }
 
-async function createPaymentIntent(orderId: string) {
+async function createPaymentIntent(orderId: string, wallet: WalletProvider) {
   const supabase = createClient();
   const { data, error } = await supabase.functions.invoke<{
     payment_intent_id: string;
     client_key: string;
-  }>("create-payment-intent", { body: { order_id: orderId } });
+  }>("create-payment-intent", { body: { order_id: orderId, wallet } });
 
   if (error) {
     // A non-2xx reply carries the function's own `{ error }` message in its

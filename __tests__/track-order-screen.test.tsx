@@ -52,6 +52,14 @@ function etaOf(arrivalWindow: string) {
 
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
+    // The screen waits for the session before subscribing. Answered at once
+    // (a thenable, not a Promise) so each test can emit straight after render.
+    auth: {
+      getSession: () => ({
+        then: (resolve: (value: { data: { session: null } }) => void) =>
+          resolve({ data: { session: null } }),
+      }),
+    },
     channel: () => {
       const channel = {
         on: (
@@ -102,6 +110,8 @@ function trackedOrder(over: Partial<TrackedOrder> = {}): TrackedOrder {
     specialInstructions: null,
     payment: null,
     rating: null,
+    promisedAt: null,
+    statusLog: [],
     issue: null,
     ...over,
   };
@@ -191,7 +201,47 @@ describe("TrackOrderScreen", () => {
   it("listens to the order row only — there is no delivery table any more", () => {
     renderScreen(trackedOrder({ orderStatus: "preparing" }));
 
-    expect(handlers.map((entry) => entry.table)).toEqual(["order"]);
+    expect(handlers.map((entry) => entry.table)).toEqual(["order", "order_status_log"]);
+  });
+
+  // 07:02Z / 07:05Z are 3:02 PM / 3:05 PM in Manila.
+  it("stamps each reached stage with its time from the status log", () => {
+    renderScreen(
+      trackedOrder({
+        orderStatus: "preparing",
+        statusLog: [
+          { toStatus: "pending", changedAt: "2026-09-27T07:02:00Z" },
+          { toStatus: "preparing", changedAt: "2026-09-27T07:05:00Z" },
+        ],
+      }),
+    );
+    expect(screen.getByText("3:02 PM")).toBeInTheDocument();
+    expect(screen.getByText("Now · 3:05 PM")).toBeInTheDocument();
+  });
+
+  it("stamps a new stage as soon as its log row arrives", () => {
+    renderScreen(
+      trackedOrder({
+        statusLog: [{ toStatus: "pending", changedAt: "2026-09-27T07:02:00Z" }],
+      }),
+    );
+    emit("order", { order_status: "preparing", cancelled_at: null, cancellation_reason: null });
+    emit("order_status_log", { to_status: "preparing", changed_at: "2026-09-27T07:05:00Z" });
+    expect(screen.getByText("Now · 3:05 PM")).toBeInTheDocument();
+  });
+
+  it("shows the promised time, and keeps it when the ETA moves", () => {
+    renderScreen(trackedOrder({ promisedAt: "2026-09-27T07:45:00Z" }));
+    expect(screen.getByText(/Promised by 3:45 PM/)).toBeInTheDocument();
+    emit("order", { order_status: "preparing", cancelled_at: null, cancellation_reason: null });
+    expect(screen.getByText(/Promised by 3:45 PM/)).toBeInTheDocument();
+  });
+
+  it("drops the promise once the order is cancelled", () => {
+    renderScreen(
+      trackedOrder({ promisedAt: "2026-09-27T07:45:00Z", cancelledAt: "2026-09-27T07:10:00Z", orderStatus: "cancelled" }),
+    );
+    expect(screen.queryByText(/Promised by/)).toBeNull();
   });
 
   it("reacts to a cancellation arriving over the subscription", () => {
@@ -356,11 +406,12 @@ describe("TrackOrderScreen", () => {
     expect(screen.getByText(/Arriving 10–15 mins/)).toBeInTheDocument();
   });
 
-  it("closes its channel when the screen goes away", () => {
+  // Two: the status channel and the status-log channel (#116).
+  it("closes its channels when the screen goes away", () => {
     const { unmount } = renderScreen(trackedOrder());
     unmount();
 
-    expect(channelsRemoved).toBe(1);
+    expect(channelsRemoved).toBe(2);
   });
 
   it("never shows a rider card — the shop is pickup-only", () => {
@@ -369,5 +420,85 @@ describe("TrackOrderScreen", () => {
     expect(
       screen.queryByRole("region", { name: "Your rider" }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("TrackOrderScreen waiting for the store (issue #115)", () => {
+  beforeEach(() => {
+    handlers = [];
+    getOrderEtaAction.mockResolvedValue(etaOf("35–45 min"));
+  });
+
+  const minutesAgo = (minutes: number) =>
+    new Date(Date.now() - minutes * 60_000).toISOString();
+
+  it("says nothing extra for the first 5 minutes", () => {
+    renderScreen(trackedOrder({ pendingAt: minutesAgo(2) }));
+
+    expect(screen.queryByText(/waiting for the store/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/cancel for free/i)).not.toBeInTheDocument();
+  });
+
+  it("says it is waiting for the store from 5 minutes", () => {
+    renderScreen(trackedOrder({ pendingAt: minutesAgo(6) }));
+
+    expect(screen.getByText("Waiting for the store to confirm your order…")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel order" })).toBeInTheDocument();
+  });
+
+  it("offers a free cancel, more prominently, from 10 minutes", () => {
+    renderScreen(trackedOrder({ pendingAt: minutesAgo(11) }));
+
+    expect(
+      screen.getByText("The store hasn't confirmed yet. You can cancel for free."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel order for free" })).toBeInTheDocument();
+  });
+
+  it("drops the prompt the moment staff confirm", () => {
+    renderScreen(trackedOrder({ pendingAt: minutesAgo(11) }));
+    expect(screen.getByText(/cancel for free/i)).toBeInTheDocument();
+
+    emit("order", { order_status: "preparing", pending_at: minutesAgo(11) });
+
+    expect(screen.queryByText(/cancel for free/i)).not.toBeInTheDocument();
+  });
+
+  it("tells a customer who paid online that the money is being refunded", () => {
+    renderScreen(
+      trackedOrder({
+        orderStatus: "cancelled",
+        cancellationReason: "Store didn't confirm in time",
+        payment: {
+          method: "paymongo",
+          status: "refund_pending",
+          totalPaid: 250,
+          discountAmount: 0,
+          discountType: null,
+          taxAmount: 0,
+        },
+      }),
+    );
+
+    expect(screen.getByText(/Store didn't confirm in time/)).toBeInTheDocument();
+    expect(screen.getByText(/₱250\.00 GCash \/ Maya payment is being refunded/)).toBeInTheDocument();
+  });
+
+  it("says nothing about refunds for an order paid at the counter", () => {
+    renderScreen(
+      trackedOrder({
+        orderStatus: "cancelled",
+        payment: {
+          method: "pay_in_store",
+          status: "pending",
+          totalPaid: 0,
+          discountAmount: 0,
+          discountType: null,
+          taxAmount: 0,
+        },
+      }),
+    );
+
+    expect(screen.queryByText(/refund/i)).not.toBeInTheDocument();
   });
 });

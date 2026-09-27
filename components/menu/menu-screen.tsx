@@ -11,6 +11,7 @@ import { ItemDetailModal } from "@/components/menu/item-detail-modal";
 import { MenuEmptyState } from "@/components/menu/menu-empty-state";
 import { MobileMenuHeader } from "@/components/menu/mobile-menu-header";
 import { OrderAgainRow } from "@/components/menu/order-again-row";
+
 import { ProductCard } from "@/components/menu/product-card";
 import { ProductRow } from "@/components/menu/product-row";
 import { SearchField } from "@/components/menu/search-field";
@@ -23,6 +24,7 @@ import {
 } from "@/lib/menu/fetch-menu";
 import {
   cartItemCount,
+  dishQuantityInCart,
   type CartLine,
   type Fulfilment,
 } from "@/lib/menu/cart-totals";
@@ -32,6 +34,9 @@ import type { CartRead } from "@/lib/cart/read-cart";
 import type { RecentOrder } from "@/lib/orders/read-recent-orders";
 import { createClient } from "@/lib/supabase/client";
 import { uniqueChannelName } from "@/lib/supabase/channel-name";
+import { MAX_ITEMS_PER_ORDER } from "@/lib/cart/limits";
+import { useStoreStatus } from "@/lib/hooks/use-store-status";
+import { BUSY_MESSAGE, formatStoreHours } from "@/lib/store/store-status";
 
 /** Debounce for the search field, so every keystroke doesn't fire a request. */
 const SEARCH_DEBOUNCE_MS = 250;
@@ -53,6 +58,7 @@ export function MenuScreen({
   arrivalEstimatePromise,
   initialFulfilment,
   recentOrdersPromise,
+  initialItemId = null,
 }: {
   profilePromise: Promise<CustomerProfile | null>;
   productsPromise: Promise<ProductListing[]>;
@@ -67,6 +73,8 @@ export function MenuScreen({
   initialFulfilment?: Fulfilment;
   /** The "Order again" row (issue #118). Resolves empty for a guest. */
   recentOrdersPromise?: Promise<RecentOrder[]>;
+  /** Open this dish once the menu has loaded (`?item=`, after signing in). */
+  initialItemId?: string | null;
 }) {
   const [search, setSearch] = React.useState("");
   const [selectedCategory, setSelectedCategory] = React.useState<string | null>(
@@ -78,6 +86,26 @@ export function MenuScreen({
   const [categories, setCategories] = React.useState<CategoryOption[] | null>(null);
   const [selectedProduct, setSelectedProduct] =
     React.useState<ProductListing | null>(null);
+
+  // Back from "Sign in to order": reopen the dish they were on. Once only,
+  // and the `?item=` is dropped so a refresh doesn't pop it open again.
+  React.useEffect(() => {
+    if (!initialItemId) return;
+    let active = true;
+    Promise.resolve(productsPromise)
+      .then((list) => {
+        const match = list.find((product) => product.id === initialItemId);
+        if (!active || !match) return;
+        setSelectedProduct(match);
+        const url = new URL(window.location.href);
+        url.searchParams.delete("item");
+        window.history.replaceState(null, "", url.pathname + url.search);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [initialItemId, productsPromise]);
 
   const [optimisticCartLines, setOptimisticCartLines] = React.useState<CartLine[] | null>(null);
   const [isPending, setIsPending] = React.useState(false);
@@ -181,21 +209,13 @@ export function MenuScreen({
 
   const hasFilter = search.trim().length > 0 || selectedCategory !== null;
 
-  // Determine if branch is open (8am - 6pm Manila time).
-  // Default to true during SSR to avoid hydration mismatch, then check on mount.
-  const [isBranchOpen, setIsBranchOpen] = React.useState(true);
-  
-  React.useEffect(() => {
-    import("@/lib/store-hours").then(({ isRestaurantOpen }) => {
-      const checkBranchHours = () => {
-        setIsBranchOpen(isRestaurantOpen());
-      };
-      
-      checkBranchHours();
-      const interval = setInterval(checkBranchHours, 60000);
-      return () => clearInterval(interval);
-    });
-  }, []);
+  // At 30 items nothing more can be added (issue #115): the cards' Add is
+  // disabled, and the item dialog explains why.
+  const cartFull = cartItemCount(optimisticCartLines ?? []) >= MAX_ITEMS_PER_ORDER;
+
+  // Open / paused / busy, from the database's hours and the manager's pause
+  // (issue #115). Null until the first answer, so no banner flashes on load.
+  const storeStatus = useStoreStatus();
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -212,11 +232,15 @@ export function MenuScreen({
         onSearchChange={setSearch}
       />
       
-      {!isBranchOpen && (
+      {storeStatus && !storeStatus.isOpen ? (
         <Alert className="rounded-none border-x-0 border-t-0 flex items-center justify-center">
-          Store is currently closed. Restaurant hours are 8am - 6pm.
+          Store is currently closed. Restaurant hours are {formatStoreHours(storeStatus)}.
         </Alert>
-      )}
+      ) : storeStatus && (storeStatus.isPaused || storeStatus.isBusy) ? (
+        <Alert className="rounded-none border-x-0 border-t-0 flex items-center justify-center">
+          {BUSY_MESSAGE}
+        </Alert>
+      ) : null}
 
       {categories ? (
         <CategoryChips
@@ -250,7 +274,7 @@ export function MenuScreen({
         ) : (
           <Suspense fallback={
             <aside className="hidden w-[208px] shrink-0 flex-col md:flex">
-              <h2 className="px-[18px] pt-[24px] text-[14px] font-bold uppercase tracking-[0.5px] text-foreground">
+              <h2 className="px-[18px] pt-[24px] text-sm font-bold uppercase tracking-[0.5px] text-foreground">
                 Categories
               </h2>
               <nav className="mt-[15px] flex flex-col gap-[6px] px-[18px]">
@@ -278,7 +302,7 @@ export function MenuScreen({
           ) : null}
 
           <div className="hidden items-baseline gap-[12px] px-[20px] pt-[16px] md:flex md:px-0 md:pt-0">
-            <h1 className="font-display text-[32px] uppercase tracking-[0.32px] text-foreground">
+            <h1 className="font-display text-3xl uppercase tracking-[0.32px] text-foreground">
               {selectedCategory ?? "THE WHOLE MENU"}
             </h1>
           </div>
@@ -292,7 +316,7 @@ export function MenuScreen({
               <>
                 <div className="hidden gap-[16px] pt-[24px] md:grid md:grid-cols-3">
                   {products.map((product) => (
-                    <ProductCard key={product.id} product={product} onSelect={setSelectedProduct} isGuest={isGuest} />
+                    <ProductCard key={product.id} product={product} onSelect={setSelectedProduct} isGuest={isGuest} cartFull={cartFull} />
                   ))}
                 </div>
                 <div className="flex flex-col md:hidden">
@@ -308,6 +332,7 @@ export function MenuScreen({
                 productsPromise={productsPromise} 
                 onSelect={setSelectedProduct} 
                 isGuest={isGuest}
+                cartFull={cartFull}
               />
             </Suspense>
           )}
@@ -316,17 +341,17 @@ export function MenuScreen({
         <Suspense fallback={
           <aside className="sticky top-0 hidden h-[calc(100vh-58px)] w-[328px] shrink-0 flex-col gap-[14px] self-start border-l border-field-border bg-secondary/20 px-[22px] py-[24px] md:flex">
             <div className="flex items-baseline justify-between">
-              <h2 className="font-display text-[22px] text-foreground">YOUR CART</h2>
-              <div className="h-[16px] w-16 animate-pulse rounded bg-secondary/40" />
+              <h2 className="font-display text-2xl text-foreground">YOUR CART</h2>
+              <div className="h-[16px] w-16 animate-pulse rounded-sm bg-secondary/40" />
             </div>
             <div className="flex flex-col gap-[10px]">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="flex flex-col gap-[7px] rounded-[13px] border border-field-border bg-card p-[11px]">
+                <div key={i} className="flex flex-col gap-[7px] rounded-md border border-field-border bg-card p-[11px]">
                   <div className="flex justify-between">
-                    <div className="h-[18px] w-1/2 animate-pulse rounded bg-secondary/40" />
-                    <div className="h-[18px] w-12 animate-pulse rounded bg-secondary/40" />
+                    <div className="h-[18px] w-1/2 animate-pulse rounded-sm bg-secondary/40" />
+                    <div className="h-[18px] w-12 animate-pulse rounded-sm bg-secondary/40" />
                   </div>
-                  <div className="mt-2 h-[27px] w-[90px] animate-pulse rounded-[7px] bg-secondary/40" />
+                  <div className="mt-2 h-[27px] w-[90px] animate-pulse rounded-sm bg-secondary/40" />
                 </div>
               ))}
             </div>
@@ -346,8 +371,8 @@ export function MenuScreen({
         <nav className="fixed inset-x-0 bottom-0 z-40 flex h-[var(--tab-bar-height)] items-center justify-around border-t border-field-border bg-card md:hidden">
           {[{ id: "menu", icon: "☰", label: "Menu" }, { id: "cart", icon: "▤", label: "Cart" }, { id: "orders", icon: "◉", label: "Orders" }, { id: "account", icon: "☺", label: "Me" }].map(({ id, icon, label }) => (
             <div key={id} className={`flex flex-col items-center gap-[4px] px-[8px] py-[4px] ${id === "menu" ? "text-primary" : "text-muted-foreground"}`}>
-              <span className="text-[19px] leading-none" aria-hidden="true">{icon}</span>
-              <span className="text-[14px] font-medium">{label}</span>
+              <span className="text-lg leading-none" aria-hidden="true">{icon}</span>
+              <span className="text-sm font-medium">{label}</span>
             </div>
           ))}
         </nav>
@@ -361,6 +386,10 @@ export function MenuScreen({
       <ItemDetailModal
         product={selectedProduct}
         isGuest={isGuest}
+        cartTotalItems={cartItemCount(optimisticCartLines ?? [])}
+        cartProductItems={
+          selectedProduct ? dishQuantityInCart(optimisticCartLines ?? [], selectedProduct) : 0
+        }
         onClose={() => setSelectedProduct(null)}
         onAdd={(quantity, instructions) => {
           if (!selectedProduct) return;
@@ -404,11 +433,11 @@ function GridSkeleton() {
           <div key={i} className="flex flex-col overflow-hidden rounded-md border border-field-border bg-card">
             <div className="h-[138px] w-full animate-pulse bg-secondary/40" />
             <div className="flex flex-1 flex-col gap-[10px] p-[14px]">
-              <div className="h-[20px] w-3/4 animate-pulse rounded bg-secondary/40" />
-              <div className="h-[14px] w-full animate-pulse rounded bg-secondary/40" />
-              <div className="h-[14px] w-2/3 animate-pulse rounded bg-secondary/40" />
+              <div className="h-[20px] w-3/4 animate-pulse rounded-sm bg-secondary/40" />
+              <div className="h-[14px] w-full animate-pulse rounded-sm bg-secondary/40" />
+              <div className="h-[14px] w-2/3 animate-pulse rounded-sm bg-secondary/40" />
               <div className="mt-auto flex items-center justify-between pt-[4px]">
-                <div className="h-[24px] w-[60px] animate-pulse rounded bg-secondary/40" />
+                <div className="h-[24px] w-[60px] animate-pulse rounded-sm bg-secondary/40" />
                 <div className="h-[36px] w-[60px] animate-pulse rounded-md bg-secondary/40" />
               </div>
             </div>
@@ -420,10 +449,10 @@ function GridSkeleton() {
           <div key={i} className="flex gap-[13px] border-b border-field-border px-[20px] py-[12px] last:border-b-0">
             <div className="size-[74px] shrink-0 animate-pulse rounded-md bg-secondary/40" />
             <div className="flex min-w-0 flex-1 flex-col justify-center gap-[6px]">
-              <div className="h-[20px] w-3/4 animate-pulse rounded bg-secondary/40" />
-              <div className="h-[14px] w-full animate-pulse rounded bg-secondary/40" />
-              <div className="h-[14px] w-2/3 animate-pulse rounded bg-secondary/40" />
-              <div className="mt-[2px] h-[22px] w-[50px] animate-pulse rounded bg-secondary/40" />
+              <div className="h-[20px] w-3/4 animate-pulse rounded-sm bg-secondary/40" />
+              <div className="h-[14px] w-full animate-pulse rounded-sm bg-secondary/40" />
+              <div className="h-[14px] w-2/3 animate-pulse rounded-sm bg-secondary/40" />
+              <div className="mt-[2px] h-[22px] w-[50px] animate-pulse rounded-sm bg-secondary/40" />
             </div>
           </div>
         ))}
@@ -476,10 +505,12 @@ function ResolvedProductGrid({
   productsPromise,
   onSelect,
   isGuest,
+  cartFull,
 }: {
   productsPromise: Promise<ProductListing[]>;
   onSelect: (product: ProductListing) => void;
   isGuest: boolean;
+  cartFull: boolean;
 }) {
   const [products, setProducts] = useState<ProductListing[]>([]);
   useEffect(() => {
@@ -496,7 +527,7 @@ function ResolvedProductGrid({
     <>
       <div className="hidden gap-[16px] pt-[24px] md:grid md:grid-cols-3">
         {products.map((product) => (
-          <ProductCard key={product.id} product={product} onSelect={onSelect} isGuest={isGuest} />
+          <ProductCard key={product.id} product={product} onSelect={onSelect} isGuest={isGuest} cartFull={cartFull} />
         ))}
       </div>
       <div className="flex flex-col md:hidden">

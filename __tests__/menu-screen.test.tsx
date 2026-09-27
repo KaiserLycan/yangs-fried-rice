@@ -232,3 +232,29 @@ describe("MenuScreen with promises from a Server Component", () => {
     expect(screen.getByText("2× Yang's Chow Fan")).toBeTruthy();
   });
 });
+
+describe("MenuScreen ?item= after signing in", () => {
+  // "Sign in to order" sends the guest to log in with next=/menu?item=<id>;
+  // coming back, the dish they were on is open again.
+  it("opens the dish named in ?item= once the menu loads", async () => {
+    vi.mocked(fetchProducts).mockResolvedValue(MOCK_PRODUCTS);
+    const product = { ...dish("Beef Chow Fun"), id: "38206dc0-b033-4453-864c-b7c487862c7c" };
+    const { container } = render(
+      <ToastProvider>
+        <MenuScreen
+          profilePromise={Promise.resolve(null)}
+          productsPromise={Promise.resolve([...MOCK_PRODUCTS, product])}
+          categoriesPromise={Promise.resolve(MOCK_CATEGORIES)}
+          cartPromise={Promise.resolve({ cartId: null, lines: [] })}
+          arrivalEstimatePromise={Promise.resolve(null)}
+          initialItemId={product.id}
+        />
+      </ToastProvider>,
+    );
+
+    await waitFor(() => {
+      const open = container.querySelector("dialog[open]");
+      expect(open?.textContent).toContain("Beef Chow Fun");
+    });
+  });
+});

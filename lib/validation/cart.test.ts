@@ -51,14 +51,20 @@ describe("addCartItemSchema", () => {
     expect(negRes.success).toBe(false);
   });
 
-  it("rejects quantity greater than 99", () => {
+  it("accepts exactly 20 (MAX_QUANTITY)", () => {
+    expect(
+      addCartItemSchema.safeParse({ product_id: validUUID, quantity: 20 }).success,
+    ).toBe(true);
+  });
+
+  it("rejects quantity greater than 20 (MAX_QUANTITY)", () => {
     const res = addCartItemSchema.safeParse({
       product_id: validUUID,
-      quantity: 100,
+      quantity: 21,
     });
     expect(res.success).toBe(false);
     if (!res.success) {
-      expect(res.error.issues[0].message).toMatch(/cannot exceed 99/i);
+      expect(res.error.issues[0].message).toMatch(/cannot exceed 20/i);
     }
   });
 
@@ -213,9 +219,86 @@ describe("submitCartSchema payment method", () => {
     expect(parse({ payment_method: "pay-in-store" }).success).toBe(true);
   });
 
+  it("takes the wallet, defaulting to GCash", () => {
+    const maya = parse({ payment_method: "wallet", wallet: "paymaya" });
+    expect(maya.success && maya.data.wallet).toBe("paymaya");
+    const none = parse({ payment_method: "wallet" });
+    expect(none.success && none.data.wallet).toBe("gcash");
+    expect(parse({ payment_method: "wallet", wallet: "paymongo" }).success).toBe(false);
+  });
+
   it("defaults to paying in store when no method is given", () => {
     const res = parse({ order_type: "take_out" });
     expect(res.success).toBe(true);
     if (res.success) expect(res.data.payment_method).toBe("pay-in-store");
+  });
+});
+
+describe("quantity cap on update (issue #115)", () => {
+  it("accepts 20 and rejects 21", () => {
+    expect(updateCartItemSchema.safeParse({ quantity: 20 }).success).toBe(true);
+    expect(updateCartItemSchema.safeParse({ quantity: 21 }).success).toBe(false);
+  });
+});
+
+describe("submitCartSchema expected_prices (issue #115)", () => {
+  const cartId = "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d";
+  const lineId = "b1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d";
+
+  it("is optional", () => {
+    const res = submitCartSchema.safeParse({ cart_id: cartId });
+    expect(res.success).toBe(true);
+    if (res.success) expect(res.data.expected_prices).toBeUndefined();
+  });
+
+  it("accepts cart_item_id → unit price", () => {
+    const res = submitCartSchema.safeParse({
+      cart_id: cartId,
+      expected_prices: { [lineId]: 165.5 },
+    });
+    expect(res.success).toBe(true);
+  });
+
+  it("rejects a key that is not a cart_item_id", () => {
+    expect(
+      submitCartSchema.safeParse({ cart_id: cartId, expected_prices: { nope: 1 } }).success,
+    ).toBe(false);
+  });
+
+  it("rejects a negative price", () => {
+    expect(
+      submitCartSchema.safeParse({ cart_id: cartId, expected_prices: { [lineId]: -1 } })
+        .success,
+    ).toBe(false);
+  });
+});
+
+describe("submitCartSchema discount (issue #116)", () => {
+  const cart_id = "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d";
+  const discount = {
+    type: "senior_citizen",
+    id_number: " OSCA-123 ",
+    name_on_id: "Liza Reyes",
+    photo_path: `${cart_id}/id.jpg`,
+  };
+
+  it("accepts an order with no discount", () => {
+    expect(submitCartSchema.safeParse({ cart_id }).success).toBe(true);
+  });
+
+  it("accepts a full discount and trims the ID number", () => {
+    const res = submitCartSchema.safeParse({ cart_id, discount });
+    expect(res.success && res.data.discount?.id_number).toBe("OSCA-123");
+  });
+
+  it("refuses a discount with a blank field", () => {
+    for (const blank of [
+      { id_number: "  " },
+      { name_on_id: "" },
+      { photo_path: "" },
+      { type: "student" },
+    ]) {
+      expect(submitCartSchema.safeParse({ cart_id, discount: { ...discount, ...blank } }).success).toBe(false);
+    }
   });
 });

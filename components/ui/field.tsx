@@ -30,7 +30,7 @@ export function Field({
       <div className="flex items-baseline justify-between">
         <label
           htmlFor={htmlFor}
-          className="text-[11px] font-bold uppercase tracking-[1.1px] text-muted-foreground md:tracking-[1.32px]"
+          className="text-sm font-bold uppercase tracking-[1.1px] text-muted-foreground md:tracking-[1.32px]"
         >
           {label}
         </label>
@@ -41,7 +41,7 @@ export function Field({
         <p
           id={errorId ?? `${htmlFor}-error`}
           aria-live="polite"
-          className="text-[12px] text-primary"
+          className="text-sm text-primary"
         >
           {error}
         </p>

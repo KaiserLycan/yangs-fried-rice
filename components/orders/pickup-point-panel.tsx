@@ -28,18 +28,18 @@ export function PickupPointPanel({
     >
       <div className="flex items-center gap-[8px] text-primary">
         <MapPin aria-hidden="true" className="size-[20px]" />
-        <h2 id="pickup-point-heading" className="font-display text-[22px] text-foreground">
+        <h2 id="pickup-point-heading" className="font-display text-2xl text-foreground">
           Pick up at {PICKUP_COUNTER}
         </h2>
       </div>
-      <p className="text-[15px] leading-[22px] text-muted-strong">
+      <p className="text-base leading-[22px] text-muted-strong">
         {SITE_NAME}, {SITE_BRANCH}. When it&apos;s ready, go to {PICKUP_COUNTER} and
         say your order number:
       </p>
-      <p className="font-display text-[30px] leading-none text-foreground">
+      <p className="font-display text-3xl leading-none text-foreground">
         #{orderNumber}
       </p>
-      <p className="text-[14px] text-muted-strong">
+      <p className="text-sm text-muted-strong">
         Sending a courier? Give them this number.
       </p>
     </section>

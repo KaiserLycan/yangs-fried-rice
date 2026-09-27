@@ -1,3 +1,5 @@
+"use client";
+
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { Avatar } from "@/components/ui/avatar";
@@ -35,28 +37,28 @@ function ResolvedMobileProfile({
   return (
     <div className="flex w-full items-center justify-between">
       <div className="flex flex-col gap-px">
-        <span className="text-[14px] text-background/[0.8]">Pickup at</span>
-        <span className="text-[15px] font-bold text-white">{SITE_BRANCH}</span>
+        <span className="text-sm text-background/[0.8]">Pickup at</span>
+        <span className="text-base font-bold text-white">{SITE_BRANCH}</span>
       </div>
       {profile ? (
         <div className="flex items-center gap-[4px]">
           <NotificationBell />
           <Link
             href="/profile"
-            className="rounded-pill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             aria-label="Go to your account"
           >
             <Avatar
               initials={initialsFrom(profile.name)}
               imageUrl={profile.profileImageUrl}
-              className="size-[44px] bg-accent text-[14px] font-bold text-white"
+              className="size-[44px] bg-accent text-sm font-bold text-white"
             />
           </Link>
         </div>
       ) : (
         <Link
           href="/login?next=/menu"
-          className="flex min-h-[44px] items-center text-[14px] font-bold text-white"
+          className="flex min-h-[44px] items-center text-sm font-bold text-white"
         >
           Log in
         </Link>
@@ -73,8 +75,8 @@ export function MobileMenuHeader({
 }: {
   profile?: CustomerProfile | null;
   profilePromise?: Promise<CustomerProfile | null>;
-  search: string;
-  onSearchChange: (value: string) => void;
+  search?: string;
+  onSearchChange?: (value: string) => void;
 }) {
   return (
     <div className="flex flex-col gap-[16px] bg-primary px-[20px] pb-[14px] pt-[16px] md:hidden">
@@ -93,7 +95,9 @@ export function MobileMenuHeader({
         <ResolvedMobileProfile profile={profile} />
       )}
 
-      <SearchField value={search} onChange={onSearchChange} variant="mobile" />
+      {search !== undefined && onSearchChange !== undefined && (
+        <SearchField value={search} onChange={onSearchChange} variant="mobile" />
+      )}
     </div>
   );
 }

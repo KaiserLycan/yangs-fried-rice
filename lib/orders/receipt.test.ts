@@ -28,7 +28,7 @@ describe("receiptTotals", () => {
           totalPaid: 425,
         },
       }),
-    ).toEqual({ subtotal: 475, fee: 0, discount: 50, total: 425 });
+    ).toEqual({ subtotal: 475, fee: 0, discount: 50, total: 425, vatableSales: 379.46, vat: 45.54 });
   });
 
   it("does not drift on centavos", () => {
@@ -48,7 +48,55 @@ describe("receiptTotals", () => {
       fee: 0,
       payment: { method: null, status: null, discountAmount: 500, discountType: null, taxAmount: 0, totalPaid: 0 },
     });
-    expect(totals).toEqual({ subtotal: 100, fee: 0, discount: 100, total: 0 });
+    expect(totals).toEqual({ subtotal: 100, fee: 0, discount: 100, total: 0, vatableSales: 0, vat: 0 });
+  });
+
+  it("treats a Senior Citizen / PWD order as VAT-exempt with 20% off", () => {
+    const totals = receiptTotals({
+      items: [line(112)],
+      orderAddOns: [],
+      fee: 0,
+      payment: {
+        method: "pay_in_store",
+        status: "pending",
+        discountAmount: 20,
+        discountType: "senior_citizen",
+        taxAmount: 0,
+        totalPaid: 0,
+      },
+    });
+    expect(totals).toEqual({
+      subtotal: 100,
+      fee: 0,
+      discount: 20,
+      total: 80,
+      vatableSales: 0,
+      vat: 0,
+    });
+  });
+
+  it("handles a PWD order as VAT-exempt with 20% off", () => {
+    const totals = receiptTotals({
+      items: [line(224)],
+      orderAddOns: [],
+      fee: 0,
+      payment: {
+        method: "pay_in_store",
+        status: "pending",
+        discountAmount: 40,
+        discountType: "pwd",
+        taxAmount: 0,
+        totalPaid: 0,
+      },
+    });
+    expect(totals).toEqual({
+      subtotal: 200,
+      fee: 0,
+      discount: 40,
+      total: 160,
+      vatableSales: 0,
+      vat: 0,
+    });
   });
 });
 

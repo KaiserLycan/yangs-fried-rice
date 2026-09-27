@@ -23,18 +23,18 @@ export function BrandPanel() {
         />
       </div>
 
-      <p className="relative font-display text-[46px] leading-[43.24px] text-on-brand md:text-[22px] md:leading-normal md:tracking-[0.88px]">
+      <p className="relative font-display text-5xl leading-[43.24px] text-on-brand md:text-2xl md:leading-normal md:tracking-[0.88px]">
         <span className="block md:inline">YANG&apos;S </span>
         <span className="block text-on-brand-accent md:inline">FRIED RICE</span>
       </p>
 
       {/* Mobile tagline. The desktop frame uses different, longer copy. */}
-      <p className="relative mt-3 max-w-[260px] text-[14px] text-on-brand-muted md:hidden">
-        Wok-fired to order. Get it hot at your door.
+      <p className="relative mt-3 max-w-[260px] text-sm text-on-brand-muted md:hidden">
+        Wok-fired to order. Pick it up hot at the counter.
       </p>
 
       <div className="relative hidden flex-col pt-[198px] md:mb-10 md:flex">
-        <h1 className="font-display text-[66px] leading-[62px] text-on-brand">
+        <h1 className="font-display text-6xl leading-[62px] text-on-brand">
           WOK-FIRED
           <br />
           TO ORDER.
@@ -45,7 +45,7 @@ export function BrandPanel() {
             COUNTER.
           </span>
         </h1>
-        <p className="mt-5 max-w-[380px] text-[15px] leading-[22.5px] text-on-brand-muted">
+        <p className="mt-5 max-w-[380px] text-base leading-[22.5px] text-on-brand-muted">
           Log in to reorder your usual in one tap, get told the moment your
           order is ready, and pick it up hot at the counter.
         </p>
@@ -70,8 +70,8 @@ export function BrandPanel() {
 function Stat({ value, label }: { value: string; label: string }) {
   return (
     <div className="flex flex-col gap-[2px]">
-      <p className="font-display text-[26px] text-on-brand-accent">{value}</p>
-      <p className="text-[11px] uppercase tracking-[1.54px] text-on-brand-subtle">
+      <p className="font-display text-2xl text-on-brand-accent">{value}</p>
+      <p className="text-sm uppercase tracking-[1.54px] text-on-brand-subtle">
         {label}
       </p>
     </div>

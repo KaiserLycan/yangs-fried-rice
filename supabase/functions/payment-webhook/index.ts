@@ -104,6 +104,12 @@ Deno.serve(async (req: Request) => {
       ...(newStatus === "paid" && typeof amountPaid === "number"
         ? { total_paid: amountPaid / 100 }
         : {}),
+      // The payment (pay_…), which PayMongo's Refunds API needs; the row
+      // already holds the intent (pi_…). Issue #115, column added in
+      // 20260928000004.
+      ...(newStatus === "paid" && resourceId?.startsWith("pay_")
+        ? { provider_payment_id: resourceId }
+        : {}),
     })
     .eq("payment_status", "pending");
 
@@ -157,6 +163,36 @@ Deno.serve(async (req: Request) => {
 
     if (orderError) {
       console.error("payment-webhook: failed to update order status:", orderError);
+    }
+
+    // Paid for an order that is already cancelled (issue #115): the
+    // 30-minute expiry, the customer or staff got there before PayMongo's
+    // webhook did. The update above leaves the order cancelled — nobody is
+    // cooking it — so the money has to go back. `refund_pending` is what the
+    // refund job looks for; recording plain `paid` would bury it.
+    if (newStatus === "paid") {
+      const { data: cancelledOrders } = await supabase
+        .from("order")
+        .select("order_id")
+        .in("order_id", orderIds)
+        .eq("order_status", "cancelled");
+
+      const refundIds = (cancelledOrders ?? []).map(
+        (row: { order_id: string }) => row.order_id,
+      );
+
+      if (refundIds.length > 0) {
+        console.warn("payment-webhook: paid after cancellation, refund due:", refundIds);
+        const { error: refundError } = await supabase
+          .from("transaction")
+          .update({ payment_status: "refund_pending" })
+          .in("order_id", refundIds)
+          .eq("payment_status", "paid");
+
+        if (refundError) {
+          console.error("payment-webhook: failed to flag refund:", refundError);
+        }
+      }
     }
   }
 

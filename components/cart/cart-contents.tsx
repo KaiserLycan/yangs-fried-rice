@@ -5,6 +5,8 @@ import { CartEmptyState } from "@/components/cart/cart-empty-state";
 import { CartLineRow } from "@/components/cart/cart-line-row";
 import { CartTotalsSummary } from "@/components/cart/cart-totals-summary";
 import {
+  cartItemCount,
+  dishQuantityInCart,
   computeCartTotals,
   type CartLine,
   type Fulfilment,
@@ -51,7 +53,7 @@ export function CartContents({
     <div className="flex min-h-0 flex-1 flex-col gap-[14px]">
       {/* Where the Delivery / Pickup toggle was. The shop no longer
           delivers, so the choice is stated rather than offered. */}
-      <p className="rounded-[11px] bg-secondary/60 px-[12px] py-[10px] text-[14px] font-bold">
+      <p className="rounded-md bg-secondary/60 px-[12px] py-[10px] text-sm font-bold">
         Pickup only — collect your order at the counter.
       </p>
 
@@ -62,6 +64,8 @@ export function CartContents({
           <CartLineRow 
             key={line.id} 
             line={line} 
+            cartTotalItems={cartItemCount(localLines)}
+            dishItems={dishQuantityInCart(localLines, line.product ?? { id: "", name: line.name })}
             onUpdate={(quantity) => {
               setLocalLines((prev) => prev.map((l) => (l.id === line.id ? { ...l, quantity } : l)));
             }}
@@ -79,6 +83,7 @@ export function CartContents({
         ctaLabel={ctaLabel}
         arrivalEstimate={arrivalEstimate}
         fulfilment={fulfilment}
+        totalItems={cartItemCount(localLines)}
       />
     </div>
   );

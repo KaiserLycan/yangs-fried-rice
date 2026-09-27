@@ -8,8 +8,8 @@ import {
   type Coordinates,
   type EtaResult,
 } from "@/lib/eta/engine";
-import { validateNcrAddress } from "@/lib/address/validate-ncr";
 import { countActiveKitchenOrders } from "@/lib/orders/kitchen-queue";
+import { readStoreStatus } from "@/lib/store/read-store-status";
 
 export interface GetOrderEtaResult {
   success: boolean;
@@ -35,7 +35,7 @@ export async function getOrderEtaAction(
   // 1. Fetch order details
   const { data: order, error: orderError } = await supabase
     .from("order")
-    .select("order_id, customer_id, order_status, order_type, created_at, delivery_address")
+    .select("order_id, customer_id, order_status, order_type, created_at")
     .eq("order_id", orderId)
     .single();
 
@@ -78,25 +78,16 @@ export async function getOrderEtaAction(
     }
   }
 
-  // 3. Resolve customer coordinates (only legacy delivery orders carry an
-  // address; a pickup order has none and this stays null)
-  let customerCoordinates: Coordinates | null = customCoords ?? null;
+  // 3. Customer coordinates. Pickup-only: nothing geocodes an address any
+  // more (map removed in #116), so only a caller-supplied value is used.
+  const customerCoordinates: Coordinates | null = customCoords ?? null;
 
-  if (!customerCoordinates && order.delivery_address) {
-    const geocoded = await validateNcrAddress(order.delivery_address);
-    if (geocoded.latitude && geocoded.longitude) {
-      customerCoordinates = {
-        latitude: geocoded.latitude,
-        longitude: geocoded.longitude,
-      };
-    }
-  }
-
-  // 4. Count active orders ahead in kitchen queue
-  const activeOrdersAhead = await countActiveKitchenOrders(
-    supabase,
-    order.created_at || new Date().toISOString(),
-  );
+  // 4. Count active orders ahead in kitchen queue, and read the manager's
+  // extra prep buffer (issue #115) so tracking quotes what checkout did.
+  const [activeOrdersAhead, store] = await Promise.all([
+    countActiveKitchenOrders(supabase, order.created_at || new Date().toISOString()),
+    readStoreStatus(),
+  ]);
 
   // 5. Calculate ETA breakdown
   const etaResult = calculateOrderEta({
@@ -105,6 +96,7 @@ export async function getOrderEtaAction(
     activeOrdersAhead,
     customerCoordinates,
     orderStatus: order.order_status || undefined,
+    extraPrepMinutes: store.extraPrepMinutes,
   });
 
   return {

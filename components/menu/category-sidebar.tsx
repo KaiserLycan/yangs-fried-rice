@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import type { CategoryOption } from "@/lib/menu/fetch-menu";
+import { Button } from "@/components/ui/button";
 
 /**
  * Desktop's 208px category rail (`133:770`): a heading, "All" plus every
@@ -21,7 +22,7 @@ export function CategorySidebar({
 }) {
   return (
     <aside className="hidden w-[208px] shrink-0 flex-col md:flex">
-      <h2 className="px-[18px] pt-[24px] text-[14px] font-bold uppercase tracking-[0.5px] text-foreground">
+      <h2 className="px-[18px] pt-[24px] text-sm font-bold uppercase tracking-[0.5px] text-foreground">
         Categories
       </h2>
 
@@ -55,18 +56,18 @@ function CategoryButton({
   onClick: () => void;
 }) {
   return (
-    <button
+    <Button variant="unstyled"
       type="button"
       aria-pressed={isSelected}
       onClick={onClick}
       className={cn(
-        "min-h-[44px] rounded-md px-[12px] py-[10px] text-left text-[14px]",
+        "min-h-[44px] rounded-md px-[12px] py-[10px] text-left text-sm",
         isSelected
           ? "bg-primary text-primary-foreground"
           : "text-foreground hover:bg-secondary/40",
       )}
     >
       {label}
-    </button>
+    </Button>
   );
 }

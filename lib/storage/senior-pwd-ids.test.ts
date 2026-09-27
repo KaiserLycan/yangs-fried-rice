@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   SENIOR_PWD_ID_BUCKET,
   SENIOR_PWD_ID_URL_TTL_SECONDS,
+  discardSeniorPwdIdPhoto,
   isSeniorPwdIdPath,
   seniorPwdIdPath,
   seniorPwdIdUploadProblem,
@@ -87,5 +88,40 @@ describe("signSeniorPwdIdUrl", () => {
     const { client, createSignedUrl } = clientReturning({ data: null, error: null });
     await expect(signSeniorPwdIdUrl(client, "../../etc")).resolves.toBeNull();
     expect(createSignedUrl).not.toHaveBeenCalled();
+  });
+});
+
+describe("discardSeniorPwdIdPhoto", () => {
+  const PATH = `${CUSTOMER}/${FILE}.jpg`;
+
+  function fakeClient(removeError: unknown) {
+    const remove = vi.fn().mockResolvedValue({ error: removeError });
+    const eqUpdate = vi.fn().mockResolvedValue({ error: null });
+    const update = vi.fn().mockReturnValue({ eq: eqUpdate });
+    const select = vi.fn().mockReturnValue({
+      eq: () => ({
+        not: () => Promise.resolve({ data: [{ transaction_id: "t1", discount_id_photo_path: PATH }] }),
+      }),
+    });
+    const client = {
+      from: () => ({ select, update }),
+      storage: { from: () => ({ remove }) },
+    } as never;
+    return { client, remove, update };
+  }
+
+  it("deletes the photo, then clears the path", async () => {
+    const { client, remove, update } = fakeClient(null);
+    await discardSeniorPwdIdPhoto(client, "order-1");
+    expect(remove).toHaveBeenCalledWith([PATH]);
+    expect(update).toHaveBeenCalledWith({ discount_id_photo_path: null });
+  });
+
+  it("keeps the path when the delete fails, so it can be retried", async () => {
+    const { client, update } = fakeClient({ message: "denied" });
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    await discardSeniorPwdIdPhoto(client, "order-1");
+    expect(update).not.toHaveBeenCalled();
+    log.mockRestore();
   });
 });

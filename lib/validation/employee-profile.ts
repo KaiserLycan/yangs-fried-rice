@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { EMPLOYEE_ROLES } from "@/lib/auth/roles";
 import { optionalPhoneSchema } from "./phone";
-import { employeeDateOfBirthSchema } from "./date-of-birth";
 import {
   emailSchema,
   firstNameSchema,
@@ -23,7 +22,6 @@ export const employeeProfileUpdateSchema = z.object({
   email: emailSchema.optional(),
   /** +63 followed by 10 digits, or blank. Same rule as every other screen. */
   mobile: optionalPhoneSchema.optional(),
-  dateOfBirth: employeeDateOfBirthSchema.optional(),
   department: z.string().trim().max(100).optional(),
   scheduleShift: z.string().trim().max(100).optional(),
   role: z.enum(EMPLOYEE_ROLES).optional(),
@@ -33,9 +31,8 @@ export type EmployeeProfileUpdateInput = z.infer<
   typeof employeeProfileUpdateSchema
 >;
 
-/** The employee personal-details card: both names required, DOB optional. */
+/** The employee personal-details card: both names required. */
 export const employeePersonalDetailsSchema = z.object({
   firstName: firstNameSchema,
   lastName: lastNameSchema,
-  dateOfBirth: employeeDateOfBirthSchema,
 });

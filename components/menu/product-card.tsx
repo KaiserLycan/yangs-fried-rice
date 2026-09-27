@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { signInToOrderHref } from "@/lib/menu/sign-in-href";
 import { formatPeso, type ProductListing } from "@/lib/menu/product-listing";
 import { ProductPhotoPlaceholder } from "@/components/menu/product-photo-placeholder";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 /**
  * The desktop grid card (`133:791` and its siblings): photo, name,
@@ -28,17 +30,23 @@ export function ProductCard({
   product,
   onSelect,
   isGuest = false,
+  cartFull = false,
 }: {
   product: ProductListing;
   onSelect: (product: ProductListing) => void;
   /** True once we know nobody is signed in. Unknown reads as signed in. */
   isGuest?: boolean;
+  /**
+   * The cart holds 30 items, the most one order can (issue #115). Add is
+   * disabled; the card itself still opens the dish to read about it.
+   */
+  cartFull?: boolean;
 }) {
   const unavailable = !product.isAvailable;
 
   return (
     <div className="group flex flex-col overflow-hidden rounded-md border border-field-border bg-card text-left transition-colors hover:border-accent">
-      <button
+      <Button variant="unstyled"
         type="button"
         onClick={() => onSelect(product)}
         className="flex flex-1 flex-col text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/40"
@@ -56,37 +64,39 @@ export function ProductCard({
         )}
 
         <span className="flex flex-1 flex-col gap-[10px] px-[14px] pt-[14px]">
-          <span className="text-[15px] font-bold text-foreground">{product.name}</span>
-          <span className="line-clamp-2 flex-1 text-[14px] text-muted-foreground">
+          <span className="text-base font-bold text-foreground">{product.name}</span>
+          <span className="line-clamp-2 flex-1 text-sm text-muted-foreground">
             {product.description}
           </span>
         </span>
-      </button>
+      </Button>
 
       <div className="flex items-center justify-between gap-[10px] p-[14px] pt-[10px]">
-        <span className="font-display text-[22px] text-foreground">
+        <span className="font-display text-2xl text-foreground">
           {formatPeso(product.price)}
         </span>
         {unavailable ? (
-          <span className="rounded-md bg-secondary/50 px-[8px] py-[4px] text-[14px] font-bold uppercase tracking-wider text-muted-foreground">
+          <span className="rounded-md bg-secondary/50 px-[8px] py-[4px] text-sm font-bold uppercase tracking-wider text-muted-foreground">
             Unavailable
           </span>
         ) : isGuest ? (
           <Link
-            href="/login?next=/menu"
-            className="flex min-h-[44px] items-center rounded-md bg-accent px-[14px] text-[14px] font-bold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            href={signInToOrderHref(product.id)}
+            className="flex min-h-[44px] shrink-0 items-center whitespace-nowrap rounded-md bg-accent px-[14px] text-sm font-bold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           >
             Sign in to order
           </Link>
         ) : (
-          <button
+          <Button variant="unstyled"
             type="button"
             onClick={() => onSelect(product)}
-            className="flex min-h-[44px] items-center rounded-md bg-accent px-[16px] text-[14px] font-bold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            disabled={cartFull}
+            title={cartFull ? "Your cart is full (30 items)." : undefined}
+            className="flex min-h-[44px] shrink-0 items-center whitespace-nowrap rounded-md bg-accent px-[16px] text-sm font-bold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:bg-secondary disabled:text-muted-foreground disabled:hover:opacity-100"
           >
             Add
             <span className="sr-only"> {product.name}</span>
-          </button>
+          </Button>
         )}
       </div>
     </div>

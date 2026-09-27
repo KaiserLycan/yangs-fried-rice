@@ -11,7 +11,6 @@ function staffRow(): StaffOrderRow {
     order_status: "pending",
     order_type: "delivery",
     delivery_fee: 50,
-    delivery_address: "21 Mabini St, Malate, Manila",
     customer: { name: "Liza Reyes", email: "liza@example.com" },
     order_item: [
       {
@@ -27,30 +26,20 @@ function staffRow(): StaffOrderRow {
 }
 
 /**
- * Issue #106: the same order read four different ways. The customer saw the
- * last four characters of the UUID, the kitchen and manage saw the *first*
- * four, and the rider's modal showed the `delivery_id` — a different UUID
- * entirely. Nobody could check they were talking about the same food.
- *
- * Everyone now gets the UUID's leading group of eight.
+ * Issue #106: the same order read four different ways, so nobody could check
+ * they were talking about the same food. Everyone now gets one reference —
+ * since the UI/UX review, the readable `order_number` (#1042), with the
+ * UUID's leading group only as a fallback for a row read without it.
  */
 describe("one order reference", () => {
   it("gives the kitchen and manage the same string as the customer", () => {
-    expect(mapStaffOrder(staffRow()).orderNumber).toBe(
-      formatOrderNumber(ORDER_ID),
-    );
+    const row = { ...staffRow(), order_number: 1042 };
+    expect(mapStaffOrder(row).orderNumber).toBe(formatOrderNumber(1042, ORDER_ID));
+    expect(mapStaffOrder(row).orderNumber).toBe("1042");
   });
 
-  /**
-   * Four hex characters is 65,536 possibilities, so a collision arrives
-   * within a few hundred orders. These two both used to map to "7C9E".
-   */
-  it("keeps enough of the id that these two no longer collide", () => {
-    const other = {
-      ...staffRow(),
-      order_id: "7c9e0000-7425-40de-944b-e07fc1f90ae7",
-    };
-
+  it("falls back to the id's leading group when the number wasn't selected", () => {
+    const other = { ...staffRow(), order_id: "7c9e0000-7425-40de-944b-e07fc1f90ae7" };
     expect(mapStaffOrder(staffRow()).orderNumber).toBe("7c9e6679");
     expect(mapStaffOrder(other as StaffOrderRow).orderNumber).toBe("7c9e0000");
   });

@@ -228,6 +228,34 @@ export async function getProductsByCategory(
   return { data: data as ProductWithCategory[], error: null };
 }
 
+// Fetch featured products (or fallback to top products)
+export async function getFeaturedProducts(): Promise<ActionResult<ProductWithCategory[]>> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("product")
+    .select("*, categories ( category_name ), add_on ( * )")
+    .eq("is_featured", true)
+    .is("archived_at", null)
+    .order("product_name");
+
+  if (error) return { data: null, error: error.message };
+
+  if (data && data.length > 0) {
+    return { data: data as ProductWithCategory[], error: null };
+  }
+
+  // Fallback if no featured products: get 5 random products
+  const { data: fallback, error: fallbackError } = await supabase
+    .from("product")
+    .select("*, categories ( category_name ), add_on ( * )")
+    .is("archived_at", null)
+    .limit(50); // fetch up to 50 to shuffle in memory
+
+  if (fallbackError) return { data: null, error: fallbackError.message };
+  
+  const shuffled = (fallback || []).sort(() => 0.5 - Math.random());
+  return { data: shuffled.slice(0, 5) as ProductWithCategory[], error: null };
+}
 // Insert a new product.
 export async function createProduct(
   input: ProductInput,
@@ -250,6 +278,7 @@ export async function createProduct(
     product_details: parsed.data.product_details ?? null,
     category_id: parsed.data.category_id ?? null,
     is_available: parsed.data.is_available,
+    is_featured: parsed.data.is_featured,
     image_url: parsed.data.image_url ?? null,
     ...(parsed.data.product_id ? { product_id: parsed.data.product_id } : {}),
   } as any;
@@ -430,6 +459,27 @@ export async function toggleAvailability(
   const supabase = createClient();
 
   const changes: TablesUpdate<"product"> = { is_available: isAvailable };
+
+  const { data, error } = await supabase
+    .from("product")
+    .update(changes)
+    .eq("product_id", productId)
+    .select()
+    .single();
+
+  if (error) return { data: null, error: error.message };
+  revalidateMenuPaths();
+  return { data, error: null };
+}
+
+// Toggle product featured status
+export async function toggleFeatured(
+  productId: string,
+  isFeatured: boolean,
+): Promise<ActionResult<Product>> {
+  const supabase = createClient();
+
+  const changes: TablesUpdate<"product"> = { is_featured: isFeatured };
 
   const { data, error } = await supabase
     .from("product")

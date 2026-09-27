@@ -31,7 +31,7 @@ export function FormErrorSummary({
       <div className="flex flex-col gap-[4px]">
         <span className="font-bold">{message}</span>
         {entries.length > 0 ? (
-          <ul className="flex flex-col gap-[2px] text-[12.5px]">
+          <ul className="flex flex-col gap-[2px] text-sm">
             {entries.map(([field, error]) => (
               <li key={field}>
                 <a

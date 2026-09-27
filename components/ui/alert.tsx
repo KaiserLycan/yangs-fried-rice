@@ -25,10 +25,10 @@ export function Alert({
         className,
       )}
     >
-      <span className="text-[14px] font-bold leading-[18.2px]">
+      <span className="text-sm font-bold leading-[18.2px]">
         {isSuccess ? "✓" : "!"}
       </span>
-      <p className="text-[13px] leading-[18.2px]">{children}</p>
+      <p className="text-sm leading-[18.2px]">{children}</p>
     </div>
   );
 }

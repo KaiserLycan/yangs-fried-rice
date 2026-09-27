@@ -19,6 +19,7 @@ import {
 } from "@/components/orders/order-rating";
 import { useToast } from "@/components/ui/toast";
 import { reorderPastOrder } from "@/lib/actions/cart";
+import { Button } from "@/components/ui/button";
 
 /**
  * One finished order — the card drawn three times across desktop `133:1268`
@@ -65,6 +66,18 @@ export function PastOrderCard({ order }: { order: PastOrder }) {
     });
   };
 
+  const reorderButton = (
+    <Button variant="unstyled"
+      type="button"
+      onClick={handleReorder}
+      disabled={isPending}
+      className="flex min-h-[44px] shrink-0 items-center text-sm font-bold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50"
+    >
+      {isPending ? "Reordering..." : "Reorder"}
+      <span className="sr-only"> order #{order.orderNumber}</span>
+    </Button>
+  );
+
   // `md:h-full` makes a card fill the grid row its neighbours set, and the
   // total row below carries `md:mt-auto` so it sits on the bottom edge rather
   // than floating in the middle. Without both, a card with one item or no
@@ -73,12 +86,12 @@ export function PastOrderCard({ order }: { order: PastOrder }) {
   return (
     <article className="flex flex-col gap-[8px] rounded-lg border border-field-border bg-white p-[14px] md:h-full md:gap-[9px] md:p-[18px]">
       <div className="order-1 flex items-start justify-between gap-[12px]">
-        <span className="text-[14px] font-bold text-muted-foreground">
+        <span className="text-sm font-bold text-muted-foreground">
           {formatPlacedAt(order.placedAt)}
         </span>
         <span
           className={cn(
-            "shrink-0 text-[14px] font-bold",
+            "shrink-0 text-sm font-bold",
             outcome.tone === "success" ? "text-success" : "text-muted-foreground",
           )}
         >
@@ -101,7 +114,7 @@ export function PastOrderCard({ order }: { order: PastOrder }) {
             ? `/checkout/confirmation?order=${order.orderId}`
             : `/orders/${order.orderId}`
         }
-        className="order-2 text-[14px] font-bold leading-[18.2px] text-foreground hover:underline md:leading-[18.9px]"
+        className="order-2 text-sm font-bold leading-[18.2px] text-foreground hover:underline md:leading-[18.9px]"
       >
         {summariseItems(order.items)}
         <span className="sr-only">
@@ -118,19 +131,19 @@ export function PastOrderCard({ order }: { order: PastOrder }) {
       {order.rating !== null ? (
         <OrderRatingDisplay
           rating={order.rating}
-          className="order-4 text-[15px] leading-none md:order-3"
+          className="order-4 text-base leading-none md:order-3"
         />
       ) : null}
 
       <div className="order-3 flex items-center justify-between gap-[12px] md:order-4 md:mt-auto md:pt-[8px]">
-        <span className="font-display text-[18px] text-primary md:text-[19px]">
+        <span className="font-display text-lg text-primary md:text-lg">
           {formatTotal(order.total)}
         </span>
 
         {action === "pay" ? (
           <Link
             href={`/checkout/confirmation?order=${order.orderId}`}
-            className="flex min-h-[44px] shrink-0 items-center text-[14px] font-bold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="flex min-h-[44px] shrink-0 items-center text-sm font-bold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           >
             Complete payment
             <span className="sr-only"> for order #{order.orderNumber}</span>
@@ -138,25 +151,22 @@ export function PastOrderCard({ order }: { order: PastOrder }) {
         ) : action === "track" ? (
           <Link
             href={`/orders/${order.orderId}`}
-            className="flex min-h-[44px] shrink-0 items-center text-[14px] font-bold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="flex min-h-[44px] shrink-0 items-center text-sm font-bold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           >
             Track order
           </Link>
         ) : action === "rate" ? (
-          <RateOrderButton
-            orderId={order.orderId}
-            orderNumber={order.orderNumber}
-          />
+          // Not rated yet: both, so rating is never in the way of ordering
+          // the same thing again (issue #115). Once rated, only Reorder.
+          <div className="flex shrink-0 items-center gap-[14px]">
+            <RateOrderButton
+              orderId={order.orderId}
+              orderNumber={order.orderNumber}
+            />
+            {reorderButton}
+          </div>
         ) : (
-          <button
-            type="button"
-            onClick={handleReorder}
-            disabled={isPending}
-            className="flex min-h-[44px] shrink-0 items-center text-[14px] font-bold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50"
-          >
-            {isPending ? "Reordering..." : "Reorder"}
-            <span className="sr-only"> order #{order.orderNumber}</span>
-          </button>
+          reorderButton
         )}
       </div>
     </article>

@@ -2,6 +2,11 @@ import { orderItemName } from "@/lib/orders/item-name";
 import { createClient } from "@/lib/supabase/server";
 import { formatOrderNumber } from "@/lib/orders/order-number";
 import { isPast, totalOf, type PastOrder } from "@/lib/orders/past-order";
+import { isUnpaidStatus } from "@/lib/validation/orders";
+import {
+  PAYMENT_WINDOW_MS,
+  expireAbandonedOrders,
+} from "@/lib/checkout/expire-abandoned-orders";
 
 /**
  * One customer's finished orders, most recent first.
@@ -39,13 +44,49 @@ export async function readPastOrders(): Promise<PastOrder[]> {
   const { data: orders } = await supabase
     .from("order")
     .select(
-      "order_id, order_status, order_type, cancelled_at, created_at, delivery_fee",
+      "order_id, order_number, order_status, order_type, cancelled_at, created_at, delivery_fee",
     )
     .eq("customer_id", user.id)
     .order("created_at", { ascending: false })
     .limit(HISTORY_LIMIT);
 
   if (!orders || orders.length === 0) return [];
+
+  // An order whose payment was never finished goes on offering "Complete
+  // payment" forever, long after the wallet source expired (issue #106).
+  // Cancel the ones past the window on the way past.
+  //
+  // Done from what was just read rather than with a query of its own: the
+  // rows are already here, so the common case — nothing stale — costs
+  // nothing, and only a customer who actually abandoned a payment triggers
+  // a write. It is a read doing a write, which is the price of having no
+  // scheduler; `supabase/migrations/20260926000003_expire_abandoned_orders.sql`
+  // carries the same rule for a sweep that does not need the customer to
+  // come back.
+  const staleCutoff = Date.now() - PAYMENT_WINDOW_MS;
+  const hasStale = orders.some(
+    (row) =>
+      isUnpaidStatus(row.order_status) &&
+      row.created_at !== null &&
+      new Date(row.created_at).getTime() < staleCutoff,
+  );
+
+  if (hasStale) {
+    try {
+      const expired = new Set(await expireAbandonedOrders(user.id));
+      for (const row of orders) {
+        if (!expired.has(row.order_id)) continue;
+        // Corrected in place so this page renders what the database now
+        // holds, rather than the unpaid state it held a moment ago.
+        row.order_status = "cancelled";
+        row.cancelled_at = new Date().toISOString();
+      }
+    } catch (error) {
+      // The history is still worth showing; a stale "Complete payment" on
+      // one row is better than an empty Orders page.
+      console.error("readPastOrders: could not expire abandoned orders:", error);
+    }
+  }
 
   const orderIds = orders.map((row) => row.order_id);
 
@@ -96,7 +137,7 @@ export async function readPastOrders(): Promise<PastOrder[]> {
       const orderItems = itemsByOrder.get(row.order_id) ?? [];
       return {
         orderId: row.order_id,
-        orderNumber: formatOrderNumber(row.order_id),
+        orderNumber: formatOrderNumber(row.order_number, row.order_id),
         placedAt: row.created_at,
         orderStatus: row.order_status,
         cancelledAt: row.cancelled_at,

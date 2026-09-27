@@ -1,5 +1,6 @@
 import type { PaymentStatus } from "@/lib/checkout/payment-status";
 import type { CartLine, Fulfilment } from "@/lib/menu/cart-totals";
+import type { OrderSummaryDiscount } from "@/components/checkout/order-summary-rows";
 
 /**
  * One order that has just been placed, narrowed to what the confirmation
@@ -17,8 +18,6 @@ export type PlacedOrder = {
   customerName: string;
   /** Already formatted — see `formatOrderTime` on why not a Date. */
   placedAtLabel: string;
-  /** Where it is going. Null for a pickup order, which has no destination. */
-  address: string | null;
   fulfilment: Fulfilment;
   lines: CartLine[];
   /** "Cash on delivery" — what they chose, not what was charged. */
@@ -39,6 +38,7 @@ export type PlacedOrder = {
    * every pay-on-collection order, and a wallet order whose payment never
    * started. */
   paymentStatus: PaymentStatus | null;
+  discount?: OrderSummaryDiscount | null;
 };
 
 // The helper that used to live here is now `formatOrderNumber` in

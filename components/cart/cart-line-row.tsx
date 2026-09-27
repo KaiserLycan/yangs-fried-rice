@@ -7,8 +7,10 @@ import { removeCartItem, updateCartItem } from "@/lib/actions/cart";
 import { useCartAction } from "@/lib/cart/use-cart-action";
 import { formatPeso } from "@/lib/menu/product-listing";
 import { lineTotal, type CartLine } from "@/lib/menu/cart-totals";
+import { quantityRoom } from "@/lib/cart/limits";
 import { MAX_QUANTITY, MIN_QUANTITY, clampQuantity } from "@/lib/menu/quantity";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 /**
  * One line in the cart (`133:955` desktop, `132:329` mobile): dish name and
@@ -39,10 +41,19 @@ export function CartLineRow({
   line,
   onUpdate,
   onRemove,
+  cartTotalItems = line.quantity,
+  dishItems = line.quantity,
 }: { 
   line: CartLine;
   onUpdate?: (quantity: number) => void;
   onRemove?: () => void;
+  /**
+   * Items in the whole cart, and of this line's dish across all its lines
+   * (issue #115). `+` stops where the order would pass 30 or the dish 20, so
+   * the server never has to refuse and no second message appears.
+   */
+  cartTotalItems?: number;
+  dishItems?: number;
 }) {
   const { run, pending } = useCartAction();
 
@@ -50,6 +61,12 @@ export function CartLineRow({
   const isPending = pending || isOptimistic;
 
   const [localQuantity, setLocalQuantity] = React.useState(line.quantity);
+
+  // The most this line may reach: its own quantity plus whatever still fits
+  // in the order and of this dish. A cart already over (filled before the
+  // limits) can keep what it has and go down, never up.
+  const { room } = quantityRoom({ cartTotalItems, dishItems, baseline: line.quantity });
+  const lineMax = Math.max(MIN_QUANTITY, room, Math.min(localQuantity, MAX_QUANTITY));
   const [editing, setEditing] = React.useState(false);
   const debounceTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
@@ -70,6 +87,7 @@ export function CartLineRow({
 
   const setQuantity = (quantity: number) => {
     if (quantity > MAX_QUANTITY) return;
+    if (quantity > localQuantity && quantity > room) return;
 
     // Stepping below one removes the line, and does it now rather than in
     // 600ms. The write used to be the only thing that checked the lower
@@ -110,12 +128,12 @@ export function CartLineRow({
 
   if (isOptimistic) {
     return (
-      <div className="flex flex-col gap-[7px] rounded-[13px] border border-field-border bg-card p-[11px]">
+      <div className="flex flex-col gap-[7px] rounded-md border border-field-border bg-card p-[11px]">
         <div className="flex justify-between">
-          <div className="h-[18px] w-1/2 animate-pulse rounded bg-secondary/40" />
-          <div className="h-[18px] w-12 animate-pulse rounded bg-secondary/40" />
+          <div className="h-[18px] w-1/2 animate-pulse rounded-sm bg-secondary/40" />
+          <div className="h-[18px] w-12 animate-pulse rounded-sm bg-secondary/40" />
         </div>
-        <div className="mt-[8px] h-[27px] w-[90px] animate-pulse rounded-[7px] bg-secondary/40" />
+        <div className="mt-[8px] h-[27px] w-[90px] animate-pulse rounded-sm bg-secondary/40" />
       </div>
     );
   }
@@ -124,18 +142,18 @@ export function CartLineRow({
   const localLineTotal = lineTotal({ ...line, quantity: localQuantity });
 
   return (
-    <div className="flex flex-col gap-[7px] rounded-[13px] border border-field-border bg-card p-[11px]">
+    <div className="flex flex-col gap-[7px] rounded-md border border-field-border bg-card p-[11px]">
       <div className="flex items-start justify-between gap-[8px]">
-        <span className="text-[14px] font-bold text-foreground">
+        <span className="text-sm font-bold text-foreground">
           {line.name}
         </span>
-        <span className="text-[14px] font-bold text-primary">
+        <span className="text-sm font-bold text-primary">
           {formatPeso(localLineTotal)}
         </span>
       </div>
 
       {line.addOns && line.addOns.length > 0 ? (
-        <ul className="-mt-1 flex flex-col gap-0.5 pl-0 text-[14px] text-muted-foreground">
+        <ul className="-mt-1 flex flex-col gap-0.5 pl-0 text-sm text-muted-foreground">
           {line.addOns.map((addon) => (
             <li key={addon.addon_id}>+ {addon.name}</li>
           ))}
@@ -143,7 +161,7 @@ export function CartLineRow({
       ) : null}
 
       {line.specialInstructions ? (
-        <p className="text-[14px] italic text-muted-foreground">
+        <p className="text-sm italic text-muted-foreground">
           Note: {line.specialInstructions}
         </p>
       ) : null}
@@ -159,35 +177,36 @@ export function CartLineRow({
           value={localQuantity}
           onChange={setQuantity}
           disabled={isPending}
+          max={lineMax}
           label={`Quantity of ${line.name}`}
-          className="h-[44px] w-[48px] rounded-[7px] border border-field-border bg-background text-center text-[15px] font-bold text-foreground"
+          className="h-[44px] w-[48px] rounded-sm border border-field-border bg-background text-center text-base font-bold text-foreground"
         />
         <StepButton
           glyph="+"
           label="Increase quantity"
-          disabled={isPending || localQuantity >= MAX_QUANTITY}
+          disabled={isPending || localQuantity >= MAX_QUANTITY || localQuantity >= room}
           onClick={() => setQuantity(localQuantity + 1)}
         />
 
         <div className="ml-auto flex items-center gap-[4px]">
           {line.product ? (
-            <button
+            <Button variant="unstyled"
               type="button"
               onClick={openEditor}
               disabled={isPending}
-              className="min-h-[44px] px-[6px] text-[14px] font-bold text-foreground underline disabled:opacity-60"
+              className="min-h-[44px] px-[6px] text-sm font-bold text-foreground underline disabled:opacity-60"
             >
               Edit
-            </button>
+            </Button>
           ) : null}
-          <button
+          <Button variant="unstyled"
             type="button"
             onClick={remove}
             disabled={isPending}
-            className="min-h-[44px] px-[6px] text-[14px] font-bold text-primary underline disabled:opacity-60"
+            className="min-h-[44px] px-[6px] text-sm font-bold text-primary underline disabled:opacity-60"
           >
             Remove
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -195,6 +214,10 @@ export function CartLineRow({
         <ItemDetailModal
           product={editing ? line.product : null}
           onClose={() => setEditing(false)}
+          // Totals as the dialog will see them: this line at its on-screen
+          // quantity, which can be ahead of the saved one mid-debounce.
+          cartTotalItems={cartTotalItems - line.quantity + localQuantity}
+          cartProductItems={dishItems - line.quantity + localQuantity}
           editing={{
             cartItemId: line.id,
             quantity: localQuantity,
@@ -219,14 +242,14 @@ function StepButton({
   onClick: () => void;
 }) {
   return (
-    <button
+    <Button variant="unstyled"
       type="button"
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="flex size-[44px] items-center justify-center rounded-[7px] border border-field-border bg-background text-[16px] font-bold text-foreground disabled:opacity-60"
+      className="flex size-[44px] items-center justify-center rounded-sm border border-field-border bg-background text-base font-bold text-foreground disabled:opacity-60"
     >
       {glyph}
-    </button>
+    </Button>
   );
 }

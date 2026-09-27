@@ -88,6 +88,7 @@ describe("US-02: Menu Management Server Actions", () => {
       product_name: "", // Invalid: blank
       product_price: -50, // Invalid: negative
       is_available: true,
+      is_featured: false,
     });
 
     // Zod should intercept this before Supabase is even called
@@ -108,6 +109,8 @@ describe("US-02: Menu Management Server Actions", () => {
       product_name: "Garlic Rice",
       product_price: 55.00,
       is_available: true,
+      // Required since issue #120 (promotions and featured products).
+      is_featured: false,
     });
 
     // Verify it succeeded

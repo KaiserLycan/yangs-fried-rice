@@ -22,7 +22,7 @@ export const Checkbox = React.forwardRef<
       <span
         aria-hidden
         className={cn(
-          "pointer-events-none flex size-5 items-center justify-center rounded-[6px] border border-field-border bg-white text-[13px] font-bold leading-none text-transparent peer-checked:border-accent peer-checked:bg-accent peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-ring/40",
+          "pointer-events-none flex size-5 items-center justify-center rounded-sm border border-field-border bg-white text-sm font-bold leading-none text-transparent peer-checked:border-accent peer-checked:bg-accent peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-ring/40",
           className,
         )}
       >

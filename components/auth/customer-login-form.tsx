@@ -55,6 +55,8 @@ function LoginFormInner() {
   const justRegistered = searchParams.get("registered") === "1";
   /** Arrived from /reset-password, which signs the recovery session out. */
   const justReset = searchParams.get("reset") === "1";
+  /** From /auth/confirm when the link opened in a different browser. */
+  const justConfirmed = searchParams.get("confirmed") === "1";
 
   const live = useLiveValidation({
     schema: loginSchema,
@@ -86,15 +88,15 @@ function LoginFormInner() {
       <form
         {...live.formProps}
         onSubmit={handleSubmit}
-        className="flex flex-col gap-[14px] rounded-[22px] bg-background p-5 md:gap-[18px] md:rounded-none md:bg-transparent md:p-0"
+        className="flex flex-col gap-[14px] rounded-lg bg-background p-5 md:gap-[18px] md:rounded-none md:bg-transparent md:p-0"
       >
         <AuthTabs active="login" />
 
         <div className="hidden flex-col gap-[5px] md:flex">
-          <h1 className="font-display text-[30px] leading-[33px] text-foreground">
+          <h1 className="font-display text-3xl leading-[33px] text-foreground">
             Welcome back
           </h1>
-          <p className="text-[13px] text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Log in to reorder in two taps.
           </p>
         </div>
@@ -103,8 +105,14 @@ function LoginFormInner() {
             wrong: the account exists and the only step left is the email. */}
         {justRegistered && !serverError ? (
           <Alert tone="success" role="status">
-            Account created! Check your inbox and confirm your email address,
-            then log in.
+            Account created! Check your inbox and tap the confirmation link —
+            it signs you in and takes you to the menu.
+          </Alert>
+        ) : null}
+
+        {justConfirmed && !serverError ? (
+          <Alert tone="success" role="status">
+            Email confirmed. Log in to start ordering.
           </Alert>
         ) : null}
 
@@ -155,13 +163,13 @@ function LoginFormInner() {
         </Field>
 
         <div className="flex items-center justify-between">
-          <label className="flex items-center gap-[9px] text-[13px]">
+          <label className="flex items-center gap-[9px] text-sm">
             <Checkbox name="remember" defaultChecked />
             Keep me logged in
           </label>
           <Link
             href="/forgot-password"
-            className="text-[13px] font-bold text-primary"
+            className="text-sm font-bold text-primary"
           >
             <span className="md:hidden">Forgot?</span>
             <span className="hidden md:inline">Forgot password?</span>

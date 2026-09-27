@@ -30,19 +30,19 @@ export function EmployeeBrandPanel() {
         />
       </div>
 
-      <p className="relative font-display text-[20px] tracking-[0.8px] text-on-brand md:text-[22px] md:tracking-[0.88px]">
+      <p className="relative font-display text-lg tracking-[0.8px] text-on-brand md:text-2xl md:tracking-[0.88px]">
         YANG&apos;S <span className="text-accent">EMPLOYEE CONSOLE</span>
       </p>
 
       <div className="relative flex flex-col gap-3 pt-[19px] md:mb-9 md:gap-[18px] md:pt-[262px]">
-        <h1 className="font-display text-[40px] leading-[38.4px] text-on-brand md:text-[56px] md:leading-[53.76px]">
+        <h1 className="font-display text-5xl leading-[38.4px] text-on-brand md:text-6xl md:leading-[53.76px]">
           RUN THE
           <br />
           SERVICE FROM
           <br />
           <span className="text-accent">ONE SCREEN.</span>
         </h1>
-        <p className="max-w-[360px] text-[13px] leading-[19.5px] text-on-console-muted md:text-[15px] md:leading-[22.5px]">
+        <p className="max-w-[360px] text-sm leading-[19.5px] text-on-console-muted md:text-base md:leading-[22.5px]">
           {/* COPY: "Manager and owner accounts only" names two roles that do
               not exist — the confirmed user types are Customer, Business
               Owner and Staff. Ported as drawn; flagged for the PM. */}
@@ -63,7 +63,7 @@ export function EmployeeBrandPanel() {
           customer panel, avoided here rather than repeated. */}
       <div className="relative hidden md:mt-auto md:block md:pt-[36px]">
         <div className="flex flex-col gap-2 border-t border-on-console-rule pt-5">
-          <p className="text-[11px] uppercase tracking-[1.76px] text-on-console-faint">
+          <p className="text-sm uppercase tracking-[1.76px] text-on-console-faint">
             Today at Yang&apos;s
           </p>
           {/* Drawn as a 26px gap, which is the Figma `space/26` step. That step
@@ -82,8 +82,8 @@ export function EmployeeBrandPanel() {
 function Stat({ value, label }: { value: string; label: string }) {
   return (
     <div className="flex flex-col">
-      <p className="font-display text-[24px] text-accent">{value}</p>
-      <p className="text-[11px] text-on-console-subtle">{label}</p>
+      <p className="font-display text-2xl text-accent">{value}</p>
+      <p className="text-sm text-on-console-subtle">{label}</p>
     </div>
   );
 }

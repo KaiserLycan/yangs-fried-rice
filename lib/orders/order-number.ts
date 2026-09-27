@@ -1,31 +1,40 @@
 /**
  * The one reference an order is known by, everywhere.
  *
- * Before this, the same order read four different ways (issue #106):
- * two byte-identical helpers took the *last* four characters of the UUID for
- * the customer, `map-staff-order.ts` took the *first* four for the kitchen
- * and manage, and the rider's proof-of-delivery modal printed the
- * `delivery_id` — a different UUID entirely. A customer on the phone and the
- * person in the kitchen could not check they were talking about the same
- * food.
+ * Issue #106 made every screen agree on one reference — the first eight
+ * characters of the UUID, `#38206dc0` — after the same order had read four
+ * different ways. Consistent, but not something to say across a counter:
+ * "three-eight-two-zero-six-D-C-zero" (UI/UX review, docs/user-simulation.md
+ * #16).
  *
- * Now everyone gets the first eight characters: the UUID's leading group,
- * `#38206dc0` of `38206dc0-b033-4453-864c-b7c487862c7c`.
+ * Now it is `order.order_number` (migration 20260928000007): `#1042`, handed
+ * out by the database in order, never reused and never editable. The UUID is
+ * still the key for URLs and foreign keys; this is only what people see and
+ * say. The notification trigger and the audit log print the same number.
  *
- * Eight rather than four, because four was not safe to act on — 65,536
- * possibilities means a repeat is likelier than not by a few hundred orders.
- * Eight gives 4.3 billion, which for one restaurant is never. Not the whole
- * id, because 36 characters does not fit the card headers and nobody reads
- * that out over a phone.
- *
- * Case is left exactly as stored, so the string on screen is one that can be
- * pasted into a search and match.
- *
- * TODO (Backend): an `order_number` column with a sequence behind it, so the
- * reference is something a person can say out loud without spelling it.
+ * `orderId` is the fallback for a row read without the number (a realtime
+ * payload, or anything selected before the column existed), so a screen
+ * never shows an empty reference.
  */
-export function formatOrderNumber(orderId: string | null | undefined): string {
+export function formatOrderNumber(
+  orderNumber: number | string | null | undefined,
+  orderId?: string | null,
+): string {
+  const number = orderNumber === null || orderNumber === undefined ? "" : String(orderNumber).trim();
+  if (number) return number;
   return orderId?.trim().slice(0, 8) ?? "";
+}
+
+/**
+ * The order number a search is asking for — "1042", "#1042", " 1042 " — or
+ * null when it is not one. All digits means an order number; anything with a
+ * letter in it is the older id prefix (`orderIdRangeFor`), which still works
+ * for a reference printed before the change.
+ */
+export function orderNumberSearch(query: string): number | null {
+  const digits = query.trim().replace(/^#/, "");
+  if (!/^[0-9]{1,12}$/.test(digits)) return null;
+  return Number(digits);
 }
 
 /**

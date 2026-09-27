@@ -38,7 +38,7 @@ export async function readRecentCompletedOrders(
   // `readPastOrders` gives.
   const { data: orders } = await supabase
     .from("order")
-    .select("order_id, order_type, delivery_fee, completed_at, created_at")
+    .select("order_id, order_number, order_type, delivery_fee, completed_at, created_at")
     .eq("customer_id", user.id)
     .eq("order_status", "completed")
     // Most recently picked up first; an old row with no completion time
@@ -61,7 +61,7 @@ export async function readRecentCompletedOrders(
     const orderLines = (lines ?? []).filter((line) => line.order_id === order.order_id);
     return {
       orderId: order.order_id,
-      orderNumber: formatOrderNumber(order.order_id),
+      orderNumber: formatOrderNumber(order.order_number, order.order_id),
       completedAt: order.completed_at ?? order.created_at,
       items: orderLines.map((line) => ({
         name: orderItemName(

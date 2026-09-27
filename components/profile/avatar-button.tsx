@@ -9,6 +9,7 @@ import { uploadProfileImage } from "@/lib/actions/profile";
 import { useToast } from "@/components/ui/toast";
 import { Loader2, Camera } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 /**
  * The avatar, everywhere it renders on the profile screen, as the control for
@@ -79,12 +80,12 @@ export function AvatarButton({
         ref={fileInputRef}
         onChange={handleFileChange}
       />
-      <button
+      <Button variant="unstyled"
         type="button"
         disabled={isUploading}
         aria-label="Change your photo"
         onClick={() => fileInputRef.current?.click()}
-        className="block relative rounded-pill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 overflow-hidden w-full h-full"
+        className="block relative rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 overflow-hidden w-full h-full"
       >
         <Avatar
           initials={initials}
@@ -95,7 +96,7 @@ export function AvatarButton({
         {/* Hover overlay with camera icon */}
         <div
           className={cn(
-            "absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-pill",
+            "absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full",
             isUploading && "opacity-100"
           )}
         >
@@ -105,7 +106,7 @@ export function AvatarButton({
             <Camera className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
           )}
         </div>
-      </button>
+      </Button>
     </div>
   );
 }

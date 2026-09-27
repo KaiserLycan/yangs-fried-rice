@@ -8,6 +8,7 @@ import {
   type WalletProvider,
 } from "@/lib/checkout/payment-methods";
 import type { Fulfilment } from "@/lib/menu/cart-totals";
+import { Button } from "@/components/ui/button";
 
 /**
  * The payment method block — a 2×2 grid on desktop (`133:1106`), a
@@ -53,14 +54,14 @@ export function PaymentMethodPicker({
           const isSelected = method.id === value;
 
           return (
-            <button
+            <Button variant="unstyled"
               key={method.id}
               type="button"
               role="radio"
               aria-checked={isSelected}
               onClick={() => onChange(method.id)}
               className={cn(
-                "flex items-center justify-between rounded-[13px] border p-[14px] text-left text-[14px] font-bold text-foreground",
+                "flex items-center justify-between rounded-md border p-[14px] text-left text-sm font-bold text-foreground",
                 isSelected
                   ? "border-accent bg-secondary/50"
                   : "border-rule bg-card",
@@ -68,11 +69,11 @@ export function PaymentMethodPicker({
             >
               {method.label}
               {isSelected ? (
-                <span aria-hidden="true" className="text-[14px] text-primary">
+                <span aria-hidden="true" className="text-sm text-primary">
                   ●
                 </span>
               ) : null}
-            </button>
+            </Button>
           );
         })}
       </div>
@@ -86,21 +87,21 @@ export function PaymentMethodPicker({
           {WALLET_PROVIDERS.map((provider) => {
             const isSelected = provider.id === wallet;
             return (
-              <button
+              <Button variant="unstyled"
                 key={provider.id}
                 type="button"
                 role="radio"
                 aria-checked={isSelected}
                 onClick={() => onWalletChange(provider.id)}
                 className={cn(
-                  "rounded-[13px] border p-[12px] text-center text-[14px] font-bold text-foreground",
+                  "rounded-md border p-[12px] text-center text-sm font-bold text-foreground",
                   isSelected
                     ? "border-accent bg-secondary/50"
                     : "border-rule bg-card",
                 )}
               >
                 {provider.label}
-              </button>
+              </Button>
             );
           })}
         </div>

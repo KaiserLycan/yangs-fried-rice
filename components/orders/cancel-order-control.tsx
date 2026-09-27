@@ -63,6 +63,7 @@ export function CancelOrderControl({
   orderId,
   orderNumber,
   progress,
+  prominent = false,
 }: {
   /** The `order.order_id` the write is sent for. */
   orderId: string;
@@ -70,6 +71,12 @@ export function CancelOrderControl({
   orderNumber: string;
   /** Resolved by `TrackOrderScreen` from the live order and delivery rows. */
   progress: OrderProgress;
+  /**
+   * Draw the button filled rather than outlined — used once the store has
+   * left the order unconfirmed for 10 minutes and cancelling is the thing
+   * the customer is most likely to want (issue #115).
+   */
+  prominent?: boolean;
 }) {
   const showToast = useToast();
   const { run, pending } = useCartAction();
@@ -99,21 +106,25 @@ export function CancelOrderControl({
         // Held while a cancel is out. The confirmation closes on the press,
         // so this is the only way back to a second write before the first
         // has settled.
-        <button
+        <Button variant="unstyled"
           type="button"
           disabled={pending}
           onClick={() => setOpen(true)}
-          className="w-full rounded-md border border-primary px-[18px] py-[13px] text-[14px] font-bold text-primary transition-colors hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-60 md:w-auto"
+          className={
+            prominent
+              ? "w-full rounded-md border border-primary bg-primary px-[18px] py-[13px] text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-60 md:w-auto"
+              : "w-full rounded-md border border-primary px-[18px] py-[13px] text-sm font-bold text-primary transition-colors hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-60 md:w-auto"
+          }
         >
-          Cancel order
-        </button>
+          {prominent ? "Cancel order for free" : "Cancel order"}
+        </Button>
       ) : null}
 
       {kitchenConfirmed ? (
         // #C9B8AC is the frame's own value. The token collection has no rule
         // this dark for use on cream — `--rule` (#E3D6C3) is the hairline
         // divider and disappears at one dashed pixel.
-        <p className="w-full rounded-[14px] border border-dashed border-[#c9b8ac] p-[13px] text-[14px] leading-[18px] text-muted-strong">
+        <p className="w-full rounded-md border border-dashed border-field-border p-[13px] text-sm leading-[18px] text-muted-strong">
           {KITCHEN_CONFIRMED_NOTE}
         </p>
       ) : null}

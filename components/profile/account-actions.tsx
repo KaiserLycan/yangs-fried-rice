@@ -6,6 +6,7 @@ import { LogOutControl } from "@/components/auth/log-out-control";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
+import { activeOrdersMessage } from "@/lib/orders/active-orders-message";
 
 /**
  * The two account-level controls at the foot of the profile screen.
@@ -20,8 +21,18 @@ import { useToast } from "@/components/ui/toast";
  * Deleting takes one confirmation dialog, not a type-the-word step: the
  * dialog already states plainly that it is permanent, and a second hurdle on
  * top of it made a deliberate action feel like a puzzle.
+ *
+ * While any order is still in progress the dialog explains that instead, and
+ * its Delete button is disabled (issue #115). The server refuses the same
+ * case, so a count that went stale while the page was open is still caught.
  */
-export function AccountActions() {
+export function AccountActions({
+  activeOrderCount = 0,
+}: {
+  /** Orders not yet completed or cancelled, read by the profile page. */
+  activeOrderCount?: number;
+}) {
+  const blocked = activeOrderCount > 0;
   const router = useRouter();
   const showToast = useToast();
 
@@ -57,15 +68,15 @@ export function AccountActions() {
   return (
     <>
       <div className="flex flex-col gap-[12px] md:gap-[26px]">
-        <LogOutControl className="w-full rounded-sm bg-error-border p-[10px] text-center text-[13.5px] font-bold text-white transition-colors hover:bg-error-border/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error-border/40 disabled:cursor-not-allowed disabled:opacity-60 md:px-[18px] md:py-[15px]" />
+        <LogOutControl className="w-full rounded-sm bg-error-border p-[10px] text-center text-sm font-bold text-white transition-colors hover:bg-error-border/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error-border/40 disabled:cursor-not-allowed disabled:opacity-60 md:px-[18px] md:py-[15px]" />
 
-        <button
+        <Button variant="unstyled"
           type="button"
           onClick={() => setDialog("delete")}
-          className="w-full p-[10px] text-center text-[12px] font-bold text-muted-foreground underline hover:text-foreground"
+          className="w-full p-[10px] text-center text-sm font-bold text-muted-foreground underline hover:text-foreground"
         >
           Delete Account
-        </button>
+        </Button>
       </div>
 
       <Dialog
@@ -73,7 +84,11 @@ export function AccountActions() {
         onClose={closeDialog}
         tone="danger"
         title="DELETE YOUR ACCOUNT?"
-        description="This permanently deletes your profile and saved addresses. This can’t be undone."
+        description={
+          blocked
+            ? activeOrdersMessage(activeOrderCount)
+            : "This permanently deletes your profile. This can’t be undone."
+        }
         footer={
           <>
             <Button
@@ -87,7 +102,7 @@ export function AccountActions() {
             <Button
               variant="confirm"
               className="flex-1"
-              disabled={isDeleting}
+              disabled={isDeleting || blocked}
               onClick={handleDeleteAccount}
             >
               {isDeleting ? "Deleting…" : "Delete Account"}

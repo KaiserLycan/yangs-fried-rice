@@ -38,11 +38,11 @@ export function SearchField({
   return (
     <label
       className={cn(
-        "flex items-center gap-[9px] rounded-[12px] bg-background px-[14px] py-[9px]",
+        "flex items-center gap-[9px] rounded-md bg-background px-[14px] py-[9px]",
         variant === "nav" ? "w-[300px]" : "w-full",
       )}
     >
-      <span aria-hidden="true" className="text-[14px] text-muted-foreground">
+      <span aria-hidden="true" className="text-sm text-muted-foreground">
         ⌕
       </span>
       <input
@@ -55,7 +55,7 @@ export function SearchField({
         placeholder="Search menu items"
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="w-full bg-transparent text-[14px] text-foreground placeholder:text-muted-foreground focus-visible:outline-none"
+        className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none"
       />
       {variant === "nav" && !value ? (
         <Kbd className="border-field-border bg-transparent text-muted-foreground">/</Kbd>

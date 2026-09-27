@@ -15,6 +15,7 @@ import {
 } from "@/lib/checkout/payment-status";
 import { createClient } from "@/lib/supabase/client";
 import { uniqueChannelName } from "@/lib/supabase/channel-name";
+import { Button } from "@/components/ui/button";
 
 /**
  * The payment block on the receipt, and the one part of that screen that
@@ -113,7 +114,11 @@ export function PaymentStatusCard({
   // the webhook writes `paid`, and this tab would sit on "Try again with
   // GCash" for an order that is already paid for. Realtime alone cannot be
   // relied on, since nothing here can check that `transaction` is published.
-  const settled = status === "paid" || status === "refunded";
+  const settled =
+    status === "paid" ||
+    status === "refunded" ||
+    status === "refund_pending" ||
+    status === "refund_failed";
 
   React.useEffect(() => {
     if (settled) {
@@ -250,17 +255,17 @@ export function PaymentStatusCard({
       data-status={status ?? "none"}
       className="flex flex-col gap-[4px] rounded-lg border border-rule bg-card p-[20px]"
     >
-      <h2 className="text-[14px] font-bold uppercase tracking-[1.54px] text-muted-foreground">
+      <h2 className="text-sm font-bold uppercase tracking-[1.54px] text-muted-foreground">
         Payment method
       </h2>
-      <p className="text-[14px] font-bold text-foreground">
+      <p className="text-sm font-bold text-foreground">
         {isOnlineOrder && methodLabel === "Not recorded"
           ? "GCash / Maya wallet"
           : methodLabel}
       </p>
       <p
         role={status === "pending" ? "status" : undefined}
-        className="text-[14px] leading-[18px] text-muted-strong"
+        className="text-sm leading-[18px] text-muted-strong"
       >
         {note(status, isOnlineOrder, startFailed, stalePending)}
       </p>
@@ -268,17 +273,17 @@ export function PaymentStatusCard({
       {offer.length > 0 ? (
         <div className="mt-[8px] flex flex-col gap-[8px] sm:flex-row">
           {offer.map((provider) => (
-            <button
+            <Button variant="unstyled"
               key={provider}
               type="button"
               onClick={() => void payWith(provider)}
               disabled={starting !== null}
-              className="flex-1 rounded-[13px] bg-accent p-[12px] text-[14px] font-bold text-accent-foreground disabled:opacity-60"
+              className="flex-1 rounded-md bg-accent p-[12px] text-sm font-bold text-accent-foreground disabled:opacity-60"
             >
               {starting === provider
                 ? "Opening wallet…"
                 : `${status === "failed" ? "Try again" : "Pay now"} with ${WALLET_LABEL.get(provider)}`}
-            </button>
+            </Button>
           ))}
         </div>
       ) : null}
@@ -302,6 +307,11 @@ function note(
       return "Payment received — thank you.";
     case "refunded":
       return "This payment was refunded.";
+    // Issue #115: the order was cancelled after it was paid for.
+    case "refund_pending":
+      return "This order was cancelled, so your payment is being refunded.";
+    case "refund_failed":
+      return "This order was cancelled. We couldn’t refund your payment automatically — the store will refund you.";
     case "pending":
       if (!isOnlineOrder) {
         return "Nothing has been taken yet — settle up when your order reaches you.";

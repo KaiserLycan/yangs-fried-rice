@@ -12,9 +12,20 @@
  */
 
 export const SITE_NAME = "Yang's Fried Rice";
+export const SITE_DESCRIPTION = "The best authentic Yangzhou fried rice in Manila. We cook every order fresh, offering quick and easy counter pickup.";
 
 /** Matches what the manager's PDF reports already print as the letterhead. */
 export const SITE_BRANCH = "Malate Branch, Manila";
+
+/**
+ * The seller, as the Internet Transactions Act (RA 11967) asks every online
+ * shop to show it: business name, address and contact (issue #116).
+ *
+ * TODO(owner): replace with the registered business name and the full street
+ * address of the branch. The repository only knows the branch name.
+ */
+export const SELLER_NAME = SITE_NAME;
+export const SELLER_ADDRESS = SITE_BRANCH;
 
 /**
  * Where a customer collects their order. The "ready for pickup" notification
@@ -45,3 +56,11 @@ export function copyrightYears(now: Date = new Date()): string {
     ? String(SITE_FOUNDED_YEAR)
     : `${SITE_FOUNDED_YEAR}–${current}`;
 }
+
+/**
+ * Where "Please contact us for a bulk order or catering" leads (issue #115).
+ * The landing page with the store's contact details is still to be built;
+ * until then this is the home page. Point it at the contact section here
+ * when that page lands — nothing else needs changing.
+ */
+export const BULK_ORDER_CONTACT_HREF = "/";

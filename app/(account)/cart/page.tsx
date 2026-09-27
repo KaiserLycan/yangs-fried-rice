@@ -47,7 +47,7 @@ export default async function CartPage({
           >
             <ChevronLeft className="size-[24px] text-foreground" />
           </Link>
-          <h1 className="font-display text-[24px] uppercase text-foreground">
+          <h1 className="font-display text-2xl uppercase text-foreground">
             YOUR CART
           </h1>
         </div>
