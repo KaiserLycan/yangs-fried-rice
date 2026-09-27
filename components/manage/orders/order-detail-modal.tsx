@@ -190,10 +190,6 @@ export function OrderDetailModal({ order, isOpen, onClose, onAction }: OrderDeta
                 <span className="text-right text-gray-800">{order.contactInfo.name}</span>
               </div>
               <div className="flex justify-between items-start gap-4">
-                <span className="font-bold text-gray-900 shrink-0">Address:</span>
-                <span className="text-right text-gray-800">{order.contactInfo.address}</span>
-              </div>
-              <div className="flex justify-between items-start gap-4">
                 <span className="font-bold text-gray-900 shrink-0">Phone:</span>
                 <span className="text-right text-gray-800">{order.contactInfo.phone}</span>
               </div>

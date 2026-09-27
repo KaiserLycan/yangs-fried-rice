@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { EMPLOYEE_ROLES, type EmployeeRole } from "@/lib/auth/roles";
 import { optionalPhoneSchema } from "./phone";
-import { employeeDateOfBirthSchema } from "./date-of-birth";
 import {
   emailSchema,
   firstNameSchema,
@@ -39,9 +38,6 @@ export const createEmployeeSchema = z.object({
 
   /** Optional Philippine mobile; blank is fine. Stored as +63XXXXXXXXXX. */
   phone: optionalPhoneSchema.optional(),
-
-  /** Optional ISO date, not in the future. */
-  dateOfBirth: employeeDateOfBirthSchema.optional(),
 });
 
 export type CreateEmployeeInput = z.infer<typeof createEmployeeSchema>;

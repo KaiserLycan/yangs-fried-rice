@@ -67,7 +67,7 @@ describe("E2. a customer's own text on the staff order screen", () => {
       status: "QUEUE",
       isDelivery: false,
       timer: "20:00",
-      contactInfo: { name: payload, address: payload, phone: payload },
+      contactInfo: { name: payload, phone: payload },
       orderInfo: { type: "Take Out", specialInstructions: payload },
       deliveryFee: 0,
       total: 100,

@@ -11,13 +11,11 @@ import { useCardEditor } from "@/components/profile/use-card-editor";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useToast } from "@/components/ui/toast";
 import type { CustomerProfile } from "@/lib/profile/customer-profile";
-import { formatDateOfBirth } from "@/lib/profile/identity";
 import { lengthProps } from "@/lib/validation/fields";
 import { personalDetailsSchema } from "@/lib/validation/profile";
-import { earliestBirthdate, latestBirthdateForMinAge } from "@/lib/validation/date-of-birth";
 
 /**
- * First name, last name and date of birth (Cust4), saved via PATCH
+ * First name and last name (Cust4), saved via PATCH
  * /api/profile (lib/actions/profile.ts).
  *
  * Validated live against the same rules as sign-up; Save stays disabled until
@@ -32,7 +30,6 @@ export function PersonalDetailsCard({ profile }: { profile: CustomerProfile }) {
       read: (form) => ({
         firstName: String(form.get("firstName") ?? ""),
         lastName: String(form.get("lastName") ?? ""),
-        dateOfBirth: String(form.get("dateOfBirth") ?? ""),
       }),
       onValid: async (values) => {
         try {
@@ -71,7 +68,7 @@ export function PersonalDetailsCard({ profile }: { profile: CustomerProfile }) {
           onSubmit={handleSubmit}
           className="flex flex-col gap-[12px] md:gap-[16px]"
         >
-          <div className="grid gap-[12px] md:grid-cols-3 md:gap-[24px]">
+          <div className="grid gap-[12px] md:grid-cols-2 md:gap-[24px]">
             <CardField label="First name" htmlFor="firstName" error={errors.firstName}>
               <CardInput
                 id="firstName"
@@ -95,24 +92,6 @@ export function PersonalDetailsCard({ profile }: { profile: CustomerProfile }) {
                 invalid={Boolean(errors.lastName)}
               />
             </CardField>
-
-            <CardField
-              label="Date of birth"
-              htmlFor="dateOfBirth"
-              hint="Optional. We use it for birthday offers."
-              error={errors.dateOfBirth}
-            >
-              <CardInput
-                id="dateOfBirth"
-                name="dateOfBirth"
-                type="date"
-                autoComplete="bday"
-                defaultValue={profile.dateOfBirth ?? ""}
-                min={earliestBirthdate()}
-                max={latestBirthdateForMinAge()}
-                invalid={Boolean(errors.dateOfBirth)}
-              />
-            </CardField>
           </div>
 
           <SubmitButton
@@ -126,18 +105,12 @@ export function PersonalDetailsCard({ profile }: { profile: CustomerProfile }) {
           </SubmitButton>
         </form>
       ) : (
-        <div className="grid gap-[12px] md:grid-cols-3 md:gap-[24px]">
+        <div className="grid gap-[12px] md:grid-cols-2 md:gap-[24px]">
           <CardField label="First name">
             <CardValue value={profile.firstName} emptyState="Not added yet" />
           </CardField>
           <CardField label="Last name">
             <CardValue value={profile.lastName} emptyState="Not added yet" />
-          </CardField>
-          <CardField label="Date of birth">
-            <CardValue
-              value={formatDateOfBirth(profile.dateOfBirth)}
-              emptyState="Not added yet"
-            />
           </CardField>
         </div>
       )}

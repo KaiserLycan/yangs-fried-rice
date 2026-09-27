@@ -37,7 +37,6 @@ export type EmployeeData = {
   lastAccessLog?: string;
   imageUrl?: string;
   phone?: string;
-  dateOfBirth?: string;
   isDisabled?: boolean;
 };
 
@@ -112,7 +111,6 @@ function ManageEmployeeInner() {
           : "No login history",
         imageUrl: e.profileImage_URL || undefined,
         phone: e.phone_number || "",
-        dateOfBirth: e.date_of_birth || "",
         isDisabled: Boolean(e.is_account_disabled),
       }));
       setEmployees(mappedData);
@@ -157,7 +155,6 @@ function ManageEmployeeInner() {
       role: dbRole as any,
       scheduleShift: employeeToAdd.shift ?? null,
       phone: employeeToAdd.phone ?? "",
-      dateOfBirth: employeeToAdd.dateOfBirth ?? "",
     });
 
     if (result.error) {
@@ -192,7 +189,6 @@ function ManageEmployeeInner() {
       shift: employeeToEdit.shift,
       password: employeeToEdit.password,
       phone: employeeToEdit.phone,
-      dateOfBirth: employeeToEdit.dateOfBirth,
       isAccountDisabled: employeeToEdit.isAccountDisabled,
     });
 

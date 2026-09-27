@@ -59,4 +59,4 @@ This document maps the master list of requirements to the current state of the c
 - [x] **OHF2 - Numerical ratings & reviews:** **Implemented** (Order rating functionality wired via PR #78)
 
 ## 🟢 Third-Party Integrations
-- [x] **TPI1 - Address validation:** **Implemented** (Simple text-based entry built as recommended)
+- [x] **TPI1 - Address validation:** **Removed on purpose.** The shop is pickup-only with no integrated delivery service, so no customer address is collected or stored (no `customer_address` table, no `order.delivery_address`). Birthdays are not collected either: there is no birthday promotion.

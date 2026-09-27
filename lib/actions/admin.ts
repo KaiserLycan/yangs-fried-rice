@@ -28,7 +28,6 @@ import {
 } from "@/lib/validation/admin";
 import { z } from "zod";
 import { isValidPhMobile, toInternationalMobile } from "@/lib/validation/phone";
-import { dateOfBirthSchema } from "@/lib/validation/date-of-birth";
 import {
   emailSchema,
   firstNameSchema,
@@ -206,7 +205,6 @@ export async function createEmployee(
     role: canonicalRole,
     scheduleShift,
     phone,
-    dateOfBirth,
   } = {
     ...parsed.data,
     role: normalizedRole,
@@ -250,7 +248,6 @@ export async function createEmployee(
       role: canonicalRole,
       schedule_shift: scheduleShift ?? null,
       phone_number: phone ? toInternationalMobile(phone) : null,
-      date_of_birth: dateOfBirth ? dateOfBirth : null,
     };
 
     // Service role, like the Auth user above: `employee` has RLS on and no
@@ -548,13 +545,12 @@ type EmployeeEditInput = {
   role?: string;
   shift?: string | null;
   phone?: string;
-  dateOfBirth?: string;
   isAccountDisabled?: boolean;
 };
 
 /**
  * Update any detail of an employee — name, email, password, role, shift,
- * mobile, date of birth and active/disabled. Only the fields that are passed
+ * mobile and active/disabled. Only the fields that are passed
  * are changed.
  * Requires: MANAGER.
  *
@@ -610,13 +606,6 @@ export async function updateEmployeeDetails(
       fieldErrors.phone = "Enter a valid Philippine mobile number, e.g. +63 917 123 4567.";
     } else {
       phone = toInternationalMobile(input.phone);
-    }
-  }
-
-  let dateOfBirth: string | null | undefined;
-  if (input.dateOfBirth !== undefined) {
-    if (check("dateOfBirth", dateOfBirthSchema, input.dateOfBirth) !== undefined) {
-      dateOfBirth = input.dateOfBirth === "" ? null : input.dateOfBirth;
     }
   }
 
@@ -695,7 +684,6 @@ export async function updateEmployeeDetails(
   if (requestedRole) updates.role = requestedRole;
   if (input.shift !== undefined) updates.schedule_shift = input.shift || null;
   if (phone !== undefined) updates.phone_number = phone;
-  if (dateOfBirth !== undefined) (updates as Record<string, unknown>).date_of_birth = dateOfBirth;
   if (input.isAccountDisabled !== undefined) updates.is_account_disabled = input.isAccountDisabled;
 
   if (Object.keys(updates).length > 0) {

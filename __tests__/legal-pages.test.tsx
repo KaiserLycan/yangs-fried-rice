@@ -32,13 +32,14 @@ describe("privacy page", () => {
     expect(text).toMatch(/your rights/i);
   });
 
-  // Sign-up asks for an address and an 18+ confirmation, so the notice has
-  // to say so (Data Privacy Act: tell people what is collected).
-  it("discloses the address and age confirmation that sign-up collects", () => {
+  // What sign-up collects, and what it no longer does: the notice must match
+  // (Data Privacy Act). There is no address or date of birth any more.
+  it("lists the age confirmation and says no address or birth date is kept", () => {
     const { container } = render(<PrivacyPage />);
     const text = container.textContent ?? "";
-    expect(text).toMatch(/address you give at sign-up/i);
     expect(text).toMatch(/18 or have a parent/i);
+    expect(text).toMatch(/do not ask for your address or your date of\s+birth/i);
+    expect(text).not.toMatch(/saved addresses|address you give at sign-up/i);
   });
 
   it("names the services that receive customer data", () => {

@@ -120,10 +120,10 @@ export function OrderPlacedScreen({
               ? // No arrival to promise: nobody starts this one until the
                 // payment lands, so a time here would be a straight lie.
                 isDelivery
-                ? `Waiting for payment · to ${order.address ?? "your saved address"}`
+                ? "Waiting for payment"
                 : "Waiting for payment · collect in store"
               : isDelivery
-                ? `${arrivalWindow ? `Arriving in about ${arrivalWindow}` : ARRIVAL_UNKNOWN} · to ${order.address ?? "your saved address"}`
+                ? `${arrivalWindow ? `Arriving in about ${arrivalWindow}` : ARRIVAL_UNKNOWN}`
                 : `${arrivalWindow ? `Ready for collection in about ${arrivalWindow}` : ARRIVAL_UNKNOWN} · collect in store`}
           </p>
         </header>
@@ -135,7 +135,6 @@ export function OrderPlacedScreen({
           <OrderSummaryRows
             customerName={order.customerName}
             placedAtLabel={order.placedAtLabel}
-            address={order.address}
             fulfilment={order.fulfilment}
             lines={order.lines}
             totals={totals}

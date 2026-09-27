@@ -7,11 +7,6 @@ const VALID = {
   email: "liza.reyes@example.com",
   phone: "09171234567",
   password: "At least 8!",
-  buildingNo: "24",
-  street: "Mabini St.",
-  barangay: "Barangay Poblacion",
-  city: "Makati",
-  zip: "1200",
   ageConfirmed: true as const,
 };
 
@@ -112,35 +107,6 @@ describe("signupSchema", () => {
     });
   });
 
-  describe("address", () => {
-    it("rejects an empty building number", () => {
-      expect(errorFor({ buildingNo: "" }, "buildingNo")).toBe(
-        "Enter building/house number.",
-      );
-    });
-
-    it("rejects whitespace only in city", () => {
-      expect(errorFor({ city: "  \n " }, "city")).toBe(
-        "Enter city.",
-      );
-    });
-
-    it("accepts a complete multi-part address", () => {
-      expect(
-        errorFor(
-          {
-            buildingNo: "24",
-            street: "Mabini St.",
-            barangay: "Barangay Poblacion",
-            city: "Makati",
-            zip: "1200",
-          },
-          "street",
-        ),
-      ).toBeUndefined();
-    });
-  });
-
   it("reports every bad field at once, so the form can mark them all", () => {
     const result = signupSchema.safeParse({
       firstName: "",
@@ -148,18 +114,13 @@ describe("signupSchema", () => {
       email: "nope",
       phone: "123",
       password: "x",
-      buildingNo: "",
-      street: "",
-      barangay: "",
-      city: "",
-      zip: "",
     });
 
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(
         new Set(result.error.issues.map((issue) => issue.path[0])),
-      ).toEqual(new Set(["firstName", "lastName", "email", "phone", "password", "buildingNo", "street", "barangay", "city", "zip", "ageConfirmed"]));
+      ).toEqual(new Set(["firstName", "lastName", "email", "phone", "password", "ageConfirmed"]));
     }
   });
 });

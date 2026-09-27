@@ -34,7 +34,7 @@ export async function readPlacedOrder(
   // this filter is what actually prevents that.
   const { data: order } = await supabase
     .from("order")
-    .select("order_id, order_number, order_type, order_status, created_at, delivery_address")
+    .select("order_id, order_number, order_type, order_status, created_at")
     .eq("order_id", orderId)
     .eq("customer_id", user.id)
     .maybeSingle();
@@ -61,8 +61,6 @@ export async function readPlacedOrder(
   ]);
 
   const fulfilment = fulfilmentFromOrderType(order.order_type);
-  const address =
-    fulfilment === "delivery" ? order.delivery_address : null;
 
   const lines = (items.data ?? []).map((row) => ({
     id: row.order_item_id,
@@ -108,7 +106,6 @@ export async function readPlacedOrder(
     placedAtLabel: formatOrderTime(
       order.created_at ? new Date(order.created_at) : new Date(),
     ),
-    address,
     fulfilment,
     lines,
     paymentMethodLabel: paymentLabelFor(transaction.data?.[0]?.payment_method),

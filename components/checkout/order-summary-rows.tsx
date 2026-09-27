@@ -29,7 +29,6 @@ export type OrderSummaryDiscount = {
 export function OrderSummaryRows({
   customerName,
   placedAtLabel,
-  address,
   fulfilment,
   lines,
   totals,
@@ -37,7 +36,6 @@ export function OrderSummaryRows({
 }: {
   customerName: string;
   placedAtLabel: string;
-  address: string | null;
   fulfilment: Fulfilment;
   lines: CartLine[];
   totals: CartTotals;
@@ -46,17 +44,10 @@ export function OrderSummaryRows({
   return (
     <>
       <SummaryRow label={customerName || "Your order"} value={placedAtLabel} />
-      {/* The address in full, not the nav bar's shortened form. This is the
-          only place a mobile customer sees where the order is going — there
-          is no delivery details card at that width — and a summary that
-          truncates the destination to "Blk 12 Lot 4…" cannot be checked
-          against, which is the whole point of Browsing9. */}
+      {/* Pickup-only (#114): there is no address to show. A legacy delivery
+          order from before the switch still says what it was. */}
       <SummaryRow
-        label={
-          fulfilment === "delivery"
-            ? (address ?? "No saved address")
-            : "Collect in store"
-        }
+        label={fulfilment === "delivery" ? "Delivered order" : "Collect in store"}
         value={fulfilment === "delivery" ? "Delivery" : "Pickup"}
       />
 

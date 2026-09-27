@@ -55,9 +55,10 @@ export const updateCartItemSchema = z
  * `submit_cart_to_order` enforces the same two lists in the database — this is
  * the friendlier first line, not the only one.
  *
- * `delivery_fee` and `delivery_address` are still accepted so an older client
- * that sends them is not rejected outright, but nothing reads them: the
- * function charges no fee and stores no address.
+ * `delivery_fee` is still accepted so an older client that sends it is not
+ * rejected outright, but nothing reads it: the function charges no fee. A
+ * `delivery_address` from an old client is dropped (unknown keys are
+ * stripped); there is no address anywhere any more.
  */
 export const seniorPwdDiscountSchema = z.object({
   type: z.enum(["senior_citizen", "pwd"], {
@@ -97,12 +98,6 @@ export const submitCartSchema = z
     delivery_fee: z
       .number()
       .min(0, { message: "delivery_fee must be greater than or equal to 0" })
-      .optional(),
-    delivery_address: z
-      .string()
-      .trim()
-      .max(500, { message: "delivery_address cannot exceed 500 characters" })
-      .nullable()
       .optional(),
     /**
      * How the customer said they would pay. A wallet order is held at

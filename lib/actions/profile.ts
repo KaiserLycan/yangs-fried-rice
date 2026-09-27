@@ -10,11 +10,6 @@ import {
 import { removeStoredImage } from "@/lib/storage/remove-stored-image";
 import { ORDER_ISSUE_PHOTO_BUCKET } from "@/lib/validation/order-issue";
 import {
-  ADDRESS_COLUMNS,
-  addressPartsFromRow,
-  addressRowFromParts,
-} from "@/lib/address/format";
-import {
   fieldErrorFromDbError,
   fieldErrorsFromIssues,
   type FieldErrors,
@@ -23,7 +18,6 @@ import { toInternationalMobile } from "@/lib/validation/phone";
 import {
   personalDetailsSchema,
   contactDetailsSchema,
-  deliveryAddressSchema,
   passwordChangeSchema,
 } from "@/lib/validation/profile";
 
@@ -52,18 +46,11 @@ export async function getMyProfile(): Promise<RouterResult<unknown>> {
     return { data: null, error: "You must be signed in." };
   }
 
-  const [customerResult, addressesResult] = await Promise.all([
-    supabase
-      .from("customer")
-      .select("first_name, last_name, name, phone_number, profileImage_URL, password_last_updated, date_of_birth")
-      .eq("customer_id", user.id)
-      .maybeSingle(),
-    supabase
-      .from("customer_address")
-      .select(ADDRESS_COLUMNS)
-      .eq("customer_id", user.id)
-      .order("address_id"),
-  ]);
+  const customerResult = await supabase
+    .from("customer")
+    .select("first_name, last_name, name, phone_number, profileImage_URL, password_last_updated")
+    .eq("customer_id", user.id)
+    .maybeSingle();
 
   if (customerResult.error) {
     return { data: null, error: "Could not load profile." };
@@ -78,15 +65,6 @@ export async function getMyProfile(): Promise<RouterResult<unknown>> {
       mobile: customerResult.data?.phone_number ?? null,
       profileImageUrl: customerResult.data?.profileImage_URL ?? null,
       passwordLastUpdated: customerResult.data?.password_last_updated ?? null,
-      dateOfBirth: customerResult.data?.date_of_birth ?? null,
-      addresses: (addressesResult.data ?? []).map((row) => ({
-        id: row.address_id,
-        label: row.label,
-        ...addressPartsFromRow(row),
-        addressDetails: row.address_details,
-        note: row.address_note,
-        isDefault: row.is_default,
-      })),
     },
     error: null,
   };
@@ -96,7 +74,6 @@ export async function getMyProfile(): Promise<RouterResult<unknown>> {
 type UpdateProfileInput = {
   firstName?: string;
   lastName?: string;
-  dateOfBirth?: string;
   mobile?: string;
   email?: string;
 };
@@ -114,7 +91,7 @@ export async function updateMyProfile(
   let emailConfirmationSent = false;
 
   const namesSent = input.firstName !== undefined || input.lastName !== undefined;
-  if (namesSent || input.dateOfBirth !== undefined) {
+  if (namesSent) {
     // Names travel as a pair: the card always sends both, and validating one
     // without the other would let "first name only" through as a full name.
     const parsed = personalDetailsSchema
@@ -122,7 +99,6 @@ export async function updateMyProfile(
       .safeParse({
         firstName: input.firstName,
         lastName: input.lastName,
-        dateOfBirth: input.dateOfBirth ?? "",
       });
     if (!parsed.success || (namesSent && (!input.firstName || !input.lastName))) {
       const fieldErrors = parsed.success ? {} : fieldErrorsFromIssues(parsed.error.issues);
@@ -134,12 +110,8 @@ export async function updateMyProfile(
     const { error } = await supabase
       .from("customer")
       .update({
-        ...(namesSent
-          ? { first_name: parsed.data.firstName, last_name: parsed.data.lastName }
-          : {}),
-        // date_of_birth is a `date` column: a blank field must be stored as
-        // NULL, not "" (which Postgres rejects as an invalid date).
-        ...(input.dateOfBirth !== undefined ? { date_of_birth: parsed.data.dateOfBirth || null } : {}),
+        first_name: parsed.data.firstName,
+        last_name: parsed.data.lastName,
       })
       .eq("customer_id", user.id);
 
@@ -197,249 +169,6 @@ export async function updateMyProfile(
   revalidatePath("/", "layout");
   return { data: { emailConfirmationSent }, error: null };
 }
-
-type AddressInput = {
-  label?: string;
-  buildingNo: string;
-  street: string;
-  barangay: string;
-  city: string;
-  zip: string;
-  deliveryNote?: string;
-};
-
-export async function addMyAddress(
-  input: AddressInput
-): Promise<RouterResult<{ addressId: string }>> {
-  const supabase = createClient();
-  const user = await requireCustomer(supabase);
-  if (!user) {
-    return { data: null, error: "You must be signed in." };
-  }
-
-  const parsed = deliveryAddressSchema.safeParse({
-    label: input.label ?? "",
-    buildingNo: input.buildingNo,
-    street: input.street,
-    barangay: input.barangay,
-    city: input.city,
-    zip: input.zip,
-    deliveryNote: input.deliveryNote ?? "",
-  });
-  if (!parsed.success) {
-    return {
-      data: null,
-      error: "Some address fields need fixing.",
-      fieldErrors: fieldErrorsFromIssues(parsed.error.issues),
-    };
-  }
-
-  const row = addressRowFromParts(parsed.data);
-
-  // Check for duplicates before inserting — part by part, case-insensitive,
-  // the same rule as the customer_address_unique_per_customer index.
-  if (await isDuplicateAddress(supabase, user.id, row)) {
-    return {
-      data: null,
-      error: "This address is already saved in your profile.",
-      fieldErrors: { street: "This address is already saved in your profile." },
-    };
-  }
-
-  const { data, error } = await supabase
-    .from("customer_address")
-    .insert({
-      customer_id: user.id,
-      label: parsed.data.label || null,
-      ...row,
-      address_note: parsed.data.deliveryNote || null,
-    })
-    .select("address_id")
-    .single();
-
-  if (error || !data) {
-    return {
-      data: null,
-      error: "Could not save address.",
-      fieldErrors: fieldErrorFromDbError(error) ?? undefined,
-    };
-  }
-
-  revalidatePath("/", "layout");
-  return { data: { addressId: data.address_id }, error: null };
-}
-
-export async function updateMyAddress(
-  addressId: string,
-  input: Partial<AddressInput>
-): Promise<RouterResult<undefined>> {
-  const supabase = createClient();
-  const user = await requireCustomer(supabase);
-  if (!user) {
-    return { data: null, error: "You must be signed in." };
-  }
-
-  const parsed = deliveryAddressSchema.partial().safeParse({
-    label: input.label,
-    buildingNo: input.buildingNo,
-    street: input.street,
-    barangay: input.barangay,
-    city: input.city,
-    zip: input.zip,
-    deliveryNote: input.deliveryNote,
-  });
-  if (!parsed.success) {
-    return {
-      data: null,
-      error: "Some address fields need fixing.",
-      fieldErrors: fieldErrorsFromIssues(parsed.error.issues),
-    };
-  }
-
-  const partKeys = ["buildingNo", "street", "barangay", "city", "zip"] as const;
-  const sentParts = partKeys.filter((key) => input[key] !== undefined);
-  let row: ReturnType<typeof addressRowFromParts> | undefined;
-  if (sentParts.length > 0) {
-    // The parts are one address: changing the street without the city could
-    // pair a new street with the wrong city, so all five travel together.
-    const missing = partKeys.filter((key) => !parsed.data[key]);
-    if (missing.length > 0) {
-      return {
-        data: null,
-        error: "Send every part of the address when changing it.",
-        fieldErrors: Object.fromEntries(missing.map((key) => [key, "Required."])),
-      };
-    }
-    row = addressRowFromParts({
-      buildingNo: parsed.data.buildingNo!,
-      street: parsed.data.street!,
-      barangay: parsed.data.barangay!,
-      city: parsed.data.city!,
-      zip: parsed.data.zip!,
-    });
-
-    if (await isDuplicateAddress(supabase, user.id, row, addressId)) {
-      return {
-        data: null,
-        error: "This address is already saved in your profile.",
-        fieldErrors: { street: "This address is already saved in your profile." },
-      };
-    }
-  }
-
-  const { error, count } = await supabase
-    .from("customer_address")
-    .update({
-      ...(input.label !== undefined ? { label: parsed.data.label || null } : {}),
-      ...(row ?? {}),
-      ...(input.deliveryNote !== undefined
-        ? { address_note: parsed.data.deliveryNote || null }
-        : {}),
-    })
-    .eq("address_id", addressId)
-    .eq("customer_id", user.id); 
-
-  if (error) {
-    return {
-      data: null,
-      error: "Could not update address.",
-      fieldErrors: fieldErrorFromDbError(error) ?? undefined,
-    };
-  }
-  if (count === 0) {
-    return { data: null, error: "Address not found." };
-  }
-
-  return { data: undefined, error: null };
-}
-
-/**
- * Is this exact address (every part, ignoring case) already saved for the
- * customer? `exceptId` skips the address being edited.
- */
-async function isDuplicateAddress(
-  supabase: ReturnType<typeof createClient>,
-  customerId: string,
-  row: ReturnType<typeof addressRowFromParts>,
-  exceptId?: string,
-): Promise<boolean> {
-  const { data } = await supabase
-    .from("customer_address")
-    .select("address_id, building_no, street, barangay, city, zip_code")
-    .eq("customer_id", customerId)
-    .eq("zip_code", row.zip_code);
-
-  const same = (a: string | null, b: string) =>
-    (a ?? "").trim().toLowerCase() === b.trim().toLowerCase();
-
-  return (data ?? []).some(
-    (existing) =>
-      existing.address_id !== exceptId &&
-      same(existing.building_no, row.building_no) &&
-      same(existing.street, row.street) &&
-      same(existing.barangay, row.barangay) &&
-      same(existing.city, row.city),
-  );
-}
-
-export async function deleteMyAddress(
-  addressId: string
-): Promise<RouterResult<undefined>> {
-  const supabase = createClient();
-  const user = await requireCustomer(supabase);
-  if (!user) {
-    return { data: null, error: "You must be signed in." };
-  }
-
-  const { error, count } = await supabase
-    .from("customer_address")
-    .delete()
-    .eq("address_id", addressId)
-    .eq("customer_id", user.id);
-
-  if (error) {
-    return { data: null, error: "Could not delete address." };
-  }
-  if (count === 0) {
-    return { data: null, error: "Address not found." };
-  }
-
-  return { data: undefined, error: null };
-}
-
-export async function setDefaultAddress(
-  addressId: string
-): Promise<RouterResult<undefined>> {
-  const supabase = createClient();
-  const user = await requireCustomer(supabase);
-  if (!user) {
-    return { data: null, error: "You must be signed in." };
-  }
-
-  const { error: unsetError } = await supabase
-    .from("customer_address")
-    .update({ is_default: false })
-    .eq("customer_id", user.id)
-    .eq("is_default", true);
-  if (unsetError) {
-    return { data: null, error: "Could not update default address." };
-  }
-
-  const { error: setError, count } = await supabase
-    .from("customer_address")
-    .update({ is_default: true })
-    .eq("address_id", addressId)
-    .eq("customer_id", user.id);
-  if (setError) {
-    return { data: null, error: "Could not update default address." };
-  }
-  if (count === 0) {
-    return { data: null, error: "Address not found." };
-  }
-
-  return { data: undefined, error: null };
-}
-
 
 export async function changeMyPassword(input: {
   currentPassword: string;
@@ -545,14 +274,6 @@ export async function deleteMyAccount(): Promise<RouterResult<undefined>> {
     .delete()
     .eq("customer_id", userId);
   if (cartError) {
-    return { data: null, error: "Could not delete your account. Please try again." };
-  }
-
-  const { error: addressError } = await supabase
-    .from("customer_address")
-    .delete()
-    .eq("customer_id", userId);
-  if (addressError) {
     return { data: null, error: "Could not delete your account. Please try again." };
   }
 

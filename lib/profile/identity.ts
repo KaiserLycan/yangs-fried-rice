@@ -67,27 +67,6 @@ export function formatMemberSince(isoDate: string | null | undefined): string {
   return formatUtcDate(isoDate, MEMBER_SINCE_FORMAT);
 }
 
-const DATE_OF_BIRTH_FORMAT = new Intl.DateTimeFormat("en-GB", {
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-  timeZone: "UTC",
-});
-
-/**
- * "14 June 1996", from the ISO date a native date input produces.
- *
- * Sits beside `formatMemberSince` because it is the same job on the same kind
- * of value, and splitting the two across modules is how they end up
- * disagreeing about timezones.
- *
- * Returns an empty string for a missing value, which today is every customer:
- * there is no date-of-birth column yet, so the card draws its empty state.
- */
-export function formatDateOfBirth(isoDate: string | null | undefined): string {
-  return formatUtcDate(isoDate, DATE_OF_BIRTH_FORMAT);
-}
-
 /**
  * "24 orders" for the summary block, in the sidebar on desktop and the
  * summary card on mobile. Shared so the two cannot drift into pluralising

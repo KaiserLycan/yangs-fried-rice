@@ -65,7 +65,7 @@ describe("sign-up form copy", () => {
    */
   it("shows the instructions at phone width, not only on desktop", () => {
     render(<CustomerSignupForm />);
-    const intro = screen.getByText(/Fill in your details and your address/);
+    const intro = screen.getByText(/Fields marked \* are required/);
 
     expect(intro).toBeInTheDocument();
     expect(intro.className).not.toMatch(/\bhidden\b/);

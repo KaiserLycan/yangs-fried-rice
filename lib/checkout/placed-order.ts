@@ -18,8 +18,6 @@ export type PlacedOrder = {
   customerName: string;
   /** Already formatted — see `formatOrderTime` on why not a Date. */
   placedAtLabel: string;
-  /** Where it is going. Null for a pickup order, which has no destination. */
-  address: string | null;
   fulfilment: Fulfilment;
   lines: CartLine[];
   /** "Cash on delivery" — what they chose, not what was charged. */

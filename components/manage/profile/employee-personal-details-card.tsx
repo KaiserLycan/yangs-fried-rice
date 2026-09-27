@@ -5,12 +5,11 @@
  * 
  * What's Added/Changed:
  * - Composed the Employee Personal Details using the shared `ProfileCard` pattern.
- * - Added a toggleable "Edit" mode that reveals a form for the Full Name and Date of Birth.
+ * - Added a toggleable "Edit" mode that reveals a form for the first and last name.
  * - Leveraged `useCardEditor` hook for state management and basic validation.
  * 
  * TODO (Backend Integration & Improvements):
  * - [ ] Replace the dummy `SAVE_TOAST` with actual mutation logic via Supabase to update the employee record.
- * - [ ] Populate `profile.name` and `profile.dateOfBirth` with live session data instead of mock values.
  * - [ ] Enhance validation error messaging if backend rejects the update.
  */
 
@@ -24,19 +23,13 @@ import {
 import { useCardEditor } from "@/components/profile/use-card-editor";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { lengthProps } from "@/lib/validation/fields";
-import {
-  EMPLOYEE_MIN_AGE_YEARS,
-  earliestBirthdate,
-  latestBirthdateForMinAge,
-} from "@/lib/validation/date-of-birth";
 import { useToast } from "@/components/ui/toast";
 import { employeePersonalDetailsSchema } from "@/lib/validation/employee-profile";
-import { formatDateOfBirth } from "@/lib/profile/identity";
 
 export function EmployeePersonalDetailsCard({
   profile,
 }: {
-  profile: { firstName: string; lastName: string; dateOfBirth: string | null };
+  profile: { firstName: string; lastName: string };
 }) {
   const showToast = useToast();
   const router = useRouter();
@@ -45,7 +38,6 @@ export function EmployeePersonalDetailsCard({
     read: (form) => ({
       firstName: String(form.get("firstName") ?? ""),
       lastName: String(form.get("lastName") ?? ""),
-      dateOfBirth: String(form.get("dateOfBirth") ?? ""),
     }),
     onValid: async (values) => {
       try {
@@ -55,7 +47,6 @@ export function EmployeePersonalDetailsCard({
           body: JSON.stringify({
             firstName: values.firstName,
             lastName: values.lastName,
-            dateOfBirth: values.dateOfBirth,
           }),
         });
         const json = await res.json();
@@ -87,7 +78,7 @@ export function EmployeePersonalDetailsCard({
           onSubmit={handleSubmit}
           className="flex flex-col gap-[12px] md:gap-[16px]"
         >
-          <div className="grid gap-[12px] md:grid-cols-3 md:gap-[24px]">
+          <div className="grid gap-[12px] md:grid-cols-2 md:gap-[24px]">
             <CardField label="First name" htmlFor="firstName" error={errors.firstName}>
               <CardInput
                 id="firstName"
@@ -111,24 +102,6 @@ export function EmployeePersonalDetailsCard({
                 invalid={Boolean(errors.lastName)}
               />
             </CardField>
-
-            <CardField
-              label="Date of birth"
-              htmlFor="dateOfBirth"
-              hint="Optional. We use it for birthday offers."
-              error={errors.dateOfBirth}
-            >
-              <CardInput
-                id="dateOfBirth"
-                name="dateOfBirth"
-                type="date"
-                autoComplete="bday"
-                defaultValue={profile.dateOfBirth ?? ""}
-                min={earliestBirthdate()}
-                max={latestBirthdateForMinAge(EMPLOYEE_MIN_AGE_YEARS)}
-                invalid={Boolean(errors.dateOfBirth)}
-              />
-            </CardField>
           </div>
 
           <SubmitButton
@@ -142,18 +115,12 @@ export function EmployeePersonalDetailsCard({
           </SubmitButton>
         </form>
       ) : (
-        <div className="grid gap-[12px] md:grid-cols-3 md:gap-[24px]">
+        <div className="grid gap-[12px] md:grid-cols-2 md:gap-[24px]">
           <CardField label="First name">
             <CardValue value={profile.firstName} emptyState="Not added yet" />
           </CardField>
           <CardField label="Last name">
             <CardValue value={profile.lastName} emptyState="Not added yet" />
-          </CardField>
-          <CardField label="Date of birth">
-            <CardValue
-              value={profile.dateOfBirth ? formatDateOfBirth(profile.dateOfBirth) : ""}
-              emptyState="Not added yet"
-            />
           </CardField>
         </div>
       )}

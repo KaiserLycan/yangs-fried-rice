@@ -253,7 +253,6 @@ export type Database = {
       customer: {
         Row: {
           customer_id: string
-          date_of_birth: string | null
           email: string | null
           first_name: string
           is_account_disabled: boolean
@@ -265,7 +264,6 @@ export type Database = {
         }
         Insert: {
           customer_id?: string
-          date_of_birth?: string | null
           email?: string | null
           first_name: string
           is_account_disabled?: boolean
@@ -277,7 +275,6 @@ export type Database = {
         }
         Update: {
           customer_id?: string
-          date_of_birth?: string | null
           email?: string | null
           first_name?: string
           is_account_disabled?: boolean
@@ -289,59 +286,8 @@ export type Database = {
         }
         Relationships: []
       }
-      customer_address: {
-        Row: {
-          address_details: string | null
-          address_id: string
-          address_note: string | null
-          barangay: string
-          building_no: string
-          city: string
-          customer_id: string | null
-          is_default: boolean
-          label: string | null
-          street: string
-          zip_code: string
-        }
-        Insert: {
-          address_details?: string | null
-          address_id?: string
-          address_note?: string | null
-          barangay: string
-          building_no: string
-          city: string
-          customer_id?: string | null
-          is_default?: boolean
-          label?: string | null
-          street: string
-          zip_code: string
-        }
-        Update: {
-          address_details?: string | null
-          address_id?: string
-          address_note?: string | null
-          barangay?: string
-          building_no?: string
-          city?: string
-          customer_id?: string | null
-          is_default?: boolean
-          label?: string | null
-          street?: string
-          zip_code?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "customer_address_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "customer"
-            referencedColumns: ["customer_id"]
-          },
-        ]
-      }
       employee: {
         Row: {
-          date_of_birth: string | null
           email: string
           employee_id: string
           first_name: string
@@ -356,7 +302,6 @@ export type Database = {
           schedule_shift: string | null
         }
         Insert: {
-          date_of_birth?: string | null
           email: string
           employee_id?: string
           first_name: string
@@ -371,7 +316,6 @@ export type Database = {
           schedule_shift?: string | null
         }
         Update: {
-          date_of_birth?: string | null
           email?: string
           employee_id?: string
           first_name?: string
@@ -461,7 +405,6 @@ export type Database = {
           completed_at: string | null
           created_at: string | null
           customer_id: string | null
-          delivery_address: string | null
           delivery_fee: number | null
           order_id: string
           order_number: number
@@ -477,7 +420,6 @@ export type Database = {
           completed_at?: string | null
           created_at?: string | null
           customer_id?: string | null
-          delivery_address?: string | null
           delivery_fee?: number | null
           order_id?: string
           order_number?: never
@@ -493,7 +435,6 @@ export type Database = {
           completed_at?: string | null
           created_at?: string | null
           customer_id?: string | null
-          delivery_address?: string | null
           delivery_fee?: number | null
           order_id?: string
           order_number?: never

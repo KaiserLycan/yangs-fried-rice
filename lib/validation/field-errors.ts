@@ -5,7 +5,7 @@ import type { z } from "zod";
  * can put "why this failed" under the input that caused it instead of in a
  * toast that names no field.
  *
- * Keys are the form's own field names (`firstName`, `zip`, …), not column
+ * Keys are the form's own field names (`firstName`, `phone`, …), not column
  * names.
  */
 export type FieldErrors = Record<string, string>;
@@ -35,14 +35,6 @@ const CONSTRAINT_FIELDS: Array<[RegExp, string, string]> = [
   [/_email_key|email_unique/, "email", "An account with this email already exists."],
   [/email/, "email", "Enter a valid email address."],
   [/phone/, "phone", "Enter a valid mobile number, e.g. +63 917 123 4567."],
-  [/building_no/, "buildingNo", "Building / house number must be 1–50 characters."],
-  [/street/, "street", "Street must be 3–100 characters."],
-  [/barangay/, "barangay", "Barangay must be 2–100 characters."],
-  [/city/, "city", "City must be 3–50 characters."],
-  [/zip/, "zip", "ZIP code must be exactly 4 digits."],
-  [/label/, "label", "Label must be 30 characters or fewer."],
-  [/address_note/, "deliveryNote", "Delivery note must be 200 characters or fewer."],
-  [/address_unique/, "street", "This address is already saved in your profile."],
 ];
 
 export function fieldErrorFromDbError(

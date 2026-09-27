@@ -73,7 +73,7 @@ export function AccountActions() {
         onClose={closeDialog}
         tone="danger"
         title="DELETE YOUR ACCOUNT?"
-        description="This permanently deletes your profile and saved addresses. This can’t be undone."
+        description="This permanently deletes your profile. This can’t be undone."
         footer={
           <>
             <Button

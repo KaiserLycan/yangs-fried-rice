@@ -11,7 +11,6 @@ function staffRow(): StaffOrderRow {
     order_status: "pending",
     order_type: "delivery",
     delivery_fee: 50,
-    delivery_address: "21 Mabini St, Malate, Manila",
     customer: { name: "Liza Reyes", email: "liza@example.com" },
     order_item: [
       {
