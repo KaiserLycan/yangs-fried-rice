@@ -1,4 +1,5 @@
 import type { TrackedOrder } from "@/lib/orders/read-tracked-order";
+import { vatBreakdown } from "@/lib/menu/cart-totals";
 
 /**
  * The figures on the printable receipt (limitations #12, issue #118).
@@ -14,6 +15,9 @@ export type ReceiptTotals = {
   fee: number;
   discount: number;
   total: number;
+  /** The total minus the 12% VAT already inside it (#116). */
+  vatableSales: number;
+  vat: number;
 };
 
 const toCentavos = (pesos: number) => Math.round((Number.isFinite(pesos) ? pesos : 0) * 100);
@@ -33,6 +37,8 @@ export function receiptTotals(
     fee: fee / 100,
     discount: discount / 100,
     total: (subtotal + fee - discount) / 100,
+    // Same split as checkout. Ticket 03 makes a Senior / PWD order VAT-exempt.
+    ...vatBreakdown((subtotal + fee - discount) / 100),
   };
 }
 

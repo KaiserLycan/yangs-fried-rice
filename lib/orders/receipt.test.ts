@@ -28,7 +28,7 @@ describe("receiptTotals", () => {
           totalPaid: 425,
         },
       }),
-    ).toEqual({ subtotal: 475, fee: 0, discount: 50, total: 425 });
+    ).toEqual({ subtotal: 475, fee: 0, discount: 50, total: 425, vatableSales: 379.46, vat: 45.54 });
   });
 
   it("does not drift on centavos", () => {
@@ -48,7 +48,7 @@ describe("receiptTotals", () => {
       fee: 0,
       payment: { method: null, status: null, discountAmount: 500, discountType: null, taxAmount: 0, totalPaid: 0 },
     });
-    expect(totals).toEqual({ subtotal: 100, fee: 0, discount: 100, total: 0 });
+    expect(totals).toEqual({ subtotal: 100, fee: 0, discount: 100, total: 0, vatableSales: 0, vat: 0 });
   });
 });
 
