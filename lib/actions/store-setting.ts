@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { resolveEmployeeRole } from "@/lib/auth/roles";
+import { requireManager } from "@/lib/auth/require-manager";
 import {
   pauseStoreSchema,
   updateStoreSettingsSchema,
@@ -24,27 +24,6 @@ type StoreSettingUpdate = Database["public"]["Tables"]["store_setting"]["Update"
 type ActionResult<T> =
   | { data: T; error: null }
   | { data: null; error: string };
-
-async function requireManager(
-  supabase: ReturnType<typeof createClient>,
-): Promise<string | null> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return "You must be signed in.";
-
-  const { data: employee } = await supabase
-    .from("employee")
-    .select("role, is_account_disabled")
-    .eq("employee_id", user.id)
-    .maybeSingle();
-
-  if (!employee || employee.is_account_disabled) return "You must be signed in.";
-  if (resolveEmployeeRole(employee.role) !== "MANAGER") {
-    return "Only a manager can change store settings.";
-  }
-  return null;
-}
 
 /**
  * Writes to the one row. `.select()` makes a write RLS silently refused show

@@ -4,14 +4,18 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { OrderData } from "@/lib/mock-orders";
 import { primaryActionFor, type StaffAction } from "@/lib/orders/staff-actions";
+import { isPendingTooLong } from "@/lib/orders/order-stage";
 
 interface KdsOrderCardProps {
   order: OrderData;
   onAction?: (type: StaffAction, order: OrderData) => void;
+  /** The page's clock; an order unaccepted for 5 minutes flashes (issue #115). */
+  now?: Date;
 }
 
-export function KdsOrderCard({ order, onAction }: KdsOrderCardProps) {
+export function KdsOrderCard({ order, onAction, now }: KdsOrderCardProps) {
   const isConfirmed = order.status === "PREP";
+  const waitingTooLong = isPendingTooLong(order.pendingAt, now);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const primary = primaryActionFor(order);
@@ -27,7 +31,12 @@ export function KdsOrderCard({ order, onAction }: KdsOrderCardProps) {
   };
 
   return (
-    <div className="bg-[#fbf6ec] border border-field-border flex flex-col overflow-hidden rounded-[14px] w-full h-full min-h-[320px] shadow-sm">
+    <div
+      data-waiting-too-long={waitingTooLong || undefined}
+      className={`bg-[#fbf6ec] border border-field-border flex flex-col overflow-hidden rounded-[14px] w-full h-full min-h-[320px] shadow-sm${
+        waitingTooLong ? " pending-flash" : ""
+      }`}
+    >
       
       {/* Header Area */}
       <div className={`flex flex-col p-[12px] shrink-0 w-full ${isConfirmed ? "bg-[#ca762d]" : "bg-[#c0392b]"}`}>

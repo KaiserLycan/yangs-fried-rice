@@ -12,6 +12,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast, ToastProvider } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+import { useNow } from "@/lib/hooks/use-now";
 import { getDetailedOrders, updateOrderStatus } from "@/lib/actions/orders";
 import { mapStaffOrder, type StaffOrderRow } from "@/lib/orders/map-staff-order";
 import { actionCopy, dbStatusFor, type StaffAction } from "@/lib/orders/staff-actions";
@@ -33,6 +34,10 @@ function ManageOrdersInner() {
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
+  // This page does not refetch on a timer, so without a tick a card could
+  // never *start* flashing. Every 30s the cards re-check how long each
+  // unaccepted order has waited (issue #115).
+  const now = useNow(30_000);
 
   // UI State
   const [activeStatus, setActiveStatus] = useState<OrderStatus>("All");
@@ -221,6 +226,7 @@ function ManageOrdersInner() {
                   <div key={order.id} className="h-[280px]">
                     <OrderCard 
                       order={order} 
+                      now={now}
                       onClick={() => setSelectedOrder(order)} 
                       onAction={(type, order) => setConfirmAction({ type, order })}
                     />

@@ -3,6 +3,11 @@ import {
   CANCELLED_HEADLINE,
   UNKNOWN_HEADLINE,
   cancellationNoticeFor,
+  isPendingTooLong,
+  minutesSince,
+  pendingPromptFor,
+  PENDING_TIMEOUT_MINUTES,
+  refundNoticeFor,
   headlineFor,
   fulfilmentOf,
   isCancellable,
@@ -367,5 +372,74 @@ describe("cancellationNoticeFor (P28, P50)", () => {
       message: "The restaurant cancelled this order.",
       reason: "Out of chicken",
     });
+  });
+});
+
+describe("waiting for the store to accept (issue #115)", () => {
+  const NOW = new Date("2026-09-28T04:00:00.000Z");
+  const ago = (minutes: number) => new Date(NOW.getTime() - minutes * 60_000).toISOString();
+
+  it("measures minutes since a timestamp", () => {
+    expect(minutesSince(ago(7), NOW)).toBe(7);
+    expect(minutesSince(null, NOW)).toBeNull();
+    expect(minutesSince("not a date", NOW)).toBeNull();
+  });
+
+  it("flashes a staff card from 5 minutes pending", () => {
+    expect(isPendingTooLong(ago(4.9), NOW)).toBe(false);
+    expect(isPendingTooLong(ago(5), NOW)).toBe(true);
+    expect(isPendingTooLong(null, NOW)).toBe(false);
+  });
+
+  it("prompts the customer at 5 and offers a free cancel at 10", () => {
+    expect(pendingPromptFor("pending", ago(4), NOW)).toBe("none");
+    expect(pendingPromptFor("pending", ago(5), NOW)).toBe("waiting");
+    expect(pendingPromptFor("pending", ago(9.9), NOW)).toBe("waiting");
+    expect(pendingPromptFor("pending", ago(10), NOW)).toBe("cancel-free");
+  });
+
+  it("says nothing once the store has accepted", () => {
+    expect(pendingPromptFor("preparing", ago(15), NOW)).toBe("none");
+    expect(pendingPromptFor("cancelled", ago(25), NOW)).toBe("none");
+  });
+
+  it("keeps the timeout at 20 minutes, matching expire_unaccepted_orders()", () => {
+    expect(PENDING_TIMEOUT_MINUTES).toBe(20);
+  });
+});
+
+describe("refundNoticeFor (issue #115)", () => {
+  const online = (status: string | null, amount: number | null = 250) => ({
+    paidOnline: true,
+    status,
+    amount,
+  });
+
+  it("says nothing for an order not paid online", () => {
+    expect(refundNoticeFor(null)).toBeNull();
+    expect(refundNoticeFor({ paidOnline: false, status: "paid", amount: 250 })).toBeNull();
+  });
+
+  it("says the refund is on its way while pending, or before the flag is seen", () => {
+    expect(refundNoticeFor(online("refund_pending"))).toBe(
+      "Your ₱250.00 GCash / Maya payment is being refunded. It may take a few days to show in your wallet.",
+    );
+    expect(refundNoticeFor(online("paid"))).toMatch(/is being refunded/);
+  });
+
+  it("says it has been refunded once PayMongo accepted", () => {
+    expect(refundNoticeFor(online("refunded"))).toMatch(/has been refunded/);
+  });
+
+  it("says the store will refund by hand when the automatic refund failed", () => {
+    expect(refundNoticeFor(online("refund_failed"))).toBe(
+      "We couldn't refund your ₱250.00 payment automatically. The store has been notified and will refund you.",
+    );
+  });
+
+  it("leaves the amount out when it is unknown", () => {
+    expect(refundNoticeFor(online("refunded", null))).toBe(
+      "Your GCash / Maya payment has been refunded. It may take a few days to show in your wallet.",
+    );
   });
 });

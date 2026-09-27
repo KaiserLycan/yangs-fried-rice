@@ -3,6 +3,13 @@ export type OrderStatus = "QUEUE" | "PREP" | "DELIVERY" | "COMPLETED" | "CANCELE
 export type OrderData = {
   id: string;
   rawCreatedAt?: string | null;
+  /**
+   * When the order started waiting for staff to accept it — set only while
+   * it is still `pending` (issue #115). The staff screens flash a card once
+   * this is 5 minutes old; `received` shares the QUEUE column but has been
+   * accepted, so it has none.
+   */
+  pendingAt?: string | null;
   /** true for delivery orders; false for take-out / dine-in. Decides the wording and the actions. */
   isDelivery?: boolean;
   orderNumber: string;

@@ -411,6 +411,7 @@ export type Database = {
           order_id: string
           order_status: string | null
           order_type: string | null
+          pending_at: string | null
           special_instructions: string | null
         }
         Insert: {
@@ -425,6 +426,7 @@ export type Database = {
           order_id?: string
           order_status?: string | null
           order_type?: string | null
+          pending_at?: string | null
           special_instructions?: string | null
         }
         Update: {
@@ -439,6 +441,7 @@ export type Database = {
           order_id?: string
           order_status?: string | null
           order_type?: string | null
+          pending_at?: string | null
           special_instructions?: string | null
         }
         Relationships: [
@@ -759,7 +762,11 @@ export type Database = {
           order_id: string | null
           payment_method: string | null
           payment_status: string | null
+          provider_payment_id: string | null
           provider_reference_id: string | null
+          provider_refund_id: string | null
+          refund_error: string | null
+          refunded_at: string | null
           subtotal: number | null
           tax_amount: number | null
           total_paid: number | null
@@ -774,7 +781,11 @@ export type Database = {
           order_id?: string | null
           payment_method?: string | null
           payment_status?: string | null
+          provider_payment_id?: string | null
           provider_reference_id?: string | null
+          provider_refund_id?: string | null
+          refund_error?: string | null
+          refunded_at?: string | null
           subtotal?: number | null
           tax_amount?: number | null
           total_paid?: number | null
@@ -789,7 +800,11 @@ export type Database = {
           order_id?: string | null
           payment_method?: string | null
           payment_status?: string | null
+          provider_payment_id?: string | null
           provider_reference_id?: string | null
+          provider_refund_id?: string | null
+          refund_error?: string | null
+          refunded_at?: string | null
           subtotal?: number | null
           tax_amount?: number | null
           total_paid?: number | null

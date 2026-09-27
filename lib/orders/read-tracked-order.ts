@@ -2,6 +2,7 @@ import { orderItemName } from "@/lib/orders/item-name";
 import { createClient } from "@/lib/supabase/server";
 import { formatOrderNumber } from "@/lib/orders/order-number";
 import { validateNcrAddress } from "@/lib/address/validate-ncr";
+import type { OrderPaymentSummary } from "@/lib/orders/order-stage";
 
 /**
  * One customer's order, narrowed to what the tracking screen draws.
@@ -27,6 +28,16 @@ export type TrackedOrder = {
   orderStatus: string | null;
   cancelledAt: string | null;
   cancellationReason: string | null;
+  /**
+   * When the order started waiting for staff to accept it (issue #115). The
+   * screen prompts from 5 minutes and offers a free cancel from 10.
+   */
+  pendingAt?: string | null;
+  /**
+   * How it was paid, for the refund line on a cancelled order (issue #115).
+   * Null when there is no payment row.
+   */
+  payment?: OrderPaymentSummary | null;
   /**
    * Always null: the shop is pickup-only and the `delivery` table is gone
    * (issue #114). Kept on the type because `resolveOrderProgress` still
@@ -71,14 +82,14 @@ export async function readTrackedOrder(
   // so the filter is what actually prevents that.
   const { data: order } = await supabase
     .from("order")
-    .select("order_id, order_status, order_type, cancelled_at, cancellation_reason, delivery_address")
+    .select("order_id, order_status, order_type, cancelled_at, cancellation_reason, delivery_address, pending_at, created_at")
     .eq("order_id", orderId)
     .eq("customer_id", user.id)
     .maybeSingle();
 
   if (!order) return null;
 
-  const [orderItems, review] = await Promise.all([
+  const [orderItems, review, transactions] = await Promise.all([
     supabase
       .from("order_item")
       .select("product_id, product_name, product(product_name)")
@@ -93,6 +104,12 @@ export async function readTrackedOrder(
       .is("product_id", null)
       .maybeSingle()
       .then((res) => res.data),
+    // For the refund line on a cancelled order (issue #115).
+    supabase
+      .from("transaction")
+      .select("payment_method, payment_status, total_paid, subtotal")
+      .eq("order_id", order.order_id)
+      .then((res) => res.data),
   ]);
 
   return {
@@ -101,6 +118,12 @@ export async function readTrackedOrder(
     orderStatus: order.order_status,
     cancelledAt: order.cancelled_at,
     cancellationReason: order.cancellation_reason,
+    // An order from before pending_at existed falls back to when it was made.
+    pendingAt:
+      order.order_status === "pending"
+        ? (order.pending_at ?? order.created_at)
+        : order.pending_at,
+    payment: paymentSummaryOf(transactions ?? []),
     deliveryStatus: null,
     orderType: order.order_type,
     arrivalWindow: null,
@@ -117,6 +140,37 @@ export async function readTrackedOrder(
     })),
     rating: review?.rating ?? null,
   };
+}
+
+/**
+ * An order can own several transaction rows (a retried wallet payment adds
+ * one), so the one that took money speaks for it: the PayMongo row that was
+ * paid or is being refunded. Pay-in-store rows are not "paid online".
+ */
+function paymentSummaryOf(
+  rows: {
+    payment_method: string | null;
+    payment_status: string | null;
+    total_paid: number | null;
+    subtotal: number | null;
+  }[],
+): OrderPaymentSummary | null {
+  const MONEY_TAKEN = ["paid", "refund_pending", "refunded", "refund_failed"];
+  const online = rows.find(
+    (row) =>
+      row.payment_method === "paymongo" &&
+      MONEY_TAKEN.includes(row.payment_status ?? ""),
+  );
+  if (online) {
+    return {
+      paidOnline: true,
+      status: online.payment_status,
+      amount: Number(online.total_paid) > 0 ? Number(online.total_paid) : online.subtotal,
+    };
+  }
+  return rows.length > 0
+    ? { paidOnline: false, status: rows[0].payment_status, amount: null }
+    : null;
 }
 
 async function geocode(address: string | null) {

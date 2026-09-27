@@ -368,3 +368,69 @@ describe("TrackOrderScreen", () => {
     ).not.toBeInTheDocument();
   });
 });
+
+describe("TrackOrderScreen waiting for the store (issue #115)", () => {
+  beforeEach(() => {
+    handlers = [];
+    getOrderEtaAction.mockResolvedValue(etaOf("35–45 min"));
+  });
+
+  const minutesAgo = (minutes: number) =>
+    new Date(Date.now() - minutes * 60_000).toISOString();
+
+  it("says nothing extra for the first 5 minutes", () => {
+    renderScreen(trackedOrder({ pendingAt: minutesAgo(2) }));
+
+    expect(screen.queryByText(/waiting for the store/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/cancel for free/i)).not.toBeInTheDocument();
+  });
+
+  it("says it is waiting for the store from 5 minutes", () => {
+    renderScreen(trackedOrder({ pendingAt: minutesAgo(6) }));
+
+    expect(screen.getByText("Waiting for the store to confirm your order…")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel order" })).toBeInTheDocument();
+  });
+
+  it("offers a free cancel, more prominently, from 10 minutes", () => {
+    renderScreen(trackedOrder({ pendingAt: minutesAgo(11) }));
+
+    expect(
+      screen.getByText("The store hasn't confirmed yet. You can cancel for free."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel order for free" })).toBeInTheDocument();
+  });
+
+  it("drops the prompt the moment staff confirm", () => {
+    renderScreen(trackedOrder({ pendingAt: minutesAgo(11) }));
+    expect(screen.getByText(/cancel for free/i)).toBeInTheDocument();
+
+    emit("order", { order_status: "preparing", pending_at: minutesAgo(11) });
+
+    expect(screen.queryByText(/cancel for free/i)).not.toBeInTheDocument();
+  });
+
+  it("tells a customer who paid online that the money is being refunded", () => {
+    renderScreen(
+      trackedOrder({
+        orderStatus: "cancelled",
+        cancellationReason: "Store didn't confirm in time",
+        payment: { paidOnline: true, status: "refund_pending", amount: 250 },
+      }),
+    );
+
+    expect(screen.getByText(/Store didn't confirm in time/)).toBeInTheDocument();
+    expect(screen.getByText(/₱250\.00 GCash \/ Maya payment is being refunded/)).toBeInTheDocument();
+  });
+
+  it("says nothing about refunds for an order paid at the counter", () => {
+    renderScreen(
+      trackedOrder({
+        orderStatus: "cancelled",
+        payment: { paidOnline: false, status: "pending", amount: null },
+      }),
+    );
+
+    expect(screen.queryByText(/refund/i)).not.toBeInTheDocument();
+  });
+});
