@@ -1195,8 +1195,9 @@ export async function exportReportCSV(
   const { start_date, end_date } = parsed.data;
   const supabase = createClient();
 
-  // The generated database types predate these functions.
-  const rpc = supabase.rpc as unknown as (
+  // The generated database types predate these functions. Bound: `rpc` reads
+  // the client through `this`, and a detached reference has none.
+  const rpc = supabase.rpc.bind(supabase) as unknown as (
     fn: string,
     args: Record<string, unknown>,
   ) => Promise<{ data: any[] | null; error: { message: string } | null }>;
