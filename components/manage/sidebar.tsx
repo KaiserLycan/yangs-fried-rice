@@ -70,6 +70,26 @@ const DEFAULT_SIDEBAR_USER = {
   profileImageUrl: null as string | null,
 };
 
+function KdsIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      <path d="M12 4v16" />
+      <path d="M2 8h20" />
+    </svg>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Navigation items
 // ---------------------------------------------------------------------------
@@ -86,6 +106,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Promotions", href: "/manage/promotions", icon: PromotionsIcon },
   { label: "Menu", href: "/manage/menu", icon: MenuIcon },
   { label: "Orders", href: "/manage/orders", icon: OrdersIcon },
+  { label: "KDS", href: "/manage/kds", icon: KdsIcon },
   { label: "Customers", href: "/manage/customers", icon: CustomersIcon },
   { label: "Employees", href: "/manage/employee", icon: EmployeesIcon },
   // Manager-only: not in STAFF_MANAGE_PREFIXES, so canAccessManagePath hides it.

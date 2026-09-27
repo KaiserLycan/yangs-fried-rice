@@ -48,6 +48,7 @@ import {
 } from "@/lib/storage/stored-image";
 import { removeStoredImage } from "@/lib/storage/remove-stored-image";
 import { recordEmployeeAction } from "@/lib/audit/record-employee-action";
+import { customerFiltersSchema, type CustomerFilters } from "@/lib/validation/customer-filters";
 
 /**
  * `{ column: { from, to } }` for the columns `updates` actually changes, the
@@ -129,7 +130,7 @@ export async function getCurrentEmployee(): Promise<
  * Internal helper — resolves the caller and asserts their role is one
  * of the allowed roles. Returns the employee row or an error.
  */
-async function requireRole(
+export async function requireRole(
   ...allowed: EmployeeRole[]
 ): Promise<ActionResult<Employee>> {
   const result = await getCurrentEmployee();
@@ -934,6 +935,86 @@ export async function getAllCustomers(): Promise<ActionResult<(Customer & { crea
   }
 
   return { data: enrichedCustomers, error: null };
+}
+
+export type CustomerStats = {
+  customer_id: string;
+  name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  phone_number: string | null;
+  profileImage_URL: string | null;
+  date_of_birth: string | null;
+  created_at: string | null;
+  total_orders: number;
+  total_spent: number;
+};
+
+const SORTABLE_CUSTOMER_COLUMNS = ["name", "created_at", "total_orders", "total_spent"];
+
+export async function getCustomersPaginated({
+  page = 1,
+  pageSize = 10,
+  search = "",
+  sortColumn = "name",
+  sortDirection = "asc",
+  filters = {},
+}: {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  sortColumn?: string;
+  sortDirection?: "asc" | "desc";
+  /** Period, minimums, joined range, activity — see `customerFiltersSchema`. */
+  filters?: CustomerFilters;
+}): Promise<ActionResult<{ customers: CustomerStats[]; totalCount: number }>> {
+  const auth = await requireRole("MANAGER");
+  if (!auth.data) return { data: null, error: auth.error };
+
+  const parsedFilters = customerFiltersSchema.safeParse(filters);
+  if (!parsedFilters.success) {
+    return { data: null, error: parsedFilters.error.errors[0].message };
+  }
+  const f = parsedFilters.data;
+
+  const supabase = createClient();
+  // Search and filters are function arguments, applied in SQL as plain values
+  // (20260929000001) — never pasted into a PostgREST filter expression. The
+  // generated database types predate the parameters.
+  const rpc = supabase.rpc.bind(supabase) as unknown as (
+    fn: "get_customer_stats",
+    args: Record<string, unknown>,
+    options: { count: "exact" },
+  ) => ReturnType<typeof supabase.rpc<"get_customer_stats">>;
+  let query = rpc(
+    "get_customer_stats",
+    {
+      p_search: search.trim() || null,
+      p_from: f.from ?? null,
+      p_to: f.to ?? null,
+      p_min_orders: f.minOrders ?? null,
+      p_min_spent: f.minSpent ?? null,
+      p_joined_from: f.joinedFrom ?? null,
+      p_joined_to: f.joinedTo ?? null,
+      p_activity: f.activity ?? "any",
+    },
+    { count: "exact" },
+  );
+
+  // Handle sort: only the columns the table offers.
+  const column = SORTABLE_CUSTOMER_COLUMNS.includes(sortColumn) ? sortColumn : "name";
+  const isAsc = sortDirection === "asc";
+  query = query.order(column, { ascending: isAsc }).order("customer_id", { ascending: true });
+
+  const offset = (page - 1) * pageSize;
+  const limit = pageSize - 1;
+  query = query.range(offset, offset + limit);
+
+  const { data, count, error } = await query;
+  if (error) return { data: null, error: error.message };
+
+  return { data: { customers: data as any, totalCount: count || 0 }, error: null };
 }
 
 /**

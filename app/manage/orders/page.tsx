@@ -3,18 +3,19 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Loader2, Search } from "lucide-react";
-import { OrderSidebar, OrderStatus, dbStatusForTab } from "@/components/manage/orders/order-sidebar";
+import { OrderSidebar, OrderStatus } from "@/components/manage/orders/order-sidebar";
 import { OrderCard } from "@/components/manage/orders/order-card";
 import type { OrderData } from "@/types/staff-order";
 import { OrderDetailModal } from "@/components/manage/orders/order-detail-modal";
+import { CancelReasonModal } from "@/components/manage/orders/cancel-reason-modal";
 import { OpenIssuesPanel } from "@/components/manage/orders/open-issues-panel";
 import { ManagePagination } from "@/components/manage/manage-pagination";
+import { OrderFilterPopover, type OrderFilterState } from "@/components/manage/orders/order-filter-popover";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast, ToastProvider } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
-import { useNow } from "@/lib/hooks/use-now";
-import { getDetailedOrders, updateOrderStatus } from "@/lib/actions/orders";
+import { getDetailedOrders, updateOrderStatus, getEmployeeAccess } from "@/lib/actions/orders";
 import { mapStaffOrder, type StaffOrderRow } from "@/lib/orders/map-staff-order";
 import { actionCopy, dbStatusFor, type StaffAction } from "@/lib/orders/staff-actions";
 
@@ -35,10 +36,13 @@ function ManageOrdersInner() {
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
-  // This page does not refetch on a timer, so without a tick a card could
-  // never *start* flashing. Every 30s the cards re-check how long each
-  // unaccepted order has waited (issue #115).
-  const now = useNow(30_000);
+  const [isManager, setIsManager] = useState(false);
+  
+  useEffect(() => {
+    getEmployeeAccess().then(res => {
+      if (res.data) setIsManager(res.data.isManager);
+    });
+  }, []);
 
   // UI State
   const [activeStatus, setActiveStatus] = useState<OrderStatus>("All");
@@ -49,13 +53,12 @@ function ManageOrdersInner() {
   const [itemsPerPage, setItemsPerPage] = useState(6);
   
   const [confirmAction, setConfirmAction] = useState<{ type: StaffAction, order: OrderData } | null>(null);
-  const [cancelReason, setCancelReason] = useState("");
-  const [showCancelError, setShowCancelError] = useState(false);
 
   // Order-id search (P52). The box updates on every key; the query waits
   // until typing pauses so each keystroke is not a round trip.
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  const [advancedFilters, setAdvancedFilters] = useState<OrderFilterState>({});
   useEffect(() => {
     const timer = setTimeout(() => {
       setSearch(searchInput.trim());
@@ -64,17 +67,33 @@ function ManageOrdersInner() {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  // Fetch Orders on Mount and when Status/Page changes
+  // Fetch orders whenever the tab, page, search or filters change.
   const fetchOrders = useCallback(async () => {
     setIsLoading(true);
-    
-    // Each tab knows the order_status value(s) it lists.
-    const dbStatus = dbStatusForTab(activeStatus);
+
+    // 1. Bulletproof Status Mapping (Fixed backend mismatch & casing issues)
+    let dbStatus: string | string[] | undefined = undefined;
+    const uiTab = activeStatus.toLowerCase();
+    const isPaymentIssuesTab = uiTab === "payment issues";
+
+    if (uiTab === "queue") dbStatus = "pending";
+    else if (uiTab === "preparation" || uiTab === "prep") dbStatus = "preparing";
+    else if (uiTab === "delivering" || uiTab === "delivery") dbStatus = ["ready", "out_for_delivery"];
+    else if (uiTab === "completed") dbStatus = "completed";
+    else if (uiTab === "canceled" || uiTab === "cancelled") dbStatus = "cancelled";
+
+    const { date_from, date_to, ...otherFilters } = advancedFilters;
 
     // 1. Fetch the summaries using server-side pagination & filtering
     const summaryResult = await getDetailedOrders({
       status: dbStatus as any,
+      payment_issues: isPaymentIssuesTab || undefined,
       search: search || undefined,
+      ...otherFilters,
+      // The picked days, as the start of the first and end of the last in
+      // the browser's time zone.
+      date_from: date_from ? new Date(`${date_from}T00:00:00`).toISOString() : undefined,
+      date_to: date_to ? new Date(`${date_to}T23:59:59.999`).toISOString() : undefined,
       limit: pageSize,
       offset: (currentPage - 1) * pageSize,
     });
@@ -100,7 +119,7 @@ function ManageOrdersInner() {
       setOrders(mappedOrders);
     }
     setIsLoading(false);
-  }, [activeStatus, currentPage, pageSize, search, showToast]);
+  }, [activeStatus, currentPage, pageSize, search, advancedFilters, showToast]);
 
   useEffect(() => {
     fetchOrders();
@@ -108,13 +127,8 @@ function ManageOrdersInner() {
 
   // Execute Backend Mutations
   const handleConfirmAction = async () => {
-    if (!confirmAction) return;
+    if (!confirmAction || confirmAction.type === "Cancel") return;
     
-    if (confirmAction.type === "Cancel" && !cancelReason.trim()) {
-      setShowCancelError(true);
-      return;
-    }
-
     setIsProcessing(true);
 
     const newDbStatus = dbStatusFor(confirmAction.type);
@@ -122,7 +136,7 @@ function ManageOrdersInner() {
     const result = await updateOrderStatus(
       confirmAction.order.id,
       newDbStatus,
-      confirmAction.type === "Cancel" ? cancelReason : undefined,
+      undefined,
     );
 
     if (result.error) {
@@ -132,8 +146,28 @@ function ManageOrdersInner() {
       await fetchOrders(); // Refresh the active list
       setConfirmAction(null);
       setSelectedOrder(null);
-      setCancelReason("");
-      setShowCancelError(false);
+    }
+    
+    setIsProcessing(false);
+  };
+
+  const handleCancelConfirm = async (reason: string) => {
+    if (!confirmAction || confirmAction.type !== "Cancel") return;
+    
+    setIsProcessing(true);
+    const result = await updateOrderStatus(
+      confirmAction.order.id,
+      "cancelled",
+      reason,
+    );
+
+    if (result.error) {
+      showToast(`Failed to update order: ${result.error}`, "error");
+    } else {
+      showToast(actionCopy("Cancel", confirmAction.order.orderNumber).done, "success");
+      await fetchOrders();
+      setConfirmAction(null);
+      setSelectedOrder(null);
     }
     
     setIsProcessing(false);
@@ -143,30 +177,38 @@ function ManageOrdersInner() {
     <div className="flex flex-col h-full gap-4 md:gap-0">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-[10px] md:mb-8 gap-4 sm:gap-0">
-        <h1 className="font-display text-2xl md:text-3xl leading-normal text-foreground">
+        <h1 className="font-display text-[24px] md:text-[30px] leading-normal text-[#1a1210]">
           ORDER MANAGEMENT
         </h1>
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
           <div className="relative w-full sm:w-auto">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-placeholder" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-[#A2938A]" />
             <input
               type="search"
               aria-label="Search by order number"
-              placeholder="Order number, e.g. 1042"
+              placeholder="Search order #"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className="w-full sm:w-[260px] h-[45px] pl-11 pr-4 rounded-md border border-field-border bg-white text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-placeholder"
+              className="w-full sm:w-[260px] h-[45px] pl-11 pr-4 rounded-xl border border-[#DDCDB8] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#E8541F] placeholder:text-[#A2938A]"
             />
           </div>
-          <Link href="/manage/kds" className="bg-status-preparing hover:bg-orange-600 text-white px-6 py-2.5 rounded-lg font-semibold shadow-sm transition-colors text-center w-full sm:w-auto">
+          <OrderFilterPopover
+            filters={advancedFilters}
+            onFilterChange={(next) => {
+              setAdvancedFilters(next);
+              setCurrentPage(1);
+            }}
+          />
+          <Link href="/manage/kds" className="bg-[#CD7D39] hover:bg-orange-600 text-white px-6 py-2.5 rounded-lg font-semibold shadow-sm transition-colors text-center w-full sm:w-auto">
             View KDS
           </Link>
         </div>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 md:gap-8 flex-1 min-h-0">
-        <OrderSidebar 
-          activeStatus={activeStatus} 
+        <OrderSidebar
+          activeStatus={activeStatus}
+          isManager={isManager}
           onStatusChange={(status) => {
             setActiveStatus(status);
             setCurrentPage(1); // Reset page on filter change
@@ -180,39 +222,45 @@ function ManageOrdersInner() {
             {isLoading ? (
               <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="flex flex-col text-left w-full rounded-md overflow-hidden shadow-sm bg-background border border-gray-200/50 h-[280px]">
+                  <div key={i} className="flex flex-col text-left w-full rounded-xl overflow-hidden shadow-sm bg-[#FAF7F0] border border-gray-200/50 h-[280px]">
                     {/* Header Skeleton */}
-                    <div className="flex justify-between items-start p-4 bg-track">
+                    <div className="flex justify-between items-start p-4 bg-[#efe6d8]">
                       <div>
-                        <div className="h-5 w-16 bg-rule rounded-full animate-pulse mb-2" />
-                        <div className="h-3 w-12 bg-rule rounded-full animate-pulse" />
+                        <div className="h-5 w-16 bg-[#e3d6c3] rounded-full animate-pulse mb-2" />
+                        <div className="h-3 w-12 bg-[#e3d6c3] rounded-full animate-pulse" />
                       </div>
                       <div className="flex flex-col items-end">
-                        <div className="h-3 w-14 bg-rule rounded-full animate-pulse mb-2" />
-                        <div className="h-5 w-12 bg-rule rounded-full animate-pulse" />
+                        <div className="h-3 w-14 bg-[#e3d6c3] rounded-full animate-pulse mb-2" />
+                        <div className="h-5 w-12 bg-[#e3d6c3] rounded-full animate-pulse" />
                       </div>
                     </div>
                     {/* Body Skeleton */}
                     <div className="p-4 flex-1 flex flex-col gap-4">
                       <div>
-                        <div className="h-4 w-3/4 bg-track rounded-full animate-pulse mb-2" />
-                        <div className="h-3 w-1/2 bg-track rounded-full animate-pulse ml-5" />
+                        <div className="h-4 w-3/4 bg-[#efe6d8] rounded-full animate-pulse mb-2" />
+                        <div className="h-3 w-1/2 bg-[#efe6d8] rounded-full animate-pulse ml-5" />
                       </div>
                       <div>
-                        <div className="h-4 w-2/3 bg-track rounded-full animate-pulse" />
+                        <div className="h-4 w-2/3 bg-[#efe6d8] rounded-full animate-pulse" />
                       </div>
                     </div>
                     {/* Footer Actions Skeleton */}
                     <div className="flex w-full mt-auto h-[44px]">
-                      <div className="flex-1 bg-track border-r border-rule animate-pulse" />
-                      <div className="flex-1 bg-track animate-pulse" />
+                      <div className="flex-1 bg-[#efe6d8] border-r border-[#e3d6c3] animate-pulse" />
+                      <div className="flex-1 bg-[#efe6d8] animate-pulse" />
                     </div>
                   </div>
                 ))}
               </div>
             ) : orders.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground bg-white rounded-md border border-track">
-                {search ? `No orders starting with #${search.replace(/^#/, "")}.` : "No orders found for this status."}
+              <div className="p-8 text-center text-[#7A6A60] bg-white rounded-xl border border-[#F0E6D8]">
+                {search
+                  ? `No orders starting with #${search.replace(/^#/, "")}.`
+                  : Object.keys(advancedFilters).some((k) => advancedFilters[k as keyof OrderFilterState])
+                  ? "No orders match these filters."
+                  : activeStatus === "Payment Issues"
+                  ? "No stuck or failed payments right now."
+                  : "No orders found for this status."}
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -220,7 +268,6 @@ function ManageOrdersInner() {
                   <div key={order.id} className="h-[280px]">
                     <OrderCard 
                       order={order} 
-                      now={now}
                       onClick={() => setSelectedOrder(order)} 
                       onAction={(type, order) => setConfirmAction({ type, order })}
                     />
@@ -252,26 +299,18 @@ function ManageOrdersInner() {
         onAction={(type, order) => setConfirmAction({ type, order })}
       />
 
-      {/* Confirmation Dialog */}
+      {/* Confirmation Dialog (Non-Cancel) */}
       <Dialog 
-        open={confirmAction !== null}
-        onClose={() => {
-          setConfirmAction(null);
-          setCancelReason("");
-          setShowCancelError(false);
-        }}
+        open={confirmAction !== null && confirmAction.type !== "Cancel"}
+        onClose={() => setConfirmAction(null)}
         title={confirmAction ? actionCopy(confirmAction.type, confirmAction.order.orderNumber).title : ""}
         description={confirmAction ? actionCopy(confirmAction.type, confirmAction.order.orderNumber).description : ""}
         tone="default"
         footer={
           <>
-            <Button variant="outline" onClick={() => {
-              setConfirmAction(null);
-              setCancelReason("");
-              setShowCancelError(false);
-            }} disabled={isProcessing}>Back</Button>
+            <Button variant="outline" onClick={() => setConfirmAction(null)} disabled={isProcessing}>Back</Button>
             <Button 
-              variant={confirmAction?.type === "Cancel" ? "confirm" : "primary"}
+              variant="primary"
               onClick={handleConfirmAction}
               disabled={isProcessing}
             >
@@ -279,30 +318,16 @@ function ManageOrdersInner() {
             </Button>
           </>
         }
-      >
-        {confirmAction?.type === "Cancel" && (
-          <div className="flex flex-col gap-2 mt-4">
-            <label className="text-xs font-bold text-gray-500 tracking-wider uppercase">
-              Reason <span className="text-red-500">*</span>
-            </label>
-            <textarea 
-              placeholder="Why do you want to cancel this order?"
-              value={cancelReason}
-              onChange={(e) => {
-                setCancelReason(e.target.value);
-                if (e.target.value.trim()) setShowCancelError(false);
-              }}
-              className={cn(
-                "w-full min-h-[100px] p-3 rounded-lg border bg-white text-sm leading-5 text-foreground focus:outline-none focus:ring-2 placeholder:text-placeholder resize-none transition-colors",
-                showCancelError ? "border-red-500 focus:ring-red-500" : "border-field-border focus:ring-accent"
-              )}
-            />
-            {showCancelError && (
-              <span className="text-sm text-red-500 font-medium">Please provide a reason for cancellation.</span>
-            )}
-          </div>
-        )}
-      </Dialog>
+      />
+
+      {/* Cancel Reason Modal */}
+      <CancelReasonModal 
+        isOpen={confirmAction !== null && confirmAction.type === "Cancel"}
+        order={confirmAction?.type === "Cancel" ? confirmAction.order : null}
+        isProcessing={isProcessing}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={handleCancelConfirm}
+      />
     </div>
   );
 }

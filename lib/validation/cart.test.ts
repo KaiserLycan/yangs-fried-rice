@@ -117,6 +117,21 @@ describe("submitCartSchema", () => {
     }
   });
 
+  it("defaults to self pickup and accepts a courier, nothing else", () => {
+    const plain = submitCartSchema.safeParse({ cart_id: validUUID });
+    expect(plain.success && plain.data.fulfillment_method).toBe("self_pickup");
+
+    const courier = submitCartSchema.safeParse({
+      cart_id: validUUID,
+      fulfillment_method: "3rd_party_courier",
+    });
+    expect(courier.success && courier.data.fulfillment_method).toBe("3rd_party_courier");
+
+    expect(
+      submitCartSchema.safeParse({ cart_id: validUUID, fulfillment_method: "delivery" }).success,
+    ).toBe(false);
+  });
+
   it("accepts dine_in with special instructions", () => {
     const res = submitCartSchema.safeParse({
       cart_id: validUUID,

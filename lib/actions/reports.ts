@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { requireRole } from "@/lib/actions/admin";
 import { recordEmployeeAction } from "@/lib/audit/record-employee-action";
 import {
   ACCOUNT_DISABLED_CODE,
@@ -20,7 +21,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { Tables, TablesInsert } from "@/types/database.types";
 import { groupByFrequency } from "./reports-utils";
-import { MENU_SATISFACTION_REPORT } from "@/lib/reports/report-types";
+import { MENU_SATISFACTION_REPORT, normalizeReportType } from "@/lib/reports/report-types";
 import {
   drawBarChart,
   drawHorizontalBarChart,
@@ -1176,4 +1177,220 @@ export async function saveReport(
 
   if (error) return { data: null, error: error.message };
   return { data, error: null };
+}
+
+/**
+ * The report on screen, as CSV — the same figures as the page, plus the
+ * detailed breakdowns the page has no room for.
+ *
+ *   Sales and Order: summary, sales per day, cash remitted per day, and
+ *     sales by payment method / hour / weekday, cancellations by reason.
+ *   Menu & Customer Satisfaction: overview, top dishes, ratings.
+ *
+ * Requires: manager.
+ */
+export async function exportReportCSV(
+  input: ReportDateRange,
+  reportType?: string,
+): Promise<ActionResult<string>> {
+  const parsed = reportDateRangeSchema.safeParse(input);
+  if (!parsed.success) return { data: null, error: parsed.error.errors[0].message };
+
+  const auth = await requireRole("MANAGER");
+  if (!auth.data) return { data: null, error: auth.error };
+
+  const { start_date, end_date } = parsed.data;
+  const type = normalizeReportType(reportType);
+
+  if (type === MENU_SATISFACTION_REPORT) {
+    const perf = await getPlatformPerformance({ start_date, end_date, top_products: 10 });
+    if (!perf.data) return { data: null, error: perf.error };
+    const p = perf.data;
+
+    const out: (string | number)[][] = [
+      ["Yang's Fried Rice report", MENU_SATISFACTION_REPORT],
+      ["Date range", `${start_date} to ${end_date}`],
+      [],
+      ["Overview"],
+      ["Measure", "Value"],
+      ["Registered customers", p.totalRegisteredCustomers],
+      ["Orders placed", p.totalOrdersInRange],
+      ["Completed orders", p.completedOrders],
+      ["Cancelled orders", p.cancelledOrders],
+      ["Completion rate (%)", p.completionRate],
+      ["Cancellation rate (%)", p.cancellationRate],
+      ["Revenue (PHP)", money(p.totalRevenue)],
+      ["Average order value (PHP)", money(p.averageOrderValue)],
+      ["Previous period revenue (PHP)", money(p.revenueTrend.previousPeriodRevenue)],
+      ["Change vs previous period (%)", p.revenueTrend.percentChange],
+      ["Dishes on the menu", p.totalAvailableProducts],
+      [],
+      ["Top selling dishes"],
+      ["Rank", "Dish", "Quantity sold"],
+      ...p.topSellingProducts.map((row) => [row.rank, row.productName, row.quantitySold]),
+      [],
+      ["Customer satisfaction"],
+      ["Average rating", p.customerSatisfaction.averageRating ?? "No ratings"],
+      ["Reviews", p.customerSatisfaction.totalReviews],
+      ["Stars", "Reviews"],
+      ...p.customerSatisfaction.distribution.map((row) => [`${row.rating} star`, row.count]),
+    ];
+    return { data: toCsv(out), error: null };
+  }
+
+  const sales = await getSalesReportData({ start_date, end_date, frequency: "daily" });
+  if (!sales.data) return { data: null, error: sales.error };
+
+  const supabase = createClient();
+
+  // The generated database types predate these functions. Bound: `rpc` reads
+  // the client through `this`, and a detached reference has none.
+  const rpc = supabase.rpc.bind(supabase) as unknown as (
+    fn: string,
+    args: Record<string, unknown>,
+  ) => Promise<{ data: any[] | null; error: { message: string } | null }>;
+
+  const [pmRes, cancelRes, dailyCashRes, hourRes, weekdayRes] = await Promise.all([
+    rpc("get_payment_method_breakdown", { start_date, end_date }),
+    rpc("get_cancellation_reason_breakdown", { start_date, end_date }),
+    rpc("get_cash_remitted_daily", { start_date, end_date }),
+    rpc("get_sales_by_hour", { start_date, end_date }),
+    rpc("get_sales_by_weekday", { start_date, end_date }),
+  ]);
+
+  for (const res of [pmRes, cancelRes, dailyCashRes, hourRes, weekdayRes]) {
+    if (res.error) return { data: null, error: res.error.message };
+  }
+
+  const rows: (string | number)[][] = [];
+  const section = (title: string, header: string[], body: (string | number)[][]) => {
+    rows.push([title], header, ...body, []);
+  };
+
+  rows.push(
+    ["Yang's Fried Rice report", type],
+    ["Date range", `${start_date} to ${end_date}`],
+    ["Times", "Asia/Manila (breakdowns and cash remitted)"],
+    [],
+  );
+
+  // The same four figures and per-day bars as the page.
+  const summary = sales.data.summary;
+  section(
+    "Summary",
+    ["Measure", "Value"],
+    [
+      ["Total revenue (PHP)", money(summary.totalRevenue)],
+      ["Total orders", summary.totalOrders],
+      ["Average order value (PHP)", money(summary.averageOrderValue)],
+      ["Average revenue per day (PHP)", money(summary.averageRevenuePerPeriod)],
+      ["Average orders per day", summary.averageOrdersPerPeriod],
+    ],
+  );
+  section(
+    "Sales by day",
+    ["Date", "Orders", "Revenue (PHP)"],
+    sales.data.breakdown.map((row) => [row.period, row.totalOrders, money(row.totalRevenue)]),
+  );
+
+  const dailyCash = dailyCashRes.data ?? [];
+  const cashTotal = dailyCash.reduce((sum, row) => sum + Number(row.cash_total), 0);
+  section(
+    "Cash remitted (collected at the counter)",
+    ["Date", "Orders", "Cash (PHP)"],
+    [
+      ...dailyCash.map((row) => [row.day, row.total_orders, money(row.cash_total)]),
+      ["Total", dailyCash.reduce((sum, row) => sum + Number(row.total_orders), 0), money(cashTotal)],
+    ],
+  );
+
+  section(
+    "Sales by payment method",
+    ["Method", "Orders", "Revenue (PHP)"],
+    (pmRes.data ?? []).map((row) => [row.method, row.total_orders, money(row.total_revenue)]),
+  );
+
+  section(
+    "Sales by hour of day",
+    ["Hour", "Orders", "Revenue (PHP)"],
+    (hourRes.data ?? []).map((row) => [hourLabel(row.hour), row.total_orders, money(row.total_revenue)]),
+  );
+
+  section(
+    "Sales by weekday",
+    ["Weekday", "Orders", "Revenue (PHP)"],
+    (weekdayRes.data ?? []).map((row) => [row.weekday_name, row.total_orders, money(row.total_revenue)]),
+  );
+
+  section(
+    "Cancellations by reason",
+    ["Reason", "Orders"],
+    (cancelRes.data ?? []).map((row) => [row.reason, row.total_orders]),
+  );
+
+  return { data: toCsv(rows), error: null };
+}
+
+/** Rows → CSV text. Excel opens a UTF-8 CSV correctly only with the byte-order mark. */
+function toCsv(rows: (string | number | null | undefined)[][]): string {
+  return "﻿" + rows.map((row) => row.map(csvCell).join(",")).join("\r\n");
+}
+
+/** One CSV field: quoted when it holds a comma, quote or line break. */
+function csvCell(value: string | number | null | undefined): string {
+  const text = value === null || value === undefined ? "" : String(value);
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function money(value: number | string | null | undefined): string {
+  return Number(value ?? 0).toFixed(2);
+}
+
+/** 0 → "12 AM – 1 AM", 13 → "1 PM – 2 PM". */
+function hourLabel(hour: number): string {
+  const fmt = (h: number) => `${h % 12 === 0 ? 12 : h % 12} ${h % 24 < 12 ? "AM" : "PM"}`;
+  return `${fmt(hour)} – ${fmt(hour + 1)}`;
+}
+
+export type CashRemittedDay = { day: string; totalOrders: number; cashTotal: number };
+
+/**
+ * Cash collected at the counter, one row per Manila day with at least one
+ * completed pay-in-store order. The range total is the sum of the rows.
+ * Requires: manager.
+ */
+export async function getCashRemittedDaily(
+  input: ReportDateRange,
+): Promise<ActionResult<{ days: CashRemittedDay[]; total: number }>> {
+  const parsed = reportDateRangeSchema.safeParse(input);
+  if (!parsed.success) return { data: null, error: parsed.error.errors[0].message };
+
+  const auth = await requireRole("MANAGER");
+  if (!auth.data) return { data: null, error: auth.error };
+
+  const supabase = createClient();
+  // The generated database types predate this function. Bound: `rpc` reads
+  // the client through `this`, and a detached reference has none.
+  const rpc = supabase.rpc.bind(supabase) as unknown as (
+    fn: string,
+    args: Record<string, unknown>,
+  ) => Promise<{
+    data: { day: string; total_orders: number; cash_total: number | string }[] | null;
+    error: { message: string } | null;
+  }>;
+  const { data, error } = await rpc("get_cash_remitted_daily", {
+    start_date: parsed.data.start_date,
+    end_date: parsed.data.end_date,
+  });
+
+  if (error) return { data: null, error: error.message };
+  const days = (data ?? []).map((row) => ({
+    day: row.day,
+    totalOrders: Number(row.total_orders),
+    cashTotal: Number(row.cash_total),
+  }));
+  return {
+    data: { days, total: days.reduce((sum, row) => sum + row.cashTotal, 0) },
+    error: null,
+  };
 }

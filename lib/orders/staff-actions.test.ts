@@ -57,9 +57,17 @@ describe("dbStatusFor", () => {
 });
 
 describe("canCancel", () => {
-  it("only cancels orders still in the queue or in prep", () => {
+  it("only cancels orders still unpaid, in the queue or in prep", () => {
+    expect(canCancel({ status: "UNPAID" })).toBe(true);
     expect(canCancel({ status: "QUEUE" })).toBe(true);
     expect(canCancel({ status: "PREP" })).toBe(true);
     expect(canCancel({ status: "DELIVERY" })).toBe(false);
+  });
+});
+
+describe("unpaid orders", () => {
+  it("have no forward action until the payment lands", () => {
+    expect(primaryActionFor({ status: "UNPAID" })).toBeNull();
+    expect(statusLabelFor({ status: "UNPAID" })).toBe("UNPAID");
   });
 });

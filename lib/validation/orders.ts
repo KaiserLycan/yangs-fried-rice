@@ -49,6 +49,19 @@ export const UNPAID_ORDER_STATUSES = [
   "payment_failed",
 ] as const;
 
+/**
+ * How long an unpaid online order may wait before its clock on the payment
+ * views turns amber (red at three times this). Unpaid orders are listed from
+ * the moment they are placed; this only says when one looks stuck.
+ */
+export const STUCK_PAYMENT_MINUTES = 5;
+
+/**
+ * A ready order not collected within this many minutes of being marked ready
+ * leaves "For Pick-up" and is listed under "Failed Pick-up" instead.
+ */
+export const FAILED_PICKUP_MINUTES = 90;
+
 /** Is this an order nobody has paid for yet? */
 export function isUnpaidStatus(status: string | null | undefined): boolean {
   return (UNPAID_ORDER_STATUSES as readonly string[]).includes(status ?? "");
@@ -105,8 +118,27 @@ export const orderFilterSchema = z.object({
     .optional(),
   date_from: z.string().datetime({ offset: true }).optional(),
   date_to: z.string().datetime({ offset: true }).optional(),
+  /** Only orders cancelled at or after this moment (the KDS "Cancelled (today)" tab). */
+  cancelled_from: z.string().datetime({ offset: true }).optional(),
+  /** Only orders marked ready at or after this moment (the KDS "For Pick-up" tab). */
+  ready_from: z.string().datetime({ offset: true }).optional(),
   /** Start of an order id, as printed on the card — "#6940" (P52). */
   search: z.string().max(40).optional(),
+  customer_name: z.string().optional(),
+  customer_id: z.string().optional(),
+  customer_phone: z.string().optional(),
+  payment_method: z.string().optional(),
+  /** Order total (₱, items + add-ons) at least / at most this. */
+  min_total: z.coerce.number().min(0).max(10000000).optional(),
+  max_total: z.coerce.number().min(0).max(10000000).optional(),
+  /** "take_out" (also matches legacy pickup spellings) or "dine_in". */
+  order_type: z.enum(["take_out", "dine_in"]).optional(),
+  /**
+   * The manager-only Payment Issues view: every order still awaiting_payment
+   * or payment_failed, newest first.
+   */
+  payment_issues: z.boolean().optional(),
+  include_unpaid: z.boolean().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),
 });

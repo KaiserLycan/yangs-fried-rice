@@ -9,6 +9,7 @@ import {
   type PlatformPerformanceData,
 } from "@/lib/actions/reports";
 import { SALES_REPORT, normalizeReportType } from "@/lib/reports/report-types";
+import { getCashRemittedDaily } from "@/lib/actions/reports";
 
 interface ReportsSummaryProps {
   type?: string;
@@ -49,6 +50,7 @@ export function ReportsSummary({ type: rawType = SALES_REPORT, startDate, endDat
   const type = normalizeReportType(rawType);
   const [salesData, setSalesData] = useState<SalesReportData | null>(null);
   const [perfData, setPerfData] = useState<PlatformPerformanceData | null>(null);
+  const [cashRemitted, setCashRemitted] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,18 +63,26 @@ export function ReportsSummary({ type: rawType = SALES_REPORT, startDate, endDat
 
       try {
         if (type === SALES_REPORT) {
-          const result = await getSalesReportData({
-            start_date: startDate,
-            end_date: endDate,
-            frequency: "daily",
-          });
-          if (cancelled) return;
-          if (result.error) {
-            setError(result.error);
-          } else {
-            setSalesData(result.data);
+          const [result, cashResult] = await Promise.all([
+            getSalesReportData({
+              start_date: startDate,
+              end_date: endDate,
+              frequency: "daily",
+            }),
+            getCashRemittedDaily({ start_date: startDate, end_date: endDate })
+          ]);
+
+          if (!cancelled) {
+            if (result.error) {
+              setError(result.error);
+            } else if (result.data) {
+              setSalesData(result.data);
+              // null (shown as N/A) when the caller may not see it, rather
+              // than a misleading ₱0.00.
+              setCashRemitted(cashResult.data ? cashResult.data.total : null);
+            }
           }
-        } else {
+          } else {
           // Menu & Customer Satisfaction: one performance read feeds both halves.
           const result = await getPlatformPerformance({
             start_date: startDate,
@@ -97,7 +107,7 @@ export function ReportsSummary({ type: rawType = SALES_REPORT, startDate, endDat
     return () => { cancelled = true; };
   }, [type, startDate, endDate]);
 
-  const cardCount = type === SALES_REPORT ? 3 : 4;
+  const cardCount = 4; // Always 4 cards now
 
   if (isLoading) return <SkeletonCards count={cardCount} />;
 
@@ -168,6 +178,13 @@ export function ReportsSummary({ type: rawType = SALES_REPORT, startDate, endDat
           value={formatPeso(salesData.summary.averageOrderValue)}
           subtitle={`${salesData.summary.averageOrdersPerPeriod} orders/day avg`}
           subtitleColor="muted"
+        />
+      
+        <StatCard
+          label="Cash Remitted"
+          value={cashRemitted !== null ? formatPeso(cashRemitted) : "N/A"}
+          subtitle="Pay-in-store cash collections only"
+          subtitleColor="green"
         />
       </div>
     );

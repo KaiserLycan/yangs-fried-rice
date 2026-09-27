@@ -909,15 +909,21 @@ export async function submitCart(
 
   const supabase = createClient();
 
-  const { data, error } = await supabase.rpc("submit_cart_to_order", {
+  // The generated database types predate `p_fulfillment_method`
+  // (20260928000010), hence the widened call signature.
+  const rpc = supabase.rpc.bind(supabase) as unknown as (
+    fn: "submit_cart_to_order",
+    args: Record<string, unknown>,
+  ) => Promise<{ data: unknown; error: { message: string; hint?: string } | null }>;
+  const { data, error } = await rpc("submit_cart_to_order", {
     p_cart_id: parsed.data.cart_id,
     p_order_type: parsed.data.order_type,
     p_special_instructions: parsed.data.special_instructions ?? undefined,
-    // The wallet itself (gcash / paymaya) is what gets recorded.
     p_payment_method:
       parsed.data.payment_method === "wallet"
         ? parsed.data.wallet
         : "pay-in-store",
+    p_fulfillment_method: parsed.data.fulfillment_method,
     // Senior Citizen / PWD (issue #116). The function re-checks all of it,
     // including that the photo is in this customer's own folder.
     p_discount: parsed.data.discount ?? undefined,

@@ -97,6 +97,12 @@ export const submitCartSchema = z
         }),
       })
       .default("take_out"),
+    /** Who collects it: the customer, or a courier they booked (Lalamove…). */
+    fulfillment_method: z
+      .enum(["self_pickup", "3rd_party_courier"], {
+        errorMap: () => ({ message: "Tell us who is picking up the order." }),
+      })
+      .default("self_pickup"),
     special_instructions: z
       .string()
       .trim()

@@ -6,18 +6,20 @@ import {
   EMPLOYEE_ACCOUNT_DISABLED_MESSAGE,
 } from "@/lib/auth/account-status";
 import { resolveEmployeeRole, canAccessManage, type EmployeeRole } from "@/lib/auth/roles";
+import { requireRole } from "@/lib/actions/admin";
 import {
   orderStatusSchema,
   isValidTransition,
   orderFilterSchema,
   UNPAID_ORDER_STATUSES,
+  FAILED_PICKUP_MINUTES,
+  isUnpaidStatus,
   type OrderStatus,
   type OrderFilters,
 } from "@/lib/validation/orders";
 import { isPickupOrder } from "@/lib/orders/format";
-import { orderIdRangeFor, orderNumberSearch } from "@/lib/orders/order-number";
+import { orderIdRangeFor } from "@/lib/orders/order-number";
 import { notifyOrderCancelled } from "@/lib/email/notify-order-cancelled";
-import { discardSeniorPwdIdPhoto, signSeniorPwdIdUrl } from "@/lib/storage/senior-pwd-ids";
 import type { Tables, TablesUpdate } from "@/types/database.types";
 
 // ---------------------------------------------------------------------------
@@ -30,7 +32,7 @@ type ActionResult<T> =
 
 type Order = Tables<"order">;
 
-type OrderWithDetails = Order & {
+type OrderWithDetails = Order & { ready_at?: string | null;
   customer: { name: string; email: string | null; phone_number: string | null } | null;
   order_item: {
     order_item_id: string;
@@ -49,18 +51,11 @@ type OrderWithDetails = Order & {
     payment_method: string | null;
     payment_status: string | null;
     total_paid: number | null;
-    subtotal: number | null;
-    discount_amount: number | null;
-    discount_type: string | null;
-    discount_id_number: string | null;
-    name_on_id: string | null;
-    discount_id_photo_path: string | null;
   }[];
 };
 
 type OrderSummary = {
   order_id: string;
-  order_number: number | null;
   order_status: string | null;
   order_type: string | null;
   created_at: string | null;
@@ -68,6 +63,10 @@ type OrderSummary = {
   item_count: number;
   total_paid: number | null;
 };
+
+/** Every spelling the transaction table has used for each kind of payment. */
+const WALLET_PAYMENT_METHODS = ["paymongo", "gcash", "paymaya"];
+const CASH_PAYMENT_METHODS = ["pay_in_store", "pay-in-store", "cash"];
 
 type OrderStats = {
   pending: number;
@@ -81,6 +80,12 @@ type OrderStats = {
 // ---------------------------------------------------------------------------
 // Auth helper
 // ---------------------------------------------------------------------------
+
+export async function getEmployeeAccess(): Promise<ActionResult<{ employee_id: string; role: string; isManager: boolean }>> {
+  const auth = await requireManageAccess();
+  if (!auth.data) return { data: null, error: auth.error };
+  return { data: { employee_id: auth.data.employee_id, role: auth.data.role, isManager: auth.data.role.toLowerCase() === 'manager' }, error: null };
+}
 
 async function requireManageAccess(): Promise<
   ActionResult<{ employee_id: string; role: EmployeeRole }>
@@ -185,7 +190,6 @@ export async function getAllOrders(
     .select(
       `
       order_id,
-      order_number,
       order_status,
       order_type,
       created_at,
@@ -231,7 +235,6 @@ export async function getAllOrders(
 
   const summaries: OrderSummary[] = (data ?? []).map((row: any) => ({
     order_id: row.order_id,
-    order_number: row.order_number ?? null,
     order_status: row.order_status,
     order_type: row.order_type,
     created_at: row.created_at,
@@ -265,13 +268,25 @@ export async function getDetailedOrders(
   const filters = parsed.data;
 
   const supabase = createClient();
+  
+  // Decide if we need inner joins based on filters
+  const needCustomerInner = !!(filters.customer_name || filters.customer_phone);
+  const customerJoin = needCustomerInner 
+    ? 'customer!inner ( name, email, phone_number )' 
+    : 'customer:customer_id ( name, email, phone_number )';
+    
+  const needTransactionInner =
+    !!filters.payment_method || filters.min_total !== undefined || filters.max_total !== undefined;
+  const transactionJoin = needTransactionInner
+    ? 'transaction!inner ( transaction_id, payment_method, payment_status, total_paid, subtotal )'
+    : 'transaction ( transaction_id, payment_method, payment_status, total_paid, subtotal )';
 
   let query = supabase
     .from("order")
     .select(
       `
       *,
-      customer:customer_id ( name, email, phone_number ),
+      ${customerJoin},
       order_item (
         order_item_id,
         quantity,
@@ -282,70 +297,97 @@ export async function getDetailedOrders(
         product:product_id ( product_name, product_price ),
         order_item_add_on ( add_on ( name, price ) )
       ),
-      transaction (
-        transaction_id,
-        payment_method,
-        payment_status,
-        total_paid,
-        subtotal,
-        discount_amount,
-        discount_type,
-        discount_id_number,
-        name_on_id,
-        discount_id_photo_path
-      )
+      ${transactionJoin}
     `,
       { count: "exact" }
     )
     .order("created_at", { ascending: false })
     .range(filters.offset, filters.offset + filters.limit - 1);
 
-  if (filters.status) {
+  if (filters.payment_issues) {
+    // Manager-only Payment Issues tab: every online order still unpaid
+    // (waiting for the wallet, or refused). The card's clock shows how long;
+    // the database's own timer cancels abandoned ones after 30 minutes.
+    if (auth.data.role !== "MANAGER") {
+      return { data: null, error: "Only managers can view payment issues." };
+    }
+    query = query.in("order_status", [...UNPAID_ORDER_STATUSES]);
+  } else if (filters.status) {
     if (Array.isArray(filters.status)) {
       query = query.in("order_status", filters.status);
     } else {
       query = query.eq("order_status", filters.status);
     }
-  } else {
-    // Same rule as the summary list above: orders still waiting on an online
-    // payment, or whose payment was refused, are not work for the kitchen or
-    // the riders and stay out of the default view (issue #106).
+  } else if (!filters.include_unpaid) {
     query = query.not(
       "order_status",
       "in",
       `(${UNPAID_ORDER_STATUSES.join(",")})`,
     );
   }
+
   if (filters.date_from) {
     query = query.gte("created_at", filters.date_from);
   }
   if (filters.date_to) {
     query = query.lte("created_at", filters.date_to);
   }
+  if (filters.cancelled_from) {
+    query = query.gte("cancelled_at", filters.cancelled_from);
+  }
+  if (filters.ready_from) {
+    query = query.gte("ready_at", filters.ready_from);
+  }
   if (filters.search?.trim()) {
-    // "1042" is an order number; "38206dc0" is an older id prefix (a
-    // reference printed before order numbers). Anything else matches nothing.
-    const number = orderNumberSearch(filters.search);
-    const range = number === null ? orderIdRangeFor(filters.search) : null;
-    if (number !== null) {
-      query = query.eq("order_number", number);
-    } else if (range) {
-      query = query.gte("order_id", range.from).lte("order_id", range.to);
+    const range = orderIdRangeFor(filters.search);
+    if (!range) return { data: { data: [], totalCount: 0 }, error: null };
+    query = query.gte("order_id", range.from).lte("order_id", range.to);
+  }
+  
+  if (filters.customer_id) {
+    query = query.eq("customer_id", filters.customer_id);
+  }
+  if (filters.customer_name) {
+    query = query.ilike("customer.name", `%${filters.customer_name}%`);
+  }
+  if (filters.customer_phone) {
+    // Stored as "+639171234567"; people type "0917 123 4567" or "917-1234".
+    // Match on the digits after the country code / trunk 0 (mobiles start
+    // with 9, so a leading 63 or 0 is always a prefix, even in a partial).
+    const digits = filters.customer_phone.replace(/\D/g, "").replace(/^(63|0)/, "");
+    if (digits) query = query.ilike("customer.phone_number", `%${digits}%`);
+  }
+  if (filters.payment_method) {
+    if (filters.payment_method === "wallet") {
+      query = query.in("transaction.payment_method", WALLET_PAYMENT_METHODS);
+    } else if (filters.payment_method === "pay_in_store") {
+      query = query.in("transaction.payment_method", CASH_PAYMENT_METHODS);
     } else {
-      return { data: { data: [], totalCount: 0 }, error: null };
+      query = query.eq("transaction.payment_method", filters.payment_method);
     }
+  }
+  // Order total = items + add-ons, what the card shows; stored at checkout
+  // as transaction.subtotal (answers "every order over ₱2,000 paid in cash").
+  if (filters.min_total !== undefined) {
+    query = query.gte("transaction.subtotal", filters.min_total);
+  }
+  if (filters.max_total !== undefined) {
+    query = query.lte("transaction.subtotal", filters.max_total);
+  }
+  if (filters.order_type === "take_out") {
+    // Older orders were stored as "pickup" before take-out was the only kind.
+    query = query.in("order_type", ["take_out", "takeout", "pickup", "pick_up"]);
+  } else if (filters.order_type === "dine_in") {
+    query = query.eq("order_type", "dine_in");
   }
 
   const { data, count, error } = await query;
 
   if (error) return { data: null, error: error.message };
 
-  const rows = (data ?? []) as unknown as OrderWithDetails[];
-  await attachOrderAddOns(supabase, rows);
-
   return { 
     data: { 
-      data: rows, 
+      data: data as unknown as OrderWithDetails[], 
       totalCount: count ?? 0 
     }, 
     error: null 
@@ -383,13 +425,7 @@ export async function getOrderDetail(
         transaction_id,
         payment_method,
         payment_status,
-        total_paid,
-        subtotal,
-        discount_amount,
-        discount_type,
-        discount_id_number,
-        name_on_id,
-        discount_id_photo_path
+        total_paid
       )
     `,
     )
@@ -457,7 +493,7 @@ export async function updateOrderStatus(
   if (validatedNewStatus === "out_for_delivery" && isPickupOrder(order.order_type)) {
     return {
       data: null,
-      error: "Take-out orders can't go out for delivery. Mark it ready for pickup instead.",
+      error: "Take-out orders can't go out for delivery. Mark it ready for pick up instead.",
     };
   }
 
@@ -479,14 +515,20 @@ export async function updateOrderStatus(
     order_status: validatedNewStatus,
   };
 
+  if (validatedNewStatus === "ready") {
+    // @ts-ignore
+    updatePayload.ready_at = new Date().toISOString();
+  }
   if (validatedNewStatus === "completed") {
     updatePayload.completed_at = new Date().toISOString();
   }
   if (validatedNewStatus === "cancelled") {
-    updatePayload.cancelled_at = new Date().toISOString();
-    // Same 300-character limit the customer's own cancel enforces.
     const reason = cancellationReason?.trim().slice(0, 300);
-    if (reason) updatePayload.cancellation_reason = reason;
+    if (!reason) {
+      return { data: null, error: "A cancellation reason is required." };
+    }
+    updatePayload.cancelled_at = new Date().toISOString();
+    updatePayload.cancellation_reason = reason;
   }
 
   const { data: updated, error: updateError } = await supabase
@@ -498,11 +540,46 @@ export async function updateOrderStatus(
 
   if (updateError) return { data: null, error: updateError.message };
 
-  // Senior Citizen / PWD (issue #116): the ID photo was only for checking at
-  // release. Once the order is done it goes, in this same action.
-  if (validatedNewStatus === "completed" || validatedNewStatus === "cancelled") {
-    await discardSeniorPwdIdPhoto(supabase, orderId);
+  
+  // Fix total_paid for pay-in-store orders upon completion (issue #27)
+  if (validatedNewStatus === "completed") {
+    const { data: txs } = await supabase
+      .from("transaction")
+      .select("transaction_id, payment_method, total_paid")
+      .eq("order_id", orderId);
+      
+    const tx = txs?.[0];
+    if (tx && (tx.payment_method === "pay_in_store" || tx.payment_method === "pay-in-store" || tx.payment_method === "cash") && tx.total_paid === 0) {
+      const { data: orderDetails } = await supabase
+        .from("order_item")
+        .select("subtotal")
+        .eq("order_id", orderId);
+      const { data: orderAddOns } = await supabase
+        .from("order_item_add_on")
+        .select("add_on(price)")
+        .eq("order_item_id", "some_join"); // Wait, we can just fetch order_item(subtotal), order_item_add_on(add_on(price))
+        
+      // A safer way is to fetch the full total via getOrderDetail
+      const fullOrder = await getOrderDetail(orderId);
+      if (fullOrder.data) {
+        const itemsTotal = fullOrder.data.order_item.reduce((acc, item) => acc + (item.subtotal || 0), 0);
+        const addOnsTotal = fullOrder.data.order_item.reduce((acc, item) => 
+          acc + (item.order_item_add_on || []).reduce((sum, ao) => sum + (ao.add_on?.price || 0), 0)
+        , 0);
+        const deliveryFee = updated.delivery_fee || 0;
+        const totalToPay = itemsTotal + addOnsTotal + deliveryFee;
+        
+        await supabase
+          .from("transaction")
+          .update({
+            payment_status: "paid",
+            total_paid: totalToPay
+          })
+          .eq("transaction_id", tx.transaction_id);
+      }
+    }
   }
+
 
   // The in-app notification is written by a database trigger on this same
   // update; the email goes from here (F23). It never fails the cancel.
@@ -511,43 +588,6 @@ export async function updateOrderStatus(
   }
 
   return { data: updated, error: null };
-}
-
-// ---------------------------------------------------------------------------
-// Senior Citizen / PWD ID photo
-// ---------------------------------------------------------------------------
-
-/**
- * A five-minute link to an order's ID photo, for the "Verify ID" check
- * before release (issue #116). Signed with the staff member's own session,
- * so the bucket's staff-only policy decides. Asked for when staff open the
- * photo, never put in the order list.
- *
- * Requires: manager or staff.
- */
-export async function getSeniorPwdIdPhotoUrl(
-  orderId: string,
-): Promise<ActionResult<{ url: string }>> {
-  const auth = await requireManageAccess();
-  if (!auth.data) return { data: null, error: auth.error };
-
-  const supabase = createClient();
-  const { data: row } = await supabase
-    .from("transaction")
-    .select("discount_id_photo_path")
-    .eq("order_id", orderId)
-    .not("discount_id_photo_path", "is", null)
-    .limit(1)
-    .maybeSingle();
-
-  const url = row?.discount_id_photo_path
-    ? await signSeniorPwdIdUrl(supabase, row.discount_id_photo_path)
-    : null;
-
-  if (!url) {
-    return { data: null, error: "The ID photo is no longer available." };
-  }
-  return { data: { url }, error: null };
 }
 
 // ---------------------------------------------------------------------------
@@ -587,4 +627,85 @@ export async function getOrderStats(): Promise<ActionResult<OrderStats>> {
   }
 
   return { data: stats, error: null };
+}
+
+export type PaymentIssueType = "payment_failed" | "pickup_overdue";
+
+export interface PaymentIssueOrder {
+  type: PaymentIssueType;
+  order: OrderWithDetails;
+}
+
+async function _fetchPaymentIssuesBase(supabase: ReturnType<typeof createClient>, isKds: boolean): Promise<ActionResult<PaymentIssueOrder[]>> {
+  // We need to fetch two groups:
+  // 1. payment_failed: (order_status = 'payment_failed' OR (order_status = 'awaiting_payment' AND created_at < 5 mins ago)) AND payment_method IN ('gcash','paymongo')
+  // 2. pickup_overdue: order_status = 'ready' AND order_type = 'take_out' AND payment_method IN ('pay_in_store', 'pay-in-store', 'cash') AND ready_at < 90 mins ago
+
+  const { data, error } = await supabase
+    .from("order")
+    .select(`
+      *,
+      customer:customer_id ( name, email, phone_number ),
+      order_item ( 
+        order_item_id, 
+        quantity, 
+        subtotal, 
+        product ( product_name, image_url ),
+        order_item_add_on (
+          order_item_add_on_id,
+          add_on ( name, price )
+        )
+      ),
+      transaction ( transaction_id, payment_method, payment_status, total_paid )
+    `)
+    // Only these statuses can become an issue; reading every order ever
+    // placed just to discard most of them grew with the table.
+    .in("order_status", ["payment_failed", "awaiting_payment", "ready"])
+    .order("created_at", { ascending: true });
+
+  if (error || !data) {
+    return { data: null, error: error?.message || "Failed to fetch payment issues" };
+  }
+
+  // Filter in memory for complex conditions
+  const now = Date.now();
+  const issues: PaymentIssueOrder[] = [];
+
+  for (const order of data as unknown as OrderWithDetails[]) {
+    // 1. Unpaid: waiting for the wallet, or refused. Listed straight away,
+    //    same as the Orders page's Payment Issues tab; the card's clock
+    //    turns amber at STUCK_PAYMENT_MINUTES.
+    if (isUnpaidStatus(order.order_status)) {
+      issues.push({ type: "payment_failed", order });
+      continue;
+    }
+
+    // 2. Ready but not collected for FAILED_PICKUP_MINUTES, whoever it was
+    //    for and however it was paid. Before this it was take-out + cash
+    //    only, and anything else sat on "For Pick-up" forever.
+    if (order.order_status === "ready") {
+      const readyAt = order.ready_at ?? order.created_at;
+      const elapsedMins = readyAt ? (now - new Date(readyAt).getTime()) / 60000 : 0;
+      if (elapsedMins >= FAILED_PICKUP_MINUTES) {
+        issues.push({ type: "pickup_overdue", order });
+      }
+    }
+  }
+
+  await attachOrderAddOns(supabase, issues.map(i => i.order));
+  return { data: issues, error: null };
+}
+
+export async function getPaymentIssuesForKds(): Promise<ActionResult<PaymentIssueOrder[]>> {
+  const auth = await requireManageAccess();
+  if (!auth.data) return { data: null, error: auth.error };
+  const supabase = createClient();
+  return _fetchPaymentIssuesBase(supabase, true);
+}
+
+export async function getPaymentIssuesForAdmin(): Promise<ActionResult<PaymentIssueOrder[]>> {
+  const auth = await requireRole("MANAGER");
+  if (!auth.data) return { data: null, error: auth.error };
+  const supabase = createClient();
+  return _fetchPaymentIssuesBase(supabase, false);
 }

@@ -18,16 +18,17 @@ type One<T> = T | T[] | null;
 
 export type StaffOrderRow = {
   order_id: string;
-  /** `#1042` — see lib/orders/order-number.ts. */
-  order_number?: number | null;
   created_at: string | null;
-  /** When it entered the kitchen queue (issue #115). */
-  pending_at?: string | null;
   order_status: string | null;
   order_type: string | null;
   delivery_fee: number | null;
+  delivery_address: string | null;
   /** The order-wide note from checkout, not any one line's. */
   special_instructions?: string | null;
+  fulfillment_method?: string | null;
+  /** When the kitchen marked it ready — the pick-up clock starts here. */
+  ready_at?: string | null;
+  transaction?: One<{ payment_method: string | null }>;
   customer: One<{
     name: string | null;
     email: string | null;
@@ -46,15 +47,6 @@ export type StaffOrderRow = {
     }[] | null;
   }[];
   order_add_on?: { price: number | null }[] | null;
-  /** The payment row — where a Senior Citizen / PWD discount lives. */
-  transaction?: {
-    subtotal?: number | null;
-    discount_amount?: number | null;
-    discount_type?: string | null;
-    discount_id_number?: string | null;
-    name_on_id?: string | null;
-    discount_id_photo_path?: string | null;
-  }[] | null;
 };
 
 const first = <T,>(value: One<T> | undefined): T | null =>
@@ -71,6 +63,9 @@ export function uiStatusFor(dbStatus: string | null): OrderData["status"] {
       return "COMPLETED";
     case "cancelled":
       return "CANCELED";
+    case "awaiting_payment":
+    case "payment_failed":
+      return "UNPAID";
     case "pending":
     default:
       return "QUEUE";
@@ -102,7 +97,7 @@ export function mapStaffOrder(order: StaffOrderRow): OrderData {
     };
   });
 
-  const menuTotal = computeOrderTotal({
+  const total = computeOrderTotal({
     itemSubtotals: order.order_item.map(
       (line) => line.subtotal ?? (first(line.product)?.product_price ?? 0) * line.quantity,
     ),
@@ -110,32 +105,17 @@ export function mapStaffOrder(order: StaffOrderRow): OrderData {
     deliveryFee: order.delivery_fee,
   });
 
-  // Senior Citizen / PWD (issue #116): the order is owed at
-  // subtotal - discount_amount, as checkout saved it, not at menu prices.
-  const discounted = (order.transaction ?? []).find(
-    (row) => row.discount_type === "senior_citizen" || row.discount_type === "pwd",
-  );
-  const total = discounted
-    ? Math.round(
-        ((discounted.subtotal ?? 0) - (discounted.discount_amount ?? 0)) * 100,
-      ) /
-        100 +
-      (order.delivery_fee ?? 0)
-    : menuTotal;
-
   return {
     id: order.order_id,
     rawCreatedAt: order.created_at,
-    // Only a still-unaccepted order can be "waiting too long" (issue #115).
-    // Falls back to created_at for an order from before pending_at existed.
-    pendingAt:
-      order.order_status === "pending"
-        ? (order.pending_at ?? order.created_at)
-        : null,
+    // Both were read by the KDS but never filled in, so the "Pay in store"
+    // chip never showed and pick-up timers counted from the order time.
+    rawReadyAt: order.ready_at ?? null,
+    paymentMethod: first(order.transaction)?.payment_method ?? null,
     // Was `substring(0, 4).toUpperCase()` while the customer was shown the
     // last four — the same order, two references, neither able to check the
     // other (issue #106).
-    orderNumber: formatOrderNumber(order.order_number, order.order_id),
+    orderNumber: formatOrderNumber(order.order_id),
     time: order.created_at
       ? new Date(order.created_at).toLocaleTimeString([], {
           hour: "2-digit",
@@ -143,10 +123,15 @@ export function mapStaffOrder(order: StaffOrderRow): OrderData {
         })
       : "Unknown time",
     status: uiStatusFor(order.order_status),
+    dbStatus: order.order_status,
     isDelivery: delivery,
+    fulfillmentMethod: order.fulfillment_method || undefined,
     timer: `${prepMinutes}:00`,
     contactInfo: {
       name: customer?.name || "Walk-in Customer",
+      address:
+        order.delivery_address ||
+        (delivery ? "No delivery address on file" : "Not applicable (no delivery)"),
       // Same "+63 917 123 4567" grouping as every other screen (P27).
       phone:
         formatMobileNumber(customer?.phone_number) ||
@@ -162,14 +147,5 @@ export function mapStaffOrder(order: StaffOrderRow): OrderData {
     deliveryFee: order.delivery_fee ?? 0,
     total,
     items,
-    seniorPwd: discounted
-      ? {
-          type: discounted.discount_type as "senior_citizen" | "pwd",
-          idNumber: discounted.discount_id_number ?? "",
-          nameOnId: discounted.name_on_id ?? "",
-          discount: discounted.discount_amount ?? 0,
-          hasPhoto: Boolean(discounted.discount_id_photo_path),
-        }
-      : undefined,
   } as OrderData;
 }

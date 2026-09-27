@@ -16,26 +16,26 @@ export type StaffAction = "Cancel" | "Confirm" | "Ready" | "Complete";
 /** Header label for an order's card / modal. */
 export function statusLabelFor(order: Pick<OrderData, "status" | "isDelivery">): string {
   switch (order.status) {
-    // The customer's stage names (docs/copy-glossary.md), in capitals for the
-    // card header. A legacy delivery order still out is the one exception.
+    case "UNPAID":
+      return "UNPAID";
     case "QUEUE":
-      return "RECEIVED";
+      return "QUEUE";
     case "PREP":
-      return "PREPARING";
+      return "PREP";
     case "DELIVERY":
-      return order.isDelivery === false ? "READY FOR PICKUP" : "OUT FOR DELIVERY";
+      return order.isDelivery === false ? "READY FOR PICK UP" : "DELIVERING";
     case "COMPLETED":
-      return "PICKED UP";
+      return "COMPLETED";
     case "CANCELED":
-      return "CANCELLED";
+      return "CANCELED";
   }
 }
 
 /**
  * The one forward action for an order, or null when there is none.
  *   queue  -> Confirm
- *   prep   -> Ready (for pickup)
- *   ready for pickup / legacy out for delivery -> Picked up
+ *   prep   -> Ready for pick up
+ *   ready for pick up / legacy out for delivery -> Picked up
  */
 export function primaryActionFor(
   order: Pick<OrderData, "status" | "isDelivery">,
@@ -46,15 +46,19 @@ export function primaryActionFor(
     case "PREP":
       return { type: "Ready", label: "Ready" };
     case "DELIVERY":
-      return { type: "Complete", label: "Picked up" };
+      return { type: "Complete", label: "Picked Up" };
     default:
       return null;
   }
 }
 
-/** Can this order still be cancelled from the staff screens? */
+/**
+ * Can this order still be cancelled from the staff screens? An unpaid order
+ * has no forward action (it can't be confirmed until the money lands), but
+ * staff may cancel one whose payment is stuck.
+ */
 export function canCancel(order: Pick<OrderData, "status">): boolean {
-  return order.status === "QUEUE" || order.status === "PREP";
+  return order.status === "UNPAID" || order.status === "QUEUE" || order.status === "PREP";
 }
 
 /** The `order.order_status` each action writes. All are legal transitions. */
@@ -78,28 +82,28 @@ export function actionCopy(action: StaffAction, orderNumber: string) {
       return {
         title: "Confirm order",
         description: `Confirm order #${orderNumber} and send it to the kitchen?`,
-        confirm: "Yes, confirm",
+        confirm: "Yes, Confirm",
         done: `Order #${orderNumber} confirmed.`,
       };
     case "Ready":
       return {
-        title: "Ready for pickup",
+        title: "Ready for pick up",
         description: `Mark order #${orderNumber} as ready for the customer to pick up?`,
-        confirm: "Yes, it's ready",
-        done: `Order #${orderNumber} is ready for pickup.`,
+        confirm: "Yes, It's Ready",
+        done: `Order #${orderNumber} is ready for pick up.`,
       };
     case "Complete":
       return {
         title: "Mark as picked up",
         description: `Has order #${orderNumber} been picked up by the customer or their courier?`,
-        confirm: "Yes, picked up",
-        done: `Order #${orderNumber} picked up.`,
+        confirm: "Yes, Picked Up",
+        done: `Order #${orderNumber} completed.`,
       };
     case "Cancel":
       return {
         title: "Cancel this order?",
         description:
-          "Cancelling this order will notify the customer. Do you want to cancel this order?",
+          "Canceling this order will notify the customer. Do you want to cancel this order?",
         confirm: "Confirm",
         done: `Order #${orderNumber} cancelled.`,
       };

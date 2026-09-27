@@ -1,101 +1,14 @@
-"use client";
+import { cookies } from "next/headers";
+import { decrypt, SESSION_COOKIE_NAME } from "@/lib/auth/session";
+import { resolveEmployeeRole } from "@/lib/auth/roles";
+import ReportsPageClient from "./reports-client";
 
-import { useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
-import {
-  ReportTypeSelect,
-  ReportDateFilters,
-} from "@/components/manage/reports/report-controls";
-import { ReportsSummary } from "@/components/manage/reports/reports-summary";
-import { ReportsCharts } from "@/components/manage/reports/reports-charts";
-import { normalizeReportType } from "@/lib/reports/report-types";
-import { Alert } from "@/components/ui/alert";
+export default async function ReportsPage() {
+  const token = cookies().get(SESSION_COOKIE_NAME)?.value;
+  const payload = token ? await decrypt(token) : null;
+  const role = resolveEmployeeRole(payload?.role);
+  
+  const isManager = role === "MANAGER";
 
-function getToday() {
-  return new Date().toISOString().split("T")[0];
-}
-
-// Default to current month range
-function getDefaultStartDate() {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), 1)
-    .toISOString()
-    .split("T")[0];
-}
-
-function ReportsContent() {
-  const searchParams = useSearchParams();
-  const reportType = normalizeReportType(searchParams.get("type"));
-
-  const [startDate, setStartDate] = useState(getDefaultStartDate());
-  const [endDate, setEndDate] = useState(getToday());
-
-  const MOCK_DATE = new Intl.DateTimeFormat("en-US", {
-    weekday: "long",
-    month: "short",
-    day: "numeric",
-  }).format(new Date());
-  const MOCK_BRANCH = "Malate branch";
-
-  return (
-    <div className="flex flex-col gap-[20px] md:gap-[30px]">
-      {/* Header Row */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-0">
-        <div className="flex flex-col md:flex-row md:items-baseline gap-1 md:gap-3.5">
-          <h1 className="font-display text-2xl md:text-3xl leading-normal text-foreground">
-            Reports &amp; Analytics
-          </h1>
-          <span className="text-sm text-muted-foreground">
-            {MOCK_DATE} · {MOCK_BRANCH}
-          </span>
-        </div>
-        <ReportTypeSelect />
-      </div>
-
-      {/* Filters and Actions Row */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-0 border-b border-field-border pb-[20px]">
-        <h2 className="text-lg font-bold text-foreground">Overview</h2>
-        <ReportDateFilters
-          startDate={startDate}
-          endDate={endDate}
-          onStartDateChange={setStartDate}
-          onEndDateChange={setEndDate}
-          reportType={reportType}
-        />
-      </div>
-
-      {/* Analytics Content */}
-      <div className="flex flex-col gap-[20px] md:gap-[30px] overflow-y-auto pb-[20px]">
-        {!startDate || !endDate ? (
-          <Alert tone="error">Start date and end date are required.</Alert>
-        ) : endDate < startDate ? (
-          <Alert tone="error">End date cannot be earlier than start date.</Alert>
-        ) : (
-          <>
-            {/* KPI Cards */}
-            <ReportsSummary
-              type={reportType}
-              startDate={startDate}
-              endDate={endDate}
-            />
-
-            {/* Interactive Charts */}
-            <ReportsCharts
-              type={reportType}
-              startDate={startDate}
-              endDate={endDate}
-            />
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-export default function ReportsPage() {
-  return (
-    <Suspense fallback={<div className="p-4 text-sm leading-5 text-muted-foreground animate-pulse">Loading reports...</div>}>
-      <ReportsContent />
-    </Suspense>
-  );
+  return <ReportsPageClient isManager={isManager} />;
 }

@@ -21,6 +21,7 @@ import { useToast } from "@/components/ui/toast";
 // Menu Item Detail Modal
 // ---------------------------------------------------------------------------
 interface MenuItemDetailModalProps {
+  isManager?: boolean;
   isOpen: boolean;
   onClose: () => void;
   onEdit: (item: MenuItem, file?: File) => void;
@@ -30,6 +31,7 @@ interface MenuItemDetailModalProps {
 }
 
 export function MenuItemDetailModal({
+  isManager = false,
   isOpen,
   onClose,
   onEdit,
@@ -185,16 +187,16 @@ export function MenuItemDetailModal({
         open={isOpen}
         onClose={onClose}
         dirty={isDirty || newAddonName !== "" || newAddonPrice !== ""}
-        className="w-[calc(100%-2rem)] max-w-[440px] md:max-w-3xl overflow-hidden rounded-lg bg-background shadow-[0px_30px_35px_rgba(26,18,16,0.26)]"
+        className="w-[calc(100%-2rem)] max-w-[440px] md:max-w-3xl overflow-hidden rounded-[20px] bg-[#fbf6ec] shadow-[0px_30px_35px_rgba(26,18,16,0.26)]"
       >
         {/* Modal card */}
         <div className="relative flex w-full flex-col">
           <div className="flex flex-col md:flex-row w-full md:h-[650px] max-h-[90vh] overflow-y-auto md:overflow-hidden">
             {/* LEFT COLUMN */}
-            <div className="flex w-full md:w-1/2 flex-col md:border-r border-field-border md:overflow-y-auto">
+            <div className="flex w-full md:w-1/2 flex-col md:border-r border-[#ddcdb8] md:overflow-y-auto">
               {/* ──────────────────────────────────────────────────────── Image */}
           <div className="group relative w-full">
-            <div className="relative h-[220px] w-full overflow-hidden bg-highlight">
+            <div className="relative h-[220px] w-full overflow-hidden bg-[#f6e9d9]">
               {(imagePreview || item.image) ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -203,22 +205,22 @@ export function MenuItemDetailModal({
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <div className="flex h-full w-full items-center justify-center bg-highlight">
-                  <span className="text-sm text-placeholder">No image</span>
+                <div className="flex h-full w-full items-center justify-center bg-[#f6e9d9]">
+                  <span className="text-[13px] text-[#a2938a]">No image</span>
                 </div>
               )}
 
               {/* Hover overlay */}
-              <Button variant="unstyled"
+              <button
                 type="button"
                 onClick={handleImageClick}
                 className="absolute inset-0 flex cursor-pointer flex-col items-center justify-center gap-2 bg-black/0 transition-colors duration-200 group-hover:bg-black/40"
               >
                 <Camera className="h-8 w-8 text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
-                <span className="text-sm font-bold text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                <span className="text-[13px] font-bold text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                   Update Photo
                 </span>
-              </Button>
+              </button>
             </div>
 
             {/* Hidden file input */}
@@ -236,8 +238,8 @@ export function MenuItemDetailModal({
           <div className="flex flex-col gap-[18px] p-[26px]">
             {/* Product Name */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold uppercase tracking-[1.32px] text-muted-foreground">
-                Product Name <span className="text-destructive">*</span>
+              <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
+                Product Name <span className="text-[#bf4342]">*</span>
               </label>
               <input
                 value={name}
@@ -250,53 +252,54 @@ export function MenuItemDetailModal({
                 {...lengthProps("productName")}
                 aria-invalid={itemForm.errors.name ? true : undefined}
                 className={cn(
-                  "w-full rounded-md border bg-white px-4 py-3 text-base text-foreground outline-none placeholder:text-placeholder",
-                  itemForm.errors.name ? "border-destructive" : "border-field-border",
+                    "w-full rounded-[12px] border bg-white px-4 py-3 text-[15px] text-[#1a1210] outline-none placeholder:text-[#a2938a]",
+                    !isManager ? "bg-gray-100 cursor-not-allowed opacity-70" : "",
+                  itemForm.errors.name ? "border-[#bf4342]" : "border-[#ddcdb8]",
                 )}
               />
-              {itemForm.errors.name ? <p className="text-xs text-destructive">{itemForm.errors.name}</p> : null}
+              {itemForm.errors.name ? <p className="text-[12px] text-[#bf4342]">{itemForm.errors.name}</p> : null}
             </div>
 
             {/* Category */}
             <div className="flex flex-col gap-1.5">
-              <label {...categoryMenu.labelProps} className="text-xs font-bold uppercase tracking-[1.32px] text-muted-foreground">
-                Category <span className="text-destructive">*</span>
+              <label {...categoryMenu.labelProps} className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
+                Category <span className="text-[#bf4342]">*</span>
               </label>
               <div className="relative">
-                <Button variant="unstyled"
+                <button
                   {...categoryMenu.triggerProps}
                   className={cn(
-                    "flex w-full items-center justify-between rounded-md border border-field-border bg-white px-4 py-3 text-base text-foreground transition-colors hover:bg-background",
+                    "flex w-full items-center justify-between rounded-[12px] border border-[#ddcdb8] bg-white px-4 py-3 text-[15px] text-[#1a1210] transition-colors hover:bg-[#faf5eb]",
                     DROPDOWN_FOCUS_RING,
                   )}
                 >
                   <span>{category}</span>
                   {categoryOpen ? (
-                    <ChevronDown aria-hidden="true" className="h-4 w-4 text-muted-foreground transition-transform" />
+                    <ChevronDown aria-hidden="true" className="h-4 w-4 text-[#7a6a60] transition-transform" />
                   ) : (
-                    <ChevronRight aria-hidden="true" className="h-4 w-4 text-muted-foreground transition-transform" />
+                    <ChevronRight aria-hidden="true" className="h-4 w-4 text-[#7a6a60] transition-transform" />
                   )}
-                </Button>
+                </button>
 
                 {/* Dropdown list — dismissed by Escape or an outside press. */}
                 {categoryOpen && (
-                  <div {...categoryMenu.listProps} className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 rounded-md border border-field-border bg-white p-[5px] shadow-[0px_8px_20px_rgba(26,18,16,0.12)]">
+                  <div {...categoryMenu.listProps} className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 rounded-[12px] border border-[#ddcdb8] bg-white p-[5px] shadow-[0px_8px_20px_rgba(26,18,16,0.12)]">
                     {selectableCategories.map((cat) => (
-                      <Button variant="unstyled"
+                      <button
                         key={cat}
                         {...categoryMenu.optionProps(category === cat)}
                         onClick={() => {
                           setCategory(cat as MenuCategory);
                           categoryMenu.close();
                         }}
-                        className={`flex w-full items-center rounded-sm px-3 py-2.5 text-left text-sm transition-colors ${DROPDOWN_FOCUS_RING} ${
+                        className={`flex w-full items-center rounded-[8px] px-3 py-2.5 text-left text-[14px] transition-colors ${DROPDOWN_FOCUS_RING} ${
                           category === cat
-                            ? "bg-highlight font-bold text-primary"
-                            : "text-foreground hover:bg-background"
+                            ? "bg-[#f6e9d9] font-bold text-[#8c1c13]"
+                            : "text-[#1a1210] hover:bg-[#faf5eb]"
                         }`}
                       >
                         {cat}
-                      </Button>
+                      </button>
                     ))}
                   </div>
                 )}
@@ -305,7 +308,7 @@ export function MenuItemDetailModal({
 
             {/* Product Details */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold uppercase tracking-[1.32px] text-muted-foreground">
+              <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
                 Product Details
               </label>
               <textarea
@@ -319,11 +322,11 @@ export function MenuItemDetailModal({
                 maxLength={FIELD_LIMITS.productDetails.max}
                 aria-invalid={itemForm.errors.description ? true : undefined}
                 className={cn(
-                  "w-full resize-none rounded-md border bg-white px-4 py-3 text-base leading-[22px] text-foreground outline-none placeholder:text-placeholder",
-                  itemForm.errors.description ? "border-destructive" : "border-field-border",
+                  "w-full resize-none rounded-[12px] border bg-white px-4 py-3 text-[15px] leading-[22px] text-[#1a1210] outline-none placeholder:text-[#a2938a]",
+                  itemForm.errors.description ? "border-[#bf4342]" : "border-[#ddcdb8]",
                 )}
               />
-              <p className={cn("text-xs", itemForm.errors.description ? "text-destructive" : "text-placeholder")}>
+              <p className={cn("text-[12px]", itemForm.errors.description ? "text-[#bf4342]" : "text-[#a2938a]")}>
                 {itemForm.errors.description ?? `Optional. ${(description ?? "").length}/${FIELD_LIMITS.productDetails.max} characters.`}
               </p>
             </div>
@@ -333,16 +336,17 @@ export function MenuItemDetailModal({
             </div>
 
             {/* RIGHT COLUMN */}
-            <div className="flex w-full md:w-1/2 flex-col gap-[18px] p-[26px] md:overflow-y-auto border-t md:border-t-0 border-field-border">
+            <div className="flex w-full md:w-1/2 flex-col gap-[18px] p-[26px] md:overflow-y-auto border-t md:border-t-0 border-[#ddcdb8]">
             {/* Price */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold uppercase tracking-[1.32px] text-muted-foreground">
-                Price ₱ <span className="text-destructive">*</span>
+              <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
+                Price ₱ <span className="text-[#bf4342]">*</span>
               </label>
               <input
-                type="text"
-                inputMode="decimal"
-                value={price}
+                  disabled={!isManager}
+                  type="text"
+                  inputMode="decimal"
+                  value={price}
                 onChange={(e) => {
                   const val = e.target.value;
                   if (val === "" || /^\d{0,5}(\.\d{0,2})?$/.test(val)) {
@@ -354,49 +358,49 @@ export function MenuItemDetailModal({
                 placeholder="0.00"
                 aria-invalid={itemForm.errors.price ? true : undefined}
                 className={cn(
-                  "w-full rounded-md border bg-white px-4 py-3 text-base text-foreground outline-none placeholder:text-placeholder",
-                  itemForm.errors.price ? "border-destructive" : "border-field-border",
+                  "w-full rounded-[12px] border bg-white px-4 py-3 text-[15px] text-[#1a1210] outline-none placeholder:text-[#a2938a]",
+                  itemForm.errors.price ? "border-[#bf4342]" : "border-[#ddcdb8]",
                 )}
               />
-              {itemForm.errors.price ? <p className="text-xs text-destructive">{itemForm.errors.price}</p> : null}
+              {itemForm.errors.price ? <p className="text-[12px] text-[#bf4342]">{itemForm.errors.price}</p> : null}
             </div>
 
             {/* Available toggle */}
             <div className="flex items-center gap-3">
-              <label className="text-xs font-bold uppercase tracking-[1.32px] text-muted-foreground">
+              <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
                 Available?
               </label>
               <Switch checked={available} onChange={setAvailable} />
             </div>
 
             {/* Add-ons Section */}
-            <div className="flex flex-col gap-2 rounded-md border border-field-border bg-background p-[16px]">
-              <label className="text-xs font-bold uppercase tracking-[1.32px] text-muted-foreground">
+            <div className="flex flex-col gap-2 rounded-[12px] border border-[#ddcdb8] bg-[#fbf6ec] p-[16px]">
+              <label className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
                 Add-ons
               </label>
-              <p className="text-xs text-muted-foreground leading-snug">
+              <p className="text-[12px] text-[#7a6a60] leading-snug">
                 Define add-ons available specifically for this item (e.g. Extra Egg).
               </p>
 
               <div className="flex flex-col gap-2 h-[150px] overflow-y-auto pr-1 mt-2">
                 {addOns.map((addon) => (
-                  <div key={addon.addon_id} className="flex items-center justify-between rounded-sm bg-white p-3 shadow-sm">
-                    <span className="text-sm font-medium text-foreground">{addon.name}</span>
+                  <div key={addon.addon_id} className="flex items-center justify-between rounded-[8px] bg-white p-3 shadow-sm">
+                    <span className="text-[14px] font-medium text-[#1a1210]">{addon.name}</span>
                     <div className="flex items-center gap-3">
-                      <span className="text-sm text-muted-foreground">₱{Number(addon.price).toFixed(2)}</span>
-                      <Button variant="unstyled"
+                      <span className="text-[14px] text-[#7a6a60]">₱{Number(addon.price).toFixed(2)}</span>
+                      <button
                         type="button"
                         onClick={() => handleDeleteAddOn(addon.addon_id)}
                         disabled={isProcessingAddOn}
-                        className="text-destructive hover:bg-error-surface p-1 rounded-sm transition-colors disabled:opacity-50"
+                        className="text-[#bf4342] hover:bg-[#fceeed] p-1 rounded transition-colors disabled:opacity-50"
                       >
                         <Trash2 className="h-4 w-4" />
-                      </Button>
+                      </button>
                     </div>
                   </div>
                 ))}
                 {addOns.length === 0 && (
-                  <div className="text-sm text-placeholder italic px-1">No add-ons currently.</div>
+                  <div className="text-[13px] text-[#a2938a] italic px-1">No add-ons currently.</div>
                 )}
               </div>
 
@@ -412,8 +416,8 @@ export function MenuItemDetailModal({
                   {...lengthProps("addonName")}
                   aria-invalid={addOnForm.errors.addonName ? true : undefined}
                   className={cn(
-                    "flex-1 min-w-0 rounded-md border bg-white px-3 py-2 text-sm text-foreground outline-none placeholder:text-placeholder",
-                    addOnForm.errors.addonName ? "border-destructive" : "border-field-border",
+                    "flex-1 min-w-0 rounded-[10px] border bg-white px-3 py-2 text-[14px] text-[#1a1210] outline-none placeholder:text-[#a2938a]",
+                    addOnForm.errors.addonName ? "border-[#bf4342]" : "border-[#ddcdb8]",
                   )}
                 />
                 <input
@@ -430,24 +434,25 @@ export function MenuItemDetailModal({
                   }}
                   aria-invalid={addOnForm.errors.addonPrice ? true : undefined}
                   className={cn(
-                    "w-[70px] shrink-0 rounded-md border bg-white px-3 py-2 text-sm text-foreground outline-none placeholder:text-placeholder",
-                    addOnForm.errors.addonPrice ? "border-destructive" : "border-field-border",
+                    "w-[70px] shrink-0 rounded-[10px] border bg-white px-3 py-2 text-[14px] text-[#1a1210] outline-none placeholder:text-[#a2938a]",
+                      !isManager ? "bg-gray-100 cursor-not-allowed opacity-70" : "",
+                    addOnForm.errors.addonPrice ? "border-[#bf4342]" : "border-[#ddcdb8]",
                   )}
                 />
                 <Tooltip content={addOnForm.isValid ? "Add this add-on to the item" : "Enter an add-on name and price first"}>
-                  <Button variant="unstyled"
+                  <button
                     type="button"
                     onClick={handleAddAddOn}
                     disabled={!addOnForm.isValid || isProcessingAddOn}
                     aria-label="Add add-on"
-                    className="flex shrink-0 items-center justify-center rounded-md bg-success px-3 py-2 transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex shrink-0 items-center justify-center rounded-[10px] bg-[#3f6b4a] px-3 py-2 transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Plus className="h-5 w-5 text-white" />
-                  </Button>
+                  </button>
                 </Tooltip>
               </div>
               {addOnForm.errors.addonName || addOnForm.errors.addonPrice ? (
-                <p className="text-xs text-destructive">
+                <p className="text-[12px] text-[#bf4342]">
                   {addOnForm.errors.addonName ?? addOnForm.errors.addonPrice}
                 </p>
               ) : null}
@@ -457,15 +462,15 @@ export function MenuItemDetailModal({
             <div className="flex gap-[10px] pt-[6px]">
               <DialogDismiss fallback={onClose}>
                 {(requestClose) => (
-                  <Button variant="unstyled"
+                  <button
                     type="button"
                     onClick={requestClose}
-                    className="flex flex-1 items-center justify-center rounded-md border border-field-border bg-transparent p-[14px] transition-colors hover:bg-black/5"
+                    className="flex flex-1 items-center justify-center rounded-[12px] border border-[#ddcdb8] bg-transparent p-[14px] transition-colors hover:bg-black/5"
                   >
-                    <span className="text-sm font-bold leading-none text-foreground">
+                    <span className="text-[14px] font-bold leading-none text-[#1a1210]">
                       Cancel
                     </span>
-                  </Button>
+                  </button>
                 )}
               </DialogDismiss>
               <Tooltip
@@ -479,28 +484,28 @@ export function MenuItemDetailModal({
                 shortcut={canSave ? SHORTCUTS.submitForm.combo : undefined}
                 className="flex-1"
               >
-                <Button variant="unstyled"
+                <button
                   type="button"
                   onClick={() => setShowEditConfirm(true)}
                   disabled={!canSave}
-                  className="flex w-full flex-1 items-center justify-center rounded-md bg-status-preparing px-[14px] py-[15px] transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex w-full flex-1 items-center justify-center rounded-[12px] bg-[#ca762d] px-[14px] py-[15px] transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <span className="text-sm font-bold leading-none text-white">
+                  <span className="text-[14px] font-bold leading-none text-white">
                     Save
                   </span>
-                </Button>
+                </button>
               </Tooltip>
             </div>
 
             {/* Delete */}
-            <Button variant="unstyled"
+            <button
               onClick={() => setShowDeleteConfirm(true)}
-              className="flex w-full items-center justify-center rounded-md bg-destructive px-[14px] py-[15px] transition-opacity hover:opacity-90"
+              className="flex w-full items-center justify-center rounded-[12px] bg-[#bf4342] px-[14px] py-[15px] transition-opacity hover:opacity-90"
             >
-              <span className="text-sm font-bold leading-none text-white">
+              <span className="text-[14px] font-bold leading-none text-white">
                 Delete
               </span>
-            </Button>
+            </button>
             </div>
           </div>
         </div>

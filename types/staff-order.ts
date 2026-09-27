@@ -13,12 +13,18 @@
  * statuses land in one column: `pending` → QUEUE, `ready` and legacy
  * `out_for_delivery` → DELIVERY (read as "Ready for pick up" for a pickup
  * order; see `statusLabelFor` in `lib/orders/staff-actions.ts`).
+ * `awaiting_payment` and `payment_failed` → UNPAID: shown only on the
+ * payment-issue views, and never confirmable until the money lands.
  */
-export type StaffOrderStatus = "QUEUE" | "PREP" | "DELIVERY" | "COMPLETED" | "CANCELED";
+export type StaffOrderStatus = "UNPAID" | "QUEUE" | "PREP" | "DELIVERY" | "COMPLETED" | "CANCELED";
 
 export type OrderData = {
   id: string;
   rawCreatedAt?: string | null;
+  rawReadyAt?: string | null;
+  /** The database status behind `status` — tells "awaiting payment" from "payment failed" under UNPAID. */
+  dbStatus?: string | null;
+  paymentMethod?: string | null;
   /**
    * When the order started waiting for staff to accept it — set only while
    * it is still `pending` (issue #115). The staff screens flash a card once
@@ -32,6 +38,8 @@ export type OrderData = {
    * wording on their card differs; nothing new is ever a delivery.
    */
   isDelivery?: boolean;
+  /** 'self_pickup' (default) or '3rd_party_courier'. */
+  fulfillmentMethod?: string;
   orderNumber: string;
   time: string;
   status: StaffOrderStatus;

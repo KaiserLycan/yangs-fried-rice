@@ -39,6 +39,18 @@ function revalidateMenuPaths() {
   revalidatePath("/menu");
 }
 
+const PRICE_MANAGER_ONLY = "Only a manager can set or change menu prices.";
+
+/**
+ * Prices are manager-only. The database enforces it too (trigger
+ * `trg_guard_product_price`); checking here gives staff a readable message
+ * instead of a raw database error.
+ */
+async function callerIsManager(): Promise<boolean> {
+  const caller = await getCurrentEmployee();
+  return (caller.data ? resolveEmployeeRole(caller.data.role) : null) === "MANAGER";
+}
+
 // CATEGORIES
 
 // Fetch categories and products together in a single request for the Menu page
@@ -253,6 +265,11 @@ export async function createProduct(
     return { data: null, error: parsed.error.errors[0].message };
   }
 
+  // A new product comes with a price, so adding one is a manager's call.
+  if (!(await callerIsManager())) {
+    return { data: null, error: PRICE_MANAGER_ONLY };
+  }
+
   const supabase = createClient();
 
   const row: TablesInsert<"product"> = {
@@ -304,6 +321,20 @@ export async function updateProduct(
   const supabase = createClient();
 
   const changes: TablesUpdate<"product"> = { ...parsed.data };
+
+  // The edit form always sends the price. For staff that is only allowed
+  // when it is unchanged, and then it is dropped from the update.
+  if (changes.product_price !== undefined && !(await callerIsManager())) {
+    const { data: current } = await supabase
+      .from("product")
+      .select("product_price")
+      .eq("product_id", productId)
+      .maybeSingle();
+    if (!current || Number(current.product_price) !== Number(changes.product_price)) {
+      return { data: null, error: PRICE_MANAGER_ONLY };
+    }
+    delete changes.product_price;
+  }
 
   // Read the image being replaced *before* the update, so it can be removed
   // once the new one is saved. Every edit uploads a fresh file under a new

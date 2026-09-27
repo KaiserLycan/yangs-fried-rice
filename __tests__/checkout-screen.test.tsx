@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { CheckoutScreen } from "@/components/checkout/checkout-screen";
 import { ToastProvider } from "@/components/ui/toast";
 import type { CartLine } from "@/lib/menu/cart-totals";
@@ -201,8 +201,10 @@ describe("Checkout payment method", () => {
     });
     fireEvent.click(wallet);
 
+    // Payment options only — the "who is picking up" choice is its own group.
     const checked = screen
       .getAllByRole("radio")
+      .filter((option) => !option.closest('[aria-label="Who is picking up"]'))
       .filter((option) => option.getAttribute("aria-checked") === "true");
 
     // One per breakpoint copy of the picker, all naming the same selected wallet provider.
@@ -268,6 +270,8 @@ describe("Checkout place order", () => {
         // It used to send cash on delivery here — on an order nobody was
         // delivering (issue #106).
         payment_method: "pay-in-store",
+        // Nobody chose a courier, so the customer collects it themself.
+        fulfillment_method: "self_pickup",
         // The unit price of each line as this screen showed it, so the
         // database can refuse with PRICE_CHANGED if the menu moved
         // (issue #115).
@@ -277,6 +281,23 @@ describe("Checkout place order", () => {
     );
     await waitFor(() =>
       expect(push).toHaveBeenCalledWith("/checkout/confirmation?order=order-77"),
+    );
+  });
+
+  it("tells the store when a courier is collecting the order", async () => {
+    vi.mocked(submitCart).mockResolvedValue({
+      data: { order_id: "order-78", order_status: "pending", cart_id: "cart-1", is_final: true },
+      error: null,
+    });
+    renderCheckout({ fulfilment: "pickup" });
+
+    fireEvent.click(screen.getByRole("radio", { name: /A courier will pick it up/ }));
+    fireEvent.click(screen.getAllByRole("button", { name: /Place order/ })[0]);
+
+    await waitFor(() =>
+      expect(submitCart).toHaveBeenCalledWith(
+        expect.objectContaining({ fulfillment_method: "3rd_party_courier" }),
+      ),
     );
   });
 
@@ -623,8 +644,10 @@ describe("Checkout layout", () => {
     expect(screen.getAllByRole("button", { name: /Place order/ })).toHaveLength(
       1,
     );
-    expect(screen.getAllByRole("radiogroup")).toHaveLength(1);
+    expect(screen.getAllByRole("radiogroup", { name: "Payment method" })).toHaveLength(1);
+    expect(screen.getAllByRole("radiogroup", { name: "Who is picking up" })).toHaveLength(1);
     // Two payment methods apply to a delivery; the third is pickup-only.
-    expect(screen.getAllByRole("radio")).toHaveLength(2);
+    const [payment] = screen.getAllByRole("radiogroup", { name: "Payment method" });
+    expect(within(payment).getAllByRole("radio")).toHaveLength(2);
   });
 });
