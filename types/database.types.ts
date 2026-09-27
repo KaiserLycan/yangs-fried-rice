@@ -775,45 +775,66 @@ export type Database = {
       promotion: {
         Row: {
           category_id: string | null
+          code: string | null
           created_at: string
           created_by: string | null
           description: string | null
+          discount_type: string | null
+          discount_value: number | null
           ends_at: string
           id: string
           image_url: string
           is_active: boolean
+          max_discount: number | null
+          min_spend: number
+          per_customer_limit: number
           product_id: string | null
           starts_at: string
           title: string
           updated_at: string
+          usage_limit: number | null
         }
         Insert: {
           category_id?: string | null
+          code?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
+          discount_type?: string | null
+          discount_value?: number | null
           ends_at: string
           id?: string
           image_url: string
           is_active?: boolean
+          max_discount?: number | null
+          min_spend?: number
+          per_customer_limit?: number
           product_id?: string | null
           starts_at: string
           title: string
           updated_at?: string
+          usage_limit?: number | null
         }
         Update: {
           category_id?: string | null
+          code?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
+          discount_type?: string | null
+          discount_value?: number | null
           ends_at?: string
           id?: string
           image_url?: string
           is_active?: boolean
+          max_discount?: number | null
+          min_spend?: number
+          per_customer_limit?: number
           product_id?: string | null
           starts_at?: string
           title?: string
           updated_at?: string
+          usage_limit?: number | null
         }
         Relationships: [
           {
@@ -985,6 +1006,8 @@ export type Database = {
           payment_status: string | null
           provider_payment_id: string | null
           provider_reference_id: string | null
+          promo_code: string | null
+          promotion_id: string | null
           provider_refund_id: string | null
           refund_error: string | null
           refunded_at: string | null
@@ -1007,6 +1030,8 @@ export type Database = {
           payment_status?: string | null
           provider_payment_id?: string | null
           provider_reference_id?: string | null
+          promo_code?: string | null
+          promotion_id?: string | null
           provider_refund_id?: string | null
           refund_error?: string | null
           refunded_at?: string | null
@@ -1029,6 +1054,8 @@ export type Database = {
           payment_status?: string | null
           provider_payment_id?: string | null
           provider_reference_id?: string | null
+          promo_code?: string | null
+          promotion_id?: string | null
           provider_refund_id?: string | null
           refund_error?: string | null
           refunded_at?: string | null
@@ -1144,6 +1171,10 @@ export type Database = {
       }
       get_store_status: { Args: never; Returns: Json }
       is_menu_manager: { Args: never; Returns: boolean }
+      promo_quote: {
+        Args: { p_cart_id: string; p_code: string }
+        Returns: Json
+      }
       purge_expired_personal_data: { Args: never; Returns: Json }
       record_employee_action: {
         Args: {
@@ -1162,8 +1193,10 @@ export type Database = {
           p_discount?: Json
           p_expected_prices?: Json
           p_fulfillment_method?: string
+          p_expected_promo_discount?: number
           p_order_type?: string
           p_payment_method?: string
+          p_promo_code?: string
           p_special_instructions?: string
           p_tip?: number
         }

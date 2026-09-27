@@ -5,6 +5,7 @@ import { type Database } from "@/types/database.types";
 import { z } from "zod";
 import { imageUploadProblem, imageExtensionFor, IMAGE_BUCKETS } from "@/lib/storage/stored-image";
 import { removeStoredImage } from "@/lib/storage/remove-stored-image";
+import { promotionCodeTermsSchema, type PromotionCodeTerms } from "@/lib/validation/promo-code";
 
 type PromotionRow = Database["public"]["Tables"]["promotion"]["Row"];
 
@@ -56,7 +57,27 @@ const promotionSchema = z.object({
   is_active: z.boolean(),
   product_id: z.string().uuid().optional().nullable(),
   category_id: z.string().uuid().optional().nullable(),
+  /** The promo code and its terms; with no code the promotion is a banner only. */
+  terms: promotionCodeTermsSchema.optional(),
 });
+
+/** First problem, for the toast; the database repeats every rule. */
+function firstIssue(error: z.ZodError): string {
+  return error.errors[0]?.message ?? "Check the promotion's details.";
+}
+
+/** The terms as columns, or nothing when the caller didn't send any. */
+function termColumns(terms: PromotionCodeTerms | undefined) {
+  return terms ?? {};
+}
+
+/** A duplicate code is the one database refusal a manager can fix by typing. */
+function saveError(error: { code?: string; message: string }): string {
+  if (error.code === "23505" && /promotion_code_key/.test(error.message)) {
+    return "Another promotion already uses that code.";
+  }
+  return error.message;
+}
 
 /** Normalise a datetime-local value ("2026-09-28T06:43") into ISO with seconds and Z. */
 function toISO(dt: string): string {
@@ -70,7 +91,7 @@ function toISO(dt: string): string {
 export async function createPromotion(payload: unknown, formData: FormData) {
   const parsed = promotionSchema.safeParse(payload);
   if (!parsed.success) {
-    return { error: parsed.error.errors[0].message };
+    return { error: firstIssue(parsed.error) };
   }
 
   const supabase = createClient();
@@ -93,19 +114,23 @@ export async function createPromotion(payload: unknown, formData: FormData) {
 
   const { data: { publicUrl } } = supabase.storage.from(IMAGE_BUCKETS.promotions).getPublicUrl(filePath);
 
-  const { image_url: _ignored, ...rest } = parsed.data;
+  const { image_url: _ignored, terms, ...rest } = parsed.data;
   const { error } = await supabase
     .from("promotion")
-    .insert({ ...rest, id, image_url: publicUrl, starts_at: toISO(rest.starts_at), ends_at: toISO(rest.ends_at) });
+    .insert({ ...rest, ...termColumns(terms), id, image_url: publicUrl, starts_at: toISO(rest.starts_at), ends_at: toISO(rest.ends_at) });
 
-  if (error) return { error: error.message };
+  if (error) {
+    // The image is already up; don't leave it behind for a promotion that doesn't exist.
+    await removeStoredImage(IMAGE_BUCKETS.promotions, publicUrl);
+    return { error: saveError(error) };
+  }
   return { error: null };
 }
 
 export async function updatePromotion(id: string, payload: unknown, formData?: FormData) {
   const parsed = promotionSchema.safeParse(payload);
   if (!parsed.success) {
-    return { error: parsed.error.errors[0].message };
+    return { error: firstIssue(parsed.error) };
   }
 
   const supabase = createClient();
@@ -135,13 +160,13 @@ export async function updatePromotion(id: string, payload: unknown, formData?: F
     }
   }
 
-  const { image_url: _ignored, ...rest } = parsed.data;
+  const { image_url: _ignored, terms, ...rest } = parsed.data;
   const { error } = await supabase
     .from("promotion")
-    .update({ ...rest, image_url: publicUrl ?? undefined, starts_at: toISO(rest.starts_at), ends_at: toISO(rest.ends_at) })
+    .update({ ...rest, ...termColumns(terms), image_url: publicUrl ?? undefined, starts_at: toISO(rest.starts_at), ends_at: toISO(rest.ends_at) })
     .eq("id", id);
     
-  if (error) return { error: error.message };
+  if (error) return { error: saveError(error) };
   return { error: null };
 }
 

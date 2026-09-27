@@ -36,6 +36,8 @@ import {
   dishLimitMessage,
   wouldExceedOrderCap,
 } from "@/lib/cart/limits";
+import { z } from "zod";
+import { promoCodeSchema, type AppliedPromo } from "@/lib/validation/promo-code";
 import {
   compareCart,
   type CartRecheck,
@@ -939,6 +941,12 @@ export async function submitCart(
     // Only meaningful for pay in store; the function refuses it otherwise.
     p_cash_tendered:
       parsed.data.payment_method === "pay-in-store" ? (parsed.data.cash_tendered ?? undefined) : undefined,
+    // Priced again by the database; refused with PROMO_CHANGED if it no
+    // longer gives the discount the customer was shown.
+    p_promo_code: parsed.data.promo_code ?? undefined,
+    p_expected_promo_discount: parsed.data.promo_code
+      ? (parsed.data.expected_promo_discount ?? undefined)
+      : undefined,
   });
 
   if (error || !data) {
@@ -985,7 +993,54 @@ export async function submitCart(
 }
 
 // ---------------------------------------------------------------------------
-// 5a. Re-check the cart after checkout was refused (FINALE 9.1, 9.10)
+// 5a. Promo code: what it takes off this cart
+// ---------------------------------------------------------------------------
+
+/**
+ * Checkout's "Apply". Asks `promo_quote`, which runs the same
+ * `promo_code_discount()` that `submit_cart_to_order` runs when the order is
+ * placed, so the discount shown is the discount charged. Read-only: the code
+ * is only taken when the order is placed.
+ */
+export async function checkPromoCode(
+  cartId: string,
+  rawCode: string,
+): Promise<ActionResult<AppliedPromo>> {
+  const auth = await requireCustomer();
+  if (!auth.data) return { data: null, error: auth.error, code: auth.code };
+
+  const code = promoCodeSchema.safeParse(rawCode);
+  if (!code.success) {
+    return { data: null, error: code.error.issues[0]?.message ?? "Enter a promo code.", code: "PROMO_INVALID" };
+  }
+  if (!z.string().uuid().safeParse(cartId).success) {
+    return { data: null, error: "Cart not found.", code: "NOT_FOUND" };
+  }
+
+  const supabase = createClient();
+  // Not in the generated types until they are regenerated after
+  // 20260929160000_promo_codes.sql.
+  const rpc = supabase.rpc.bind(supabase) as unknown as (
+    fn: "promo_quote",
+    args: Record<string, unknown>,
+  ) => Promise<{ data: unknown; error: { message: string; hint?: string } | null }>;
+  const { data, error } = await rpc("promo_quote", { p_cart_id: cartId, p_code: code.data });
+
+  if (error || !data) {
+    if (error?.hint) return { data: null, error: error.message, code: error.hint };
+    console.error("checkPromoCode: promo_quote failed:", error);
+    return { data: null, error: "We couldn't check that code. Please try again." };
+  }
+
+  const quote = data as { code: string; title: string; discount: number | string };
+  return {
+    data: { code: quote.code, title: quote.title, discount: Number(quote.discount) },
+    error: null,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 5b. Re-check the cart after checkout was refused (FINALE 9.1, 9.10)
 // ---------------------------------------------------------------------------
 
 /**

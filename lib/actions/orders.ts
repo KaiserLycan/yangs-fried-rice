@@ -290,8 +290,8 @@ export async function getDetailedOrders(
   const needTransactionInner =
     !!filters.payment_method || filters.min_total !== undefined || filters.max_total !== undefined;
   const transactionJoin = needTransactionInner
-    ? 'transaction!inner ( transaction_id, payment_method, payment_status, total_paid, subtotal, discount_amount, discount_type, discount_id_number, name_on_id, discount_id_photo_path, tip_amount, refund_error, provider_payment_id )'
-    : 'transaction ( transaction_id, payment_method, payment_status, total_paid, subtotal, discount_amount, discount_type, discount_id_number, name_on_id, discount_id_photo_path, tip_amount, refund_error, provider_payment_id )';
+    ? 'transaction!inner ( transaction_id, payment_method, payment_status, total_paid, subtotal, discount_amount, discount_type, discount_id_number, name_on_id, discount_id_photo_path, tip_amount, refund_error, provider_payment_id, promo_code )'
+    : 'transaction ( transaction_id, payment_method, payment_status, total_paid, subtotal, discount_amount, discount_type, discount_id_number, name_on_id, discount_id_photo_path, tip_amount, refund_error, provider_payment_id, promo_code )';
 
   let query = supabase
     .from("order")

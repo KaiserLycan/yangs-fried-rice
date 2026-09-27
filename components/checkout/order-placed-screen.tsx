@@ -139,6 +139,7 @@ export function OrderPlacedScreen({
             lines={order.lines}
             totals={totals}
             discount={order.discount}
+            promo={order.promo}
           />
         </section>
 

@@ -50,7 +50,7 @@ export async function readPlacedOrder(
     // to a pending one. `foldPaymentStatus` decides what they add up to.
     supabase
       .from("transaction")
-      .select("payment_method, payment_status, discount_type, discount_amount, subtotal")
+      .select("payment_method, payment_status, discount_type, discount_amount, subtotal, promo_code")
       .eq("order_id", order.order_id)
       .order("transaction_date", { ascending: false }),
     supabase
@@ -99,6 +99,12 @@ export async function readPlacedOrder(
       }
     : null;
 
+  // A promo code: what it took off, as checkout saved it.
+  const promo =
+    latestTxn?.discount_type === "promo" && latestTxn.promo_code
+      ? { code: latestTxn.promo_code, discount: Number(latestTxn.discount_amount ?? 0) }
+      : null;
+
   return {
     orderId: order.order_id,
     orderNumber: formatOrderNumber(order.order_number, order.order_id),
@@ -113,6 +119,7 @@ export async function readPlacedOrder(
     isWalletOrder: isWalletMethod(transaction.data?.[0]?.payment_method),
     orderStatus: order.order_status,
     discount,
+    promo,
   };
 }
 

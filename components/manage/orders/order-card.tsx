@@ -112,6 +112,12 @@ export function OrderCard({ order, onClick, onAction, now }: OrderCardProps) {
             <span className="font-bold">−₱{order.seniorPwd.discount.toFixed(2)}</span>
           </div>
         )}
+        {order.promo && (
+          <div className="mb-3 flex items-center justify-between rounded-lg border border-rule bg-secondary/50 px-3 py-2 text-xs font-semibold text-foreground">
+            <span>Promo · {order.promo.code}</span>
+            <span className="font-bold">−₱{order.promo.discount.toFixed(2)}</span>
+          </div>
+        )}
 
         {order.items.map((item, index) => (
           <div key={index} className="mb-4 last:mb-0">

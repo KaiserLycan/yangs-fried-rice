@@ -136,4 +136,18 @@ describe("mapStaffOrder — Senior Citizen / PWD discount (#116)", () => {
     expect(mapped.total).toBe(112);
     expect(mapped.seniorPwd).toBeUndefined();
   });
+
+  it("totals a promo-code order at what is owed and names the code", () => {
+    const mapped = mapStaffOrder(
+      row({
+        order_type: "take_out",
+        delivery_fee: 0,
+        order_item: [line],
+        transaction: [{ subtotal: 112, discount_amount: 30, discount_type: "promo", promo_code: "YANGS30" }],
+      }),
+    );
+    expect(mapped.total).toBe(82);
+    expect(mapped.promo).toEqual({ code: "YANGS30", discount: 30 });
+    expect(mapped.seniorPwd).toBeUndefined();
+  });
 });

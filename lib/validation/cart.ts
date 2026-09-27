@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { promoCodeSchema } from "./promo-code";
 import { MAX_QUANTITY } from "@/lib/menu/quantity";
 
 /**
@@ -157,6 +158,17 @@ export const submitCartSchema = z
       .default(0),
     /** Pay in store: the note the customer will pay with, so there is change (L8). */
     cash_tendered: z.number().positive().max(100000).nullable().optional(),
+    /**
+     * A promo code. `submit_cart_to_order` prices it again with the same
+     * function checkout's "Apply" used, and refuses with PROMO_CHANGED if
+     * the discount is no longer `expected_promo_discount`.
+     */
+    promo_code: promoCodeSchema.nullable().optional(),
+    expected_promo_discount: z.number().nonnegative().max(100000).nullable().optional(),
+  })
+  .refine((input) => !(input.promo_code && input.discount), {
+    message: "A promo code can't be combined with the Senior Citizen / PWD discount.",
+    path: ["promo_code"],
   });
 
 export const cancelOrderSchema = z.object({

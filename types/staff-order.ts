@@ -67,7 +67,7 @@ export type OrderData = {
   };
   /** 0 for every pickup order; kept for legacy delivery orders. */
   deliveryFee: number;
-  /** What the customer owes — after any Senior Citizen / PWD discount. */
+  /** What the customer owes — after any Senior Citizen / PWD or promo discount. */
   total: number;
   /**
    * Set when the customer claimed the Senior Citizen / PWD discount
@@ -80,6 +80,11 @@ export type OrderData = {
     discount: number;
     /** False once the photo is deleted (order completed or cancelled). */
     hasPhoto: boolean;
+  };
+  /** Set when the order used a promo code. */
+  promo?: {
+    code: string;
+    discount: number;
   };
   /**
    * A cancelled paid wallet order's refund (FINALE 9.4). Sent automatically

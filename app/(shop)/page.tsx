@@ -22,6 +22,7 @@ import {
   SUPPORT_PHONE,
 } from "@/lib/site/site-info";
 import { telHref } from "@/lib/contact/tel-href";
+import { describePromoDiscount } from "@/lib/validation/promo-code";
 import { formatStoreHours, type StoreStatus } from "@/lib/store/store-status";
 import { readStoreStatus } from "@/lib/store/read-store-status";
 
@@ -57,6 +58,8 @@ export default async function HomePage() {
           ? `/menu?category=${encodeURIComponent(categoryName.get(promo.category_id)!)}`
           : "/menu",
       cta: "Order now",
+      promoCode: promo.code,
+      offer: describePromoDiscount(promo),
     })),
     // Always at least one banner, even with no promo running.
     {

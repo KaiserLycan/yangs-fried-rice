@@ -15,6 +15,9 @@ export type PromoSlide = {
   imageUrl: string | null;
   href: string;
   cta: string;
+  /** A promo code to type at checkout, and what it gives ("20% off"). */
+  promoCode?: string | null;
+  offer?: string | null;
 };
 
 const AUTO_ADVANCE_MS = 6000;
@@ -158,6 +161,12 @@ function Slide({ slide, priority }: { slide: PromoSlide; priority: boolean }) {
           </span>
           <h2 className="font-display text-5xl uppercase leading-[0.95] text-on-brand md:text-6xl">{slide.title}</h2>
           {slide.body && <p className="line-clamp-3 text-base text-on-brand-muted md:text-lg">{slide.body}</p>}
+          {slide.promoCode && (
+            <p className="w-fit rounded-md border-2 border-dashed border-on-brand-accent px-3 py-2 text-sm text-on-brand md:text-base">
+              Use code <strong className="font-mono text-on-brand-accent">{slide.promoCode}</strong> at checkout
+              {slide.offer ? ` — ${slide.offer}` : ""}
+            </p>
+          )}
           <Link
             href={sameSiteHref(slide.href)}
             className="mt-2 inline-flex min-h-[48px] w-fit items-center rounded-full bg-on-brand-accent px-7 text-base font-bold text-foreground shadow-lg transition-transform hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"

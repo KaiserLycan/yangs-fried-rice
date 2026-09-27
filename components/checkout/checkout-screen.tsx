@@ -6,8 +6,10 @@ import { SiteNavBar } from "@/components/nav/site-nav-bar";
 import { OrderSummaryCard } from "@/components/checkout/order-summary-card";
 import { CashTenderedField } from "@/components/checkout/cash-tendered-field";
 import { PaymentMethodPicker } from "@/components/checkout/payment-method-picker";
+import { PromoCodeField } from "@/components/checkout/promo-code-field";
 import { TipPicker } from "@/components/checkout/tip-picker";
 import { payInStoreBlock } from "@/lib/checkout/order-rules";
+import { checkPromoCode } from "@/lib/actions/cart";
 import { PickupByPicker, type PickupBy } from "@/components/checkout/pickup-by-picker";
 import {
   SeniorPwdDiscountPicker,
@@ -21,9 +23,11 @@ import {
 } from "@/lib/checkout/payment-methods";
 import {
   computeCartTotals,
+  seniorPwdBreakdown,
   type CartLine,
   type Fulfilment,
 } from "@/lib/menu/cart-totals";
+import type { AppliedPromo } from "@/lib/validation/promo-code";
 import type { CustomerProfile } from "@/lib/profile/customer-profile";
 
 /**
@@ -90,9 +94,54 @@ export function CheckoutScreen({
 
   const [tip, setTip] = React.useState(0);
   const [cashTendered, setCashTendered] = React.useState<number | null>(null);
+  const [promo, setPromo] = React.useState<AppliedPromo | null>(null);
+  const [promoError, setPromoError] = React.useState<string | null>(null);
 
   const totals = computeCartTotals({ lines, fulfilment, distanceKm });
-  const cashBlock = payInStoreBlock({ total: totals.total + tip, ...cashHistory });
+  // What the food costs after whichever discount applies — the figure the
+  // cash caps and "change for" are measured against, as the database does.
+  const dueBeforeTip = seniorDiscount.enabled
+    ? seniorPwdBreakdown(totals.total).total
+    : promo
+      ? Math.max(0, Math.round((totals.total - promo.discount) * 100) / 100)
+      : totals.total;
+  const cashBlock = payInStoreBlock({ total: dueBeforeTip + tip, ...cashHistory });
+
+  // One discount per order: turning on Senior / PWD drops the promo code.
+  const seniorOn = seniorDiscount.enabled;
+  React.useEffect(() => {
+    if (!seniorOn || !promo) return;
+    setPromoError(
+      `${promo.code} was removed — a promo code can't be combined with the Senior Citizen / PWD discount.`,
+    );
+    setPromo(null);
+  }, [seniorOn, promo]);
+
+  // The cart can change under checkout (a sold-out line removed, new prices
+  // accepted). The code is asked about again so the discount shown stays the
+  // discount the database will give.
+  const linesKey = lines.map((line) => `${line.id}:${line.quantity}:${line.unitPrice}`).join("|");
+  const promoCode = promo?.code ?? null;
+  React.useEffect(() => {
+    if (!promoCode || !cartId) return;
+    let cancelled = false;
+    checkPromoCode(cartId, promoCode)
+      .then((result) => {
+        if (cancelled) return;
+        if (result.error !== null) {
+          setPromo(null);
+          setPromoError(result.error);
+        } else {
+          setPromo(result.data);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+    // Only when the cart itself changes, not when the promo just applied does.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linesKey]);
 
   // A rule that rules out paying in store moves the choice to the wallet
   // rather than leaving a selected option that checkout will refuse.
@@ -167,7 +216,7 @@ export function CheckoutScreen({
                   disabledReasons={cashBlock ? { "pay-in-store": cashBlock } : {}}
                 />
                 {paymentMethod === "pay-in-store" && (
-                  <CashTenderedField total={totals.total + tip} value={cashTendered} onChange={setCashTendered} />
+                  <CashTenderedField total={dueBeforeTip + tip} value={cashTendered} onChange={setCashTendered} />
                 )}
               </section>
 
@@ -176,6 +225,24 @@ export function CheckoutScreen({
                   Tip the staff
                 </h2>
                 <TipPicker value={tip} onChange={setTip} />
+              </section>
+
+              <section className="flex flex-col gap-[12px] md:rounded-lg md:border md:border-rule md:bg-card md:p-[20px]">
+                <h2 className="text-sm font-bold uppercase tracking-[1.44px] text-muted-foreground md:text-sm md:tracking-[1.54px]">
+                  Have a promo code?
+                </h2>
+                <PromoCodeField
+                  cartId={cartId}
+                  value={promo}
+                  onChange={setPromo}
+                  error={promoError}
+                  onErrorChange={setPromoError}
+                  blockedReason={
+                    seniorDiscount.enabled
+                      ? "Promo codes can't be combined with the Senior Citizen / PWD discount."
+                      : null
+                  }
+                />
               </section>
 
               <SeniorPwdDiscountPicker
@@ -197,6 +264,11 @@ export function CheckoutScreen({
                 arrivalEstimate={arrivalEstimate}
                 pickupBy={pickupBy}
                 seniorDiscount={seniorDiscount}
+                promo={seniorDiscount.enabled ? null : promo}
+                onPromoRejected={(message) => {
+                  setPromo(null);
+                  setPromoError(message);
+                }}
                 tip={tip}
                 cashTendered={paymentMethod === "pay-in-store" ? cashTendered : null}
               />

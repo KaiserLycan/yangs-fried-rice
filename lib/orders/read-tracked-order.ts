@@ -32,6 +32,8 @@ export type TrackedOrderPayment = {
   status: string | null;
   discountAmount: number;
   discountType: string | null;
+  /** The promo code, when `discountType` is "promo". */
+  promoCode?: string | null;
   taxAmount: number;
   totalPaid: number;
 };
@@ -137,7 +139,7 @@ export async function readTrackedOrder(
       .then((res) => res.data),
     supabase
       .from("transaction")
-      .select("payment_method, payment_status, discount_amount, discount_type, tax_amount, total_paid, transaction_date")
+      .select("payment_method, payment_status, discount_amount, discount_type, promo_code, tax_amount, total_paid, transaction_date")
       .eq("order_id", order.order_id)
       .order("transaction_date", { ascending: false })
       .limit(1)
@@ -224,6 +226,7 @@ export async function readTrackedOrder(
           status: transaction.payment_status,
           discountAmount: Number(transaction.discount_amount ?? 0),
           discountType: transaction.discount_type,
+          promoCode: transaction.promo_code ?? null,
           taxAmount: Number(transaction.tax_amount ?? 0),
           totalPaid: Number(transaction.total_paid ?? 0),
         }

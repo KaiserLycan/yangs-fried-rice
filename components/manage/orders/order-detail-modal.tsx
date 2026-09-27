@@ -287,6 +287,13 @@ export function OrderDetailModal({ order, isOpen, onClose, onAction, onChanged }
                   <span className="shrink-0 font-bold">−₱{order.seniorPwd.discount.toFixed(2)}</span>
                 </div>
               )}
+
+              {order.promo && (
+                <div className="flex justify-between items-start gap-4 mt-1 text-status-done">
+                  <span className="font-bold">Promo ({order.promo.code})</span>
+                  <span className="shrink-0 font-bold">−₱{order.promo.discount.toFixed(2)}</span>
+                </div>
+              )}
               
               <div className="flex justify-between items-start gap-4 mt-2 pt-2 border-t border-track">
                 <span className="font-bold text-foreground text-base">Total</span>

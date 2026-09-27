@@ -4,7 +4,9 @@ import { useState, useEffect, useCallback } from "react";
 import { Search, Plus } from "lucide-react";
 import { ManagePagination } from "@/components/manage/manage-pagination";
 import { SortableHeader } from "@/components/manage/sortable-header";
-import { PromotionModal } from "@/components/manage/promotions/promotion-modal";
+import { PromotionModal, type PromotionScopeOptions } from "@/components/manage/promotions/promotion-modal";
+import { getCategories, getProducts } from "@/lib/actions/menu";
+import { describePromoDiscount } from "@/lib/validation/promo-code";
 import { useDebounce } from "@/lib/hooks/use-debounce";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -58,6 +60,19 @@ export default function ManagePromotionsPage() {
     loadPromotions();
   }, [loadPromotions]);
 
+  // What a promotion can link to / a code can discount: a category or a dish.
+  const [scopeOptions, setScopeOptions] = useState<PromotionScopeOptions>({ categories: [], products: [] });
+  useEffect(() => {
+    Promise.all([getCategories(), getProducts()])
+      .then(([categories, products]) => {
+        setScopeOptions({
+          categories: (categories.data ?? []).map((c) => ({ id: c.category_id, name: c.category_name })),
+          products: (products.data ?? []).map((p) => ({ id: p.product_id, name: p.product_name })),
+        });
+      })
+      .catch(() => undefined);
+  }, []);
+
   const handleAddConfirm = async () => {
     if (!promotionToAdd) return;
     setIsProcessing(true);
@@ -73,6 +88,9 @@ export default function ManagePromotionsPage() {
       starts_at: promotionToAdd.starts_at,
       ends_at: promotionToAdd.ends_at,
       is_active: promotionToAdd.is_active,
+      product_id: promotionToAdd.product_id,
+      category_id: promotionToAdd.category_id,
+      terms: promotionToAdd.terms,
     }, formData);
 
     if (result.error) {
@@ -101,6 +119,9 @@ export default function ManagePromotionsPage() {
       starts_at: promotionToEdit.starts_at,
       ends_at: promotionToEdit.ends_at,
       is_active: promotionToEdit.is_active,
+      product_id: promotionToEdit.product_id,
+      category_id: promotionToEdit.category_id,
+      terms: promotionToEdit.terms,
     }, promotionToEdit.imageFile ? formData : undefined);
 
     if (result.error) {
@@ -133,7 +154,7 @@ export default function ManagePromotionsPage() {
   let filteredPromotions = [...promotions];
   if (debouncedSearchQuery) {
     const q = debouncedSearchQuery.toLowerCase();
-    filteredPromotions = filteredPromotions.filter(p => p.title.toLowerCase().includes(q));
+    filteredPromotions = filteredPromotions.filter(p => p.title.toLowerCase().includes(q) || (p.code ?? "").toLowerCase().includes(q));
   }
 
   if (sortField === "title") {
@@ -193,6 +214,11 @@ export default function ManagePromotionsPage() {
                     <div>
                        {promo.title}
                        <p className="text-xs text-muted-foreground font-normal line-clamp-1">{promo.description}</p>
+                       {promo.code && (
+                         <p className="text-xs font-normal text-foreground">
+                           Code <span className="font-mono font-bold">{promo.code}</span> · {describePromoDiscount(promo)}
+                         </p>
+                       )}
                     </div>
                   </div>
                   <div className="text-sm md:flex md:items-center">
@@ -219,6 +245,7 @@ export default function ManagePromotionsPage() {
         promotion={selectedPromotion}
         onSave={(data) => selectedPromotion ? setPromotionToEdit(data) : setPromotionToAdd(data)}
         onDelete={(data) => setPromotionToDelete(data)}
+        scopeOptions={scopeOptions}
       />
 
       <Dialog

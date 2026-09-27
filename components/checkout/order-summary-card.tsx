@@ -41,6 +41,7 @@ import {
 import type { SeniorPwdDiscountState } from "@/components/checkout/senior-pwd-discount-picker";
 import { Button } from "@/components/ui/button";
 import { MIN_ORDER, amountToMinimum } from "@/lib/checkout/order-rules";
+import { PROMO_ERROR_CODES, type AppliedPromo } from "@/lib/validation/promo-code";
 
 /**
  * Order summary (`133:1124` desktop, `132:424` mobile) — issue #22's
@@ -70,6 +71,8 @@ export function OrderSummaryCard({
   arrivalEstimate,
   pickupBy = "self_pickup",
   seniorDiscount,
+  promo = null,
+  onPromoRejected,
   tip = 0,
   cashTendered = null,
 }: {
@@ -90,6 +93,10 @@ export function OrderSummaryCard({
    */
   arrivalEstimate: string;
   seniorDiscount?: SeniorPwdDiscountState;
+  /** An applied promo code, as `checkPromoCode` priced it. */
+  promo?: AppliedPromo | null;
+  /** Placing the order refused the code; checkout drops it and says why. */
+  onPromoRejected?: (message: string) => void;
   /** Peso tip for the staff (F19), added to what is paid. */
   tip?: number;
   /** Pay in store: the bill the customer will hand over (L8). */
@@ -184,7 +191,10 @@ export function OrderSummaryCard({
     : null;
   // The minimum is on the food, before any discount or tip (L6).
   const shortOfMinimum = amountToMinimum(totals.subtotal);
-  const amountToPay = (discountTotals ? discountTotals.total : totals.total) + tip;
+  const promoTotal = !discountTotals && promo
+    ? Math.max(0, Math.round((totals.total - promo.discount) * 100) / 100)
+    : null;
+  const amountToPay = (discountTotals ? discountTotals.total : promoTotal ?? totals.total) + tip;
 
   function handlePlaceOrder() {
     if (paymentMethod === "card") {
@@ -287,6 +297,8 @@ export function OrderSummaryCard({
             wallet,
             tip,
             cash_tendered: cashTendered,
+            promo_code: promoTotal !== null && promo ? promo.code : null,
+            expected_promo_discount: promoTotal !== null && promo ? promo.discount : null,
             discount:
               seniorDiscount?.enabled && uploadedPhotoPath
                 ? {
@@ -359,6 +371,12 @@ export function OrderSummaryCard({
       // instead of in a toast. The refresh that follows brings in the new
       // prices, so accepting them is only acknowledging what is on screen.
       async (failure) => {
+        // The code, not the cart, was the problem: drop it and say why
+        // beside the field. The customer can place the order without it.
+        if (failure.code && PROMO_ERROR_CODES.has(failure.code)) {
+          onPromoRejected?.(failure.error);
+          return true;
+        }
         if (!failure.code || !RECHECK_CODES.has(failure.code)) return false;
         try {
           const checked = await recheckCart(cartId, shownPrices);
@@ -417,6 +435,7 @@ export function OrderSummaryCard({
               }
             : null
         }
+        promo={promoTotal !== null && promo ? { code: promo.code, discount: promo.discount } : null}
       />
 
       {cartProblems && recheck ? (

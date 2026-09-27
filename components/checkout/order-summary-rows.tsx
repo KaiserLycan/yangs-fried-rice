@@ -2,6 +2,7 @@ import { formatPeso, formatPesoCentavos } from "@/lib/menu/product-listing";
 import type { LineFlags } from "@/lib/checkout/cart-recheck";
 import {
   lineTotal,
+  vatBreakdown,
   type CartLine,
   type CartTotals,
   type Fulfilment,
@@ -27,6 +28,12 @@ export type OrderSummaryDiscount = {
   total: number;
 };
 
+/** A promo code on the order: the code and the pesos it took off. */
+export type OrderSummaryPromo = {
+  code: string;
+  discount: number;
+};
+
 export function OrderSummaryRows({
   customerName,
   placedAtLabel,
@@ -34,6 +41,7 @@ export function OrderSummaryRows({
   lines,
   totals,
   discount,
+  promo,
   flags = {},
 }: {
   customerName: string;
@@ -42,6 +50,8 @@ export function OrderSummaryRows({
   lines: CartLine[];
   totals: CartTotals;
   discount?: OrderSummaryDiscount | null;
+  /** Ignored when `discount` is set: an order has one discount or the other. */
+  promo?: OrderSummaryPromo | null;
   /** Lines checkout found sold out or re-priced (FINALE 9.1, 9.10). */
   flags?: LineFlags;
 }) {
@@ -106,6 +116,8 @@ export function OrderSummaryRows({
           <SummaryRow label="Discount" value={formatSummaryMoney(discount.discount)} />
           <SummaryRow label="Total" value={formatSummaryMoney(discount.total)} />
         </>
+      ) : promo ? (
+        <PromoRows promo={promo} total={totals.total} />
       ) : (
         <>
           <SummaryRow label="VATable sales" value={formatPesoCentavos(totals.vatableSales)} />
@@ -113,6 +125,24 @@ export function OrderSummaryRows({
           <SummaryRow label="Total" value={formatPesoCentavos(totals.total)} />
         </>
       )}
+    </>
+  );
+}
+
+/**
+ * Promo code: the discount comes off the VAT-inclusive total, and the VAT
+ * split is of what is actually paid — as `submit_cart_to_order` saves it.
+ */
+function PromoRows({ promo, total }: { promo: OrderSummaryPromo; total: number }) {
+  const due = Math.max(0, Math.round((total - promo.discount) * 100) / 100);
+  const { vatableSales, vat } = vatBreakdown(due);
+  return (
+    <>
+      <SummaryRow label="Subtotal" value={formatPesoCentavos(total)} />
+      <SummaryRow label={`Promo (${promo.code})`} value={`−${formatSummaryMoney(promo.discount)}`} />
+      <SummaryRow label="VATable sales" value={formatPesoCentavos(vatableSales)} />
+      <SummaryRow label="VAT (12%)" value={formatPesoCentavos(vat)} />
+      <SummaryRow label="Total" value={formatPesoCentavos(due)} />
     </>
   );
 }

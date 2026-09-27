@@ -65,6 +65,7 @@ type StaffTransactionRow = {
   discount_id_number?: string | null;
   name_on_id?: string | null;
   discount_id_photo_path?: string | null;
+  promo_code?: string | null;
   tip_amount?: number | null;
   payment_status?: string | null;
   total_paid?: number | null;
@@ -130,7 +131,7 @@ export function mapStaffOrder(order: StaffOrderRow): OrderData {
     deliveryFee: order.delivery_fee,
   });
 
-  // Senior Citizen / PWD (issue #116): the order is owed at
+  // Senior Citizen / PWD (issue #116) or a promo code: the order is owed at
   // subtotal - discount_amount, as checkout saved it, not at menu prices.
   const payments = Array.isArray(order.transaction)
     ? order.transaction
@@ -140,9 +141,11 @@ export function mapStaffOrder(order: StaffOrderRow): OrderData {
   const discounted = payments.find(
     (row) => row.discount_type === "senior_citizen" || row.discount_type === "pwd",
   );
-  const total = discounted
+  const promoted = payments.find((row) => row.discount_type === "promo");
+  const saved = discounted ?? promoted;
+  const total = saved
     ? Math.round(
-        ((discounted.subtotal ?? 0) - (discounted.discount_amount ?? 0)) * 100,
+        ((saved.subtotal ?? 0) - (saved.discount_amount ?? 0)) * 100,
       ) /
         100 +
       (order.delivery_fee ?? 0)
@@ -205,6 +208,9 @@ export function mapStaffOrder(order: StaffOrderRow): OrderData {
           discount: discounted.discount_amount ?? 0,
           hasPhoto: Boolean(discounted.discount_id_photo_path),
         }
+      : undefined,
+    promo: promoted
+      ? { code: promoted.promo_code ?? "Promo", discount: promoted.discount_amount ?? 0 }
       : undefined,
   } as OrderData;
 }

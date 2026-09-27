@@ -164,7 +164,11 @@ function ReceiptBody({ order }: { order: ReceiptOrder }) {
               ? " (Senior Citizen)"
               : payment.discountType === "pwd"
                 ? " (PWD)"
-                : ` (${payment.discountType})`
+                : payment.discountType === "promo"
+                  ? payment.promoCode
+                    ? ` (Promo ${payment.promoCode})`
+                    : " (Promo)"
+                  : ` (${payment.discountType})`
             : ""}
         </dt>
         <dd className="text-right">

@@ -1,6 +1,6 @@
 import type { PaymentStatus } from "@/lib/checkout/payment-status";
 import type { CartLine, Fulfilment } from "@/lib/menu/cart-totals";
-import type { OrderSummaryDiscount } from "@/components/checkout/order-summary-rows";
+import type { OrderSummaryDiscount, OrderSummaryPromo } from "@/components/checkout/order-summary-rows";
 
 /**
  * One order that has just been placed, narrowed to what the confirmation
@@ -39,6 +39,8 @@ export type PlacedOrder = {
    * started. */
   paymentStatus: PaymentStatus | null;
   discount?: OrderSummaryDiscount | null;
+  /** The promo code the order used, and what it took off. */
+  promo?: OrderSummaryPromo | null;
 };
 
 // The helper that used to live here is now `formatOrderNumber` in
