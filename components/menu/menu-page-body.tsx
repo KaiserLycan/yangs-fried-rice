@@ -6,6 +6,7 @@ import type { Fulfilment } from "@/lib/menu/cart-totals";
 import { mapProductRow } from "@/lib/menu/product-listing";
 import { readCustomerProfile } from "@/lib/profile/customer-profile";
 import { readArrivalQuote } from "@/lib/checkout/read-arrival-quote";
+import { readRecentCompletedOrders } from "@/lib/orders/read-recent-orders";
 
 /**
  * The menu screen and everything it needs to read, as one server component,
@@ -23,9 +24,9 @@ import { readArrivalQuote } from "@/lib/checkout/read-arrival-quote";
  * alike, so a signed-out visitor reaches this. `readCustomerProfile()`
  * returning `null` for a guest is the behaviour this screen wants, unlike
  * `/profile`, which redirects on the same null: `SiteNavBar` shows a "Log in"
- * link instead of the avatar and drops the "Deliver to" address, and
- * `readCart()` yields no lines, so the cart count reads 0. There is no
- * separate "guest version" of the screen to build — this is it.
+ * link instead of the avatar and the bell, every Add reads "Sign in to order"
+ * (panel F3), and `readCart()` yields no lines, so the cart count reads 0.
+ * There is no separate "guest version" of the screen to build — this is it.
  *
  * The initial, unfiltered list is fetched here with the existing
  * `getProducts()`/`getCategories()` server actions rather than this app's own
@@ -50,10 +51,13 @@ export function MenuPageBody({ fulfilment }: { fulfilment?: Fulfilment }) {
   const productsPromise = getProducts().then(r => (r.data ?? []).map(mapProductRow));
   const categoriesPromise = getCategories().then(r => (r.data ?? []).map(c => ({ id: c.category_id, name: c.category_name })));
   const cartPromise = readCart();
-  // For the desktop cart rail's estimate. Delivery, because that is what the
-  // rail's toggle starts on, and no address is geocoded on this screen — the
-  // kitchen queue is the half of the figure that actually moves (issue #106).
-  const arrivalEstimatePromise = readArrivalQuote({ fulfilment: "delivery" })
+  // "Order again" (issue #118): empty for a guest, and never allowed to
+  // stop the menu rendering.
+  const recentOrdersPromise = readRecentCompletedOrders().catch(() => []);
+  // For the desktop cart rail's estimate. Pickup: the shop no longer delivers
+  // (issue #114), so there is no travel time to add — the kitchen queue is
+  // the whole figure (issue #106).
+  const arrivalEstimatePromise = readArrivalQuote({ fulfilment: "pickup" })
     .then((window): string | null => window)
     // A rail with no estimate beats a menu that will not render.
     .catch(() => null);
@@ -67,6 +71,7 @@ export function MenuPageBody({ fulfilment }: { fulfilment?: Fulfilment }) {
         cartPromise={cartPromise}
         arrivalEstimatePromise={arrivalEstimatePromise}
         initialFulfilment={fulfilment}
+        recentOrdersPromise={recentOrdersPromise}
       />
     </ToastProvider>
   );

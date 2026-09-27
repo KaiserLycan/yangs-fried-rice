@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { type PlacedOrder } from "@/lib/checkout/placed-order";
 import { formatOrderNumber } from "@/lib/orders/order-number";
-import { PAYMENT_METHODS } from "@/lib/checkout/payment-methods";
+import { isWalletMethod, paymentLabelFor } from "@/lib/orders/payment";
 import { foldPaymentStatus } from "@/lib/checkout/payment-status";
 import { orderItemName, orderItemUnitPrice } from "@/lib/orders/item-name";
 import { formatOrderTime } from "@/lib/checkout/order-time";
@@ -97,22 +97,6 @@ export async function readPlacedOrder(
 }
 
 /**
- * Does this transaction row describe a wallet payment?
- *
- * `submitCart` writes "paymongo" for a wallet order and
- * `create-payment-intent` writes the same, so that is the value in practice.
- * "gcash" and "paymaya" are accepted too because `payment_method` is free
- * text and older rows may name the wallet rather than the gateway — reading
- * one of those as a cash order would hand the customer a Track link for
- * food nobody has paid for.
- */
-function isWalletMethod(stored: string | null | undefined): boolean {
-  if (!stored) return false;
-  const folded = stored.trim().toLowerCase().replace(/[\s-]+/g, "_");
-  return folded === "paymongo" || folded === "gcash" || folded === "paymaya";
-}
-
-/**
  * `order_type` is nullable free text, so the plausible spellings of pickup
  * are all recognised rather than only the exact one the picker writes. This
  * matters in pesos, not in wording: an order stored as "Pick up" that read as
@@ -130,35 +114,6 @@ function fulfilmentFromOrderType(orderType: string | null): Fulfilment {
     : "delivery";
 }
 
-
-/**
- * `transaction.payment_method` is free text, so a stored value is matched
- * against the four the picker offers and otherwise shown as written. Saying
- * "Payment method not recorded" when the customer definitely chose one would
- * be worse than echoing an unfamiliar string.
- *
- * `create-payment-intent` writes the gateway's name, "paymongo", rather than
- * which wallet was used — the intent allows any of them. It is shown as the
- * option the customer picked.
- *
- * `submitCart` now records the method the customer actually picked, so cash
- * on delivery and pay in store label themselves. Rows written before that
- * change may still read "Not recorded".
- */
-function paymentLabelFor(stored: string | null | undefined): string {
-  if (!stored) return "Not recorded";
-  if (stored.trim().toLowerCase() === "paymongo") return "GCash / Maya wallet";
-  const folded = stored
-    .trim()
-    .toLowerCase()
-    .replace(/[\s_]+/g, "-");
-  const known = PAYMENT_METHODS.find(
-    (method) =>
-      method.id === folded ||
-      method.label.toLowerCase() === stored.trim().toLowerCase(),
-  );
-  return known?.label ?? stored;
-}
 
 /**
  * PostgREST returns an embedded row as an object, but the generated types

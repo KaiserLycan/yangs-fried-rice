@@ -1,5 +1,6 @@
 import { formatPeso, type ProductListing } from "@/lib/menu/product-listing";
 import { ProductPhotoPlaceholder } from "@/components/menu/product-photo-placeholder";
+import { cn } from "@/lib/utils";
 
 /**
  * Mobile's full-width row (`132:122` and its siblings) — the same card
@@ -9,7 +10,12 @@ import { ProductPhotoPlaceholder } from "@/components/menu/product-photo-placeho
  *
  * The whole row is the click target here, unlike the desktop card — the
  * frame draws this row itself as a `button`, and unlike the desktop card it
- * has no separate Add control to be nested inside it.
+ * has no separate Add control to be nested inside it. A guest who taps it
+ * gets the dish's sheet, whose action reads "Sign in to order" (panel F3).
+ *
+ * An unavailable dish has its photo greyed out (F12), the same treatment as
+ * the desktop card. It used to fade the whole row to 50%, which also took
+ * the name and price below readable contrast.
  */
 export function ProductRow({
   product,
@@ -18,53 +24,42 @@ export function ProductRow({
   product: ProductListing;
   onSelect: (product: ProductListing) => void;
 }) {
-
-
-  const content = (
-    <>
-      {product.imageUrl ? (
-        <img
-          src={product.imageUrl}
-          alt={product.name}
-          className="size-[74px] shrink-0 rounded-md object-cover"
-        />
-      ) : (
-        <ProductPhotoPlaceholder className="size-[74px] shrink-0 rounded-md" />
-      )}
-
-      <div className="flex min-w-0 flex-1 flex-col gap-[6px]">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="text-[15px] font-bold text-foreground">
-            {product.name}
-          </h3>
-
-        </div>
-        <p className="line-clamp-2 text-[13px] text-muted-foreground">
-          {product.description}
-        </p>
-        <div className="flex items-center gap-[8px]">
-          <span className="font-display text-[19px] text-foreground">
-            {formatPeso(product.price)}
-          </span>
-          {!product.isAvailable && (
-            <span className="rounded-md bg-secondary/50 px-[6px] py-[3px] text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-              Unavailable
-            </span>
-          )}
-        </div>
-      </div>
-    </>
-  );
+  const unavailable = !product.isAvailable;
 
   return (
     <button
       type="button"
       onClick={() => onSelect(product)}
-      className={`flex gap-[13px] border-b border-field-border px-[20px] py-[12px] text-left last:border-b-0 transition-opacity hover:opacity-90 ${
-        !product.isAvailable ? "opacity-50" : ""
-      }`}
+      className="flex gap-[13px] border-b border-field-border px-[20px] py-[12px] text-left transition-opacity last:border-b-0 hover:opacity-90"
     >
-      {content}
+      {product.imageUrl ? (
+        <img
+          src={product.imageUrl}
+          alt={product.name}
+          className={cn("size-[74px] shrink-0 rounded-md object-cover", unavailable && "grayscale opacity-60")}
+        />
+      ) : (
+        <ProductPhotoPlaceholder
+          className={cn("size-[74px] shrink-0 rounded-md", unavailable && "grayscale opacity-60")}
+        />
+      )}
+
+      <span className="flex min-w-0 flex-1 flex-col gap-[6px]">
+        <span className="text-[15px] font-bold text-foreground">{product.name}</span>
+        <span className="line-clamp-2 text-[14px] text-muted-foreground">
+          {product.description}
+        </span>
+        <span className="flex items-center gap-[8px]">
+          <span className="font-display text-[19px] text-foreground">
+            {formatPeso(product.price)}
+          </span>
+          {unavailable && (
+            <span className="rounded-md bg-secondary/50 px-[6px] py-[3px] text-[14px] font-bold uppercase tracking-wider text-muted-foreground">
+              Unavailable
+            </span>
+          )}
+        </span>
+      </span>
     </button>
   );
 }

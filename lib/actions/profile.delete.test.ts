@@ -46,8 +46,23 @@ vi.mock("@/lib/supabase/server", () => ({
     from: (table: string) => builder(table),
   }),
 }));
+// The admin client also clears problem-report photos (issue #118): listed
+// from storage, then the report rows are updated. Both are recorded as
+// writes so a refusal is still shown to have touched nothing.
 vi.mock("@/lib/supabase/admin", () => ({
-  createAdminClient: () => ({ auth: { admin: { deleteUser } } }),
+  createAdminClient: () => ({
+    auth: { admin: { deleteUser } },
+    storage: {
+      from: () => ({
+        list: async () => ({ data: [], error: null }),
+        remove: async () => {
+          writes.push({ table: "storage", op: "remove" });
+          return { error: null };
+        },
+      }),
+    },
+    from: (table: string) => builder(table),
+  }),
 }));
 vi.mock("@/lib/storage/remove-stored-image", () => ({
   removeStoredImage: vi.fn(async () => {}),

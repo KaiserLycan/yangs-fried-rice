@@ -16,6 +16,14 @@ export const SITE_NAME = "Yang's Fried Rice";
 /** Matches what the manager's PDF reports already print as the letterhead. */
 export const SITE_BRANCH = "Malate Branch, Manila";
 
+/**
+ * Where a customer collects their order. The "ready for pickup" notification
+ * is written by a database trigger
+ * (`20260928000000_notifications_order_issues_and_realtime.sql`) and spells
+ * the same counter out; change both together.
+ */
+export const PICKUP_COUNTER = "Counter 1";
+
 /** The year the copyright line starts from. */
 export const SITE_FOUNDED_YEAR = 2025;
 

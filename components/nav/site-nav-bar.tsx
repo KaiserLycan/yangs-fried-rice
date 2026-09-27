@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { LogOut } from "lucide-react";
 import { LogOutControl } from "@/components/auth/log-out-control";
-import { NavAddressDropdown } from "@/components/nav/nav-address-dropdown";
+import { NotificationBell } from "@/components/nav/notification-bell";
 import { Avatar } from "@/components/ui/avatar";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { CustomerProfile } from "@/lib/profile/customer-profile";
@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
  * that file's own comment. The menu screen (`.scratch/ordering-flow/issues/
  * 02-menu-browse.md`) is that consumer, and confirmed with Yuan, the one
  * thing that varies between pages is whether a search field is present.
- * Everything else — wordmark, the four section links, the delivery address,
+ * Everything else — wordmark, the section links, the notification bell,
  * the avatar — is identical everywhere this renders.
  *
  * Desktop only. The mobile header is not part of this component and is not
@@ -85,17 +85,15 @@ function ResolvedProfileActions({
 
   return (
     <div className="flex items-center gap-[14px]">
-      {profile && profile.deliverToAddress ? (
-        <NavAddressDropdown
-          addresses={profile.addresses}
-          activeAddressId={profile.activeAddressId}
-        />
-      ) : null}
+      {/* The "Deliver to" address picker that sat here is gone: the shop is
+          pickup-only (issue #114), so there is nothing to deliver to. Its
+          place goes to the notification bell (issue #118). */}
       {profile ? (
         <>
+          <NotificationBell />
           <Link
             href="/profile"
-            className="rounded-pill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="flex size-[44px] items-center justify-center rounded-pill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             aria-label="Go to your account"
           >
             <Avatar
@@ -112,7 +110,7 @@ function ResolvedProfileActions({
               does not recognise it. */}
           <Tooltip content="Log out">
             <LogOutControl
-              className="flex size-[32px] items-center justify-center rounded-pill text-white/80 transition-colors hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+              className="flex size-[44px] items-center justify-center rounded-pill text-white/80 transition-colors hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
               aria-label="Log out"
             >
               <LogOut aria-hidden="true" className="size-[17px]" />
@@ -121,8 +119,8 @@ function ResolvedProfileActions({
         </>
       ) : (
         <Link
-          href="/login"
-          className="text-[13px] font-bold text-white hover:underline"
+          href="/login?next=/menu"
+          className="flex min-h-[44px] items-center text-[14px] font-bold text-white hover:underline"
         >
           Log in
         </Link>
@@ -160,7 +158,7 @@ export function SiteNavBar({
                 href={href}
                 aria-current={isCurrent ? "page" : undefined}
                 className={cn(
-                  "text-[13.5px]",
+                  "text-[14px]",
                   isCurrent
                     ? "border-b-2 border-white pb-[3px] text-white"
                     : "text-background/[0.72] hover:text-white",

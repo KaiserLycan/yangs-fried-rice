@@ -8,6 +8,7 @@ import {
   pendingPromptFor,
   PENDING_TIMEOUT_MINUTES,
   refundNoticeFor,
+  paymentSummaryFrom,
   headlineFor,
   fulfilmentOf,
   isCancellable,
@@ -32,7 +33,7 @@ function input(over: Partial<OrderStageInput> = {}): OrderStageInput {
 }
 
 describe("resolveOrderProgress", () => {
-  it("reads the vocabulary the back office actually writes", () => {
+  it("reads the vocabulary the back office writes, plus the retired `received` on old rows", () => {
     expect(resolveOrderProgress(input({ orderStatus: "received" }))).toEqual({
       kind: "stage",
       stage: "received",
@@ -441,5 +442,21 @@ describe("refundNoticeFor (issue #115)", () => {
     expect(refundNoticeFor(online("refunded", null))).toBe(
       "Your GCash / Maya payment has been refunded. It may take a few days to show in your wallet.",
     );
+  });
+});
+
+describe("paymentSummaryFrom (issue #115)", () => {
+  it("treats a PayMongo row that took money as paid online", () => {
+    expect(paymentSummaryFrom({ method: "paymongo", status: "refund_pending", totalPaid: 250 })).toEqual({
+      paidOnline: true,
+      status: "refund_pending",
+      amount: 250,
+    });
+  });
+
+  it("does not count an unpaid wallet attempt or the counter as paid online", () => {
+    expect(paymentSummaryFrom({ method: "paymongo", status: "pending", totalPaid: 0 })?.paidOnline).toBe(false);
+    expect(paymentSummaryFrom({ method: "pay_in_store", status: "paid", totalPaid: 250 })?.paidOnline).toBe(false);
+    expect(paymentSummaryFrom(null)).toBeNull();
   });
 });

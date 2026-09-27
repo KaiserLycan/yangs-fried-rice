@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/react";
 import { OrderCard } from "@/components/manage/orders/order-card";
 import { KdsOrderCard } from "@/components/manage/kds/kds-order-card";
-import type { OrderData } from "@/lib/mock-orders";
+import type { OrderData } from "@/types/staff-order";
 
 /**
  * Issue #115: an order that has waited 5 minutes for staff to accept it

@@ -166,7 +166,8 @@ function normaliseStatus(value: string | null): string | null {
 }
 
 const ORDER_STATUS_STAGES: Record<string, OrderStage | "cancelled"> = {
-  // lib/validation/orders.ts — the vocabulary the back office writes today.
+  // lib/validation/orders.ts — the vocabulary the back office writes today,
+  // plus `received`, retired in issue #118 but still read for old rows.
   received: "received",
   preparing: "preparing",
   ready: "preparing", // Ready for pickup/dispatch is functionally still 'preparing' in the 4-step UI
@@ -262,10 +263,11 @@ const CANCELLABLE_STATUS = "pending";
  * we cannot reason about.
  *
  * The line is drawn one notch finer than the stage (ticket 15, decision A).
- * The back office writes `received` when staff accept an order, and the
- * timeline shows that as "Order received" still — but the backend refuses to
- * cancel it. Offering the button there would show it and then fail, so the
- * rule reads the status the stage was resolved from, not the stage.
+ * Older spellings (`received`, `pending_confirmation`) also resolve to the
+ * "Order received" stage, but the backend only cancels `pending` — nothing
+ * writes `received` any more (issue #118). Offering the button on the others
+ * would show it and then fail, so the rule reads the status the stage was
+ * resolved from, not the stage.
  */
 export function isCancellable(progress: OrderProgress): boolean {
   // Both checks are needed. The delivery row can carry the stage past
@@ -428,6 +430,23 @@ export type OrderPaymentSummary = {
   /** Pesos PayMongo took, or null when unknown. */
   amount: number | null;
 };
+
+/**
+ * The refund summary from the tracking page's payment row
+ * (`TrackedOrder.payment`): paid online means a PayMongo transaction that
+ * money was actually taken on — paid, or somewhere in being refunded.
+ */
+export function paymentSummaryFrom(
+  payment: { method: string | null; status: string | null; totalPaid: number } | null | undefined,
+): OrderPaymentSummary | null {
+  if (!payment) return null;
+  const moneyTaken = ["paid", "refund_pending", "refunded", "refund_failed"];
+  return {
+    paidOnline: payment.method === "paymongo" && moneyTaken.includes(payment.status ?? ""),
+    status: payment.status,
+    amount: payment.totalPaid > 0 ? payment.totalPaid : null,
+  };
+}
 
 /**
  * The line under a cancelled order's notice about the customer's money, or

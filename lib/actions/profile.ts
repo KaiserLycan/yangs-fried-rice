@@ -8,6 +8,7 @@ import {
   imageUploadProblem,
 } from "@/lib/storage/stored-image";
 import { removeStoredImage } from "@/lib/storage/remove-stored-image";
+import { ORDER_ISSUE_PHOTO_BUCKET } from "@/lib/validation/order-issue";
 import { addressForGeocoding, outsideDeliveryRadiusMessage } from "@/lib/address/validate-ncr";
 import {
   ADDRESS_COLUMNS,
@@ -575,6 +576,22 @@ export async function deleteMyAccount(): Promise<RouterResult<undefined>> {
     .eq("customer_id", userId)
     .maybeSingle();
 
+  const admin = createAdminClient();
+
+  // Problem-report photos sit in the customer's own folder of a private
+  // bucket, and nothing else would ever remove them. The reports themselves
+  // stay (the store may still be resolving one) but lose the photo, and the
+  // link to who filed them once the customer row goes.
+  const { data: issuePhotos } = await admin.storage
+    .from(ORDER_ISSUE_PHOTO_BUCKET)
+    .list(userId, { limit: 1000 });
+  if (issuePhotos && issuePhotos.length > 0) {
+    await admin.storage
+      .from(ORDER_ISSUE_PHOTO_BUCKET)
+      .remove(issuePhotos.map((file) => `${userId}/${file.name}`));
+  }
+  await admin.from("order_issue").update({ photo_path: null }).eq("customer_id", userId);
+
   await supabase.from("order").update({ customer_id: null }).eq("customer_id", userId);
   await supabase.from("review").update({ customer_id: null }).eq("customer_id", userId);
   await supabase
@@ -606,7 +623,6 @@ export async function deleteMyAccount(): Promise<RouterResult<undefined>> {
     return { data: null, error: "Could not delete your account. Please try again." };
   }
 
-  const admin = createAdminClient();
   const { error: authDeleteError } = await admin.auth.admin.deleteUser(userId);
   if (authDeleteError) {
     return {

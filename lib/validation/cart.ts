@@ -21,9 +21,15 @@ export const addCartItemSchema = z.object({
     .max(500, { message: "special_instructions cannot exceed 500 characters" })
     .nullable()
     .optional(),
-  add_on_ids: z.array(z.string().uuid()).optional(),
+  add_on_ids: z.array(z.string().uuid()).max(20, { message: "Too many add-ons selected" }).optional(),
 });
 
+/**
+ * Changing a cart line in place. `add_on_ids`, when sent, is the line's whole
+ * new set of add-ons — it replaces the line's `cart_item_add_on` rows rather
+ * than adding to them, so the "Edit" dialog can untick one (limitations #23).
+ * An empty array clears them; leaving it out leaves them alone.
+ */
 export const updateCartItemSchema = z
   .object({
     quantity: z
@@ -38,10 +44,17 @@ export const updateCartItemSchema = z
       .max(500, { message: "special_instructions cannot exceed 500 characters" })
       .nullable()
       .optional(),
+    add_on_ids: z
+      .array(z.string().uuid({ message: "add_on_ids must be valid UUIDs" }))
+      .max(20, { message: "Too many add-ons selected" })
+      .optional(),
   })
   .refine(
-    (data) => data.quantity !== undefined || data.special_instructions !== undefined,
-    { message: "At least one of quantity or special_instructions must be provided for update" }
+    (data) =>
+      data.quantity !== undefined ||
+      data.special_instructions !== undefined ||
+      data.add_on_ids !== undefined,
+    { message: "At least one of quantity, special_instructions or add_on_ids must be provided for update" }
   );
 
 /**

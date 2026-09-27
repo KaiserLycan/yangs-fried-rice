@@ -14,7 +14,9 @@
     --secondary-foreground: 12 24% 8%; /* neutral/ink */
     --muted: 35 44% 83%; /* surface/sand */
     --muted-foreground: 23 12% 43%; /* neutral/muted  #7A6A60 */
-    --accent: 16 81% 52%; /* brand/flame    #E8541F */
+    /* Darkened from 52% lightness (#E8541F, 3.6:1 with white) to pass WCAG AA
+       4.5:1 for text on it and as text on white/cream — issue #118 Lighthouse. */
+    --accent: 16 81% 43%; /* brand/flame    #C64415 */
     --accent-foreground: 0 0% 100%; /* surface/white */
     --destructive: 0 49% 50%; /* brand/brick    #BF4342 */
     --destructive-foreground: 0 0% 100%; /* surface/white */
@@ -93,7 +95,7 @@
     --on-ink-faint: 22 11% 59%; /* #A2938A  order number eyebrow on ink */
 
     --timeline-pending: 35 33% 77%; /* #D8C8B2  unreached stage marker */
-    --timeline-meta: 23 11% 55%; /* #9A8A80  the Done / Now / — line */
+    --timeline-meta: 23 11% 44%; /* #7D6D64  the Done / Now / — line (was #9A8A80, 3.4:1) */
 
     /* The map is an empty rectangle in the design too — these draw the
        placeholder, not a real map. See `components/orders/live-map-panel`. */
@@ -143,6 +145,44 @@
     background: hsl(var(--muted-foreground));
     border: 2px solid transparent;
     background-clip: content-box;
+  }
+}
+
+/* Printable order receipt (issue #118, components/orders/order-receipt.tsx).
+   The receipt portals a copy of itself into <body> as #receipt-print-root,
+   hidden on screen. On a page that has one, printing shows only that copy:
+   every other child of <body> is display:none, so the nav, timeline and
+   buttons neither print nor leave blank pages where they were. */
+@media print {
+  @page {
+    margin: 12mm;
+  }
+  body:has(> #receipt-print-root) {
+    background: #fff;
+  }
+  body:has(> #receipt-print-root) > *:not(#receipt-print-root) {
+    display: none !important;
+  }
+  body > #receipt-print-root {
+    display: block !important;
+    color: #000;
+    font-size: 12pt;
+  }
+  #receipt-print-root .receipt-paper {
+    max-width: 90mm;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6pt;
+  }
+  #receipt-print-root .receipt-brand {
+    font-weight: 700;
+    font-size: 16pt;
+  }
+  #receipt-print-root * {
+    color: #000 !important;
+    border-color: #999 !important;
+    background: transparent !important;
   }
 }
 

@@ -56,6 +56,7 @@ describe("US-01: CustomerSignupForm Validations", () => {
     fireEvent.change(screen.getByLabelText(/barangay/i), { target: { value: "San Andres" } });
     fireEvent.change(screen.getByLabelText(/city/i), { target: { value: "Manila" } });
     fireEvent.change(screen.getByLabelText(/zip code/i), { target: { value: "1000" } });
+    fireEvent.click(screen.getByRole("checkbox", { name: /i am at least 18/i }));
     fireEvent.click(screen.getByRole("checkbox", { name: /i have read and agree to the terms & policy/i }));
 
     await waitFor(() => {
@@ -101,6 +102,7 @@ describe("US-01: CustomerSignupForm Validations", () => {
     fireEvent.change(screen.getByLabelText(/barangay/i), { target: { value: "San Andres" } });
     fireEvent.change(screen.getByLabelText(/city/i), { target: { value: "Manila" } });
     fireEvent.change(screen.getByLabelText(/zip code/i), { target: { value: "1000" } });
+    fireEvent.click(screen.getByRole("checkbox", { name: /i am at least 18/i }));
     fireEvent.click(screen.getByRole("checkbox", { name: /i have read and agree to the terms & policy/i }));
 
     await waitFor(() => {

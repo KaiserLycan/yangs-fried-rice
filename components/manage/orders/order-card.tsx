@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-import { OrderData } from "@/lib/mock-orders";
+import type { OrderData } from "@/types/staff-order";
 import { canCancel, primaryActionFor, statusLabelFor, type StaffAction } from "@/lib/orders/staff-actions";
 import { isPendingTooLong } from "@/lib/orders/order-stage";
 

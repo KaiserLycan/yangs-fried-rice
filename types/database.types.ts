@@ -43,6 +43,48 @@ export type Database = {
           },
         ]
       }
+      audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_name: string | null
+          actor_role: string | null
+          audit_id: number
+          changes: Json
+          entity_id: string | null
+          entity_type: string
+          occurred_at: string
+          source: string
+          summary: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_role?: string | null
+          audit_id?: never
+          changes?: Json
+          entity_id?: string | null
+          entity_type: string
+          occurred_at?: string
+          source: string
+          summary: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_role?: string | null
+          audit_id?: never
+          changes?: Json
+          entity_id?: string | null
+          entity_type?: string
+          occurred_at?: string
+          source?: string
+          summary?: string
+        }
+        Relationships: []
+      }
       cart: {
         Row: {
           cart_id: string
@@ -368,25 +410,31 @@ export type Database = {
       }
       notification: {
         Row: {
-          created_at: string | null
+          created_at: string
           customer_id: string | null
-          is_read: boolean | null
+          is_read: boolean
+          kind: string | null
           message: string
           notification_id: string
+          order_id: string | null
         }
         Insert: {
-          created_at?: string | null
+          created_at?: string
           customer_id?: string | null
-          is_read?: boolean | null
+          is_read?: boolean
+          kind?: string | null
           message: string
           notification_id?: string
+          order_id?: string | null
         }
         Update: {
-          created_at?: string | null
+          created_at?: string
           customer_id?: string | null
-          is_read?: boolean | null
+          is_read?: boolean
+          kind?: string | null
           message?: string
           notification_id?: string
+          order_id?: string | null
         }
         Relationships: [
           {
@@ -395,6 +443,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "customer"
             referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "notification_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order"
+            referencedColumns: ["order_id"]
           },
         ]
       }
@@ -458,6 +513,60 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "customer"
             referencedColumns: ["customer_id"]
+          },
+        ]
+      }
+      order_issue: {
+        Row: {
+          created_at: string
+          customer_id: string | null
+          issue_id: string
+          issue_type: string
+          note: string | null
+          order_id: string
+          order_item_ids: string[]
+          photo_path: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          customer_id?: string | null
+          issue_id?: string
+          issue_type: string
+          note?: string | null
+          order_id: string
+          order_item_ids: string[]
+          photo_path?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string | null
+          issue_id?: string
+          issue_type?: string
+          note?: string | null
+          order_id?: string
+          order_item_ids?: string[]
+          photo_path?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_issue_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customer"
+            referencedColumns: ["customer_id"]
+          },
+          {
+            foreignKeyName: "order_issue_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "order"
+            referencedColumns: ["order_id"]
           },
         ]
       }
@@ -827,6 +936,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      audit_current_actor: { Args: never; Returns: Record<string, unknown> }
       current_employee_role: { Args: never; Returns: string }
       get_store_status: { Args: never; Returns: Json }
       get_customer_order_history: {
@@ -834,6 +944,16 @@ export type Database = {
         Returns: Json
       }
       is_menu_manager: { Args: never; Returns: boolean }
+      record_employee_action: {
+        Args: {
+          p_action: string
+          p_changes?: Json
+          p_entity_id: string
+          p_entity_type: string
+          p_summary: string
+        }
+        Returns: number
+      }
       submit_cart_to_order: {
         Args: {
           p_cart_id: string

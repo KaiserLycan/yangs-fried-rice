@@ -86,6 +86,8 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Orders", href: "/manage/orders", icon: OrdersIcon },
   { label: "Customers", href: "/manage/customers", icon: CustomersIcon },
   { label: "Employees", href: "/manage/employee", icon: EmployeesIcon },
+  // Manager-only: not in STAFF_MANAGE_PREFIXES, so canAccessManagePath hides it.
+  { label: "Audit Log", href: "/manage/audit-log", icon: AuditLogIcon },
 ];
 
 // ---------------------------------------------------------------------------
@@ -193,6 +195,27 @@ function CustomersIcon({ className }: { className?: string }) {
       <circle cx="9" cy="7" r="4" />
       <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
       <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  );
+}
+
+function AuditLogIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <path d="M14 2v6h6" />
+      <path d="M9 13h6" />
+      <path d="M9 17h4" />
     </svg>
   );
 }
@@ -309,6 +332,25 @@ function LogoutIcon() {
 
 const COLLAPSED_KEY = "yangs-sidebar-collapsed";
 
+// Storage can be missing or throw on access (private windows, blocked site
+// data, Node 25's built-in `localStorage` without a backing file in tests).
+// The collapsed state is a convenience, so a failure just means "not saved".
+function readCollapsedPreference(): string | null {
+  try {
+    return window.localStorage.getItem(COLLAPSED_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function saveCollapsedPreference(collapsed: boolean) {
+  try {
+    window.localStorage.setItem(COLLAPSED_KEY, String(collapsed));
+  } catch {
+    // Not remembered this time; the sidebar still works.
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Sidebar component
 // ---------------------------------------------------------------------------
@@ -328,17 +370,9 @@ export function Sidebar({ role: roleProp = null }: { role?: EmployeeRole | null 
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
-    if (
-      typeof window === "undefined" ||
-      !window.localStorage ||
-      typeof window.localStorage.getItem !== "function"
-    ) {
-      return;
-    }
-
     // A phone always starts collapsed — open, the sidebar is full-screen and
     // would hide the page on load. On larger screens the saved choice wins.
-    const stored = window.localStorage.getItem(COLLAPSED_KEY);
+    const stored = readCollapsedPreference();
     if (window.innerWidth < 768 || stored === "true") setIsCollapsed(true);
     const frame = window.requestAnimationFrame(() => setAnimate(true));
     return () => window.cancelAnimationFrame(frame);
@@ -392,13 +426,8 @@ export function Sidebar({ role: roleProp = null }: { role?: EmployeeRole | null 
       const next = !prev;
       // Only a desktop choice is remembered: opening the full-screen phone
       // menu must not make the desktop sidebar start open next time.
-      if (
-        typeof window !== "undefined" &&
-        window.innerWidth >= 768 &&
-        window.localStorage &&
-        typeof window.localStorage.setItem === "function"
-      ) {
-        window.localStorage.setItem(COLLAPSED_KEY, String(next));
+      if (typeof window !== "undefined" && window.innerWidth >= 768) {
+        saveCollapsedPreference(next);
       }
       return next;
     });

@@ -27,9 +27,10 @@ import { useSubmitShortcut } from "@/lib/hooks/use-shortcut";
 import { toInternationalMobile } from "@/lib/profile/mobile-number";
 import { lengthProps } from "@/lib/validation/fields";
 import type { FieldErrors } from "@/lib/validation/field-errors";
-import { earliestBirthdate, latestBirthdateForMinAge } from "@/lib/validation/date-of-birth";
 import { signupFormSchema } from "@/lib/validation/signup";
 import { registerCustomer } from "@/app/(auth)/actions";
+import { safeNextPath } from "@/lib/auth/safe-next";
+import { PasswordStrengthMeter } from "@/components/ui/password-strength-meter";
 
 const ID_PREFIX = "signup-";
 
@@ -38,8 +39,8 @@ const FIELD_LABELS: Record<string, string> = {
   lastName: "Last name",
   email: "Email",
   phone: "Mobile number",
-  dateOfBirth: "Date of birth",
   password: "Password",
+  ageConfirmed: "Age confirmation",
   terms: "Terms & Policy",
   ...ADDRESS_FIELD_LABELS,
 };
@@ -52,13 +53,13 @@ function readSignupForm(data: FormData) {
     email: text("email"),
     // The field shows the masked digits; this is the stored form.
     phone: toInternationalMobile(text("phone")),
-    dateOfBirth: text("dateOfBirth"),
     password: text("password"),
     buildingNo: text("buildingNo"),
     street: text("street"),
     barangay: text("barangay"),
     city: text("city"),
     zip: text("zip"),
+    ageConfirmed: data.get("ageConfirmed") === "on",
     terms: data.get("terms") === "on",
   };
 }
@@ -92,6 +93,8 @@ function SignupFormInner() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [serverFieldErrors, setServerFieldErrors] = useState<FieldErrors | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  // Only for the strength meter; the form still reads the field itself.
+  const [password, setPassword] = useState("");
   const [isPending, startTransition] = useTransition();
   const [draftAddressStr, setDraftAddressStr] = useState("");
   const [addressStatus, setAddressStatus] =
@@ -126,15 +129,14 @@ function SignupFormInner() {
       // straight to the login page, which shows the green "check your email"
       // notice.
       if (outcome.signedIn === false) {
-        const nextParam = searchParams.get("next");
+        const nextParam = safeNextPath(searchParams.get("next"), "");
         router.push(
           `/login?registered=1${nextParam ? `&next=${encodeURIComponent(nextParam)}` : ""}`,
         );
         router.refresh();
         return;
       }
-      const next = searchParams.get("next") ?? "/";
-      router.push(next);
+      router.push(safeNextPath(searchParams.get("next")));
       router.refresh();
     });
   });
@@ -161,9 +163,9 @@ function SignupFormInner() {
           <h1 className="hidden font-display text-[30px] leading-[33px] text-foreground md:block">
             Create your account
           </h1>
-          <p className="text-[13px] text-muted-foreground">
-            Fill in your details and the address we deliver to. Fields marked
-            * are required.
+          <p className="text-[14px] text-muted-foreground">
+            Fill in your details and your address. Fields marked * are
+            required. Orders are picked up at the counter.
           </p>
         </div>
 
@@ -233,22 +235,6 @@ function SignupFormInner() {
         </div>
 
         <Field
-          label="Date of birth (optional, 13+)"
-          htmlFor={`${ID_PREFIX}dateOfBirth`}
-          error={errors.dateOfBirth}
-        >
-          <Input
-            id={`${ID_PREFIX}dateOfBirth`}
-            name="dateOfBirth"
-            type="date"
-            autoComplete="bday"
-            min={earliestBirthdate()}
-            max={latestBirthdateForMinAge()}
-            invalid={Boolean(errors.dateOfBirth)}
-          />
-        </Field>
-
-        <Field
           label="Password *"
           htmlFor={`${ID_PREFIX}password`}
           error={errors.password}
@@ -268,7 +254,10 @@ function SignupFormInner() {
             required
             {...lengthProps("password")}
             invalid={Boolean(errors.password)}
+            onInput={(event) => setPassword(event.currentTarget.value)}
           />
+          {/* Reused from the profile's password card (F16). Advice only. */}
+          <PasswordStrengthMeter password={password} />
         </Field>
 
         <AddressFields idPrefix="signup" variant="auth" errors={errors} />
@@ -285,7 +274,7 @@ function SignupFormInner() {
         {isPending ? (
           <p
             role="status"
-            className="rounded-md bg-track px-[12px] py-[10px] text-[12.5px] leading-snug text-muted-foreground"
+            className="rounded-md bg-track px-[12px] py-[10px] text-[14px] leading-snug text-muted-foreground"
           >
             <span className="font-bold text-foreground">Check your email.</span>{" "}
             We&apos;re sending a confirmation link — please confirm your email
@@ -293,14 +282,31 @@ function SignupFormInner() {
           </p>
         ) : null}
 
+        {/* Replaces the date of birth (F16). The birthday was the only age
+            check, and the lawyer review (persona 15, J6) raised minors. */}
         <div className="flex flex-col gap-[4px]">
-          <label className="mb-1 mt-1 flex items-start gap-[9px] text-[13px]">
+          <label className="mt-1 flex min-h-[44px] items-start gap-[9px] text-[14px]">
+            <Checkbox
+              id={`${ID_PREFIX}ageConfirmed`}
+              name="ageConfirmed"
+              required
+              aria-invalid={Boolean(errors.ageConfirmed) || undefined}
+            />
+            <span className="leading-tight text-muted-foreground">
+              I am at least 18, or have a parent&apos;s permission.
+            </span>
+          </label>
+          {errors.ageConfirmed ? <p className="text-[14px] text-primary">{errors.ageConfirmed}</p> : null}
+        </div>
+
+        <div className="flex flex-col gap-[4px]">
+          <label className="mb-1 flex min-h-[44px] items-start gap-[9px] text-[14px]">
             <Checkbox id={`${ID_PREFIX}terms`} name="terms" required aria-invalid={Boolean(errors.terms) || undefined} />
             <span className="leading-tight text-muted-foreground">
               I have read and agree to the <Link href="/terms" target="_blank" className="font-bold text-primary hover:underline">Terms & Policy</Link>.
             </span>
           </label>
-          {errors.terms ? <p className="text-[12px] text-primary">{errors.terms}</p> : null}
+          {errors.terms ? <p className="text-[14px] text-primary">{errors.terms}</p> : null}
         </div>
 
         {/* An address outside the delivery radius (or one the map can't find)
@@ -312,7 +318,7 @@ function SignupFormInner() {
           hint="Create your account and sign in"
           blockedHint={
             addressBlocked
-              ? "We can't deliver to this address — check the note above."
+              ? "We couldn't use this address — check the note above."
               : "Complete the highlighted fields to continue."
           }
           wrapperClassName="w-full"
@@ -323,7 +329,7 @@ function SignupFormInner() {
         {/* The tabs above already lead back to login, but they read as a mode
             switch rather than an escape hatch. This is the sentence someone
             who thought they were signing in is looking for. */}
-        <p className="text-center text-[13px] text-muted-foreground">
+        <p className="text-center text-[14px] text-muted-foreground">
           Already have an account?{" "}
           <Link href="/login" className="font-bold text-primary">
             Log in

@@ -93,7 +93,7 @@ export function PaymentMethodPicker({
                 aria-checked={isSelected}
                 onClick={() => onWalletChange(provider.id)}
                 className={cn(
-                  "rounded-[13px] border p-[12px] text-center text-[13px] font-bold text-foreground",
+                  "rounded-[13px] border p-[12px] text-center text-[14px] font-bold text-foreground",
                   isSelected
                     ? "border-accent bg-secondary/50"
                     : "border-rule bg-card",

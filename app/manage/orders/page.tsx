@@ -5,8 +5,9 @@ import Link from "next/link";
 import { Loader2, Search } from "lucide-react";
 import { OrderSidebar, OrderStatus } from "@/components/manage/orders/order-sidebar";
 import { OrderCard } from "@/components/manage/orders/order-card";
-import { OrderData } from "@/lib/mock-orders";
+import type { OrderData } from "@/types/staff-order";
 import { OrderDetailModal } from "@/components/manage/orders/order-detail-modal";
+import { OpenIssuesPanel } from "@/components/manage/orders/open-issues-panel";
 import { ManagePagination } from "@/components/manage/manage-pagination";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -73,7 +74,7 @@ function ManageOrdersInner() {
     let dbStatus: string | string[] | undefined = undefined;
     const uiTab = activeStatus.toLowerCase();
     
-    if (uiTab === "queue") dbStatus = ["pending", "received"]; 
+    if (uiTab === "queue") dbStatus = "pending";
     else if (uiTab === "preparation" || uiTab === "prep") dbStatus = "preparing";
     else if (uiTab === "delivering" || uiTab === "delivery") dbStatus = ["ready", "out_for_delivery"];
     else if (uiTab === "completed") dbStatus = "completed";
@@ -183,6 +184,8 @@ function ManageOrdersInner() {
         
         <div className="flex-1 flex flex-col min-h-0">
           <div className="flex-1 overflow-y-auto pr-2 pb-4">
+            {/* Customers' missing / wrong / damaged reports (issue #118). */}
+            <OpenIssuesPanel />
             {isLoading ? (
               <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                 {Array.from({ length: 6 }).map((_, i) => (

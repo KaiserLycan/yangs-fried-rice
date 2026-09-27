@@ -1,25 +1,46 @@
 import { orderItemName } from "@/lib/orders/item-name";
 import { createClient } from "@/lib/supabase/server";
 import { formatOrderNumber } from "@/lib/orders/order-number";
-import { validateNcrAddress } from "@/lib/address/validate-ncr";
-import type { OrderPaymentSummary } from "@/lib/orders/order-stage";
+import type { OrderIssueType } from "@/lib/validation/order-issue";
 
 /**
- * One customer's order, narrowed to what the tracking screen draws.
- *
- * This will read `null` for every customer today, and that is correct rather
- * than a bug to work around: nothing writes an `order` row yet — placing an
- * order is still a stubbed write (see `docs/reference/ordering-flow-
- * handoff.md`) — so there is no honest way for this to return anything else.
- * The read is built for real regardless, the same reasoning
- * `lib/cart/read-cart.ts` gives, so the moment the write lands this starts
- * working with no frontend change.
+ * One customer's order, narrowed to what the tracking screen draws — the
+ * timeline, the printable receipt and the "Report a problem" form.
  *
  * The raw status strings are carried through rather than resolved here. The
  * screen re-resolves them on every realtime event, and doing that means the
  * subscription can hand the component a changed row without this module
  * running again.
  */
+export type TrackedOrderLine = {
+  orderItemId: string;
+  productId: string;
+  name: string;
+  quantity: number;
+  /** Pesos for one, add-ons included — what the cart showed. */
+  unitPrice: number;
+  /** Pesos for the whole line. */
+  subtotal: number;
+  addOns: { name: string; price: number }[];
+  specialInstructions: string | null;
+};
+
+export type TrackedOrderPayment = {
+  /** `transaction.payment_method`, raw — see `paymentLabelFor`. */
+  method: string | null;
+  status: string | null;
+  discountAmount: number;
+  discountType: string | null;
+  taxAmount: number;
+  totalPaid: number;
+};
+
+export type TrackedOrderIssue = {
+  issueType: OrderIssueType;
+  createdAt: string;
+  resolvedAt: string | null;
+};
+
 export type TrackedOrder = {
   orderId: string;
   /** The order's reference — see `lib/orders/order-number.ts`. */
@@ -34,37 +55,37 @@ export type TrackedOrder = {
    */
   pendingAt?: string | null;
   /**
-   * How it was paid, for the refund line on a cancelled order (issue #115).
-   * Null when there is no payment row.
-   */
-  payment?: OrderPaymentSummary | null;
-  /**
    * Always null: the shop is pickup-only and the `delivery` table is gone
    * (issue #114). Kept on the type because `resolveOrderProgress` still
    * accepts it for legacy delivery orders.
    */
   deliveryStatus: string | null;
   orderType: string | null;
+  /** ISO timestamps. */
+  placedAt: string | null;
+  completedAt: string | null;
   /**
    * "25–35 mins", or null when nothing has been estimated. Not read here:
    * the page fills it from `getOrderEtaAction`. See
    * `lib/orders/arrival-window.ts`.
    */
   arrivalWindow: string | null;
-  /** The address the order is going to, or null for a non-delivery order. */
-  destination: string | null;
-  /** Geocoded coordinates of the destination */
-  destinationCoordinates: { lat: number; lng: number } | null;
-  items: { productId: string; name: string }[];
+  items: TrackedOrderLine[];
+  /** Order-level add-ons (rice, drinks …), priced when the order was placed. */
+  orderAddOns: { name: string; price: number }[];
+  /** 0 for every pickup order; legacy delivery orders carry their fee. */
+  fee: number;
+  /** The order-wide note the customer left at checkout. */
+  specialInstructions: string | null;
+  payment: TrackedOrderPayment | null;
   /**
    * The order-level `review.rating`, or null when the customer has not rated
    * the order. Read so a rated order stops asking to be rated (P35, P37).
    */
   rating: number | null;
+  /** The customer's problem report on this order, if they made one. */
+  issue: TrackedOrderIssue | null;
 };
-
-// This file used to carry a second, byte-identical copy of the customer's
-// order-number helper. Both are gone; see `lib/orders/order-number.ts`.
 
 export async function readTrackedOrder(
   orderId: string,
@@ -82,18 +103,35 @@ export async function readTrackedOrder(
   // so the filter is what actually prevents that.
   const { data: order } = await supabase
     .from("order")
-    .select("order_id, order_status, order_type, cancelled_at, cancellation_reason, delivery_address, pending_at, created_at")
+    .select(
+      "order_id, order_status, order_type, cancelled_at, cancellation_reason, created_at, completed_at, delivery_fee, special_instructions, pending_at",
+    )
     .eq("order_id", orderId)
     .eq("customer_id", user.id)
     .maybeSingle();
 
   if (!order) return null;
 
-  const [orderItems, review, transactions] = await Promise.all([
+  const [orderItems, orderAddOns, transaction, review, issue] = await Promise.all([
     supabase
       .from("order_item")
-      .select("product_id, product_name, product(product_name)")
+      .select(
+        "order_item_id, product_id, product_name, quantity, unit_price, subtotal, special_instructions, product(product_name), order_item_add_on ( add_on ( name, price ) )",
+      )
       .eq("order_id", order.order_id)
+      .then((res) => res.data),
+    supabase
+      .from("order_add_on")
+      .select("price, add_on ( name )")
+      .eq("order_id", order.order_id)
+      .then((res) => res.data),
+    supabase
+      .from("transaction")
+      .select("payment_method, payment_status, discount_amount, discount_type, tax_amount, total_paid, transaction_date")
+      .eq("order_id", order.order_id)
+      .order("transaction_date", { ascending: false })
+      .limit(1)
+      .maybeSingle()
       .then((res) => res.data),
     // Order-level only: a per-item row (product_id set) is not a rating of
     // the order.
@@ -104,11 +142,11 @@ export async function readTrackedOrder(
       .is("product_id", null)
       .maybeSingle()
       .then((res) => res.data),
-    // For the refund line on a cancelled order (issue #115).
     supabase
-      .from("transaction")
-      .select("payment_method, payment_status, total_paid, subtotal")
+      .from("order_issue")
+      .select("issue_type, created_at, resolved_at")
       .eq("order_id", order.order_id)
+      .maybeSingle()
       .then((res) => res.data),
   ]);
 
@@ -123,61 +161,68 @@ export async function readTrackedOrder(
       order.order_status === "pending"
         ? (order.pending_at ?? order.created_at)
         : order.pending_at,
-    payment: paymentSummaryOf(transactions ?? []),
     deliveryStatus: null,
     orderType: order.order_type,
+    placedAt: order.created_at,
+    completedAt: order.completed_at,
     arrivalWindow: null,
-    destination: order.delivery_address,
-    destinationCoordinates: await geocode(order.delivery_address),
-    items: (orderItems || []).map((item) => ({
-      productId: item.product_id || "",
-      name: orderItemName(
-        item.product_name,
-        Array.isArray(item.product)
-          ? item.product[0]?.product_name
-          : item.product?.product_name,
-      ),
+    items: (orderItems ?? []).map((item) => {
+      const addOns = (item.order_item_add_on ?? [])
+        .map((row) => first(row.add_on))
+        .filter((addOn): addOn is { name: string; price: number } => addOn !== null)
+        .map(({ name, price }) => ({ name, price: Number(price) }));
+      const subtotal = Number(item.subtotal);
+      return {
+        orderItemId: item.order_item_id,
+        productId: item.product_id || "",
+        name: orderItemName(item.product_name, first(item.product)?.product_name),
+        quantity: item.quantity,
+        // Rows written before the snapshot columns existed have no unit
+        // price; the line subtotal over its quantity is the same number.
+        unitPrice:
+          item.unit_price !== null
+            ? Number(item.unit_price)
+            : item.quantity > 0
+            ? subtotal / item.quantity
+            : 0,
+        subtotal,
+        addOns,
+        specialInstructions: item.special_instructions,
+      };
+    }),
+    orderAddOns: (orderAddOns ?? []).map((row) => ({
+      name: first(row.add_on)?.name ?? "Add-on",
+      price: Number(row.price ?? 0),
     })),
+    fee: Number(order.delivery_fee ?? 0),
+    specialInstructions: order.special_instructions,
+    payment: transaction
+      ? {
+          method: transaction.payment_method,
+          status: transaction.payment_status,
+          discountAmount: Number(transaction.discount_amount ?? 0),
+          discountType: transaction.discount_type,
+          taxAmount: Number(transaction.tax_amount ?? 0),
+          totalPaid: Number(transaction.total_paid ?? 0),
+        }
+      : null,
     rating: review?.rating ?? null,
+    issue: issue
+      ? {
+          issueType: issue.issue_type as OrderIssueType,
+          createdAt: issue.created_at,
+          resolvedAt: issue.resolved_at,
+        }
+      : null,
   };
 }
 
 /**
- * An order can own several transaction rows (a retried wallet payment adds
- * one), so the one that took money speaks for it: the PayMongo row that was
- * paid or is being refunded. Pay-in-store rows are not "paid online".
+ * PostgREST returns an embedded row as an object, but the generated types
+ * describe some embeds as arrays. Handling both keeps this working whichever
+ * shape `npm run supabase:types` produces.
  */
-function paymentSummaryOf(
-  rows: {
-    payment_method: string | null;
-    payment_status: string | null;
-    total_paid: number | null;
-    subtotal: number | null;
-  }[],
-): OrderPaymentSummary | null {
-  const MONEY_TAKEN = ["paid", "refund_pending", "refunded", "refund_failed"];
-  const online = rows.find(
-    (row) =>
-      row.payment_method === "paymongo" &&
-      MONEY_TAKEN.includes(row.payment_status ?? ""),
-  );
-  if (online) {
-    return {
-      paidOnline: true,
-      status: online.payment_status,
-      amount: Number(online.total_paid) > 0 ? Number(online.total_paid) : online.subtotal,
-    };
-  }
-  return rows.length > 0
-    ? { paidOnline: false, status: rows[0].payment_status, amount: null }
-    : null;
-}
-
-async function geocode(address: string | null) {
-  if (!address) return null;
-  const result = await validateNcrAddress(address);
-  if (result.latitude && result.longitude) {
-    return { lat: result.latitude, lng: result.longitude };
-  }
-  return null;
+function first<T>(value: T | T[] | null | undefined): T | null {
+  if (!value) return null;
+  return Array.isArray(value) ? value[0] ?? null : value;
 }

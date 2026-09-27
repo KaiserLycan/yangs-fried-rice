@@ -16,6 +16,7 @@ import { useSubmitShortcut } from "@/lib/hooks/use-shortcut";
 import { lengthProps } from "@/lib/validation/fields";
 import { loginSchema } from "@/lib/validation/login";
 import { loginCustomer } from "@/app/(auth)/actions";
+import { safeNextPath } from "@/lib/auth/safe-next";
 import {
   ACCOUNT_DISABLED_LOGIN_ERROR,
   ACCOUNT_DISABLED_MESSAGE,
@@ -74,8 +75,7 @@ function LoginFormInner() {
         live.setServerErrors(outcome.fieldErrors);
         return;
       }
-      const next = searchParams.get("next") ?? "/";
-      router.push(next);
+      router.push(safeNextPath(searchParams.get("next")));
       router.refresh();
     });
   });

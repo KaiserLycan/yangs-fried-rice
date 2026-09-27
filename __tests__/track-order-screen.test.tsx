@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { TrackOrderScreen } from "@/components/orders/track-order-screen";
 import { ToastProvider } from "@/components/ui/toast";
 import type { TrackedOrder } from "@/lib/orders/read-tracked-order";
@@ -33,12 +33,6 @@ const router = { push: vi.fn(), refresh: routerRefresh };
 // would reopen the screen's channel on every render.
 vi.mock("next/navigation", () => ({
   useRouter: () => router,
-}));
-
-// The live map is Leaflet, which needs a real browser (ResizeObserver, a
-// laid-out container). Nothing here is about the map, so it is stubbed.
-vi.mock("@/components/deliver/delivery-map", () => ({
-  DeliveryMap: () => <div data-testid="delivery-map" />,
 }));
 
 vi.mock("@/lib/actions/cart", () => ({
@@ -100,10 +94,15 @@ function trackedOrder(over: Partial<TrackedOrder> = {}): TrackedOrder {
     // must keep reading them after the shop went pickup-only (issue #114).
     orderType: "Delivery",
     arrivalWindow: "35–45 min",
-    destination: "21 Mabini St",
-    destinationCoordinates: null,
+    placedAt: "2026-09-27T10:00:00.000Z",
+    completedAt: null,
     items: [],
+    orderAddOns: [],
+    fee: 0,
+    specialInstructions: null,
+    payment: null,
     rating: null,
+    issue: null,
     ...over,
   };
 }
@@ -139,12 +138,16 @@ describe("TrackOrderScreen", () => {
     // "Order" and the reference are separate spans since issue #106: the
     // whole order id is shown now, and it is set monospaced and breakable
     // while the word before it keeps the label's letter-spacing.
-    expect(screen.getByText("#0AE7")).toBeInTheDocument();
+    // It also appears in the pickup panel and on the receipt (issue #118).
+    expect(screen.getAllByText("#0AE7").length).toBeGreaterThanOrEqual(1);
+    expect(
+      within(screen.getByRole("region", { name: /pick up at counter 1/i })).getByText("#0AE7"),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "WAITING FOR THE KITCHEN" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Arriving 35–45 min · Delivery to 21 Mabini St"),
+      screen.getByText("Arriving 35–45 min"),
     ).toBeInTheDocument();
   });
 
@@ -169,7 +172,7 @@ describe("TrackOrderScreen", () => {
     renderScreen(trackedOrder({ arrivalWindow: null }));
 
     expect(
-      screen.getByText("Arrival time to be confirmed · Delivery to 21 Mabini St"),
+      screen.getByText("Arrival time to be confirmed"),
     ).toBeInTheDocument();
   });
 
@@ -242,8 +245,8 @@ describe("TrackOrderScreen", () => {
       screen.getByRole("button", { name: "Cancel order" }),
     ).toBeInTheDocument();
 
-    // Staff accepted: same "Order received" stage, but the backend will no
-    // longer cancel it, so the note shows in place of the button.
+    // A legacy `received` row (retired in issue #118): same "Order received"
+    // stage, but the backend will not cancel it, so the note shows instead.
     rerender(
       <TrackOrderScreen order={trackedOrder({ orderStatus: "received" })} />,
     );
@@ -285,7 +288,7 @@ describe("TrackOrderScreen", () => {
     );
     await waitFor(() =>
       expect(
-        screen.getByText("Arriving 20–30 mins · Delivery to 21 Mabini St"),
+        screen.getByText("Arriving 20–30 mins"),
       ).toBeInTheDocument(),
     );
   });
@@ -415,7 +418,14 @@ describe("TrackOrderScreen waiting for the store (issue #115)", () => {
       trackedOrder({
         orderStatus: "cancelled",
         cancellationReason: "Store didn't confirm in time",
-        payment: { paidOnline: true, status: "refund_pending", amount: 250 },
+        payment: {
+          method: "paymongo",
+          status: "refund_pending",
+          totalPaid: 250,
+          discountAmount: 0,
+          discountType: null,
+          taxAmount: 0,
+        },
       }),
     );
 
@@ -427,7 +437,14 @@ describe("TrackOrderScreen waiting for the store (issue #115)", () => {
     renderScreen(
       trackedOrder({
         orderStatus: "cancelled",
-        payment: { paidOnline: false, status: "pending", amount: null },
+        payment: {
+          method: "pay_in_store",
+          status: "pending",
+          totalPaid: 0,
+          discountAmount: 0,
+          discountType: null,
+          taxAmount: 0,
+        },
       }),
     );
 

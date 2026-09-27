@@ -1,4 +1,4 @@
-import type { OrderData } from "@/lib/mock-orders";
+import type { OrderData } from "@/types/staff-order";
 import { formatOrderType, isDeliveryOrder } from "@/lib/orders/format";
 import { orderItemName } from "@/lib/orders/item-name";
 import { formatOrderNumber } from "@/lib/orders/order-number";
@@ -62,7 +62,6 @@ export function uiStatusFor(dbStatus: string | null): OrderData["status"] {
     case "cancelled":
       return "CANCELED";
     case "pending":
-    case "received":
     default:
       return "QUEUE";
   }

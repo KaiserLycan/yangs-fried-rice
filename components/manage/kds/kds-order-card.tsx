@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
-import { OrderData } from "@/lib/mock-orders";
+import type { OrderData } from "@/types/staff-order";
 import { primaryActionFor, type StaffAction } from "@/lib/orders/staff-actions";
 import { isPendingTooLong } from "@/lib/orders/order-stage";
 
