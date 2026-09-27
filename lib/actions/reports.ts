@@ -1267,7 +1267,31 @@ export async function exportReportCSV(
     rows.push([title], header, ...body, []);
   };
 
-  rows.push(["Yang's Fried Rice report"], ["Date range", `${start_date} to ${end_date}`], ["Times", "Asia/Manila"], []);
+  rows.push(
+    ["Yang's Fried Rice report", type],
+    ["Date range", `${start_date} to ${end_date}`],
+    ["Times", "Asia/Manila (breakdowns and cash remitted)"],
+    [],
+  );
+
+  // The same four figures and per-day bars as the page.
+  const summary = sales.data.summary;
+  section(
+    "Summary",
+    ["Measure", "Value"],
+    [
+      ["Total revenue (PHP)", money(summary.totalRevenue)],
+      ["Total orders", summary.totalOrders],
+      ["Average order value (PHP)", money(summary.averageOrderValue)],
+      ["Average revenue per day (PHP)", money(summary.averageRevenuePerPeriod)],
+      ["Average orders per day", summary.averageOrdersPerPeriod],
+    ],
+  );
+  section(
+    "Sales by day",
+    ["Date", "Orders", "Revenue (PHP)"],
+    sales.data.breakdown.map((row) => [row.period, row.totalOrders, money(row.totalRevenue)]),
+  );
 
   const dailyCash = dailyCashRes.data ?? [];
   const cashTotal = dailyCash.reduce((sum, row) => sum + Number(row.cash_total), 0);
