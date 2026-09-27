@@ -303,16 +303,13 @@ export async function getDetailedOrders(
     .range(filters.offset, filters.offset + filters.limit - 1);
 
   if (filters.payment_issues) {
-    // Manager-only Payment Issues tab: online orders still unpaid (waiting,
-    // or refused) STUCK_PAYMENT_MINUTES after they were placed. Younger ones
-    // are usually a customer still inside the payment flow.
+    // Manager-only Payment Issues tab: every online order still unpaid
+    // (waiting for the wallet, or refused). The card's clock shows how long;
+    // the database's own timer cancels abandoned ones after 30 minutes.
     if (auth.data.role !== "MANAGER") {
       return { data: null, error: "Only managers can view payment issues." };
     }
-    const stuckSince = new Date(Date.now() - STUCK_PAYMENT_MINUTES * 60000).toISOString();
-    query = query
-      .in("order_status", [...UNPAID_ORDER_STATUSES])
-      .lte("created_at", stuckSince);
+    query = query.in("order_status", [...UNPAID_ORDER_STATUSES]);
   } else if (filters.status) {
     if (Array.isArray(filters.status)) {
       query = query.in("order_status", filters.status);
