@@ -331,6 +331,19 @@ describe("an unpaid order has no stage", () => {
 });
 
 describe("cancellationNoticeFor (P28, P50)", () => {
+  // Issue #115: the expiry sweep's reason is not the restaurant's doing.
+  it("explains an order cancelled because its payment window closed", () => {
+    expect(
+      cancellationNoticeFor(
+        "Payment wasn't completed, so this order was cancelled. Nothing was charged.",
+      ),
+    ).toEqual({
+      message:
+        "Payment wasn't completed in time, so this order was cancelled. Nothing was charged.",
+      reason: null,
+    });
+  });
+
   it("says the restaurant cancelled when no reason was written", () => {
     // Kitchen cancels from before P50 wrote no reason.
     expect(cancellationNoticeFor(null)).toEqual({

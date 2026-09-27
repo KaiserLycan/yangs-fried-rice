@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
+// The expiry runs as the service role; here it only has to be called.
+vi.mock("@/lib/checkout/expire-abandoned-orders", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/checkout/expire-abandoned-orders")>()),
+  expireAbandonedOrders: vi.fn(async () => []),
+}));
 
 import { createClient } from "@/lib/supabase/server";
 import { findAwaitingPaymentOrder } from "@/lib/checkout/find-awaiting-payment-order";
@@ -68,13 +73,15 @@ describe("findAwaitingPaymentOrder", () => {
     expect(calls.in?.[1]).not.toContain("pending");
   });
 
-  it("looks back one hour, not forever", async () => {
+  // The payment window (issue #115: 30 minutes). An order older than this
+  // is cancelled, so offering it back would lead nowhere.
+  it("looks back 30 minutes, not forever", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-26T12:00:00.000Z"));
 
     const calls = mockOrderQuery({ order_id: "order-9" });
     await findAwaitingPaymentOrder();
 
-    expect(calls.gte).toEqual(["created_at", "2026-09-26T11:00:00.000Z"]);
+    expect(calls.gte).toEqual(["created_at", "2026-09-26T11:30:00.000Z"]);
   });
 });

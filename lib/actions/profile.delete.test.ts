@@ -53,12 +53,17 @@ vi.mock("@/lib/storage/remove-stored-image", () => ({
   removeStoredImage: vi.fn(async () => {}),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+const expireAbandonedOrders = vi.fn(async (_id: string) => [] as string[]);
+vi.mock("@/lib/checkout/expire-abandoned-orders", () => ({
+  expireAbandonedOrders: (id: string) => expireAbandonedOrders(id),
+}));
 
 import { deleteMyAccount } from "./profile";
 
 beforeEach(() => {
   writes = [];
   deleteUser.mockClear();
+  expireAbandonedOrders.mockClear();
   orderCount = { count: 0, error: null };
 });
 
@@ -84,6 +89,23 @@ describe("deleteMyAccount", () => {
 
     expect(result.error).toBe("We couldn't check your orders. Please try again.");
     expect(writes).toEqual([]);
+    expect(deleteUser).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it("cancels stale unpaid orders before counting (issue #115)", async () => {
+    await deleteMyAccount();
+    expect(expireAbandonedOrders).toHaveBeenCalledWith("customer-1");
+  });
+
+  it("still checks the count when expiring fails", async () => {
+    expireAbandonedOrders.mockRejectedValueOnce(new Error("boom"));
+    orderCount = { count: 1, error: null };
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const result = await deleteMyAccount();
+
+    expect(result.error).toMatch(/order in progress/);
     expect(deleteUser).not.toHaveBeenCalled();
     spy.mockRestore();
   });

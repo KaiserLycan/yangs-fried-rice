@@ -324,6 +324,15 @@ export function headlineFor(
  */
 const CUSTOMER_CANCEL_REASON = "Customer requested cancellation";
 
+/**
+ * The reason an unpaid wallet order is cancelled with once its payment
+ * window closes (issue #115) — by `expireAbandonedOrders` and by the
+ * `expire_abandoned_orders()` sweep, which writes the same words. Not the
+ * restaurant's doing, so it is not introduced as one.
+ */
+export const ABANDONED_PAYMENT_REASON =
+  "Payment wasn't completed, so this order was cancelled. Nothing was charged.";
+
 export function cancellationNoticeFor(reason: string | null): {
   message: string;
   reason: string | null;
@@ -332,6 +341,13 @@ export function cancellationNoticeFor(reason: string | null): {
   // The reason `cancelOrderSchema` writes when the customer cancels.
   if (trimmed === CUSTOMER_CANCEL_REASON) {
     return { message: "You cancelled this order.", reason: null };
+  }
+  if (trimmed === ABANDONED_PAYMENT_REASON) {
+    return {
+      message:
+        "Payment wasn't completed in time, so this order was cancelled. Nothing was charged.",
+      reason: null,
+    };
   }
   if (!trimmed) {
     return {

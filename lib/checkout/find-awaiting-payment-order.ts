@@ -1,5 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { UNPAID_ORDER_STATUSES } from "@/lib/validation/orders";
+import {
+  PAYMENT_WINDOW_MS,
+  expireAbandonedOrders,
+} from "@/lib/checkout/expire-abandoned-orders";
 
 /**
  * How far back to look for an order the customer still owes money on.
@@ -8,8 +12,12 @@ import { UNPAID_ORDER_STATUSES } from "@/lib/validation/orders";
  * bouncing someone into its receipt every time they open checkout would be
  * worse than the empty screen. An hour comfortably covers a customer who
  * got stuck at the wallet and came straight back.
+ *
+ * Shared with the expiry, so the moment checkout stops offering an order
+ * back is the moment that order is cancelled — there is no span where one
+ * says it is too old and the other still lists it.
  */
-const RECOVERY_WINDOW_MS = 60 * 60 * 1000;
+const RECOVERY_WINDOW_MS = PAYMENT_WINDOW_MS;
 
 /**
  * The signed-in customer's most recent unpaid order, if one is recent enough
@@ -37,6 +45,16 @@ export async function findAwaitingPaymentOrder(): Promise<string | null> {
   } = await supabase.auth.getUser();
 
   if (!user) return null;
+
+  // Anything past the window is cancelled on the way past rather than left
+  // to sit at `awaiting_payment` forever (issue #106). Best effort: a
+  // failure here must not stop the customer reaching checkout, and the
+  // query below excludes the stale rows either way.
+  try {
+    await expireAbandonedOrders(user.id);
+  } catch (error) {
+    console.error("findAwaitingPaymentOrder: could not expire:", error);
+  }
 
   const since = new Date(Date.now() - RECOVERY_WINDOW_MS).toISOString();
 
