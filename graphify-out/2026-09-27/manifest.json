@@ -966,9 +966,9 @@
     "semantic_hash": ""
   },
   "components/checkout/payment-status-card.tsx": {
-    "mtime": 1790484873.559917,
-    "seen": 1790484883.0377839,
-    "ast_hash": "991fc8582cf8c870be3d99e08c404b47",
+    "mtime": 1790485908.446901,
+    "seen": 1790486016.3783157,
+    "ast_hash": "b0ae1bd7ca693482a305c1a449474f4f",
     "semantic_hash": ""
   },
   "components/checkout/switch-to-cod-button.tsx": {
@@ -1188,9 +1188,9 @@
     "semantic_hash": ""
   },
   "components/menu/menu-screen.tsx": {
-    "mtime": 1790485604.5400574,
-    "seen": 1790485716.8408902,
-    "ast_hash": "88ab364955a070a563fede9329a762c0",
+    "mtime": 1790485908.446901,
+    "seen": 1790486016.378348,
+    "ast_hash": "de841c8dae00171cacd7cf74fed62b08",
     "semantic_hash": ""
   },
   "components/menu/mobile-menu-header.tsx": {
@@ -1272,9 +1272,9 @@
     "semantic_hash": "4b2b6948efdbd6bca47c346337c7522b"
   },
   "components/orders/track-order-screen.tsx": {
-    "mtime": 1790484873.5763443,
-    "seen": 1790484883.0396712,
-    "ast_hash": "c9f85e399be448f3ab5584c9e86281c7",
+    "mtime": 1790485908.4503765,
+    "seen": 1790486016.378363,
+    "ast_hash": "13d19651a96d26cd379cf0eb92684855",
     "semantic_hash": ""
   },
   "components/profile/account-actions.tsx": {
@@ -2958,9 +2958,9 @@
     "semantic_hash": ""
   },
   "components/nav/notification-bell.tsx": {
-    "mtime": 1790484873.5723193,
-    "seen": 1790484985.3004482,
-    "ast_hash": "df280e08e9289f41c787ee916dab8a08",
+    "mtime": 1790485933.8393302,
+    "seen": 1790486016.3783548,
+    "ast_hash": "64dbc9037a20cd0d98539c6346e66e23",
     "semantic_hash": ""
   },
   "components/orders/order-receipt.tsx": {
@@ -3159,6 +3159,18 @@
     "mtime": 1790484873.654919,
     "seen": 1790485716.841083,
     "ast_hash": "51936898858907e88896cef0110b9464",
+    "semantic_hash": ""
+  },
+  "__tests__/notification-bell.test.tsx": {
+    "mtime": 1790485924.61724,
+    "seen": 1790486016.3781881,
+    "ast_hash": "7dbdbd0ff7527cd431436c2cc05a78d1",
+    "semantic_hash": ""
+  },
+  "lib/supabase/channel-name.ts": {
+    "mtime": 1790485896.9772866,
+    "seen": 1790486016.3784764,
+    "ast_hash": "4b17ef7406d446c3c157f494ba76cf86",
     "semantic_hash": ""
   }
 }

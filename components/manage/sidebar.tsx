@@ -83,6 +83,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/manage/dashboard", icon: DashboardIcon },
   { label: "Reports", href: "/manage/reports", icon: ReportsIcon },
+  { label: "Promotions", href: "/manage/promotions", icon: PromotionsIcon },
   { label: "Menu", href: "/manage/menu", icon: MenuIcon },
   { label: "Orders", href: "/manage/orders", icon: OrdersIcon },
   { label: "Customers", href: "/manage/customers", icon: CustomersIcon },
@@ -90,6 +91,24 @@ const NAV_ITEMS: NavItem[] = [
   // Manager-only: not in STAFF_MANAGE_PREFIXES, so canAccessManagePath hides it.
   { label: "Audit Log", href: "/manage/audit-log", icon: AuditLogIcon },
 ];
+
+function PromotionsIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className ?? "stroke-background"}
+    >
+      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+    </svg>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Nav item icons (Lucide-style, matching the project's existing dependency)
