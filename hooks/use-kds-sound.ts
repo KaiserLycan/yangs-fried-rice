@@ -1,71 +1,74 @@
-import { useEffect, useRef, useState } from "react";
-import type { OrderData } from "@/types/staff-order";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-export function useKdsSound(orders: OrderData[]) {
-  const previousOrderIds = useRef<Set<string>>(new Set());
-  const [hasUserInteracted, setHasUserInteracted] = useState(false);
+/**
+ * The KDS new-order chime.
+ *
+ * Browsers refuse to play audio until the page has had a click, so sound
+ * starts off and the cook turns it on with a button: that click is what
+ * unlocks the AudioContext. The chime is synthesised with the Web Audio API,
+ * so there is no sound file to ship or fail to load.
+ */
+export function useKdsSound() {
+  const [enabled, setEnabled] = useState(false);
+  const ctxRef = useRef<AudioContext | null>(null);
+
+  const ring = useCallback(() => {
+    const ctx = ctxRef.current;
+    if (!ctx || ctx.state !== "running") return;
+
+    // Two short rising notes, like a counter bell.
+    const notes = [
+      { freq: 880, at: 0 },
+      { freq: 1318.5, at: 0.18 },
+    ];
+    for (const note of notes) {
+      const start = ctx.currentTime + note.at;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(note.freq, start);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.4, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.6);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.65);
+    }
+  }, []);
+
+  /** Must run from a click handler — that is what browsers accept as permission. */
+  const enable = useCallback(async () => {
+    try {
+      const AudioCtor =
+        window.AudioContext ??
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtor) return false;
+      ctxRef.current ??= new AudioCtor();
+      await ctxRef.current.resume();
+      setEnabled(true);
+      ring(); // Confirms to the cook that sound works.
+      return true;
+    } catch {
+      return false;
+    }
+  }, [ring]);
+
+  const disable = useCallback(() => {
+    setEnabled(false);
+    void ctxRef.current?.suspend();
+  }, []);
+
+  const playChime = useCallback(() => {
+    if (enabled) ring();
+  }, [enabled, ring]);
 
   useEffect(() => {
-    // Browsers block audio unless the user has interacted with the document
-    const handleInteraction = () => {
-      setHasUserInteracted(true);
-      document.removeEventListener("click", handleInteraction);
-      document.removeEventListener("keydown", handleInteraction);
-    };
-    
-    document.addEventListener("click", handleInteraction);
-    document.addEventListener("keydown", handleInteraction);
-    
     return () => {
-      document.removeEventListener("click", handleInteraction);
-      document.removeEventListener("keydown", handleInteraction);
+      void ctxRef.current?.close();
+      ctxRef.current = null;
     };
   }, []);
 
-  useEffect(() => {
-    const currentIds = new Set(orders.map((o) => o.id));
-
-    // Don't play sound on initial load
-    if (previousOrderIds.current.size === 0) {
-      previousOrderIds.current = currentIds;
-      return;
-    }
-
-    // Check for new orders
-    let hasNewOrder = false;
-    for (const id of currentIds) {
-      if (!previousOrderIds.current.has(id)) {
-        hasNewOrder = true;
-        break;
-      }
-    }
-
-    if (hasNewOrder && hasUserInteracted) {
-      try {
-        // Create a simple beep using Web Audio API so we don't need external files
-        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-        
-        // Bell sound synthesis
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(880, ctx.currentTime); // A5
-        osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.5);
-        
-        gain.gain.setValueAtTime(0.5, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.5);
-        
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        
-        osc.start();
-        osc.stop(ctx.currentTime + 1.5);
-      } catch (e) {
-        console.error("Failed to play notification sound", e);
-      }
-    }
-
-    previousOrderIds.current = currentIds;
-  }, [orders, hasUserInteracted]);
+  return { soundEnabled: enabled, enableSound: enable, disableSound: disable, playChime };
 }
