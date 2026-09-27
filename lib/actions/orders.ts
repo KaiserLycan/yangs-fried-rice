@@ -303,15 +303,16 @@ export async function getDetailedOrders(
     .range(filters.offset, filters.offset + filters.limit - 1);
 
   if (filters.payment_issues) {
-    // Manager-only Payment Issues tab: refused payments, and online payments
-    // that have sat unpaid long enough that the customer is probably stuck.
+    // Manager-only Payment Issues tab: online orders still unpaid (waiting,
+    // or refused) STUCK_PAYMENT_MINUTES after they were placed. Younger ones
+    // are usually a customer still inside the payment flow.
     if (auth.data.role !== "MANAGER") {
       return { data: null, error: "Only managers can view payment issues." };
     }
     const stuckSince = new Date(Date.now() - STUCK_PAYMENT_MINUTES * 60000).toISOString();
-    query = query.or(
-      `order_status.eq.payment_failed,and(order_status.eq.awaiting_payment,created_at.lte.${stuckSince})`,
-    );
+    query = query
+      .in("order_status", [...UNPAID_ORDER_STATUSES])
+      .lte("created_at", stuckSince);
   } else if (filters.status) {
     if (Array.isArray(filters.status)) {
       query = query.in("order_status", filters.status);
