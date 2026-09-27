@@ -189,7 +189,10 @@ export function resolveEmployeeRole(
  * pointing at itself.
  */
 export function homePathForRole(role: EmployeeRole | null): string {
-  if (role === "STAFF") return "/manage/orders";
+  // Staff are the kitchen and the counter: they start on the KDS, where new
+  // orders arrive (UI/UX review, docs/user-simulation.md #16). Orders is one
+  // tap away in the sidebar and in the KDS header.
+  if (role === "STAFF") return "/manage/kds";
   if (role === "MANAGER") return "/manage/dashboard";
   return "/employee/login";
 }

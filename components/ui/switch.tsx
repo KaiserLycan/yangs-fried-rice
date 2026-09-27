@@ -49,11 +49,11 @@ export function Switch({
       onClick={() => onChange(!checked)}
       className={cn(
         "relative inline-flex h-[26px] w-[48px] shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200",
-        "focus:outline-none focus-visible:ring-2 focus-visible:ring-[#E8541F] focus-visible:ring-offset-2",
+        "focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2",
         disabled && "cursor-not-allowed opacity-60",
+        checked ? "bg-success" : "bg-field-border",
         className,
       )}
-      style={{ backgroundColor: checked ? "#3f6b4a" : "#ddcdb8" }}
     >
       <span
         className="pointer-events-none inline-block h-[20px] w-[20px] rounded-full bg-white shadow-sm transition-transform duration-200"

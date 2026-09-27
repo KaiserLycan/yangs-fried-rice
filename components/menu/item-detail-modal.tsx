@@ -2,12 +2,14 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { signInToOrderHref } from "@/lib/menu/sign-in-href";
 import { QuantityStepper } from "@/components/menu/quantity-stepper";
 import { ProductPhotoPlaceholder } from "@/components/menu/product-photo-placeholder";
 import { addCartItem, updateCartItem } from "@/lib/actions/cart";
 import { useCartAction } from "@/lib/cart/use-cart-action";
 import { formatPeso, type ProductListing } from "@/lib/menu/product-listing";
 import { MIN_QUANTITY } from "@/lib/menu/quantity";
+import { Button } from "@/components/ui/button";
 
 const SPECIAL_INSTRUCTIONS_PLACEHOLDER = "e.g. extra chili, no egg";
 
@@ -164,14 +166,14 @@ export function ItemDetailModal({
   function primaryAction(className: string) {
     if (isGuest) {
       return (
-        <Link href="/login?next=/menu" className={className}>
+        <Link href={signInToOrderHref(product?.id)} className={className}>
           <span>Sign in to order</span>
           <span>{lineTotal}</span>
         </Link>
       );
     }
     return (
-      <button
+      <Button variant="unstyled"
         type="button"
         onClick={editing ? handleSaveEdit : handleAddToCart}
         disabled={pending || !product!.isAvailable}
@@ -179,7 +181,7 @@ export function ItemDetailModal({
       >
         <span>{primaryLabel}</span>
         <span>{lineTotal}</span>
-      </button>
+      </Button>
     );
   }
 
@@ -232,21 +234,21 @@ export function ItemDetailModal({
           ) : (
             <ProductPhotoPlaceholder className="size-full" />
           )}
-          <button
+          <Button variant="unstyled"
             type="button"
             aria-label={editing ? "Close without saving" : "Back to menu"}
             onClick={onClose}
             disabled={pending}
-            className="absolute left-[16px] top-[16px] flex size-[44px] items-center justify-center rounded-pill bg-background text-[16px] font-bold text-foreground disabled:opacity-60"
+            className="absolute left-[16px] top-[16px] flex size-[44px] items-center justify-center rounded-full bg-background text-base font-bold text-foreground disabled:opacity-60"
           >
             ←
-          </button>
+          </Button>
         </div>
 
         <div className="flex flex-col gap-[14px] px-[20px] pb-[26px] pt-[17px]">
           <ItemSummary
             product={product}
-            titleClassName="text-[27px]"
+            titleClassName="text-3xl"
             titleId="item-detail-title"
           />
 
@@ -271,13 +273,13 @@ export function ItemDetailModal({
           </LabelledSection>
 
           {primaryAction(
-            "flex items-center justify-between rounded-[14px] bg-accent p-[17px] text-[15px] font-bold text-white",
+            "flex items-center justify-between rounded-md bg-accent p-[17px] text-base font-bold text-white",
           )}
         </div>
       </div>
 
       {/* Desktop: floating modal, photo panel on the left. */}
-      <div className="hidden md:h-[650px] max-h-[calc(100vh-4rem)] overflow-hidden rounded-[20px] bg-background shadow-[0_30px_70px_rgba(26,18,16,0.26)] md:flex">
+      <div className="hidden md:h-[650px] max-h-[calc(100vh-4rem)] overflow-hidden rounded-lg bg-background shadow-[0_30px_70px_rgba(26,18,16,0.26)] md:flex">
         {product.imageUrl ? (
           <img
             src={product.imageUrl}
@@ -289,7 +291,7 @@ export function ItemDetailModal({
         )}
 
         <div className="flex flex-1 flex-col gap-[14px] px-[26px] pb-[26px] pt-[25px] overflow-y-auto">
-          <ItemSummary product={product} titleClassName="text-[28px]" />
+          <ItemSummary product={product} titleClassName="text-3xl" />
 
           <QuantityStepper value={quantity} onChange={setQuantity} size="desktop" />
 
@@ -309,16 +311,16 @@ export function ItemDetailModal({
           />
 
           <div className="grid grid-cols-[1fr_2fr] gap-[14px]">
-            <button
+            <Button variant="unstyled"
               type="button"
               onClick={onClose}
               disabled={pending}
-              className="rounded-[13px] border border-field-border p-[15px] text-[14px] font-bold text-muted-foreground disabled:opacity-60"
+              className="rounded-md border border-field-border p-[15px] text-sm font-bold text-muted-foreground disabled:opacity-60"
             >
               Cancel
-            </button>
+            </Button>
             {primaryAction(
-              "flex items-center justify-between rounded-[13px] bg-accent p-[15px] text-[14px] font-bold text-white",
+              "flex items-center justify-between rounded-md bg-accent p-[15px] text-sm font-bold text-white",
             )}
           </div>
         </div>
@@ -341,8 +343,8 @@ function ItemSummary({
       <h2 id={titleId} className={`font-display text-foreground ${titleClassName}`}>
         {product.name}
       </h2>
-      <p className="text-[14px] text-muted-foreground">{product.description}</p>
-      <p className="pt-[5px] font-display text-[24px] text-primary">
+      <p className="text-sm text-muted-foreground">{product.description}</p>
+      <p className="pt-[5px] font-display text-2xl text-primary">
         {formatPeso(product.price)}
       </p>
     </div>
@@ -358,7 +360,7 @@ function LabelledSection({
 }) {
   return (
     <div className="flex flex-col gap-[8px]">
-      <span className="text-[14px] font-bold uppercase tracking-[1.2px] text-muted-foreground">
+      <span className="text-sm font-bold uppercase tracking-[1.2px] text-muted-foreground">
         {label}
       </span>
       {children}
@@ -381,7 +383,7 @@ function InstructionsField({
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
       rows={2}
-      className="min-h-[76px] w-full resize-none rounded-[13px] border border-field-border bg-card px-[14px] py-[12px] text-[14px] text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+      className="min-h-[76px] w-full resize-none rounded-md border border-field-border bg-card px-[14px] py-[12px] text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
     />
   );
 }
@@ -397,25 +399,25 @@ export function AddOnsSection({
 }) {
   return (
     <div className="flex flex-col gap-[8px]">
-      <span className="text-[14px] font-bold uppercase tracking-[1.2px] text-muted-foreground">
+      <span className="text-sm font-bold uppercase tracking-[1.2px] text-muted-foreground">
         Add-ons
       </span>
       <div className="flex flex-col gap-[8px] max-h-[150px] overflow-y-auto pr-1">
         {!addOns || addOns.length === 0 ? (
-          <div className="px-1 py-2 text-[14px] italic text-muted-foreground">No add-ons for this dish.</div>
+          <div className="px-1 py-2 text-sm italic text-muted-foreground">No add-ons for this dish.</div>
         ) : (
           addOns.map((addon) => (
-            <label key={addon.addon_id} className="flex cursor-pointer items-center justify-between rounded-[12px] border border-field-border bg-card p-[14px]">
+            <label key={addon.addon_id} className="flex cursor-pointer items-center justify-between rounded-md border border-field-border bg-card p-[14px]">
               <div className="flex items-center gap-[12px]">
                 <input 
                   type="checkbox" 
                   checked={selectedAddOns.has(addon.addon_id)}
                   onChange={() => onToggle(addon.addon_id)}
-                  className="h-[18px] w-[18px] rounded-[4px] border-field-border text-primary focus:ring-primary accent-primary"
+                  className="h-[18px] w-[18px] rounded-sm border-field-border text-primary focus:ring-primary accent-primary"
                 />
-                <span className="text-[14px] text-foreground">{addon.name}</span>
+                <span className="text-sm text-foreground">{addon.name}</span>
               </div>
-              <span className="text-[14px] text-muted-foreground">+{formatPeso(addon.price)}</span>
+              <span className="text-sm text-muted-foreground">+{formatPeso(addon.price)}</span>
             </label>
           ))
         )}

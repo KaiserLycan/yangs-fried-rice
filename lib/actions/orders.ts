@@ -15,7 +15,7 @@ import {
   type OrderFilters,
 } from "@/lib/validation/orders";
 import { isPickupOrder } from "@/lib/orders/format";
-import { orderIdRangeFor } from "@/lib/orders/order-number";
+import { orderIdRangeFor, orderNumberSearch } from "@/lib/orders/order-number";
 import { notifyOrderCancelled } from "@/lib/email/notify-order-cancelled";
 import type { Tables, TablesUpdate } from "@/types/database.types";
 
@@ -53,6 +53,7 @@ type OrderWithDetails = Order & {
 
 type OrderSummary = {
   order_id: string;
+  order_number: number | null;
   order_status: string | null;
   order_type: string | null;
   created_at: string | null;
@@ -177,6 +178,7 @@ export async function getAllOrders(
     .select(
       `
       order_id,
+      order_number,
       order_status,
       order_type,
       created_at,
@@ -222,6 +224,7 @@ export async function getAllOrders(
 
   const summaries: OrderSummary[] = (data ?? []).map((row: any) => ({
     order_id: row.order_id,
+    order_number: row.order_number ?? null,
     order_status: row.order_status,
     order_type: row.order_type,
     created_at: row.created_at,
@@ -307,10 +310,17 @@ export async function getDetailedOrders(
     query = query.lte("created_at", filters.date_to);
   }
   if (filters.search?.trim()) {
-    // Text that cannot be part of an order id matches nothing.
-    const range = orderIdRangeFor(filters.search);
-    if (!range) return { data: { data: [], totalCount: 0 }, error: null };
-    query = query.gte("order_id", range.from).lte("order_id", range.to);
+    // "1042" is an order number; "38206dc0" is an older id prefix (a
+    // reference printed before order numbers). Anything else matches nothing.
+    const number = orderNumberSearch(filters.search);
+    const range = number === null ? orderIdRangeFor(filters.search) : null;
+    if (number !== null) {
+      query = query.eq("order_number", number);
+    } else if (range) {
+      query = query.gte("order_id", range.from).lte("order_id", range.to);
+    } else {
+      return { data: { data: [], totalCount: 0 }, error: null };
+    }
   }
 
   const { data, count, error } = await query;
@@ -428,7 +438,7 @@ export async function updateOrderStatus(
   if (validatedNewStatus === "out_for_delivery" && isPickupOrder(order.order_type)) {
     return {
       data: null,
-      error: "Take-out orders can't go out for delivery. Mark it ready for pick up instead.",
+      error: "Take-out orders can't go out for delivery. Mark it ready for pickup instead.",
     };
   }
 

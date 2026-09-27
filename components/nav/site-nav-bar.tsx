@@ -93,13 +93,13 @@ function ResolvedProfileActions({
           <NotificationBell />
           <Link
             href="/profile"
-            className="flex size-[44px] items-center justify-center rounded-pill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="flex size-[44px] items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             aria-label="Go to your account"
           >
             <Avatar
               initials={initials}
               imageUrl={profile.profileImageUrl}
-              className="size-[32px] bg-accent text-[12px] font-bold text-white"
+              className="size-[32px] bg-accent text-sm font-bold text-white"
             />
           </Link>
           {/* Issue #106 asked for the instant-access sign-out that manage and
@@ -110,7 +110,7 @@ function ResolvedProfileActions({
               does not recognise it. */}
           <Tooltip content="Log out">
             <LogOutControl
-              className="flex size-[44px] items-center justify-center rounded-pill text-white/80 transition-colors hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+              className="flex size-[44px] items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
               aria-label="Log out"
             >
               <LogOut aria-hidden="true" className="size-[17px]" />
@@ -120,7 +120,7 @@ function ResolvedProfileActions({
       ) : (
         <Link
           href="/login?next=/menu"
-          className="flex min-h-[44px] items-center text-[14px] font-bold text-white hover:underline"
+          className="flex min-h-[44px] items-center text-sm font-bold text-white hover:underline"
         >
           Log in
         </Link>
@@ -144,7 +144,7 @@ export function SiteNavBar({
     <nav className="hidden h-[58px] items-center gap-[26px] bg-primary px-[22px] md:flex">
       <Link
         href="/menu"
-        className="font-display text-[19px] tracking-[0.57px] text-rule"
+        className="font-display text-lg tracking-[0.57px] text-rule"
       >
         YANG&apos;S <span className="text-white">FRIED RICE</span>
       </Link>
@@ -158,7 +158,7 @@ export function SiteNavBar({
                 href={href}
                 aria-current={isCurrent ? "page" : undefined}
                 className={cn(
-                  "text-[14px]",
+                  "text-sm",
                   isCurrent
                     ? "border-b-2 border-white pb-[3px] text-white"
                     : "text-background/[0.72] hover:text-white",

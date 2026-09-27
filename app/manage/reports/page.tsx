@@ -42,10 +42,10 @@ function ReportsContent() {
       {/* Header Row */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-0">
         <div className="flex flex-col md:flex-row md:items-baseline gap-1 md:gap-3.5">
-          <h1 className="font-display text-[24px] md:text-[30px] leading-normal text-[#1a1210]">
+          <h1 className="font-display text-2xl md:text-3xl leading-normal text-foreground">
             Reports &amp; Analytics
           </h1>
-          <span className="text-[13px] text-[#7a6a60]">
+          <span className="text-sm text-muted-foreground">
             {MOCK_DATE} · {MOCK_BRANCH}
           </span>
         </div>
@@ -53,8 +53,8 @@ function ReportsContent() {
       </div>
 
       {/* Filters and Actions Row */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-0 border-b border-[#ddcdb8] pb-[20px]">
-        <h2 className="text-[18px] font-bold text-[#1a1210]">Overview</h2>
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-0 border-b border-field-border pb-[20px]">
+        <h2 className="text-lg font-bold text-foreground">Overview</h2>
         <ReportDateFilters
           startDate={startDate}
           endDate={endDate}
@@ -94,7 +94,7 @@ function ReportsContent() {
 
 export default function ReportsPage() {
   return (
-    <Suspense fallback={<div className="p-4 text-sm text-muted-foreground animate-pulse">Loading reports...</div>}>
+    <Suspense fallback={<div className="p-4 text-sm leading-5 text-muted-foreground animate-pulse">Loading reports...</div>}>
       <ReportsContent />
     </Suspense>
   );

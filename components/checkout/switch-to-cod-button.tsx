@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/toast";
 import { switchOrderToCashOnDelivery } from "@/lib/actions/cart";
+import { Button } from "@/components/ui/button";
 
 /**
  * The way out of a wallet payment that will not go through.
@@ -40,13 +41,13 @@ export function SwitchToCodButton({ orderId }: { orderId: string }) {
   }
 
   return (
-    <button
+    <Button variant="unstyled"
       type="button"
       onClick={() => void handleSwitch()}
       disabled={pending}
-      className="rounded-[13px] border border-rule bg-card p-[16px] text-center text-[15px] font-bold text-foreground transition-colors hover:bg-black/5 disabled:opacity-60"
+      className="rounded-md border border-rule bg-card p-[16px] text-center text-base font-bold text-foreground transition-colors hover:bg-black/5 disabled:opacity-60"
     >
       {pending ? "Switching…" : "Pay at the counter instead"}
-    </button>
+    </Button>
   );
 }

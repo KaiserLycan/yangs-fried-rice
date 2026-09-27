@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 /**
  * The read/edit card the profile screen is built out of, and the pattern the
@@ -62,18 +63,18 @@ export function ProfileCard({
       )}
     >
       <div className="flex items-center gap-[10px] rounded-t-sm border-b border-rule bg-background px-[14px] py-[12px] md:gap-[12px] md:px-[18px] md:py-[14px]">
-        <h2 className="font-display text-[15px] tracking-[0.3px] text-foreground md:text-[17px] md:tracking-[0.34px]">
+        <h2 className="font-display text-base tracking-[0.3px] text-foreground md:text-lg md:tracking-[0.34px]">
           {title}
         </h2>
 
         {subtitle ? (
-          <span className="text-[12.5px] text-muted-foreground">
+          <span className="text-sm text-muted-foreground">
             {subtitle}
           </span>
         ) : null}
 
         {isEditing ? (
-          <span className="rounded-sm bg-rule px-[8px] py-[4px] text-[10.5px] font-bold uppercase tracking-[1.05px] text-primary md:text-[11px] md:tracking-[1.1px]">
+          <span className="rounded-sm bg-rule px-[8px] py-[4px] text-sm font-bold uppercase tracking-[1.05px] text-primary md:text-sm md:tracking-[1.1px]">
             Editing
           </span>
         ) : null}
@@ -84,15 +85,15 @@ export function ProfileCard({
                 take turns being hidden — the frames draw them in the same slot
                 at the same size, and a single button keeps focus where it was
                 when the card changes state. */}
-            <button
+            <Button variant="unstyled"
               type="button"
               onClick={isEditing ? onCancel : onEdit}
               aria-expanded={isEditing}
               aria-controls={bodyId}
-              className="rounded-sm border border-rule bg-card px-[15px] py-[11px] text-[13px] font-bold text-foreground hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 md:py-[8px]"
+              className="rounded-sm border border-rule bg-card px-[15px] py-[11px] text-sm font-bold text-foreground hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 md:py-[8px]"
             >
               {isEditing ? "Cancel" : "Edit"}
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -146,7 +147,7 @@ export function CardField({
   return (
     <div className={cn("flex min-w-0 flex-col gap-[3px] md:gap-[5px]", className)}>
       <div className="flex items-baseline justify-between gap-[8px]">
-        <span className="text-[10.5px] font-bold uppercase tracking-[1.47px] text-muted-foreground">
+        <span className="text-sm font-bold uppercase tracking-[1.47px] text-muted-foreground">
           {htmlFor ? <label htmlFor={htmlFor}>{label}</label> : label}
         </span>
         {action}
@@ -156,12 +157,12 @@ export function CardField({
         <p
           id={errorId ?? (htmlFor ? `${htmlFor}-error` : undefined)}
           aria-live="polite"
-          className="text-[12px] text-primary"
+          className="text-sm text-primary"
         >
           {error}
         </p>
       ) : hint ? (
-        <p className="text-[12px] text-muted-foreground">{hint}</p>
+        <p className="text-sm text-muted-foreground">{hint}</p>
       ) : null}
     </div>
   );
@@ -183,9 +184,9 @@ export function CardValue({
   emptyState?: string;
 }) {
   if (!value && emptyState) {
-    return <p className="text-[15px] text-placeholder">{emptyState}</p>;
+    return <p className="text-base text-placeholder">{emptyState}</p>;
   }
-  return <p className="text-[15px] text-foreground">{value}</p>;
+  return <p className="text-base text-foreground">{value}</p>;
 }
 
 /**
@@ -206,7 +207,7 @@ export function CardInput({
   return (
     <Input
       className={cn(
-        "rounded-sm bg-card px-[12px] py-[13px] text-[15px] md:py-[11px] md:text-[14px]",
+        "rounded-sm bg-card px-[12px] py-[13px] text-base md:py-[11px] md:text-sm",
         className,
       )}
       {...props}

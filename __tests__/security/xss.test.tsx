@@ -190,6 +190,11 @@ describe("E5. no unsafe rendering escape hatch exists", () => {
       // path that isOrderIssuePhotoPath() validated; always https on the
       // Supabase host, never text a customer typed.
       ["components/manage/orders/open-issues-panel.tsx", "href={issue.photoUrl} — a server-signed Storage URL"],
+      // UI/UX review: "Sign in to order" returns to the dish. Always the
+      // literal /login path; the product id only goes into `next`, encoded,
+      // and login's safeNextPath() refuses anything but a same-site path.
+      ["components/menu/product-card.tsx", "href={signInToOrderHref(product.id)} — /login?next=/menu?item=<encoded id>"],
+      ["components/menu/item-detail-modal.tsx", "href={signInToOrderHref(product?.id)} — /login?next=/menu?item=<encoded id>"],
     ]);
 
     const offenders: string[] = [];

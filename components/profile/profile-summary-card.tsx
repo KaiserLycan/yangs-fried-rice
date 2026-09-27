@@ -24,12 +24,12 @@ export function ProfileSummaryCard({ profile }: { profile: CustomerProfile }) {
       <AvatarButton
         initials={initialsFrom(profile.name)}
         imageUrl={profile.profileImageUrl}
-        className="size-[52px] bg-primary font-display text-[20px] text-background"
+        className="size-[52px] bg-primary font-display text-lg text-background"
         wrapperClassName="size-[52px]"
       />
       <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
-        <p className="text-[15px] font-bold text-foreground">{profile.name}</p>
-        <p className="text-[12px] text-muted-foreground">
+        <p className="text-base font-bold text-foreground">{profile.name}</p>
+        <p className="text-sm text-muted-foreground">
           {joined ? `Member since ${joined} · ${orders}` : orders}
         </p>
       </div>

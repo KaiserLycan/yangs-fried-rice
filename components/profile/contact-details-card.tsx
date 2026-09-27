@@ -126,8 +126,8 @@ export function ContactDetailsCard({ profile }: { profile: CustomerProfile }) {
                   "rounded-md border bg-white focus-within:ring-2 focus-within:ring-ring/40",
                   errors.mobile ? "border-error-border" : "border-field-border"
                 )}
-                prefixClassName="pl-[14px] text-[15px] text-muted-foreground"
-                inputClassName="px-[6px] py-[13px] text-[15px] text-foreground placeholder:text-placeholder md:py-[14px]"
+                prefixClassName="pl-[14px] text-base text-muted-foreground"
+                inputClassName="px-[6px] py-[13px] text-base text-foreground placeholder:text-placeholder md:py-[14px]"
               />
             </CardField>
 

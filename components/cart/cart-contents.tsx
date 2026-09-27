@@ -51,7 +51,7 @@ export function CartContents({
     <div className="flex min-h-0 flex-1 flex-col gap-[14px]">
       {/* Where the Delivery / Pickup toggle was. The shop no longer
           delivers, so the choice is stated rather than offered. */}
-      <p className="rounded-[11px] bg-secondary/60 px-[12px] py-[10px] text-[14px] font-bold">
+      <p className="rounded-md bg-secondary/60 px-[12px] py-[10px] text-sm font-bold">
         Pickup only — collect your order at the counter.
       </p>
 

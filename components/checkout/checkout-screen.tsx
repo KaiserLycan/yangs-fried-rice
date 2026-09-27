@@ -78,11 +78,11 @@ export function CheckoutScreen({
         <Link
           href={`/cart?fulfilment=${fulfilment}`}
           aria-label="Back to cart"
-          className="flex size-[36px] items-center justify-center rounded-pill bg-track text-[16px] font-bold text-foreground"
+          className="flex size-[36px] items-center justify-center rounded-full bg-track text-base font-bold text-foreground"
         >
           ←
         </Link>
-        <h1 className="font-display text-[22px] text-foreground">
+        <h1 className="font-display text-2xl text-foreground">
           REVIEW ORDER
         </h1>
       </div>
@@ -94,11 +94,11 @@ export function CheckoutScreen({
               Delivery and quietly re-add the ₱95 fee. */}
           <Link
             href={`/menu?fulfilment=${fulfilment}`}
-            className="rounded-sm border border-field-border bg-card px-[14px] pb-[11px] pt-[9px] text-[14px] font-bold text-foreground"
+            className="rounded-sm border border-field-border bg-card px-[14px] pb-[11px] pt-[9px] text-sm font-bold text-foreground"
           >
             ← Back to menu
           </Link>
-          <h1 className="font-display text-[32px] text-foreground">CHECKOUT</h1>
+          <h1 className="font-display text-3xl text-foreground">CHECKOUT</h1>
         </div>
 
         {lines.length === 0 || cartId === null ? (
@@ -114,7 +114,7 @@ export function CheckoutScreen({
           <div className="grid grid-cols-1 gap-[16px] md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] md:items-start md:gap-[24px]">
             <div className="order-2 flex flex-col gap-[18px] md:order-1">
               <section className="flex flex-col gap-[12px] md:rounded-lg md:border md:border-rule md:bg-card md:p-[20px]">
-                <h2 className="text-[14px] font-bold uppercase tracking-[1.44px] text-muted-foreground md:text-[14px] md:tracking-[1.54px]">
+                <h2 className="text-sm font-bold uppercase tracking-[1.44px] text-muted-foreground md:text-sm md:tracking-[1.54px]">
                   Payment method
                 </h2>
                 <PaymentMethodPicker
@@ -158,15 +158,15 @@ export function CheckoutScreen({
 function EmptyCart() {
   return (
     <div className="flex flex-col items-start gap-[10px] rounded-lg border border-rule bg-card p-[20px]">
-      <p className="text-[14px] font-bold text-foreground">
+      <p className="text-sm font-bold text-foreground">
         There is nothing to check out yet.
       </p>
-      <p className="text-[14px] text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         Add a dish to your cart and it will show up here for review.
       </p>
       <Link
         href="/menu"
-        className="mt-[4px] rounded-[13px] bg-accent px-[18px] py-[12px] text-[14px] font-bold text-accent-foreground"
+        className="mt-[4px] rounded-md bg-accent px-[18px] py-[12px] text-sm font-bold text-accent-foreground"
       >
         Browse the menu
       </Link>

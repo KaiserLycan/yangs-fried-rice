@@ -22,7 +22,7 @@ export default function AppError({
   return (
     <AuthShell brand={<BrandPanel />}>
       <div className="relative flex flex-col px-6 pb-[30px] pt-[30px] md:justify-center md:bg-background md:px-[52px] md:py-[48px]">
-        <div className="rounded-[22px] bg-background p-5 shadow-sm md:rounded-none md:bg-transparent md:p-0 md:shadow-none">
+        <div className="rounded-lg bg-background p-5 shadow-sm md:rounded-none md:bg-transparent md:p-0 md:shadow-none">
           <ErrorScreen
             error={error}
             reset={reset}

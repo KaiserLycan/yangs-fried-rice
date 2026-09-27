@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ManagePagination } from "@/components/manage/manage-pagination";
 import { ProductPhotoPlaceholder } from "@/components/menu/product-photo-placeholder";
 import type { MenuItem } from "@/types/menu";
+import { Button } from "@/components/ui/button";
 
 interface MenuGridProps {
   searchText: string;
@@ -40,35 +41,35 @@ export function MenuGrid({ searchText, selectedCategory, onEditItem, items, isLo
         {isLoading ? (
           <div className="grid grid-cols-1 gap-[10px] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
             {Array.from({ length: 10 }).map((_, i) => (
-              <div key={i} className="flex flex-col items-start overflow-hidden rounded-[16px] border border-[#e3d6c3] bg-white">
-                <div className="h-[160px] md:h-[181px] w-full shrink-0 bg-[#f6e9d9] animate-pulse" />
+              <div key={i} className="flex flex-col items-start overflow-hidden rounded-lg border border-rule bg-white">
+                <div className="h-[160px] md:h-[181px] w-full shrink-0 bg-highlight animate-pulse" />
                 <div className="flex flex-col gap-[5.4px] p-3 md:p-[14px] w-full text-left">
                   <div className="flex w-full items-start justify-between gap-2">
-                    <div className="h-[18px] w-2/3 bg-[#efe6d8] rounded-full animate-pulse" />
-                    <div className="h-[12px] w-8 bg-[#efe6d8] rounded-full animate-pulse" />
+                    <div className="h-[18px] w-2/3 bg-track rounded-full animate-pulse" />
+                    <div className="h-[12px] w-8 bg-track rounded-full animate-pulse" />
                   </div>
                   <div className="w-full flex-1 min-h-[34px] flex flex-col gap-1 mt-1">
-                    <div className="h-[12px] w-full bg-[#efe6d8] rounded-full animate-pulse" />
-                    <div className="h-[12px] w-4/5 bg-[#efe6d8] rounded-full animate-pulse" />
+                    <div className="h-[12px] w-full bg-track rounded-full animate-pulse" />
+                    <div className="h-[12px] w-4/5 bg-track rounded-full animate-pulse" />
                   </div>
                   <div className="flex w-full items-end justify-end mt-auto pt-2">
-                    <div className="h-[24px] w-16 bg-[#f6e9d9] rounded-full animate-pulse" />
+                    <div className="h-[24px] w-16 bg-highlight rounded-full animate-pulse" />
                   </div>
                 </div>
               </div>
             ))}
           </div>
         ) : paginatedItems.length === 0 ? (
-          <div className="flex h-[200px] md:h-full items-center justify-center text-[15px] text-[#7a6a60]">
+          <div className="flex h-[200px] md:h-full items-center justify-center text-base text-muted-foreground">
             No menu items found.
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-[10px] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
             {paginatedItems.map((item) => (
-              <button
+              <Button variant="unstyled"
                 key={item.id}
                 onClick={() => onEditItem(item)}
-                className="flex h-full w-full flex-col items-start overflow-hidden rounded-[16px] border border-[#e3d6c3] bg-white transition-shadow hover:shadow-md"
+                className="flex h-full w-full flex-col items-start overflow-hidden rounded-lg border border-rule bg-white transition-shadow hover:shadow-md"
               >
                 {/* Image Display */}
                 <div className="relative h-[160px] md:h-[181px] w-full shrink-0 overflow-hidden">
@@ -87,25 +88,25 @@ export function MenuGrid({ searchText, selectedCategory, onEditItem, items, isLo
                 {/* Content */}
                 <div className="flex flex-1 flex-col gap-[5.4px] p-3 md:p-[14px] w-full text-left">
                   <div className="flex w-full items-start justify-between gap-2">
-                    <h3 className="font-sans text-[15px] font-bold leading-[18px] text-[#1a1210] line-clamp-2">
+                    <h3 className="font-sans text-base font-bold leading-[18px] text-foreground line-clamp-2">
                       {item.name}
                     </h3>
-                    <span className="shrink-0 text-[11px] text-[#7a6a60]">
+                    <span className="shrink-0 text-xs text-muted-foreground">
                       ★ {item.rating.toFixed(1)}
                     </span>
                   </div>
                   <div className="w-full flex-1 min-h-[34px]">
-                    <p className="line-clamp-2 text-[12px] leading-[16.8px] text-[#7a6a60]">
+                    <p className="line-clamp-2 text-xs leading-[16.8px] text-muted-foreground">
                       {item.description}
                     </p>
                   </div>
                   <div className="flex w-full items-end justify-end mt-auto pt-2">
-                    <span className="font-display text-[19px] leading-normal text-[#b8352a]">
+                    <span className="font-display text-lg leading-normal text-backoffice">
                       ₱{item.price.toFixed(2)}
                     </span>
                   </div>
                 </div>
-              </button>
+              </Button>
             ))}
           </div>
         )}

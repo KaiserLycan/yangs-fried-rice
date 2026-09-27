@@ -61,16 +61,16 @@ export default async function ProfilePage() {
               <Link href="/menu" aria-label="Back to menu">
                 <ChevronLeft className="size-[24px] text-foreground" />
               </Link>
-              <h1 className="font-display text-[24px] uppercase text-foreground">
+              <h1 className="font-display text-2xl uppercase text-foreground">
                 ACCOUNT
               </h1>
             </div>
             <div className="flex flex-col gap-[12px] md:mx-auto md:max-w-[880px] md:gap-[18px]">
               <div className="hidden items-baseline gap-[12px] md:flex">
-                <h1 className="font-display text-[32px] tracking-[0.32px] text-foreground">
+                <h1 className="font-display text-3xl tracking-[0.32px] text-foreground">
                   MY PROFILE
                 </h1>
-                <p className="text-[13px] text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   name, contact, addresses and password
                 </p>
               </div>

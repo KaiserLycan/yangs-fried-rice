@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 /**
  * The "Show"/"Hide" control beside a password field's label.
  *
@@ -16,12 +17,12 @@ export function ShowHideToggle({
   onToggle: () => void;
 }) {
   return (
-    <button
+    <Button variant="unstyled"
       type="button"
       onClick={onToggle}
-      className="text-[12px] text-primary"
+      className="text-sm text-primary"
     >
       {shown ? "Hide" : "Show"}
-    </button>
+    </Button>
   );
 }

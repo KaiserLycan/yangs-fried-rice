@@ -20,6 +20,7 @@ import {
 } from "@/lib/actions/menu";
 import { createClient } from "@/lib/supabase/client"; // Added for Storage uploads
 import { IMAGE_BUCKETS, imageExtensionFor } from "@/lib/storage/stored-image";
+import { Button } from "@/components/ui/button";
 
 /**
  * Put a menu photo in the bucket and return its public URL.
@@ -287,19 +288,19 @@ function ManageMenuInner() {
     <div className="flex h-full flex-col gap-4 md:gap-0">
       {/* Header Row */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-0 pb-[10px]">
-        <h1 className="font-display text-[24px] md:text-[30px] leading-normal text-[#1a1210]">
+        <h1 className="font-display text-2xl md:text-3xl leading-normal text-foreground">
           MENU MANAGEMENT
         </h1>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 md:gap-[20px]">
-          <div className="flex w-full md:w-[442px] items-center gap-[10px] rounded-[10px] border border-[#ddcdb8] bg-white px-[14px] py-[10px]">
-            <Search className="h-4 w-4 text-[#7a6a60]" />
+          <div className="flex w-full md:w-[442px] items-center gap-[10px] rounded-md border border-field-border bg-white px-[14px] py-[10px]">
+            <Search className="h-4 w-4 text-muted-foreground" />
             <input
               type="text"
               placeholder="Search..."
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
-              className="w-full bg-transparent text-[13px] md:text-[15px] text-[#7a6a60] outline-none placeholder:text-[#7a6a60]"
+              className="w-full bg-transparent text-sm md:text-base text-muted-foreground outline-none placeholder:text-muted-foreground"
             />
           </div>
 
@@ -308,16 +309,16 @@ function ManageMenuInner() {
             shortcut={SHORTCUTS.newItem.combo}
             side="bottom"
           >
-            <button
+            <Button variant="unstyled"
               type="button"
               onClick={() => setIsAddModalOpen(true)}
               disabled={isProcessing}
-              className="flex items-center justify-center rounded-[10px] bg-[#e8541f] px-[18px] py-[11px] transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="flex items-center justify-center rounded-md bg-accent px-[18px] py-[11px] transition-opacity hover:opacity-90 disabled:opacity-50"
             >
-              <span className="text-[13px] md:text-[15px] font-bold text-white whitespace-nowrap">
+              <span className="text-sm md:text-base font-bold text-white whitespace-nowrap">
                 + Add item
               </span>
-            </button>
+            </Button>
           </Tooltip>
         </div>
       </div>

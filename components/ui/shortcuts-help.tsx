@@ -61,10 +61,10 @@ export function ShortcutsHelp() {
         {rows.map((shortcut) => (
           <li
             key={shortcut.label}
-            className="flex items-center justify-between gap-[16px] text-[13.5px] text-foreground"
+            className="flex items-center justify-between gap-[16px] text-sm text-foreground"
           >
             <span>{shortcut.label}</span>
-            <kbd className="rounded-[4px] border border-rule bg-background px-[7px] py-[2px] text-[12px] font-bold">
+            <kbd className="rounded-sm border border-rule bg-background px-[7px] py-[2px] text-sm font-bold">
               {formatCombo(shortcut.combo, mac)}
             </kbd>
           </li>

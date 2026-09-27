@@ -18,6 +18,8 @@ type One<T> = T | T[] | null;
 
 export type StaffOrderRow = {
   order_id: string;
+  /** `#1042` — see lib/orders/order-number.ts. */
+  order_number?: number | null;
   created_at: string | null;
   order_status: string | null;
   order_type: string | null;
@@ -104,7 +106,7 @@ export function mapStaffOrder(order: StaffOrderRow): OrderData {
     // Was `substring(0, 4).toUpperCase()` while the customer was shown the
     // last four — the same order, two references, neither able to check the
     // other (issue #106).
-    orderNumber: formatOrderNumber(order.order_id),
+    orderNumber: formatOrderNumber(order.order_number, order.order_id),
     time: order.created_at
       ? new Date(order.created_at).toLocaleTimeString([], {
           hour: "2-digit",

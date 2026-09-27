@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { formatPeso } from "@/lib/menu/product-listing";
 import type { CartTotals, Fulfilment } from "@/lib/menu/cart-totals";
-import { isRestaurantOpen } from "@/lib/store-hours";
+import { isRestaurantOpen, nextOpeningLabel } from "@/lib/store-hours";
 
 /**
  * Subtotal, delivery fee, Total, and the call to action — `133:990` desktop
@@ -39,10 +39,15 @@ export function CartTotalsSummary({
 }) {
   const [isClicked, setIsClicked] = React.useState(false);
   const [isOpen, setIsOpen] = React.useState(true);
+  const [opensLabel, setOpensLabel] = React.useState("");
 
   React.useEffect(() => {
-    setIsOpen(isRestaurantOpen());
-    const interval = setInterval(() => setIsOpen(isRestaurantOpen()), 60000);
+    const check = () => {
+      setIsOpen(isRestaurantOpen());
+      setOpensLabel(nextOpeningLabel());
+    };
+    check();
+    const interval = setInterval(check, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -55,20 +60,20 @@ export function CartTotalsSummary({
       ) : null}
 
       <div className="flex items-baseline justify-between">
-        <span className="text-[14px] font-bold text-foreground">Total</span>
-        <span className="font-display text-[23px] text-primary">
+        <span className="text-sm font-bold text-foreground">Total</span>
+        <span className="font-display text-2xl text-primary">
           {formatPeso(totals.total)}
         </span>
       </div>
 
       {arrivalEstimate ? (
-        <p className="text-[14px] text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Estimated {arrivalEstimate}
         </p>
       ) : null}
 
       <Link
-        title={!isOpen ? "We're closed right now — ordering opens with the store." : "Review your order and pay"}
+        title={!isOpen ? `We're closed right now. ${opensLabel}. Your cart is saved until then.` : "Review your order and pay"}
         href={!isOpen || isClicked ? "#" : `/checkout?fulfilment=${fulfilment}`}
         onClick={(e) => {
           if (!isOpen || isClicked) {
@@ -77,14 +82,19 @@ export function CartTotalsSummary({
           }
           setIsClicked(true);
         }}
-        className={`mt-[6px] flex items-center justify-center rounded-[12px] p-[15px] text-[14px] font-bold ${
+        className={`mt-[6px] flex items-center justify-center rounded-md p-[15px] text-sm font-bold ${
           !isOpen || isClicked
             ? "bg-secondary text-muted-foreground cursor-not-allowed opacity-60 pointer-events-none"
             : "bg-foreground text-background"
         }`}
       >
-        {!isOpen ? "Store Closed" : ctaLabel}
+        {!isOpen ? `Closed · ${opensLabel}` : ctaLabel}
       </Link>
+      {!isOpen ? (
+        <p className="text-center text-sm text-muted-foreground">
+          Your cart is saved — check out when we open.
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -92,8 +102,8 @@ export function CartTotalsSummary({
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-[14px] text-muted-foreground">{label}</span>
-      <span className="text-[14px] text-muted-foreground">{value}</span>
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className="text-sm text-muted-foreground">{value}</span>
     </div>
   );
 }

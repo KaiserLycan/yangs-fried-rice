@@ -34,11 +34,11 @@ function SkeletonCards({ count }: { count: number }) {
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
-          className="flex flex-1 flex-col rounded-[14px] border border-[#e3d6c3] bg-white p-4"
+          className="flex flex-1 flex-col rounded-md border border-rule bg-white p-4"
         >
-          <div className="h-3 w-20 bg-[#efe6d8] rounded-full animate-pulse" />
-          <div className="mt-3 h-8 w-32 bg-[#efe6d8] rounded-full animate-pulse" />
-          <div className="mt-2 h-3 w-28 bg-[#efe6d8] rounded-full animate-pulse" />
+          <div className="h-3 w-20 bg-track rounded-full animate-pulse" />
+          <div className="mt-3 h-8 w-32 bg-track rounded-full animate-pulse" />
+          <div className="mt-2 h-3 w-28 bg-track rounded-full animate-pulse" />
         </div>
       ))}
     </div>
@@ -104,7 +104,7 @@ export function ReportsSummary({ type: rawType = SALES_REPORT, startDate, endDat
   if (error) {
     return (
       <div className="flex flex-col md:flex-row gap-3.5">
-        <div className="flex flex-1 items-center justify-center rounded-[14px] border border-[#e3d6c3] bg-white p-6 text-[13px] text-[#7a6a60]">
+        <div className="flex flex-1 items-center justify-center rounded-md border border-rule bg-white p-6 text-sm text-muted-foreground">
           {error}
         </div>
       </div>

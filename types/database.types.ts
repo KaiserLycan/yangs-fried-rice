@@ -464,6 +464,7 @@ export type Database = {
           delivery_address: string | null
           delivery_fee: number | null
           order_id: string
+          order_number: number
           order_status: string | null
           order_type: string | null
           special_instructions: string | null
@@ -478,6 +479,7 @@ export type Database = {
           delivery_address?: string | null
           delivery_fee?: number | null
           order_id?: string
+          order_number?: never
           order_status?: string | null
           order_type?: string | null
           special_instructions?: string | null
@@ -492,6 +494,7 @@ export type Database = {
           delivery_address?: string | null
           delivery_fee?: number | null
           order_id?: string
+          order_number?: never
           order_status?: string | null
           order_type?: string | null
           special_instructions?: string | null

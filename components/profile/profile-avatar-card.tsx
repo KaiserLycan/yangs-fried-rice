@@ -16,7 +16,7 @@ export function ProfileAvatarCard({
       <AvatarButton
         initials={initials}
         imageUrl={imageUrl}
-        className="size-[140px] bg-primary font-display text-[23px] text-background"
+        className="size-[140px] bg-primary font-display text-2xl text-background"
         wrapperClassName="transition-transform hover:scale-[1.04] size-[140px]"
       />
     </div>

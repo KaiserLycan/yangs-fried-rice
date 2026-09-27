@@ -7,11 +7,11 @@
 export function MenuEmptyState({ hasFilter }: { hasFilter: boolean }) {
   return (
     <div className="flex flex-col items-center gap-[4px] px-[20px] py-[48px] text-center">
-      <p className="text-[15px] font-bold text-foreground">
+      <p className="text-base font-bold text-foreground">
         No dishes match{hasFilter ? " your search" : ""}.
       </p>
       {hasFilter ? (
-        <p className="text-[14px] text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Try a different keyword or category.
         </p>
       ) : null}

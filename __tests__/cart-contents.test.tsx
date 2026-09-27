@@ -30,6 +30,7 @@ vi.mock("next/navigation", () => ({
  */
 vi.mock("@/lib/store-hours", () => ({
   isRestaurantOpen: () => true,
+  nextOpeningLabel: () => "Opens tomorrow at 8:00 AM",
 }));
 
 vi.mock("@/lib/actions/cart", () => ({

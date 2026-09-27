@@ -270,18 +270,18 @@ function ManageEmployeeInner() {
     <div className="flex flex-col h-full gap-4 md:gap-0">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between pb-[10px] md:mb-8 gap-4 md:gap-4">
-        <h1 className="font-display text-[24px] md:text-[30px] leading-normal text-[#1a1210]">
+        <h1 className="font-display text-2xl md:text-3xl leading-normal text-foreground">
           EMPLOYEE MANAGEMENT
         </h1>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 md:gap-[20px]">
           <div className="relative w-full sm:w-auto">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-[#A2938A]" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-placeholder" />
             <input 
               type="text"
               placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full sm:w-[280px] h-[45px] pl-11 pr-4 rounded-xl border border-[#DDCDB8] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#E8541F] placeholder:text-[#A2938A]"
+              className="w-full sm:w-[280px] h-[45px] pl-11 pr-4 rounded-md border border-field-border bg-white text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-placeholder"
             />
           </div>
           
@@ -290,33 +290,33 @@ function ManageEmployeeInner() {
             <span {...roleFilterMenu.labelProps} className="sr-only">
               Filter by role
             </span>
-            <button
+            <Button variant="unstyled"
               {...roleFilterMenu.triggerProps}
-              className="w-full sm:w-auto h-[45px] px-4 rounded-xl border border-[#DDCDB8] bg-white text-sm flex items-center justify-between sm:justify-start gap-2 hover:bg-[#FAF5EB] transition-colors focus:outline-none focus:ring-2 focus:ring-[#E8541F]"
+              className="w-full sm:w-auto h-[45px] px-4 rounded-md border border-field-border bg-white text-sm leading-5 flex items-center justify-between sm:justify-start gap-2 hover:bg-background transition-colors focus:outline-none focus:ring-2 focus:ring-accent"
             >
               <div className="flex items-center gap-2">
-                <Filter aria-hidden="true" className="w-[16px] h-[16px] text-[#A2938A]" />
-                <span className="text-[#1A1210] font-medium min-w-[70px] text-left">{roleFilter}</span>
+                <Filter aria-hidden="true" className="w-[16px] h-[16px] text-placeholder" />
+                <span className="text-foreground font-medium min-w-[70px] text-left">{roleFilter}</span>
               </div>
-              <ChevronDown aria-hidden="true" className="w-4 h-4 text-[#A2938A]" />
-            </button>
+              <ChevronDown aria-hidden="true" className="w-4 h-4 text-placeholder" />
+            </Button>
 
             {roleFilterOpen && (
-              <div {...roleFilterMenu.listProps} className="absolute left-0 sm:left-auto sm:right-0 top-[calc(100%+8px)] z-20 w-full sm:w-[160px] bg-white border border-[#DDCDB8] rounded-xl p-1 shadow-[0_8px_20px_rgba(26,18,16,0.08)]">
+              <div {...roleFilterMenu.listProps} className="absolute left-0 sm:left-auto sm:right-0 top-[calc(100%+8px)] z-20 w-full sm:w-[160px] bg-white border border-field-border rounded-md p-1 shadow-[0_8px_20px_rgba(26,18,16,0.08)]">
                 {ROLES.map(role => (
-                  <button
+                  <Button variant="unstyled"
                     key={role}
                     {...roleFilterMenu.optionProps(roleFilter === role)}
                     onClick={() => {
                       setRoleFilter(role);
                       roleFilterMenu.close();
                     }}
-                    className={`w-full text-left px-3 py-2.5 rounded-lg text-[13px] transition-colors ${DROPDOWN_FOCUS_RING} ${
-                      roleFilter === role ? "bg-[#F6E9D9] font-bold text-[#8C1C13]" : "text-[#1A1210] hover:bg-[#FAF5EB]"
+                    className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors ${DROPDOWN_FOCUS_RING} ${
+                      roleFilter === role ? "bg-highlight font-bold text-primary" : "text-foreground hover:bg-background"
                     }`}
                   >
                     {role}
-                  </button>
+                  </Button>
                 ))}
               </div>
             )}
@@ -327,25 +327,25 @@ function ManageEmployeeInner() {
             side="bottom"
             className="w-full sm:w-auto"
           >
-          <button
+          <Button variant="unstyled"
             type="button"
-            className="w-full sm:w-auto bg-[#E8541F] text-white font-bold text-[13px] px-[18px] py-[11px] rounded-[10px] hover:bg-[#E8541F]/90 transition-colors whitespace-nowrap"
+            className="w-full sm:w-auto bg-accent text-white font-bold text-sm px-[18px] py-[11px] rounded-md hover:bg-accent/90 transition-colors whitespace-nowrap"
             onClick={() => {
               setModalFieldErrors(null);
               setIsAddModalOpen(true);
             }}
           >
             + Add Employee
-          </button>
+          </Button>
           </Tooltip>
         </div>
       </div>
 
       {/* Table Container */}
       <div className="flex-1 flex flex-col min-h-0">
-        <div className="bg-white rounded-[12px] overflow-hidden flex flex-col min-h-0 border border-[#F0E6D8] shadow-[0_2px_10px_rgba(26,18,16,0.02)]">
+        <div className="bg-white rounded-md overflow-hidden flex flex-col min-h-0 border border-track shadow-[0_2px_10px_rgba(26,18,16,0.02)]">
           {/* Table Head - Hidden on Mobile */}
-          <div className="hidden md:grid grid-cols-[1.5fr_1.5fr_1fr] px-8 py-5 border-b border-[#F0E6D8] bg-[#EAE0D5] text-[12px] font-bold text-[#7A6A60] uppercase tracking-[1px]">
+          <div className="hidden md:grid grid-cols-[1.5fr_1.5fr_1fr] px-8 py-5 border-b border-track bg-track text-xs font-bold text-muted-foreground uppercase tracking-[1px]">
             <SortableHeader 
               label="Name" 
               currentSort={nameSort} 
@@ -360,32 +360,32 @@ function ManageEmployeeInner() {
             {isLoading ? (
               <div className="flex flex-col">
                 {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="flex flex-col md:grid md:grid-cols-[1.5fr_1.5fr_1fr] px-5 md:px-8 py-4 md:py-5 border-b border-[#F0E6D8] gap-2 md:gap-0 items-start md:items-center">
-                    <div className="h-[18px] w-[140px] bg-[#efe6d8] rounded-full animate-pulse" />
-                    <div className="h-[18px] w-[180px] bg-[#efe6d8] rounded-full animate-pulse" />
-                    <div className="hidden md:block h-[18px] w-[100px] bg-[#efe6d8] rounded-full animate-pulse" />
+                  <div key={i} className="flex flex-col md:grid md:grid-cols-[1.5fr_1.5fr_1fr] px-5 md:px-8 py-4 md:py-5 border-b border-track gap-2 md:gap-0 items-start md:items-center">
+                    <div className="h-[18px] w-[140px] bg-track rounded-full animate-pulse" />
+                    <div className="h-[18px] w-[180px] bg-track rounded-full animate-pulse" />
+                    <div className="hidden md:block h-[18px] w-[100px] bg-track rounded-full animate-pulse" />
                   </div>
                 ))}
               </div>
             ) : paginatedEmployees.length === 0 ? (
-              <div className="p-8 text-center text-[#7A6A60]">
+              <div className="p-8 text-center text-muted-foreground">
                 No employees found.
               </div>
             ) : (
               paginatedEmployees.map((employee, index) => (
                 <div 
                   key={employee.id}
-                  className={`flex flex-col md:grid md:grid-cols-[1.5fr_1.5fr_1fr] px-5 md:px-8 py-4 md:py-5 cursor-pointer transition-colors hover:bg-[#FAF7F0] gap-1 md:gap-0 ${
-                    index !== paginatedEmployees.length - 1 ? "border-b border-[#F0E6D8]" : ""
+                  className={`flex flex-col md:grid md:grid-cols-[1.5fr_1.5fr_1fr] px-5 md:px-8 py-4 md:py-5 cursor-pointer transition-colors hover:bg-background gap-1 md:gap-0 ${
+                    index !== paginatedEmployees.length - 1 ? "border-b border-track" : ""
                   }`}
                   onClick={() => setSelectedEmployee(employee)}
                 >
-                  <div className="font-bold text-[#1A1210] flex items-center justify-between text-[15px]">
+                  <div className="font-bold text-foreground flex items-center justify-between text-base">
                     {employee.name}
-                    <span className="md:hidden text-[11px] font-bold tracking-wide uppercase bg-[#f6e9d9] text-[#8c1c13] px-2 py-1 rounded-md">{employee.role}</span>
+                    <span className="md:hidden text-xs font-bold tracking-wide uppercase bg-highlight text-primary px-2 py-1 rounded-md">{employee.role}</span>
                   </div>
-                  <div className="text-[#7A6A60] md:font-bold md:text-[#1A1210] flex items-center text-[13px] md:text-[15px]">{employee.email}</div>
-                  <div className="hidden md:flex font-bold text-[#1A1210] items-center text-[15px]">{employee.role}</div>
+                  <div className="text-muted-foreground md:font-bold md:text-foreground flex items-center text-sm md:text-base">{employee.email}</div>
+                  <div className="hidden md:flex font-bold text-foreground items-center text-base">{employee.role}</div>
                 </div>
               ))
             )}

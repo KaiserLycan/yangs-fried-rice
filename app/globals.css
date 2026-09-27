@@ -104,6 +104,23 @@
     --map-label: 29 18% 46%; /* #8A7460  the LIVE MAP label */
     --map-border: 39 28% 78%; /* #D6CBB6  its edge on mobile */
 
+    /* --- Back office (UI/UX review, docs/user-simulation.md #16) ---------
+       These were typed as raw hex in the staff screens. Named here so every
+       colour in components/ and app/ comes from a token; near-duplicates
+       were folded into the nearest existing token instead (see
+       docs/copy-glossary.md). */
+    --status-received: 7 68% 46%; /* #C73926  staff card header: Received */
+    --status-preparing: 28 60% 51%; /* #CD7D39  staff card header: Preparing (was also #CA762D) */
+    --status-ready: 207 32% 46%; /* #507A9D  staff card header: Ready for pickup */
+    --status-done: 137 36% 44%; /* #48995F  staff card header: Picked up (was also #4C9A5E) */
+    --status-cancelled: 33 8% 44%; /* #797167  staff card header: Cancelled (was also #5D5753) */
+    --backoffice: 5 63% 44%; /* #B8352A  KDS header, back-office accents */
+    --highlight: 33 62% 91%; /* #F6E9D9  hover / selected row on cream (was also #F5EBE1) */
+    --selected: 37 56% 86%; /* #EFDFC6  active tab (was also #F0DDBA) */
+    --warning-text: 31 85% 38%; /* #B4630F  amber text that must pass 4.5:1 (--warning is 3:1) */
+    --warning-surface: 39 100% 95%; /* #FFF7E8  amber notice fill */
+    --star: 37 79% 58%; /* #E8A33F  rating stars (warmer than --warning) */
+
     --radius: 0.75rem; /* radius/12 */
 
     /* The mobile bottom tab bar (`components/nav/bottom-tab-bar.tsx`) is

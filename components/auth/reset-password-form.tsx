@@ -97,13 +97,13 @@ export function ResetPasswordForm({
   const shell =
     "relative flex flex-col px-6 pb-[30px] md:justify-center md:bg-background md:px-[52px] md:py-[48px]";
   const panel =
-    "flex flex-col gap-[14px] rounded-[22px] bg-background p-5 md:gap-[18px] md:rounded-none md:bg-transparent md:p-0";
+    "flex flex-col gap-[14px] rounded-lg bg-background p-5 md:gap-[18px] md:rounded-none md:bg-transparent md:p-0";
 
   if (ready === null) {
     return (
       <div className={shell}>
         <div className={panel}>
-          <p role="status" className="text-[13px] text-muted-foreground">
+          <p role="status" className="text-sm text-muted-foreground">
             Checking your reset link…
           </p>
         </div>
@@ -115,7 +115,7 @@ export function ResetPasswordForm({
     return (
       <div className={shell}>
         <div className={panel}>
-          <h1 className="font-display text-[30px] leading-[33px] text-foreground">
+          <h1 className="font-display text-3xl leading-[33px] text-foreground">
             That link has expired
           </h1>
           <Alert>
@@ -124,7 +124,7 @@ export function ResetPasswordForm({
           </Alert>
           <Link
             href="/forgot-password"
-            className="text-[13px] font-bold text-primary"
+            className="text-sm font-bold text-primary"
           >
             Send me a new link
           </Link>
@@ -137,10 +137,10 @@ export function ResetPasswordForm({
     <div className={shell}>
       <form {...live.formProps} onSubmit={handleSubmit} className={panel}>
         <div className="flex flex-col gap-[5px]">
-          <h1 className="font-display text-[30px] leading-[33px] text-foreground">
+          <h1 className="font-display text-3xl leading-[33px] text-foreground">
             Set a new password
           </h1>
-          <p className="text-[13px] text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Pick something you haven’t used here before.
           </p>
         </div>

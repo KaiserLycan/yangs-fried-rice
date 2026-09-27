@@ -154,37 +154,37 @@ export function DeliveryAddressesCard({
   return (
     <section
       id="addresses"
-      aria-label="Delivery address"
+      aria-label="Address"
       className="overflow-hidden rounded-sm border border-rule bg-card"
     >
       <div className="flex items-center gap-[10px] border-b border-rule bg-background px-[14px] py-[12px] md:gap-[12px] md:px-[18px] md:py-[14px]">
-        <h2 className="font-display text-[15px] tracking-[0.3px] text-foreground md:text-[17px] md:tracking-[0.34px]">
+        <h2 className="font-display text-base tracking-[0.3px] text-foreground md:text-lg md:tracking-[0.34px]">
           <span className="md:hidden">ADDRESS</span>
-          <span className="hidden md:inline">DELIVERY ADDRESS</span>
+          <span className="hidden md:inline">ADDRESS</span>
         </h2>
 
-        <span className="hidden text-[12.5px] text-muted-foreground md:inline">
+        <span className="hidden text-sm text-muted-foreground md:inline">
           {addresses.length === 1
             ? "1 saved"
             : `${addresses.length} saved`}
         </span>
 
         <div className="ml-auto">
-          <Tooltip content="Save another delivery address">
-            <button
+          <Tooltip content="Save another address">
+            <Button variant="unstyled"
               type="button"
               onClick={() => setDialog({ mode: "add" })}
-              className="rounded-sm border border-rule bg-card px-[15px] py-[11px] text-[13px] font-bold text-foreground hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 md:py-[8px]"
+              className="rounded-sm border border-rule bg-card px-[15px] py-[11px] text-sm font-bold text-foreground hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 md:py-[8px]"
             >
               Add address
-            </button>
+            </Button>
           </Tooltip>
         </div>
       </div>
 
       <div className="flex flex-col">
         {addresses.length === 0 ? (
-          <p className="px-[14px] py-[18px] text-[13.5px] text-muted-foreground md:px-[18px]">
+          <p className="px-[14px] py-[18px] text-sm text-muted-foreground md:px-[18px]">
             You have no saved addresses yet.
           </p>
         ) : (
@@ -254,45 +254,45 @@ function AddressRow({
     <div className="flex flex-col gap-[10px] px-[14px] py-[15px] md:flex-row md:items-start md:justify-between md:gap-[16px] md:px-[18px]">
       <div className="flex min-w-0 flex-1 flex-col gap-[4px]">
         <div className="flex items-center gap-[8px]">
-          <span className="text-[14px] font-bold text-foreground md:text-[14.5px]">
+          <span className="text-sm font-bold text-foreground md:text-sm">
             {address.label || "Address"}
           </span>
           {address.isDefault ? (
-            <span className="rounded-sm bg-rule px-[7px] py-[3px] text-[10px] font-bold uppercase tracking-[1px] text-primary md:px-[8px] md:text-[10.5px] md:tracking-[1.05px]">
+            <span className="rounded-sm bg-rule px-[7px] py-[3px] text-sm font-bold uppercase tracking-[1px] text-primary md:px-[8px] md:text-sm md:tracking-[1.05px]">
               Default
             </span>
           ) : null}
         </div>
-        <p className="text-[13px] text-foreground md:text-[13.5px]">
+        <p className="text-sm text-foreground md:text-sm">
           {address.addressDetails}
         </p>
         <CardValue value={address.deliveryNote ?? ""} emptyState={NOTE_EMPTY_STATE} />
       </div>
 
       <div className="flex flex-wrap gap-[8px]">
-        <button
+        <Button variant="unstyled"
           type="button"
           onClick={onEdit}
-          className="rounded-sm border border-rule bg-card px-[13px] py-[9px] text-[12.5px] font-bold text-foreground hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 md:py-[8px]"
+          className="rounded-sm border border-rule bg-card px-[13px] py-[9px] text-sm font-bold text-foreground hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 md:py-[8px]"
         >
           Edit
-        </button>
+        </Button>
         {!address.isDefault ? (
-          <button
+          <Button variant="unstyled"
             type="button"
             onClick={onSetDefault}
-            className="rounded-sm border border-rule bg-card px-[13px] py-[9px] text-[12.5px] font-bold text-foreground hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 md:py-[8px]"
+            className="rounded-sm border border-rule bg-card px-[13px] py-[9px] text-sm font-bold text-foreground hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 md:py-[8px]"
           >
             Set as default
-          </button>
+          </Button>
         ) : null}
-        <button
+        <Button variant="unstyled"
           type="button"
           onClick={onDelete}
-          className="rounded-sm border border-rule bg-card px-[13px] py-[9px] text-[12.5px] font-bold text-primary hover:bg-error-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 md:py-[8px]"
+          className="rounded-sm border border-rule bg-card px-[13px] py-[9px] text-sm font-bold text-primary hover:bg-error-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 md:py-[8px]"
         >
           Delete
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -388,7 +388,7 @@ function AddressFormDialog({
             // radius — can't be saved at all. The note under the form says why.
             blockedHint={
               addressBlocked
-                ? "We can't deliver to this address — see the note in the form."
+                ? "We can't accept this address — see the note in the form."
                 : "Complete the highlighted fields to continue."
             }
             wrapperClassName="flex-1"

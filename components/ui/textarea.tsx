@@ -21,7 +21,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         ref={ref}
         aria-invalid={invalid || undefined}
         className={cn(
-          "w-full resize-none rounded-md border bg-white px-[14px] py-[13px] text-[15px] text-foreground placeholder:text-placeholder focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 md:p-[14px]",
+          "w-full resize-none rounded-md border bg-white px-[14px] py-[13px] text-base text-foreground placeholder:text-placeholder focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 md:p-[14px]",
           invalid ? "border-error-border" : "border-field-border",
           className,
         )}

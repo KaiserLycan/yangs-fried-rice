@@ -34,7 +34,7 @@ export async function readPlacedOrder(
   // this filter is what actually prevents that.
   const { data: order } = await supabase
     .from("order")
-    .select("order_id, order_type, order_status, created_at, delivery_address")
+    .select("order_id, order_number, order_type, order_status, created_at, delivery_address")
     .eq("order_id", orderId)
     .eq("customer_id", user.id)
     .maybeSingle();
@@ -66,7 +66,7 @@ export async function readPlacedOrder(
 
   return {
     orderId: order.order_id,
-    orderNumber: formatOrderNumber(order.order_id),
+    orderNumber: formatOrderNumber(order.order_number, order.order_id),
     customerName: customer.data?.name ?? "",
     placedAtLabel: formatOrderTime(
       order.created_at ? new Date(order.created_at) : new Date(),

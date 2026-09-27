@@ -18,15 +18,15 @@ interface ProductRankingProps {
 
 export function ProductRanking({ title, items, unit = "sold" }: ProductRankingProps) {
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-[#e3d6c3] bg-white px-[18px] pb-[62px] pt-[18px]">
+    <div className="flex flex-col gap-3 rounded-lg border border-rule bg-white px-[18px] pb-[62px] pt-[18px]">
       {/* Section header */}
-      <span className="text-[12px] font-bold uppercase tracking-[1.44px] text-[#7a6a60]">
+      <span className="text-xs font-bold uppercase tracking-[1.44px] text-muted-foreground">
         {title}
       </span>
 
       {/* Item list */}
       {items.length === 0 ? (
-        <div className="flex flex-1 items-center justify-center pt-10 text-[13px] text-[#7a6a60]">
+        <div className="flex flex-1 items-center justify-center pt-10 text-sm text-muted-foreground">
           No data available.
         </div>
       ) : (
@@ -34,18 +34,18 @@ export function ProductRanking({ title, items, unit = "sold" }: ProductRankingPr
           <div key={item.name} className="flex flex-col gap-[5px]">
             {/* Name + count row */}
             <div className="flex items-center justify-between">
-              <span className="text-[13px] font-bold text-[#1a1210]">
+              <span className="text-sm font-bold text-foreground">
                 {item.name}
               </span>
-              <span className="text-[13px] text-[#7a6a60]">
+              <span className="text-sm text-muted-foreground">
                 {item.count} {unit}
               </span>
             </div>
 
             {/* Progress bar */}
-            <div className="h-[7px] w-full rounded-full bg-[#efe6d8]">
+            <div className="h-[7px] w-full rounded-full bg-track">
               <div
-                className="h-[7px] rounded-full bg-[#bf4342]"
+                className="h-[7px] rounded-full bg-destructive"
                 style={{ width: `${item.percentage}%` }}
               />
             </div>

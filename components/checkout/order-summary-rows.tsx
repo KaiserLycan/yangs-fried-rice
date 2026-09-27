@@ -58,7 +58,7 @@ export function OrderSummaryRows({
             value={formatPeso(lineTotal(line))}
           />
           {line.addOns && line.addOns.length > 0 && (
-            <ul className="flex flex-col gap-0.5 -mt-1 pl-4 text-[14px] text-muted-foreground">
+            <ul className="flex flex-col gap-0.5 -mt-1 pl-4 text-sm text-muted-foreground">
               {line.addOns.map((addon) => (
                 <li key={addon.addon_id}>+ {addon.name}</li>
               ))}
@@ -88,8 +88,8 @@ function SummaryRow({
 }) {
   return (
     <div className="flex items-start justify-between gap-[12px]">
-      <span className="text-[14px] text-muted-strong">{label}</span>
-      <span className="text-right text-[14px] font-bold text-foreground">
+      <span className="text-sm text-muted-strong">{label}</span>
+      <span className="text-right text-sm font-bold text-foreground">
         {value}
       </span>
     </div>

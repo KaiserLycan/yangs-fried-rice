@@ -8,18 +8,24 @@ import {
 import { isValidTransition, type OrderStatus } from "@/lib/validation/orders";
 
 describe("statusLabelFor", () => {
-  it("calls a take-out order in the last stage 'Ready for Pick Up', never 'Delivering'", () => {
-    expect(statusLabelFor({ status: "DELIVERY", isDelivery: false })).toBe("READY FOR PICK UP");
+  // The customer's stage names (docs/copy-glossary.md), so staff and
+  // customer say the same thing about the same order.
+  it("names each stage the way the customer's timeline does", () => {
+    expect(statusLabelFor({ status: "QUEUE", isDelivery: false })).toBe("RECEIVED");
+    expect(statusLabelFor({ status: "PREP", isDelivery: false })).toBe("PREPARING");
+    expect(statusLabelFor({ status: "DELIVERY", isDelivery: false })).toBe("READY FOR PICKUP");
+    expect(statusLabelFor({ status: "COMPLETED", isDelivery: false })).toBe("PICKED UP");
+    expect(statusLabelFor({ status: "CANCELED", isDelivery: false })).toBe("CANCELLED");
   });
 
-  it("calls a delivery order in the last stage 'Delivering'", () => {
-    expect(statusLabelFor({ status: "DELIVERY", isDelivery: true })).toBe("DELIVERING");
+  it("calls a legacy delivery order still out 'Out for delivery'", () => {
+    expect(statusLabelFor({ status: "DELIVERY", isDelivery: true })).toBe("OUT FOR DELIVERY");
   });
 });
 
 describe("primaryActionFor", () => {
   // Pickup-only (issue #114): nothing is sent out, whatever the order type.
-  it("marks every order ready for pick up from prep, even a legacy delivery", () => {
+  it("marks every order ready for pickup from prep, even a legacy delivery", () => {
     expect(primaryActionFor({ status: "PREP", isDelivery: false })?.type).toBe("Ready");
     expect(primaryActionFor({ status: "PREP", isDelivery: true })?.type).toBe("Ready");
   });

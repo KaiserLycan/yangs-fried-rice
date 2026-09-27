@@ -9,7 +9,7 @@ export default function CartLoading() {
         <div className="flex items-center justify-center">
           <ChevronLeft className="size-[24px] text-foreground" />
         </div>
-        <h1 className="font-display text-[24px] uppercase text-foreground">
+        <h1 className="font-display text-2xl uppercase text-foreground">
           YOUR CART
         </h1>
       </div>
@@ -23,10 +23,10 @@ export default function CartLoading() {
           <div className="mt-[16px] flex flex-col gap-[10px]">
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="flex h-[80px] w-full gap-[12px] animate-pulse rounded-lg bg-secondary/20 p-[12px]">
-                <div className="size-[56px] rounded bg-secondary/40" />
+                <div className="size-[56px] rounded-sm bg-secondary/40" />
                 <div className="flex flex-1 flex-col justify-between">
-                  <div className="h-[14px] w-[120px] rounded bg-secondary/40" />
-                  <div className="h-[14px] w-[60px] rounded bg-secondary/40" />
+                  <div className="h-[14px] w-[120px] rounded-sm bg-secondary/40" />
+                  <div className="h-[14px] w-[60px] rounded-sm bg-secondary/40" />
                 </div>
               </div>
             ))}
@@ -37,16 +37,16 @@ export default function CartLoading() {
           {/* Cart Totals Summary Skeleton */}
           <div className="mt-[20px] flex flex-col gap-[12px] rounded-lg bg-secondary/10 p-[16px]">
             <div className="flex justify-between">
-              <div className="h-[14px] w-[80px] animate-pulse rounded bg-secondary/20" />
-              <div className="h-[14px] w-[60px] animate-pulse rounded bg-secondary/20" />
+              <div className="h-[14px] w-[80px] animate-pulse rounded-sm bg-secondary/20" />
+              <div className="h-[14px] w-[60px] animate-pulse rounded-sm bg-secondary/20" />
             </div>
             <div className="flex justify-between">
-              <div className="h-[14px] w-[80px] animate-pulse rounded bg-secondary/20" />
-              <div className="h-[14px] w-[60px] animate-pulse rounded bg-secondary/20" />
+              <div className="h-[14px] w-[80px] animate-pulse rounded-sm bg-secondary/20" />
+              <div className="h-[14px] w-[60px] animate-pulse rounded-sm bg-secondary/20" />
             </div>
             <div className="mt-[12px] flex justify-between border-t border-rule pt-[12px]">
-              <div className="h-[16px] w-[100px] animate-pulse rounded bg-secondary/30" />
-              <div className="h-[16px] w-[80px] animate-pulse rounded bg-secondary/30" />
+              <div className="h-[16px] w-[100px] animate-pulse rounded-sm bg-secondary/30" />
+              <div className="h-[16px] w-[80px] animate-pulse rounded-sm bg-secondary/30" />
             </div>
           </div>
           <div className="mt-[10px] h-[48px] w-full animate-pulse rounded-full bg-primary/20" />

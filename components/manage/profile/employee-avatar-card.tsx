@@ -86,7 +86,7 @@ export function EmployeeAvatarCard({
 
   return (
     <div
-      className="group relative flex items-center justify-center shrink-0 size-[120px] md:size-[140px] rounded-full overflow-hidden bg-[#8c1c13] cursor-pointer"
+      className="group relative flex items-center justify-center shrink-0 size-[120px] md:size-[140px] rounded-full overflow-hidden bg-primary cursor-pointer"
       onClick={() => fileInputRef.current?.click()}
     >
       <input
@@ -105,7 +105,7 @@ export function EmployeeAvatarCard({
           className="size-full object-cover"
         />
       ) : (
-        <span className="font-display text-[#fbf6ec] text-[48px] md:text-[60px] leading-none mt-2 md:mt-3">
+        <span className="font-display text-background text-5xl md:text-6xl leading-none mt-2 md:mt-3">
           {initials}
         </span>
       )}

@@ -149,7 +149,7 @@ function SignupFormInner() {
         {...live.formProps}
         onChange={handleFormChange}
         onSubmit={handleSubmit}
-        className="flex flex-col gap-[10px] rounded-[22px] bg-background p-5 md:gap-[14px] md:rounded-none md:bg-transparent md:p-0"
+        className="flex flex-col gap-[10px] rounded-lg bg-background p-5 md:gap-[14px] md:rounded-none md:bg-transparent md:p-0"
       >
         <AuthTabs active="register" />
 
@@ -160,10 +160,10 @@ function SignupFormInner() {
             fields are optional — so that half is shown at every width
             (issue #106). */}
         <div className="flex flex-col gap-[5px]">
-          <h1 className="hidden font-display text-[30px] leading-[33px] text-foreground md:block">
+          <h1 className="hidden font-display text-3xl leading-[33px] text-foreground md:block">
             Create your account
           </h1>
-          <p className="text-[14px] text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Fill in your details and your address. Fields marked * are
             required. Orders are picked up at the counter.
           </p>
@@ -228,8 +228,8 @@ function SignupFormInner() {
                 "rounded-md border bg-white focus-within:ring-2 focus-within:ring-ring/40",
                 errors.phone ? "border-error-border" : "border-field-border"
               )}
-              prefixClassName="pl-[14px] text-[15px] text-muted-foreground"
-              inputClassName="px-[6px] py-[13px] text-[15px] text-foreground placeholder:text-placeholder md:py-[14px]"
+              prefixClassName="pl-[14px] text-base text-muted-foreground"
+              inputClassName="px-[6px] py-[13px] text-base text-foreground placeholder:text-placeholder md:py-[14px]"
             />
           </Field>
         </div>
@@ -274,7 +274,7 @@ function SignupFormInner() {
         {isPending ? (
           <p
             role="status"
-            className="rounded-md bg-track px-[12px] py-[10px] text-[14px] leading-snug text-muted-foreground"
+            className="rounded-md bg-track px-[12px] py-[10px] text-sm leading-snug text-muted-foreground"
           >
             <span className="font-bold text-foreground">Check your email.</span>{" "}
             We&apos;re sending a confirmation link — please confirm your email
@@ -285,7 +285,7 @@ function SignupFormInner() {
         {/* Replaces the date of birth (F16). The birthday was the only age
             check, and the lawyer review (persona 15, J6) raised minors. */}
         <div className="flex flex-col gap-[4px]">
-          <label className="mt-1 flex min-h-[44px] items-start gap-[9px] text-[14px]">
+          <label className="mt-1 flex min-h-[44px] items-start gap-[9px] text-sm">
             <Checkbox
               id={`${ID_PREFIX}ageConfirmed`}
               name="ageConfirmed"
@@ -296,17 +296,17 @@ function SignupFormInner() {
               I am at least 18, or have a parent&apos;s permission.
             </span>
           </label>
-          {errors.ageConfirmed ? <p className="text-[14px] text-primary">{errors.ageConfirmed}</p> : null}
+          {errors.ageConfirmed ? <p className="text-sm text-primary">{errors.ageConfirmed}</p> : null}
         </div>
 
         <div className="flex flex-col gap-[4px]">
-          <label className="mb-1 flex min-h-[44px] items-start gap-[9px] text-[14px]">
+          <label className="mb-1 flex min-h-[44px] items-start gap-[9px] text-sm">
             <Checkbox id={`${ID_PREFIX}terms`} name="terms" required aria-invalid={Boolean(errors.terms) || undefined} />
             <span className="leading-tight text-muted-foreground">
               I have read and agree to the <Link href="/terms" target="_blank" className="font-bold text-primary hover:underline">Terms & Policy</Link>.
             </span>
           </label>
-          {errors.terms ? <p className="text-[14px] text-primary">{errors.terms}</p> : null}
+          {errors.terms ? <p className="text-sm text-primary">{errors.terms}</p> : null}
         </div>
 
         {/* An address outside the delivery radius (or one the map can't find)
@@ -329,7 +329,7 @@ function SignupFormInner() {
         {/* The tabs above already lead back to login, but they read as a mode
             switch rather than an escape hatch. This is the sentence someone
             who thought they were signing in is looking for. */}
-        <p className="text-center text-[14px] text-muted-foreground">
+        <p className="text-center text-sm text-muted-foreground">
           Already have an account?{" "}
           <Link href="/login" className="font-bold text-primary">
             Log in
