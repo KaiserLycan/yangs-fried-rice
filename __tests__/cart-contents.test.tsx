@@ -160,7 +160,34 @@ describe("CartLineRow writes", () => {
       expect(updateCartItem).toHaveBeenCalledWith("1", { quantity: 3 }),
     );
     await waitFor(() => expect(refresh).toHaveBeenCalled());
-    expect(screen.getByText("3")).toBeInTheDocument();
+    // The count is a field now (panel F7).
+    expect(screen.getByRole("textbox", { name: "Quantity of Yangzhou Special" })).toHaveValue("3");
+  });
+
+  // Panel F7: the count can be typed, and is clamped to 1–20 as it is.
+  it("sends a typed quantity, clamped to the maximum", async () => {
+    renderCart(<CartContents lines={lines} ctaLabel="Checkout" arrivalEstimate="30–40 min" />);
+
+    const field = screen.getByRole("textbox", { name: "Quantity of Yangzhou Special" });
+    fireEvent.change(field, { target: { value: "25" } });
+
+    expect(field).toHaveValue("20");
+    await waitFor(() =>
+      expect(updateCartItem).toHaveBeenCalledWith("1", { quantity: 20 }),
+    );
+  });
+
+  it("never removes the line when the typed field is cleared", async () => {
+    renderCart(<CartContents lines={lines} ctaLabel="Checkout" arrivalEstimate="30–40 min" />);
+
+    const field = screen.getByRole("textbox", { name: "Quantity of Lumpia (5pc)" });
+    fireEvent.change(field, { target: { value: "" } });
+    fireEvent.blur(field);
+
+    expect(field).toHaveValue("1");
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    expect(removeCartItem).not.toHaveBeenCalled();
+    expect(updateCartItem).not.toHaveBeenCalled();
   });
 
   it("removes the line instead of sending quantity 0 when − is pressed on a single item", async () => {

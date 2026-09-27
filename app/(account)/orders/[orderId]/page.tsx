@@ -58,7 +58,6 @@ export default async function OrderDetailPage({
       <SiteNavBar profile={profile} currentSection="track-order" />
       <TrackOrderScreen
         order={{ ...order, arrivalWindow: arrivalWindowFrom(eta) }}
-        locationIqApiKey={process.env.LOCATIONIQ_API_KEY}
       />
     </ToastProvider>
   );

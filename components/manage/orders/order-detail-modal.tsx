@@ -1,5 +1,5 @@
 import * as React from "react";
-import { OrderData } from "@/lib/mock-orders";
+import type { OrderData } from "@/types/staff-order";
 import { canCancel, primaryActionFor, statusLabelFor, type StaffAction } from "@/lib/orders/staff-actions";
 import { cn } from "@/lib/utils";
 import { DialogRoot } from "@/components/ui/dialog";

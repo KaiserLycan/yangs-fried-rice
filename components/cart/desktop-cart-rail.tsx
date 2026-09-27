@@ -34,7 +34,7 @@ export function DesktopCartRail({
     <aside className="sticky top-0 hidden h-[calc(100vh-58px)] w-[328px] shrink-0 flex-col gap-[14px] self-start border-l border-field-border bg-secondary/20 px-[22px] py-[24px] md:flex">
       <div className="flex items-baseline justify-between">
         <h2 className="font-display text-[22px] text-foreground">YOUR CART</h2>
-        <span className="text-[12px] text-muted-foreground">
+        <span className="text-[14px] text-muted-foreground">
           {count} {count === 1 ? "item" : "items"}
         </span>
       </div>

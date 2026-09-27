@@ -44,8 +44,8 @@ export function SiteFooter() {
             YANG&apos;S <span className="text-foreground">FRIED RICE</span>
           </span>
           <p className="text-[13px] leading-[19px] text-muted-foreground">
-            Fried rice, silog plates and sides, cooked to order for delivery
-            across Metro Manila or collection in store.
+            Fried rice, silog plates and sides, cooked to order for pickup
+            at the counter.
           </p>
           <p className="text-[12px] text-muted-foreground">{SITE_BRANCH}</p>
         </div>
@@ -108,7 +108,7 @@ export function SiteFooter() {
           © {copyrightYears()} {SITE_NAME}. All rights reserved.
         </p>
         <p className="text-[12px] text-muted-foreground">
-          Prices in Philippine peso. Delivery within Metro Manila only.
+          Prices in Philippine peso. Pickup only — no delivery.
         </p>
       </div>
     </footer>

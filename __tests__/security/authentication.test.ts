@@ -64,6 +64,7 @@ describe("C1. credential validation", () => {
       barangay: "San Andres",
       city: "Manila",
       zip: "1000",
+      ageConfirmed: true,
     };
     expect(signupSchema.safeParse({ ...base, password: "short" }).success).toBe(false);
     // Mirrors Supabase Auth: 8+ with lowercase, uppercase, a digit and a symbol.

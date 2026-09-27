@@ -36,7 +36,7 @@ Each point from the feedback was checked in the code (branch `more-things-to-upd
 | F17 | Checkout: show tax | ❌ | Yes (persona 14) | ⚡ |
 | F18 | Prep time should grow with items; per-item prep time; checkout and tracking consistent | ◐ | Partly (lacking round 3) | 🕐 |
 | F19 | Staff tips with preset amounts | ❌ | Yes (lacking) | 🕐 |
-| F20 | Audit log: who created or cancelled an order | ◐ | Yes (L9) | 🕐 |
+| F20 | Audit log: who created or cancelled an order | ✅ | Yes (L9) | Done — `audit_log` |
 | F21 | 3rd party courier vs self pickup indicator on KDS | ◐ | No | ⚡ |
 | F22 | Cancel reason: grey out the button until a reason is typed | ❌ | Partly (persona 9) | ⚡ |
 | F23 | Email the customer when an order is cancelled | ❌ | Partly (L10) | 🕐 |
@@ -176,9 +176,14 @@ Each point from the feedback was checked in the code (branch `more-things-to-upd
   column, and the tip added to the PayMongo amount or collected with cash. Show both peso amounts, not percentages (Baymard).
   All of the tip goes to the rider; show it on the rider's cash summary (L19).
 
-### F20. Audit log — ◐
-- **Now:** `order` has `cancellation_reason` and `cancelled_at`, but not **who** cancelled. `order.employee_id` was dropped.
-  No other history exists.
+### F20. Audit log — ✅
+- **Done (27 Sep 2026):** `audit_log` (`supabase/migrations/20260927000004_employee_audit_log.sql` and `…0005`) records
+  every employee action — who cancelled or moved an order, changed a price, disabled an account, changed a role, exported
+  a report, signed in — with the changed values, append-only, readable by managers at `/manage/audit-log`. The order
+  itself is placed by the customer through `submit_cart_to_order`, so its creator is `order.customer_id`. The per-order
+  customer timeline (`order_status_log`, L9) is still #116.
+- **Before:** `order` had `cancellation_reason` and `cancelled_at`, but not **who** cancelled. `order.employee_id` was dropped.
+  No other history existed.
 - **Covered by L9** (`order_status_log`: from, to, changed_by, reason, time, filled by a trigger). **Extend** it to record the
   creator (customer), and add a small `audit_log` for manager actions (price changes, role changes, account disabling).
   🕐 2 h together.

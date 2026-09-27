@@ -249,7 +249,7 @@ export function PaymentStatusCard({
       data-status={status ?? "none"}
       className="flex flex-col gap-[4px] rounded-lg border border-rule bg-card p-[20px]"
     >
-      <h2 className="text-[11px] font-bold uppercase tracking-[1.54px] text-muted-foreground">
+      <h2 className="text-[14px] font-bold uppercase tracking-[1.54px] text-muted-foreground">
         Payment method
       </h2>
       <p className="text-[14px] font-bold text-foreground">
@@ -259,7 +259,7 @@ export function PaymentStatusCard({
       </p>
       <p
         role={status === "pending" ? "status" : undefined}
-        className="text-[12px] leading-[18px] text-muted-strong"
+        className="text-[14px] leading-[18px] text-muted-strong"
       >
         {note(status, isOnlineOrder, startFailed, stalePending)}
       </p>

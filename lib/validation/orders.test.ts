@@ -20,12 +20,18 @@ describe("orderStatusSchema", () => {
     expect(orderStatusSchema.safeParse("bogus").success).toBe(false);
     expect(orderStatusSchema.safeParse("").success).toBe(false);
   });
+
+  // Issue #118: nothing could ever move an order into `received`, so it is
+  // no longer a status anyone can set.
+  it("rejects the retired 'received' status", () => {
+    expect(orderStatusSchema.safeParse("received").success).toBe(false);
+  });
 });
 
 describe("isValidTransition", () => {
   // Forward pipeline
-  it("received → preparing", () => {
-    expect(isValidTransition("received", "preparing")).toBe(true);
+  it("pending → preparing (staff accept)", () => {
+    expect(isValidTransition("pending", "preparing")).toBe(true);
   });
 
   // Pickup-only (issue #114): nothing new goes out for delivery…
@@ -40,8 +46,8 @@ describe("isValidTransition", () => {
   });
 
   // Cancel from any non-terminal
-  it("received → cancelled", () => {
-    expect(isValidTransition("received", "cancelled")).toBe(true);
+  it("pending → cancelled", () => {
+    expect(isValidTransition("pending", "cancelled")).toBe(true);
   });
 
   it("preparing → cancelled", () => {
@@ -53,17 +59,17 @@ describe("isValidTransition", () => {
   });
 
   // Invalid: skip a stage
-  it("received → out_for_delivery (skip)", () => {
-    expect(isValidTransition("received", "out_for_delivery")).toBe(false);
+  it("pending → out_for_delivery (skip)", () => {
+    expect(isValidTransition("pending", "out_for_delivery")).toBe(false);
   });
 
-  it("received → completed (skip)", () => {
-    expect(isValidTransition("received", "completed")).toBe(false);
+  it("pending → completed (skip)", () => {
+    expect(isValidTransition("pending", "completed")).toBe(false);
   });
 
   // Invalid: backwards
-  it("preparing → received (backwards)", () => {
-    expect(isValidTransition("preparing", "received")).toBe(false);
+  it("preparing → pending (backwards)", () => {
+    expect(isValidTransition("preparing", "pending")).toBe(false);
   });
 
   it("completed → preparing (backwards from terminal)", () => {
@@ -79,8 +85,8 @@ describe("isValidTransition", () => {
     expect(VALID_TRANSITIONS.cancelled).toHaveLength(0);
   });
 
-  it("cancelled → received (reopen)", () => {
-    expect(isValidTransition("cancelled", "received")).toBe(false);
+  it("cancelled → pending (reopen)", () => {
+    expect(isValidTransition("cancelled", "pending")).toBe(false);
   });
 
   it("completed → cancelled", () => {

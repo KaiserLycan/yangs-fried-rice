@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { IMAGE_BUCKETS } from "@/lib/storage/stored-image";
 import { removeStoredImage } from "@/lib/storage/remove-stored-image";
+import { recordEmployeeAction } from "@/lib/audit/record-employee-action";
 import { isManager, resolveEmployeeRole, type EmployeeRole } from "@/lib/auth/roles";
 import { toInternationalMobile } from "@/lib/validation/phone";
 import { joinFullName } from "@/lib/validation/fields";
@@ -313,9 +314,18 @@ export async function deleteMyEmployeeAccount(): Promise<
   // Read before the row goes: the photo is only reachable through it.
   const { data: photoRow } = await supabase
     .from("employee")
-    .select("profileImage_URL")
+    .select("profileImage_URL, name")
     .eq("employee_id", caller.employeeId)
     .maybeSingle();
+
+  // Recorded first: once the row is deleted the database no longer knows
+  // this person as an employee, and the log would refuse to name them.
+  await recordEmployeeAction(supabase, {
+    action: "employee.delete",
+    entityType: "employee",
+    entityId: caller.employeeId,
+    summary: `Employee "${photoRow?.name ?? "Unknown employee"}" deleted their own account`,
+  });
 
   // Service role: `employee` has no DELETE policy (RLS), so a session delete
   // would match zero rows and "succeed" while leaving the row behind, and the

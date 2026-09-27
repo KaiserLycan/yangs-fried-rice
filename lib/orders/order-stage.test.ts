@@ -27,7 +27,7 @@ function input(over: Partial<OrderStageInput> = {}): OrderStageInput {
 }
 
 describe("resolveOrderProgress", () => {
-  it("reads the vocabulary the back office actually writes", () => {
+  it("reads the vocabulary the back office writes, plus the retired `received` on old rows", () => {
     expect(resolveOrderProgress(input({ orderStatus: "received" }))).toEqual({
       kind: "stage",
       stage: "received",

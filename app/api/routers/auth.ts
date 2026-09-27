@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { recordEmployeeAction } from "@/lib/audit/record-employee-action";
 import { getCurrentEmployee } from "@/lib/actions/admin";
 import {
   checkLoginAllowed,
@@ -99,6 +100,13 @@ export async function employeeLogin(request: Request) {
     );
   }
 
+  await recordEmployeeAction(supabase, {
+    action: "session.sign_in",
+    entityType: "session",
+    entityId: employee.employee_id,
+    summary: "Signed in through the API",
+  });
+
   return NextResponse.json({
     message: "Logged in successfully as employee",
     data: {
@@ -197,6 +205,11 @@ export async function customerLogin(request: Request) {
  */
 export async function employeeLogout() {
   const supabase = createClient();
+  await recordEmployeeAction(supabase, {
+    action: "session.sign_out",
+    entityType: "session",
+    summary: "Signed out through the API",
+  });
   const { error } = await supabase.auth.signOut();
 
   if (error) {

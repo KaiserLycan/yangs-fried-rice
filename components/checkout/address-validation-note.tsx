@@ -123,8 +123,8 @@ export function AddressValidationNote({
       aria-live="polite"
       className={
         state.status === "invalid"
-          ? "text-[12px] text-destructive"
-          : "text-[12px] text-muted-foreground"
+          ? "text-[14px] text-destructive"
+          : "text-[14px] text-muted-foreground"
       }
     >
       {noteFor(state)}
