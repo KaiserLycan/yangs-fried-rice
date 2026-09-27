@@ -50,10 +50,17 @@ export const UNPAID_ORDER_STATUSES = [
 ] as const;
 
 /**
- * How long an online payment may sit in awaiting_payment before staff treat
- * it as stuck. The Orders "Payment Issues" tab and the KDS both read this.
+ * How long an unpaid online order may wait before its clock on the payment
+ * views turns amber (red at three times this). Unpaid orders are listed from
+ * the moment they are placed; this only says when one looks stuck.
  */
 export const STUCK_PAYMENT_MINUTES = 5;
+
+/**
+ * A ready order not collected within this many minutes of being marked ready
+ * leaves "For Pick-up" and is listed under "Failed Pick-up" instead.
+ */
+export const FAILED_PICKUP_MINUTES = 90;
 
 /** Is this an order nobody has paid for yet? */
 export function isUnpaidStatus(status: string | null | undefined): boolean {
