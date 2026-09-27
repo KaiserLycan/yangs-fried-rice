@@ -153,7 +153,7 @@ export function ItemDetailModal({
         }),
       () => {
         if (cartTotalItems + qty === 30) {
-          showToast({ tone: "accent", title: "That's a big order!", description: BIG_ORDER_MESSAGE });
+          showToast(`That's a big order! ${BIG_ORDER_MESSAGE}`);
         }
       }
     );
