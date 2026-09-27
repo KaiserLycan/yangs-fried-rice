@@ -51,6 +51,10 @@ function ManageCustomersInner() {
   const [sortColumn, setSortColumn] = useState<string>("created_at");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
+  // Advanced filters: period for the totals, minimums, joined range, activity.
+  const [filters, setFilters] = useState<CustomerFilters>({});
+  const hasPeriod = !!(filters.from || filters.to);
+
   const handleSortChange = (column: string, direction: "asc" | "desc" | "none") => {
     if (direction === "none") {
       setSortColumn("created_at");
