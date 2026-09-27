@@ -21,7 +21,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { Tables, TablesInsert } from "@/types/database.types";
 import { groupByFrequency } from "./reports-utils";
-import { MENU_SATISFACTION_REPORT } from "@/lib/reports/report-types";
+import { MENU_SATISFACTION_REPORT, normalizeReportType } from "@/lib/reports/report-types";
 import {
   drawBarChart,
   drawHorizontalBarChart,
