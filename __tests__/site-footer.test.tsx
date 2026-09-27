@@ -32,7 +32,7 @@ describe("site footer", () => {
       .getAllByRole("link")
       .map((link) => link.getAttribute("href"));
 
-    expect(hrefs).toEqual(["/menu", "/orders", "/profile", "/terms", "/privacy"]);
+    expect(hrefs).toEqual(["/menu", "/store", "/orders", "/profile", "/terms", "/privacy"]);
   });
 
   /**

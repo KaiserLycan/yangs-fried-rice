@@ -12,6 +12,7 @@ import { useValidatedValues } from "@/lib/forms/use-live-validation";
 import { SHORTCUTS, useShortcut } from "@/lib/hooks/use-shortcut";
 import { DROPDOWN_FOCUS_RING, useDropdown } from "@/lib/hooks/use-dropdown";
 import { FIELD_LIMITS, lengthProps } from "@/lib/validation/fields";
+import { PrepMinutesField } from "@/components/manage/menu/prep-minutes-field";
 
 /**
  * The menu item form's rules — the same bounds as `productSchema` and the
@@ -108,6 +109,7 @@ export function MenuItemModal({
   // Needed image upload, custom category dropdown, and availability toggle for new items.
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
+  const [prepMinutes, setPrepMinutes] = useState(10);
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
   const [available, setAvailable] = useState(false);
@@ -188,6 +190,7 @@ export function MenuItemModal({
     onSave({
       name,
       price: parseFloat(price) || 0,
+      prepMinutes,
       // Added a safe fallback string before the cast so TS knows it's never undefined
       category: (category || selectableCategories[0] || "Uncategorized") as MenuCategory,
       description,
@@ -414,6 +417,8 @@ export function MenuItemModal({
             />
             {itemErrors.price ? <p className="text-xs text-destructive">{itemErrors.price}</p> : null}
           </div>
+
+          <PrepMinutesField id="prep-new-item" value={prepMinutes} onChange={setPrepMinutes} />
 
           {/* Add-ons Configuration */}
           <div className="flex flex-col gap-2 rounded-md border border-field-border bg-background p-[16px]">

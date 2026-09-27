@@ -279,6 +279,7 @@ export async function createProduct(
     category_id: parsed.data.category_id ?? null,
     is_available: parsed.data.is_available,
     is_featured: parsed.data.is_featured,
+    prep_minutes: parsed.data.prep_minutes ?? 10,
     image_url: parsed.data.image_url ?? null,
     ...(parsed.data.product_id ? { product_id: parsed.data.product_id } : {}),
   } as any;

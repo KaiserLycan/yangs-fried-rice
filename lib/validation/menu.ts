@@ -16,6 +16,8 @@ export const productSchema = z.object({
     .number()
     .positive("Price must be greater than 0")
     .max(99999.99, "Price cannot exceed 99,999.99"),
+  /** Minutes for one; the checkout promise uses the slowest dish (F18). */
+  prep_minutes: z.number().int().min(1).max(120).optional(),
   product_details: z
     .string()
     .trim()

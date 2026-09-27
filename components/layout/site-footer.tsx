@@ -122,6 +122,7 @@ export function SiteFooter() {
 /** Routes only — every one of these resolves today. */
 const FOOTER_LINKS: { href: string; label: string }[] = [
   { href: "/menu", label: "Menu" },
+  { href: "/store", label: "Find a store" },
   { href: "/orders", label: "My orders" },
   { href: "/profile", label: "Account" },
   { href: "/terms", label: "Terms & Policy" },

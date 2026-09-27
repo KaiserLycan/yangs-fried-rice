@@ -37,6 +37,7 @@ import { uniqueChannelName } from "@/lib/supabase/channel-name";
 import { MAX_ITEMS_PER_ORDER } from "@/lib/cart/limits";
 import { useStoreStatus } from "@/lib/hooks/use-store-status";
 import { BUSY_MESSAGE, formatStoreHours } from "@/lib/store/store-status";
+import { BestSellerProvider } from "@/components/menu/best-seller";
 
 /** Debounce for the search field, so every keystroke doesn't fire a request. */
 const SEARCH_DEBOUNCE_MS = 250;
@@ -60,6 +61,7 @@ export function MenuScreen({
   recentOrdersPromise,
   initialItemId = null,
   initialCategory = null,
+  bestSellerIdsPromise,
 }: {
   profilePromise: Promise<CustomerProfile | null>;
   productsPromise: Promise<ProductListing[]>;
@@ -78,6 +80,8 @@ export function MenuScreen({
   initialItemId?: string | null;
   /** Start filtered to this category (`?category=`, from the landing page tiles). */
   initialCategory?: string | null;
+  /** The top dishes of the last 30 days, badged on their cards (L14). */
+  bestSellerIdsPromise?: Promise<string[]>;
 }) {
   const [search, setSearch] = React.useState("");
   const [selectedCategory, setSelectedCategory] = React.useState<string | null>(
@@ -225,6 +229,7 @@ export function MenuScreen({
   const storeStatus = useStoreStatus();
 
   return (
+    <BestSellerProvider idsPromise={bestSellerIdsPromise}>
     <div className="flex min-h-screen flex-col bg-background">
       <SiteNavBar
         profilePromise={profilePromise}
@@ -425,6 +430,7 @@ export function MenuScreen({
         }}
       />
     </div>
+    </BestSellerProvider>
   );
 }
 

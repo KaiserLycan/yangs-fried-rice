@@ -42,6 +42,14 @@ export const updateStoreSettingsSchema = z
       .int()
       .min(0, { message: "Extra prep time can't be negative." })
       .max(120, { message: "Extra prep time can be at most 120 minutes." }),
+    /** No new orders this many minutes before closing (L1). */
+    last_order_minutes: z
+      .number()
+      .int()
+      .min(0, { message: "Last orders can't be negative." })
+      .max(180, { message: "Last orders can be at most 180 minutes before closing." })
+      // Left out, the saved value stays as it is.
+      .optional(),
     max_active_orders: z
       .number()
       .int()

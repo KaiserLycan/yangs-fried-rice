@@ -4,6 +4,7 @@ import { formatPeso, type ProductListing } from "@/lib/menu/product-listing";
 import { ProductPhotoPlaceholder } from "@/components/menu/product-photo-placeholder";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { BestSellerBadge, useIsBestSeller } from "@/components/menu/best-seller";
 
 /**
  * The desktop grid card (`133:791` and its siblings): photo, name,
@@ -43,6 +44,7 @@ export function ProductCard({
   cartFull?: boolean;
 }) {
   const unavailable = !product.isAvailable;
+  const bestSeller = useIsBestSeller(product.id);
 
   return (
     <div className="group flex flex-col overflow-hidden rounded-md border border-field-border bg-card text-left transition-colors hover:border-accent">
@@ -64,6 +66,7 @@ export function ProductCard({
         )}
 
         <span className="flex flex-1 flex-col gap-[10px] px-[14px] pt-[14px]">
+          {bestSeller && <BestSellerBadge />}
           <span className="text-base font-bold text-foreground">{product.name}</span>
           <span className="line-clamp-2 flex-1 text-sm text-muted-foreground">
             {product.description}

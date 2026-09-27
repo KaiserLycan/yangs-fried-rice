@@ -187,6 +187,7 @@ describe("E5. no unsafe rendering escape hatch exists", () => {
       // external ones are prefixed with a fixed `mailto:` / `tel:` scheme
       // that a value cannot change.
       ["components/layout/site-footer.tsx", "href={href} and mailto:/tel: — from lib/site/site-info.ts"],
+      ["app/(shop)/store/page.tsx", "mailto:/tel: and DIRECTIONS_HREF — constants from lib/site/site-info.ts"],
       // Issue #118. Both callers (app/error.tsx, app/manage/error.tsx) pass a
       // literal route.
       ["components/error-screen.tsx", "href={homeHref} — a literal route from the two error pages"],

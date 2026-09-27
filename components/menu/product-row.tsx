@@ -2,6 +2,7 @@ import { formatPeso, type ProductListing } from "@/lib/menu/product-listing";
 import { ProductPhotoPlaceholder } from "@/components/menu/product-photo-placeholder";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { BestSellerBadge, useIsBestSeller } from "@/components/menu/best-seller";
 
 /**
  * Mobile's full-width row (`132:122` and its siblings) — the same card
@@ -26,6 +27,7 @@ export function ProductRow({
   onSelect: (product: ProductListing) => void;
 }) {
   const unavailable = !product.isAvailable;
+  const bestSeller = useIsBestSeller(product.id);
 
   return (
     <Button variant="unstyled"
@@ -46,6 +48,7 @@ export function ProductRow({
       )}
 
       <span className="flex min-w-0 flex-1 flex-col gap-[6px]">
+        {bestSeller && <BestSellerBadge />}
         <span className="text-base font-bold text-foreground">{product.name}</span>
         <span className="line-clamp-2 text-sm text-muted-foreground">
           {product.description}

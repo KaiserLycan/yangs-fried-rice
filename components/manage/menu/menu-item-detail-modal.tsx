@@ -16,6 +16,7 @@ import { Camera, ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
 import { compressImage } from "@/lib/image/compress";
 import { createAddOn, deleteAddOn } from "@/lib/actions/menu";
 import { useToast } from "@/components/ui/toast";
+import { PrepMinutesField } from "@/components/manage/menu/prep-minutes-field";
 
 // ---------------------------------------------------------------------------
 // Menu Item Detail Modal
@@ -46,6 +47,7 @@ export function MenuItemDetailModal({
   const [category, setCategory] = useState<MenuCategory>(item.category);
   const [description, setDescription] = useState(item.description);
   const [price, setPrice] = useState(item.price.toFixed(2));
+  const [prepMinutes, setPrepMinutes] = useState(item.prepMinutes ?? 10);
   const [available, setAvailable] = useState(item.available);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -73,6 +75,7 @@ export function MenuItemDetailModal({
                   description !== item.description ||
                   price !== item.price.toFixed(2) ||
                   available !== item.available ||
+                  prepMinutes !== (item.prepMinutes ?? 10) ||
                   selectedFile !== null;
 
   // Live validation — the same rules as the Add Item dialog.
@@ -97,6 +100,7 @@ export function MenuItemDetailModal({
     setCategory(item.category);
     setDescription(item.description);
     setPrice(item.price.toFixed(2));
+    setPrepMinutes(item.prepMinutes ?? 10);
     setAvailable(item.available);
     setImagePreview(null);
     setSelectedFile(null);
@@ -137,6 +141,7 @@ export function MenuItemDetailModal({
     category,
       description,
       price: parseFloat(price) || 0,
+      prepMinutes,
       available,
     }, selectedFile || undefined);
 
@@ -364,6 +369,8 @@ export function MenuItemDetailModal({
               />
               {itemForm.errors.price ? <p className="text-xs text-destructive">{itemForm.errors.price}</p> : null}
             </div>
+
+            <PrepMinutesField id={`prep-${item.id}`} value={prepMinutes} onChange={setPrepMinutes} />
 
             {/* Available toggle */}
             <div className="flex items-center gap-3">

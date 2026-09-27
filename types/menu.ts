@@ -21,6 +21,8 @@ export interface MenuItem {
   image: string;
   /** The "Available?" toggle — `product.is_available`. */
   available: boolean;
+  /** Minutes the kitchen needs for one — `product.prep_minutes` (F18). */
+  prepMinutes?: number;
   add_ons?: { addon_id: string; name: string; price: number }[];
   reviews?: { id: string; rating: number; comment: string; customerName: string; createdAt: string }[];
 }

@@ -7,6 +7,7 @@ import { mapProductRow } from "@/lib/menu/product-listing";
 import { readCustomerProfile } from "@/lib/profile/customer-profile";
 import { readArrivalQuote } from "@/lib/checkout/read-arrival-quote";
 import { readRecentCompletedOrders } from "@/lib/orders/read-recent-orders";
+import { readBestSellerIds } from "@/lib/menu/landing";
 
 /**
  * The menu screen and everything it needs to read, as one server component,
@@ -84,6 +85,7 @@ export function MenuPageBody({
         recentOrdersPromise={recentOrdersPromise}
         initialItemId={initialItemId}
         initialCategory={initialCategory}
+        bestSellerIdsPromise={readBestSellerIds(3).catch(() => [])}
       />
     </ToastProvider>
   );

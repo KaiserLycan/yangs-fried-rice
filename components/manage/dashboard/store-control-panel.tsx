@@ -5,7 +5,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useNow } from "@/lib/hooks/use-now";
 import { formatStoreHours, type StoreStatus } from "@/lib/store/store-status";
-import { closesAfterOpening } from "@/lib/store-hours";
+import { closesAfterOpening, formatTime } from "@/lib/store-hours";
 import {
   CLOSE_BEFORE_OPEN_MESSAGE,
   MAX_PAUSE_MINUTES,
@@ -39,6 +39,7 @@ type SettingsForm = {
   open_time: string;
   close_time: string;
   extra_prep_minutes: number;
+  last_order_minutes: number;
   max_active_orders: number;
   is_force_open: boolean;
 };
@@ -57,6 +58,7 @@ function formFrom(status: StoreStatus): SettingsForm {
     open_time: toInputTime(status.openTime),
     close_time: toInputTime(status.closeTime),
     extra_prep_minutes: status.extraPrepMinutes,
+    last_order_minutes: status.lastOrderMinutes,
     max_active_orders: status.maxActiveOrders,
     is_force_open: status.isForceOpen,
   };
@@ -81,7 +83,7 @@ export function StoreControlPanel({
 
   // Keep the form in step with saved values — but never while the manager
   // is mid-edit, or a refresh would throw their changes away.
-  const savedKey = `${status.openTime}|${status.closeTime}|${status.extraPrepMinutes}|${status.maxActiveOrders}|${status.isForceOpen}`;
+  const savedKey = `${status.openTime}|${status.closeTime}|${status.extraPrepMinutes}|${status.lastOrderMinutes}|${status.maxActiveOrders}|${status.isForceOpen}`;
   React.useEffect(() => {
     if (!editing) setForm(formFrom(status));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -95,6 +97,9 @@ export function StoreControlPanel({
     Number.isInteger(form.extra_prep_minutes) &&
     form.extra_prep_minutes >= 0 &&
     form.extra_prep_minutes <= 120 &&
+    Number.isInteger(form.last_order_minutes) &&
+    form.last_order_minutes >= 0 &&
+    form.last_order_minutes <= 180 &&
     Number.isInteger(form.max_active_orders) &&
     form.max_active_orders >= 1 &&
     form.max_active_orders <= 500;
@@ -186,6 +191,7 @@ export function StoreControlPanel({
         </h2>
         <span className="text-xs text-muted-strong">
           Hours {formatStoreHours(status)}
+          {status.lastOrderMinutes > 0 ? ` · last orders ${formatTime(status.lastOrderTime)}` : ""}
           {status.isForceOpen ? " · Forced open" : ""}
         </span>
       </div>
@@ -307,6 +313,13 @@ export function StoreControlPanel({
             min={0}
             max={120}
             onChange={(v) => setForm((f) => ({ ...f, extra_prep_minutes: v }))}
+          />
+          <NumberField
+            label="Last orders (min before close)"
+            value={form.last_order_minutes}
+            min={0}
+            max={180}
+            onChange={(v) => setForm((f) => ({ ...f, last_order_minutes: v }))}
           />
           <NumberField
             label="Busy limit (queue + prep)"

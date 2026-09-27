@@ -116,6 +116,7 @@ function ManageMenuInner({ isManager }: { isManager?: boolean }) {
         // Map the real image_url from the database, fallback to empty string so components can show placeholders
         image: p.image_url || "",
         available: p.is_available,
+        prepMinutes: p.prep_minutes ?? 10,
         add_ons: p.add_on || [],
         reviews: mappedReviews,
       };
@@ -207,6 +208,7 @@ function ManageMenuInner({ isManager }: { isManager?: boolean }) {
       is_available: item.available ?? true,
       // New dishes start off the featured shelf; the star on the card sets it.
       is_featured: false,
+      prep_minutes: item.prepMinutes ?? 10,
       image_url: uploadedUrl, // Send new URL to backend
     });
 
@@ -251,6 +253,7 @@ function ManageMenuInner({ isManager }: { isManager?: boolean }) {
       product_details: updatedItem.description,
       category_id: targetCat?.category_id,
       is_available: updatedItem.available,
+      prep_minutes: updatedItem.prepMinutes ?? 10,
     };
 
     // Only update the image column if a new image was actually uploaded
