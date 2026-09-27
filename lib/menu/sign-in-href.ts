@@ -14,3 +14,9 @@ export function itemParam(value: string | string[] | undefined): string | null {
   const raw = Array.isArray(value) ? value[0] : value;
   return raw && /^[0-9a-f-]{36}$/i.test(raw) ? raw : null;
 }
+
+/** The `?category=` a menu URL may carry: a category name (the landing page's tiles), or null. */
+export function categoryParam(value: string | string[] | undefined): string | null {
+  const raw = (Array.isArray(value) ? value[0] : value)?.trim();
+  return raw && raw.length <= 80 ? raw : null;
+}

@@ -59,6 +59,7 @@ export function MenuScreen({
   initialFulfilment,
   recentOrdersPromise,
   initialItemId = null,
+  initialCategory = null,
 }: {
   profilePromise: Promise<CustomerProfile | null>;
   productsPromise: Promise<ProductListing[]>;
@@ -75,10 +76,12 @@ export function MenuScreen({
   recentOrdersPromise?: Promise<RecentOrder[]>;
   /** Open this dish once the menu has loaded (`?item=`, after signing in). */
   initialItemId?: string | null;
+  /** Start filtered to this category (`?category=`, from the landing page tiles). */
+  initialCategory?: string | null;
 }) {
   const [search, setSearch] = React.useState("");
   const [selectedCategory, setSelectedCategory] = React.useState<string | null>(
-    null,
+    initialCategory,
   );
   
   // Client-fetched products/categories when filters change or live updates happen
@@ -158,7 +161,9 @@ export function MenuScreen({
   React.useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
-      return;
+      // The server-rendered list is the whole menu; a deep-linked category
+      // still has to be fetched.
+      if (!initialCategory) return;
     }
 
     let stale = false;
@@ -184,6 +189,8 @@ export function MenuScreen({
       stale = true;
       clearTimeout(timeout);
     };
+    // initialCategory only matters on the first run.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, selectedCategory, showToast]);
 
   React.useEffect(() => {

@@ -1,6 +1,6 @@
 import { MenuPageBody } from "@/components/menu/menu-page-body";
 import { fulfilmentFromParam } from "@/lib/checkout/fulfilment-param";
-import { itemParam } from "@/lib/menu/sign-in-href";
+import { categoryParam, itemParam } from "@/lib/menu/sign-in-href";
 
 /**
  * Menu browse (Browsing1-16, SFR1-2, Menu5), public.
@@ -21,12 +21,13 @@ import { itemParam } from "@/lib/menu/sign-in-href";
 export default function MenuPage({
   searchParams,
 }: {
-  searchParams: { fulfilment?: string; item?: string | string[] };
+  searchParams: { fulfilment?: string; item?: string | string[]; category?: string | string[] };
 }) {
   return (
     <MenuPageBody
       fulfilment={fulfilmentFromParam(searchParams.fulfilment)}
       initialItemId={itemParam(searchParams.item)}
+      initialCategory={categoryParam(searchParams.category)}
     />
   );
 }

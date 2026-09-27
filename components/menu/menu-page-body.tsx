@@ -49,10 +49,13 @@ import { readRecentCompletedOrders } from "@/lib/orders/read-recent-orders";
 export function MenuPageBody({
   fulfilment,
   initialItemId = null,
+  initialCategory = null,
 }: {
   fulfilment?: Fulfilment;
   /** `?item=` — the dish a guest was on when they went to sign in. */
   initialItemId?: string | null;
+  /** `?category=` — a category name to open the menu on. */
+  initialCategory?: string | null;
 }) {
   const profilePromise = readCustomerProfile();
   const productsPromise = getProducts().then(r => (r.data ?? []).map(mapProductRow));
@@ -80,6 +83,7 @@ export function MenuPageBody({
         initialFulfilment={fulfilment}
         recentOrdersPromise={recentOrdersPromise}
         initialItemId={initialItemId}
+        initialCategory={initialCategory}
       />
     </ToastProvider>
   );
