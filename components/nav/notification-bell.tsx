@@ -17,6 +17,7 @@ import {
 } from "@/lib/notifications/notifications";
 import { cn } from "@/lib/utils";
 import { uniqueChannelName } from "@/lib/supabase/channel-name";
+import { Button } from "@/components/ui/button";
 
 /**
  * The bell in the nav bar (limitations #10, issue #118): an unread count
@@ -154,48 +155,48 @@ export function NotificationBell({ className }: { className?: string }) {
 
   return (
     <div ref={wrapperRef} className={cn("relative", className)}>
-      <button
+      <Button variant="unstyled"
         ref={triggerRef}
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
         aria-controls={panelId}
         aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
-        className="relative flex size-[44px] items-center justify-center rounded-pill text-white/90 transition-colors hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+        className="relative flex size-[44px] items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
       >
         <Bell aria-hidden="true" className="size-[20px]" />
         {badge ? (
           <span
             aria-hidden="true"
-            className="absolute right-[4px] top-[4px] flex min-w-[18px] items-center justify-center rounded-pill bg-white px-[4px] text-[12px] font-bold leading-[18px] text-primary"
+            className="absolute right-[4px] top-[4px] flex min-w-[18px] items-center justify-center rounded-full bg-white px-[4px] text-sm font-bold leading-[18px] text-primary"
           >
             {badge}
           </span>
         ) : null}
-      </button>
+      </Button>
 
       {open ? (
         <div
           id={panelId}
           role="region"
           aria-label="Notifications"
-          className="absolute right-0 top-[calc(100%+6px)] z-50 flex max-h-[70vh] w-[min(340px,calc(100vw-32px))] flex-col overflow-hidden rounded-[14px] border border-field-border bg-white text-foreground shadow-[0px_8px_20px_rgba(26,18,16,0.12)]"
+          className="absolute right-0 top-[calc(100%+6px)] z-50 flex max-h-[70vh] w-[min(340px,calc(100vw-32px))] flex-col overflow-hidden rounded-md border border-field-border bg-white text-foreground shadow-[0px_8px_20px_rgba(26,18,16,0.12)]"
         >
           <div className="flex items-center justify-between gap-[8px] border-b border-rule px-[14px] py-[8px]">
-            <h2 className="text-[15px] font-bold">Notifications</h2>
+            <h2 className="text-base font-bold">Notifications</h2>
             {unread > 0 ? (
-              <button
+              <Button variant="unstyled"
                 type="button"
                 onClick={() => void markRead(items.filter((item) => !item.isRead).map((item) => item.id))}
-                className="min-h-[44px] px-[4px] text-[14px] font-bold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                className="min-h-[44px] px-[4px] text-sm font-bold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
               >
                 Mark all read
-              </button>
+              </Button>
             ) : null}
           </div>
 
           {items.length === 0 ? (
-            <p className="px-[14px] py-[18px] text-[14px] text-muted-strong">
+            <p className="px-[14px] py-[18px] text-sm text-muted-strong">
               Nothing yet. We&apos;ll let you know here when your order is being cooked and when
               it&apos;s ready to pick up.
             </p>
@@ -210,12 +211,12 @@ export function NotificationBell({ className }: { className?: string }) {
                       ) : (
                         <span aria-hidden="true" className="size-[8px] shrink-0" />
                       )}
-                      <span className={cn("text-[14px] leading-[20px]", !item.isRead && "font-bold")}>
+                      <span className={cn("text-sm leading-[20px]", !item.isRead && "font-bold")}>
                         {!item.isRead ? <span className="sr-only">Unread: </span> : null}
                         {item.message}
                       </span>
                     </span>
-                    <span className="pl-[16px] text-[14px] text-muted-strong">
+                    <span className="pl-[16px] text-sm text-muted-strong">
                       {formatNotificationTime(item.createdAt)}
                     </span>
                   </>
@@ -236,7 +237,7 @@ export function NotificationBell({ className }: { className?: string }) {
                         {body}
                       </Link>
                     ) : (
-                      <button
+                      <Button variant="unstyled"
                         type="button"
                         className={rowClass}
                         onClick={() => {
@@ -244,7 +245,7 @@ export function NotificationBell({ className }: { className?: string }) {
                         }}
                       >
                         {body}
-                      </button>
+                      </Button>
                     )}
                   </li>
                 );

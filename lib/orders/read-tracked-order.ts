@@ -107,7 +107,7 @@ export async function readTrackedOrder(
   const { data: order } = await supabase
     .from("order")
     .select(
-      "order_id, order_status, order_type, cancelled_at, cancellation_reason, created_at, completed_at, delivery_fee, special_instructions, promised_at",
+      "order_id, order_number, order_status, order_type, cancelled_at, cancellation_reason, created_at, completed_at, delivery_fee, special_instructions, promised_at",
     )
     .eq("order_id", orderId)
     .eq("customer_id", user.id)
@@ -161,7 +161,7 @@ export async function readTrackedOrder(
 
   return {
     orderId: order.order_id,
-    orderNumber: formatOrderNumber(order.order_id),
+    orderNumber: formatOrderNumber(order.order_number, order.order_id),
     orderStatus: order.order_status,
     cancelledAt: order.cancelled_at,
     cancellationReason: order.cancellation_reason,

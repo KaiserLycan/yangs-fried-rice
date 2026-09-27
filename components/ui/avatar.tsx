@@ -32,7 +32,7 @@ export function Avatar({
       // screen reader to gain from reading it a second time.
       aria-hidden
       className={cn(
-        "inline-flex shrink-0 items-center justify-center rounded-pill overflow-hidden relative bg-accent",
+        "inline-flex shrink-0 items-center justify-center rounded-full overflow-hidden relative bg-accent",
         className,
       )}
     >

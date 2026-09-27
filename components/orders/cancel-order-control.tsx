@@ -99,21 +99,21 @@ export function CancelOrderControl({
         // Held while a cancel is out. The confirmation closes on the press,
         // so this is the only way back to a second write before the first
         // has settled.
-        <button
+        <Button variant="unstyled"
           type="button"
           disabled={pending}
           onClick={() => setOpen(true)}
-          className="w-full rounded-md border border-primary px-[18px] py-[13px] text-[14px] font-bold text-primary transition-colors hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-60 md:w-auto"
+          className="w-full rounded-md border border-primary px-[18px] py-[13px] text-sm font-bold text-primary transition-colors hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-60 md:w-auto"
         >
           Cancel order
-        </button>
+        </Button>
       ) : null}
 
       {kitchenConfirmed ? (
         // #C9B8AC is the frame's own value. The token collection has no rule
         // this dark for use on cream — `--rule` (#E3D6C3) is the hairline
         // divider and disappears at one dashed pixel.
-        <p className="w-full rounded-[14px] border border-dashed border-[#c9b8ac] p-[13px] text-[14px] leading-[18px] text-muted-strong">
+        <p className="w-full rounded-md border border-dashed border-field-border p-[13px] text-sm leading-[18px] text-muted-strong">
           {KITCHEN_CONFIRMED_NOTE}
         </p>
       ) : null}

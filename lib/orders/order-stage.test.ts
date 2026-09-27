@@ -271,15 +271,15 @@ describe("take-out orders", () => {
     expect(labels).toEqual([
       "Order received",
       "Preparing in kitchen",
-      "Ready for pick up",
+      "Ready for pickup",
       "Picked up",
     ]);
   });
 
-  it("headlines a ready take-out order 'READY FOR PICK UP' and a collected one 'PICKED UP'", () => {
+  it("headlines a ready take-out order 'READY FOR PICKUP' and a collected one 'PICKED UP'", () => {
     expect(
       headlineFor({ kind: "stage", stage: "out_for_delivery", orderStatus: "ready" }, "pickup"),
-    ).toBe("READY FOR PICK UP");
+    ).toBe("READY FOR PICKUP");
     expect(
       headlineFor({ kind: "stage", stage: "delivered", orderStatus: "completed" }, "pickup"),
     ).toBe("PICKED UP");

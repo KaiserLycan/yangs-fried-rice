@@ -22,7 +22,7 @@ export function ManageShell({
   const isKds = pathname === "/manage/kds";
 
   return (
-    <div className="flex h-screen bg-[#fbf6ec]">
+    <div className="flex h-screen bg-background">
       {!isKds && <Sidebar role={role} />}
       <main
         className={`min-w-0 flex-1 overflow-y-auto ${isKds ? "" : "px-[30px] py-[26px]"}`}

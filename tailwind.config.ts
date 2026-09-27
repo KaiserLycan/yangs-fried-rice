@@ -2,9 +2,37 @@ import type { Config } from "tailwindcss";
 import { fontFamily } from "tailwindcss/defaultTheme";
 
 const config: Config = {
-  darkMode: ["class"],
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   theme: {
+    // The type scale (UI/UX review, docs/user-simulation.md #16): 35 pixel
+    // sizes collapsed to these 8 steps. Size only — line height stays with
+    // `leading-*` or the inherited 1.5, exactly as the old text-[Npx] classes
+    // behaved. Defined here rather than under `extend`, so a size outside the
+    // scale (text-xl, text-[13px]) produces no style at all and
+    // __tests__/design-scale.test.ts fails on it.
+    // Customer screens and the KDS never use `xs` (senior and kitchen staff
+    // personas: nothing under 14px); it is for dense back-office tables.
+    fontSize: {
+      xs: "0.75rem", // 12
+      sm: "0.875rem", // 14
+      base: "1rem", // 16
+      lg: "1.125rem", // 18
+      "2xl": "1.5rem", // 24
+      "3xl": "1.875rem", // 30
+      "5xl": "3rem", // 48
+      "6xl": "3.75rem", // 60
+    },
+    // Figma `radius` group: 8 / 12 / 16 / full. ShadCN derives md and sm by
+    // subtracting from --radius, which would miss the design's 16, so the
+    // values are literal. Replaces the defaults (the 14 pixel radii that were
+    // in use are mapped onto these).
+    borderRadius: {
+      none: "0",
+      sm: "0.5rem", // 8
+      md: "var(--radius)", // 12
+      lg: "1rem", // 16
+      full: "9999px",
+    },
     container: {
       center: true,
       padding: "2rem",
@@ -70,6 +98,19 @@ const config: Config = {
         placeholder: "hsl(var(--placeholder))",
         "error-surface": "hsl(var(--error-surface))",
         "error-border": "hsl(var(--error-border))",
+        status: {
+          received: "hsl(var(--status-received))",
+          preparing: "hsl(var(--status-preparing))",
+          ready: "hsl(var(--status-ready))",
+          done: "hsl(var(--status-done))",
+          cancelled: "hsl(var(--status-cancelled))",
+        },
+        backoffice: "hsl(var(--backoffice))",
+        highlight: "hsl(var(--highlight))",
+        selected: "hsl(var(--selected))",
+        "warning-text": "hsl(var(--warning-text))",
+        "warning-surface": "hsl(var(--warning-surface))",
+        star: "hsl(var(--star))",
       },
       // Loaded via next/font in app/layout.tsx. DM Sans is the body face and
       // Anton is display-only, so it is a separate `font-display` utility
@@ -77,15 +118,6 @@ const config: Config = {
       fontFamily: {
         sans: ["var(--font-sans)", ...fontFamily.sans],
         display: ["var(--font-display)", ...fontFamily.sans],
-      },
-      // Figma `radius` group: 8 / 12 / 16 / 999. ShadCN derives md and sm by
-      // subtracting 2px and 4px from --radius, which would give 12/10/8 and
-      // miss the design's 16. Mapped literally instead.
-      borderRadius: {
-        sm: "0.5rem", // radius/8
-        md: "var(--radius)", // radius/12
-        lg: "1rem", // radius/16
-        pill: "9999px", // radius/999
       },
     },
   },

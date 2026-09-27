@@ -36,7 +36,7 @@ const PICKUP_TYPES = new Set(["pickup", "pick_up", "takeout", "take_out"]);
  * Is this an order the customer collects (take-out / pickup)? Anything else —
  * including a missing type — is treated as a delivery, matching the frames.
  * The one definition the tracking screen, the order history and the staff
- * screens share, so "Ready for pick up" and "Delivering" can't disagree.
+ * screens share, so "Ready for pickup" and "Out for delivery" can't disagree.
  */
 export function isPickupOrder(type: string | null | undefined): boolean {
   if (!type) return false;

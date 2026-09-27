@@ -25,7 +25,7 @@ function StageMarker({ state }: { state: StageState }) {
     <div
       aria-hidden
       className={cn(
-        "shrink-0 rounded-pill border-2",
+        "shrink-0 rounded-full border-2",
         "size-[22px] md:size-[20px]",
         reached
           ? "border-primary bg-primary"
@@ -61,7 +61,7 @@ export function OrderTimeline({ stages }: { stages: TimelineStage[] }) {
             <div className="flex flex-col items-start pb-[12px] md:pb-[10px]">
               <span
                 className={cn(
-                  "text-[14px] font-bold",
+                  "text-sm font-bold",
                   stage.state === "pending"
                     ? "text-placeholder"
                     : "text-foreground",
@@ -69,7 +69,7 @@ export function OrderTimeline({ stages }: { stages: TimelineStage[] }) {
               >
                 {stage.label}
               </span>
-              <span className="text-[14px] text-timeline-meta">
+              <span className="text-sm text-timeline-meta">
                 {stageMeta(stage)}
                 {/* The em dash carries no meaning to a screen reader, and
                     "Done"/"Now" alone do not say what they refer to. */}

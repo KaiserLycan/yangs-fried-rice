@@ -15,13 +15,13 @@ export function PasswordStrengthMeter({ password, id }: { password: string; id?:
 
   return (
     <div id={id} className="flex items-center gap-[8px] pt-[2px]" aria-live="polite">
-      <div className="h-[5px] flex-1 overflow-hidden rounded-pill bg-rule" aria-hidden="true">
+      <div className="h-[5px] flex-1 overflow-hidden rounded-full bg-rule" aria-hidden="true">
         <div
-          className="h-full rounded-pill bg-[#3f6b4a] transition-[width]"
+          className="h-full rounded-full bg-success transition-[width]"
           style={{ width: `${strength.percent}%` }}
         />
       </div>
-      <span className="whitespace-nowrap text-[14px] font-bold text-[#3f6b4a]">
+      <span className="whitespace-nowrap text-sm font-bold text-success">
         <span className="sr-only">Password strength: </span>
         {strength.label}
       </span>

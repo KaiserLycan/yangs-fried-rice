@@ -6,20 +6,20 @@ export default function OrdersLoading() {
     <div className="flex min-h-screen flex-col bg-background">
       {/* Mock Nav Bar */}
       <nav className="hidden h-[58px] items-center gap-[26px] bg-primary px-[22px] md:flex">
-        <div className="font-display text-[19px] tracking-[0.57px] text-rule">
+        <div className="font-display text-lg tracking-[0.57px] text-rule">
           YANG&apos;S <span className="text-white">FRIED RICE</span>
         </div>
         <ul className="flex items-start gap-[20px]">
           {["Menu", "My orders", "Account"].map((label, i) => (
-            <li key={i} className="text-[13.5px] text-background/[0.72]">
+            <li key={i} className="text-sm text-background/[0.72]">
               {label}
             </li>
           ))}
         </ul>
         <div className="ml-auto flex items-center gap-[16px]">
           <div className="flex flex-col items-end gap-[4px]">
-            <div className="h-[12px] w-[50px] animate-pulse rounded bg-white/20" />
-            <div className="h-[12px] w-[80px] animate-pulse rounded bg-white/20" />
+            <div className="h-[12px] w-[50px] animate-pulse rounded-sm bg-white/20" />
+            <div className="h-[12px] w-[80px] animate-pulse rounded-sm bg-white/20" />
           </div>
           <div className="size-[32px] animate-pulse rounded-full bg-white/20" />
         </div>
@@ -27,12 +27,12 @@ export default function OrdersLoading() {
 
       {/* Mobile header */}
       <div className="flex items-center gap-[12px] border-b border-rule px-[20px] py-[18px] md:hidden">
-        <h1 className="font-display text-[24px] uppercase text-foreground">MY ORDERS</h1>
+        <h1 className="font-display text-2xl uppercase text-foreground">MY ORDERS</h1>
       </div>
 
       <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-[12px] px-[20px] pb-[calc(var(--tab-bar-height)+24px)] pt-[16px] md:gap-[20px] md:px-[40px] md:pb-[60px] md:pt-[30px]">
         {/* Desktop heading */}
-        <h1 className="hidden font-display text-[32px] text-foreground md:block">
+        <h1 className="hidden font-display text-3xl text-foreground md:block">
           MY ORDERS
         </h1>
 

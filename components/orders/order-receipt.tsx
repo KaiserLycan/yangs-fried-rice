@@ -12,6 +12,7 @@ import {
   receiptTotals,
 } from "@/lib/orders/receipt";
 import { PICKUP_COUNTER, SITE_BRANCH, SITE_NAME } from "@/lib/site/site-info";
+import { Button } from "@/components/ui/button";
 
 export const NOT_OFFICIAL_RECEIPT = "This is not an official receipt";
 
@@ -54,17 +55,17 @@ export function OrderReceipt({ order }: { order: ReceiptOrder }) {
       className="flex w-full flex-col gap-[12px]"
     >
       <div className="flex flex-wrap items-center justify-between gap-[10px]">
-        <h2 id="order-receipt-heading" className="font-display text-[22px] text-foreground">
+        <h2 id="order-receipt-heading" className="font-display text-2xl text-foreground">
           Receipt
         </h2>
-        <button
+        <Button variant="unstyled"
           type="button"
           onClick={() => window.print()}
-          className="flex min-h-[44px] items-center gap-[8px] rounded-[12px] border border-field-border bg-card px-[14px] text-[14px] font-bold text-foreground transition-colors hover:bg-secondary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          className="flex min-h-[44px] items-center gap-[8px] rounded-md border border-field-border bg-card px-[14px] text-sm font-bold text-foreground transition-colors hover:bg-secondary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
         >
           <Printer aria-hidden="true" className="size-[18px]" />
           Print / Save as PDF
-        </button>
+        </Button>
       </div>
 
       <ReceiptBody order={order} />
@@ -91,8 +92,8 @@ function ReceiptBody({ order }: { order: ReceiptOrder }) {
   const paid = isPaidStatus(payment?.status);
 
   return (
-    <div className="flex flex-col gap-[12px] text-[14px] text-foreground">
-      <p className="rounded-[10px] border border-dashed border-field-border px-[12px] py-[8px] text-center text-[14px] font-bold uppercase tracking-[0.5px] text-muted-strong">
+    <div className="flex flex-col gap-[12px] text-sm text-foreground">
+      <p className="rounded-md border border-dashed border-field-border px-[12px] py-[8px] text-center text-sm font-bold uppercase tracking-[0.5px] text-muted-strong">
         {NOT_OFFICIAL_RECEIPT}
       </p>
 
@@ -113,7 +114,7 @@ function ReceiptBody({ order }: { order: ReceiptOrder }) {
       <table className="w-full border-collapse">
         <caption className="sr-only">Items</caption>
         <thead>
-          <tr className="border-b border-rule text-left text-[14px] text-muted-strong">
+          <tr className="border-b border-rule text-left text-sm text-muted-strong">
             <th scope="col" className="py-[6px] font-bold">Item</th>
             <th scope="col" className="py-[6px] text-right font-bold">Amount</th>
           </tr>
@@ -182,8 +183,8 @@ function ReceiptBody({ order }: { order: ReceiptOrder }) {
             <dd className="text-right">{formatReceiptPeso(totals.vat)}</dd>
           </>
         )}
-        <dt className="pt-[6px] text-[16px] font-bold">Total</dt>
-        <dd className="pt-[6px] text-right text-[16px] font-bold">{formatReceiptPeso(totals.total)}</dd>
+        <dt className="pt-[6px] text-base font-bold">Total</dt>
+        <dd className="pt-[6px] text-right text-base font-bold">{formatReceiptPeso(totals.total)}</dd>
       </dl>
 
       {order.specialInstructions ? (

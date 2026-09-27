@@ -39,24 +39,24 @@ export function SiteFooter() {
     >
       <div className="mx-auto flex max-w-[1100px] flex-col gap-[24px] md:flex-row md:justify-between md:gap-[48px]">
         <div className="flex max-w-[320px] flex-col gap-[8px]">
-          <span className="font-display text-[19px] tracking-[0.57px] text-primary">
+          <span className="font-display text-lg tracking-[0.57px] text-primary">
             YANG&apos;S <span className="text-foreground">FRIED RICE</span>
           </span>
-          <p className="text-[13px] leading-[19px] text-muted-foreground">
+          <p className="text-sm leading-[19px] text-muted-foreground">
             Fried rice, silog plates and sides, cooked to order for pickup
             at the counter.
           </p>
         </div>
 
         <nav aria-label="Footer" className="flex flex-col gap-[8px]">
-          <h2 className="text-[11px] font-bold uppercase tracking-[1.1px] text-muted-foreground">
+          <h2 className="text-sm font-bold uppercase tracking-[1.1px] text-muted-foreground">
             Explore
           </h2>
           {FOOTER_LINKS.map(({ href, label }) => (
             <Link
               key={href}
               href={href}
-              className="text-[13px] text-foreground hover:text-primary hover:underline"
+              className="text-sm text-foreground hover:text-primary hover:underline"
             >
               {label}
             </Link>
@@ -69,16 +69,16 @@ export function SiteFooter() {
         >
           <h2
             id="footer-seller"
-            className="text-[11px] font-bold uppercase tracking-[1.1px] text-muted-foreground"
+            className="text-sm font-bold uppercase tracking-[1.1px] text-muted-foreground"
           >
             Seller
           </h2>
-          <p className="text-[13px] text-foreground">{SELLER_NAME}</p>
-          <p className="text-[13px] text-muted-foreground">{SELLER_ADDRESS}</p>
+          <p className="text-sm text-foreground">{SELLER_NAME}</p>
+          <p className="text-sm text-muted-foreground">{SELLER_ADDRESS}</p>
           {SUPPORT_EMAIL ? (
             <a
               href={`mailto:${SUPPORT_EMAIL}`}
-              className="text-[13px] text-foreground hover:text-primary hover:underline"
+              className="text-sm text-foreground hover:text-primary hover:underline"
             >
               {SUPPORT_EMAIL}
             </a>
@@ -86,7 +86,7 @@ export function SiteFooter() {
           {SUPPORT_PHONE ? (
             <a
               href={`tel:${SUPPORT_PHONE.replace(/\s/g, "")}`}
-              className="text-[13px] text-foreground hover:text-primary hover:underline"
+              className="text-sm text-foreground hover:text-primary hover:underline"
             >
               {SUPPORT_PHONE}
             </a>
@@ -99,7 +99,7 @@ export function SiteFooter() {
               // `Link`, and they carry the usual new-tab protections.
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[13px] text-foreground hover:text-primary hover:underline"
+              className="text-sm text-foreground hover:text-primary hover:underline"
             >
               {label}
             </a>
@@ -108,10 +108,10 @@ export function SiteFooter() {
       </div>
 
       <div className="mx-auto mt-[24px] flex max-w-[1100px] flex-col gap-[6px] border-t border-rule pt-[16px] md:flex-row md:items-center md:justify-between">
-        <p className="text-[12px] text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           © {copyrightYears()} {SITE_NAME}. All rights reserved.
         </p>
-        <p className="text-[12px] text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Prices in Philippine peso, VAT included. Pickup only — no delivery.
         </p>
       </div>

@@ -24,22 +24,22 @@ export function LegalPage({
   return (
     <AuthShell brand={<BrandPanel />}>
       <div className="relative flex flex-col px-6 pb-[30px] pt-[30px] md:bg-background md:px-[52px] md:py-[48px]">
-        <div className="flex flex-col gap-[14px] rounded-[22px] bg-background p-5 shadow-sm md:gap-[18px] md:rounded-none md:bg-transparent md:p-0 md:shadow-none">
+        <div className="flex flex-col gap-[14px] rounded-lg bg-background p-5 shadow-sm md:gap-[18px] md:rounded-none md:bg-transparent md:p-0 md:shadow-none">
           <Link
             href="/"
-            className="inline-block w-fit text-[14px] font-bold text-accent hover:underline"
+            className="inline-block w-fit text-sm font-bold text-accent hover:underline"
           >
             &larr; Back
           </Link>
 
-          <h1 className="mt-2 font-display text-[32px] uppercase text-accent md:text-[40px]">
+          <h1 className="mt-2 font-display text-3xl uppercase text-accent md:text-5xl">
             {title}
           </h1>
-          <p className="text-[13px] text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Last updated {lastUpdated}
           </p>
 
-          <div className="mt-4 space-y-6 text-[15px] leading-relaxed text-muted-foreground md:text-[16px]">
+          <div className="mt-4 space-y-6 text-base leading-relaxed text-muted-foreground md:text-base">
             {children}
           </div>
         </div>
@@ -57,7 +57,7 @@ export function LegalSection({
 }) {
   return (
     <section className="space-y-2">
-      <h2 className="mb-2 font-display text-[20px] text-foreground md:text-[22px]">
+      <h2 className="mb-2 font-display text-lg text-foreground md:text-2xl">
         {title}
       </h2>
       {children}

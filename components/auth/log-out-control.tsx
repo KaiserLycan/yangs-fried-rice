@@ -63,14 +63,14 @@ export function LogOutControl({
 
   return (
     <>
-      <button
+      <Button variant="unstyled"
         {...buttonProps}
         type="button"
         onClick={() => setOpen(true)}
         className={className}
       >
         {children}
-      </button>
+      </Button>
 
       <Dialog
         open={open}

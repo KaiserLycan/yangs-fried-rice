@@ -221,7 +221,7 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
     };
   }, [orderId, refreshEta]);
 
-  // Take-out reads "Ready for pick up" / "Picked up"; delivery keeps its own words.
+  // Take-out reads "Ready for pickup" / "Picked up"; delivery keeps its own words.
   const fulfilment = fulfilmentOf(order.orderType);
   const progress = resolveOrderProgress({
     ...status,
@@ -270,21 +270,21 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
         <header className="flex flex-col gap-[4px] bg-foreground p-[20px] md:col-start-1 md:row-start-1 md:gap-[3px] md:bg-transparent md:p-0">
           <Link
             href="/orders"
-            className="group mb-1 flex w-fit items-center gap-[4px] text-[14px] uppercase tracking-[1.76px] text-on-ink-faint transition-colors hover:text-white md:mb-2 md:text-[14px] md:tracking-[1.92px] md:text-muted-foreground md:hover:text-foreground"
+            className="group mb-1 flex w-fit items-center gap-[4px] text-sm uppercase tracking-[1.76px] text-on-ink-faint transition-colors hover:text-white md:mb-2 md:text-sm md:tracking-[1.92px] md:text-muted-foreground md:hover:text-foreground"
           >
             <ChevronLeft className="h-[14px] w-[14px] md:h-[16px] md:w-[16px]" />
             <span>Back to orders</span>
           </Link>
-          <span className="text-[14px] uppercase tracking-[1.76px] text-on-ink-faint md:text-[14px] md:tracking-[1.92px] md:text-muted-foreground">
+          <span className="text-sm uppercase tracking-[1.76px] text-on-ink-faint md:text-sm md:tracking-[1.92px] md:text-muted-foreground">
             {/* The id renders in the case it is stored in — see the receipt's
                 own note, and `lib/orders/order-number.ts`. */}
             Order <span className="normal-case">#{order.orderNumber}</span>
           </span>
-          <h1 className="font-display text-[30px] text-on-ink md:text-[38px] md:leading-[1.05] md:text-foreground">
+          <h1 className="font-display text-3xl text-on-ink md:text-5xl md:leading-[1.05] md:text-foreground">
             {headlineFor(progress, fulfilment)}
           </h1>
           <p
-            className="pt-[2px] text-[14px] text-on-ink-muted md:pt-[3px] md:text-[14px] md:text-muted-strong"
+            className="pt-[2px] text-sm text-on-ink-muted md:pt-[3px] md:text-sm md:text-muted-strong"
             aria-busy={etaPending}
           >
             {subline}
@@ -344,17 +344,17 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
             <div className="mt-4 flex w-full items-center justify-between gap-[12px] border-t border-rule pt-[14px]">
               {order.rating !== null ? (
                 <>
-                  <span className="text-[14px] font-bold text-muted-strong">
+                  <span className="text-sm font-bold text-muted-strong">
                     You rated this order
                   </span>
                   <OrderRatingDisplay
                     rating={order.rating}
-                    className="text-[18px] leading-none"
+                    className="text-lg leading-none"
                   />
                 </>
               ) : (
                 <>
-                  <span className="text-[14px] font-bold text-muted-strong">
+                  <span className="text-sm font-bold text-muted-strong">
                     How was your order?
                   </span>
                   <RateOrderButton

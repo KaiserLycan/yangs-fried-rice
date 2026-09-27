@@ -8,6 +8,7 @@ import { reorderPastOrder } from "@/lib/actions/cart";
 import { formatPeso } from "@/lib/menu/product-listing";
 import { formatPlacedAt, summariseItems } from "@/lib/orders/past-order";
 import type { RecentOrder } from "@/lib/orders/read-recent-orders";
+import { Button } from "@/components/ui/button";
 
 /**
  * "Order again" — the signed-in customer's last three completed orders at
@@ -77,7 +78,7 @@ export function OrderAgainRow({ ordersPromise }: { ordersPromise: Promise<Recent
     <section aria-labelledby="order-again-heading" className="px-[20px] pt-[16px] md:px-0 md:pt-[20px]">
       <h2
         id="order-again-heading"
-        className="font-display text-[22px] uppercase tracking-[0.22px] text-foreground"
+        className="font-display text-2xl uppercase tracking-[0.22px] text-foreground"
       >
         Order again
       </h2>
@@ -87,22 +88,22 @@ export function OrderAgainRow({ ordersPromise }: { ordersPromise: Promise<Recent
             key={order.orderId}
             className="flex w-[260px] shrink-0 snap-start flex-col gap-[8px] rounded-md border border-field-border bg-card p-[14px] md:w-auto"
           >
-            <span className="text-[14px] text-muted-strong">{formatPlacedAt(order.completedAt)}</span>
-            <p className="line-clamp-2 flex-1 text-[15px] font-bold leading-[20px] text-foreground">
+            <span className="text-sm text-muted-strong">{formatPlacedAt(order.completedAt)}</span>
+            <p className="line-clamp-2 flex-1 text-base font-bold leading-[20px] text-foreground">
               {summariseItems(order.items)}
             </p>
             <div className="flex items-center justify-between gap-[10px]">
-              <span className="font-display text-[19px] text-primary">{formatPeso(order.total)}</span>
-              <button
+              <span className="font-display text-lg text-primary">{formatPeso(order.total)}</span>
+              <Button variant="unstyled"
                 type="button"
                 onClick={() => void reorder(order)}
                 disabled={pendingId !== null}
-                className="flex min-h-[44px] items-center gap-[6px] rounded-md bg-accent px-[14px] text-[14px] font-bold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-60"
+                className="flex min-h-[44px] items-center gap-[6px] rounded-md bg-accent px-[14px] text-sm font-bold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-60"
               >
                 <RotateCcw aria-hidden="true" className="size-[16px]" />
                 {pendingId === order.orderId ? "Adding…" : "Order again"}
                 <span className="sr-only"> — order #{order.orderNumber}</span>
-              </button>
+              </Button>
             </div>
           </li>
         ))}

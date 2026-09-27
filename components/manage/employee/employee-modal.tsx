@@ -35,6 +35,7 @@ import {
   phoneDigitsOf,
   toInternationalMobile,
 } from "@/lib/validation/phone";
+import { Button } from "@/components/ui/button";
 
 /**
  * EmployeeModal — the manager's add / edit employee dialog.
@@ -128,8 +129,8 @@ function snapshotOf(values: Partial<FormSnapshot>): string {
 
 const inputClass = (invalid: boolean) =>
   cn(
-    "bg-white border rounded-[12px] p-[14px] text-[15px] text-[#1A1210] focus:outline-none focus:ring-2 focus:ring-[#E8541F] placeholder:text-[#A2938A]",
-    invalid ? "border-[#C0392B]" : "border-[#DDCDB8]",
+    "bg-white border rounded-md p-[14px] text-base text-foreground focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-placeholder",
+    invalid ? "border-error-border" : "border-field-border",
   );
 
 export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, serverErrors }: EmployeeModalProps) {
@@ -346,7 +347,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
     extra: React.InputHTMLAttributes<HTMLInputElement> = {},
   ) => (
     <div className="flex flex-col gap-1.5 w-full">
-      <label htmlFor={`employee-${name}`} className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase">
+      <label htmlFor={`employee-${name}`} className="font-bold text-muted-foreground text-xs tracking-[1.32px] uppercase">
         {label}
       </label>
       <input
@@ -364,7 +365,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
         className={inputClass(Boolean(errors[name]))}
       />
       {errors[name] ? (
-        <p id={`employee-${name}-error`} aria-live="polite" className="text-[12px] text-[#C0392B]">
+        <p id={`employee-${name}-error`} aria-live="polite" className="text-xs text-error-border">
           {errors[name]}
         </p>
       ) : null}
@@ -377,7 +378,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
       open={isOpen}
       onClose={onClose}
       dirty={isDirty}
-      className="m-auto max-w-[480px] w-[calc(100%-2rem)] md:w-full overflow-hidden rounded-[20px] bg-[#FBF6EC] shadow-[0_30px_70px_rgba(26,18,16,0.26)] border-0 p-0"
+      className="m-auto max-w-[480px] w-[calc(100%-2rem)] md:w-full overflow-hidden rounded-lg bg-background shadow-[0_30px_70px_rgba(26,18,16,0.26)] border-0 p-0"
     >
       <div className="flex flex-col w-full max-h-[90vh]">
 
@@ -392,35 +393,35 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
             tabIndex={-1}
             aria-hidden="true"
           />
-          <button
+          <Button variant="unstyled"
             type="button"
             onClick={() => photoInputRef.current?.click()}
             aria-label={shownPhoto ? "Change photo" : "Add photo"}
-            className="group relative size-[140px] shrink-0 overflow-hidden rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-[#E8541F] focus-visible:ring-offset-2 focus-visible:ring-offset-[#FBF6EC]"
+            className="group relative size-[140px] shrink-0 overflow-hidden rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             {shownPhoto ? (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 src={shownPhoto}
                 alt={displayName}
-                className="w-full h-full object-cover rounded-full border-4 border-[#8C1C13]"
+                className="w-full h-full object-cover rounded-full border-4 border-primary"
               />
             ) : (
-              <span className="bg-[#8C1C13] flex size-full items-center justify-center rounded-full">
-                <span className="font-display text-[#FBF6EC] text-[60px] leading-none mt-2">
+              <span className="bg-primary flex size-full items-center justify-center rounded-full">
+                <span className="font-display text-background text-6xl leading-none mt-2">
                   {initials}
                 </span>
               </span>
             )}
-            <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-full bg-black/45 text-[12px] font-bold text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+            <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-full bg-black/45 text-xs font-bold text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
               <Camera className="size-6" aria-hidden="true" />
               {shownPhoto ? "Change photo" : "Add photo"}
             </span>
-          </button>
+          </Button>
           {photoError ? (
-            <p role="alert" className="text-[12px] text-[#C0392B]">{photoError}</p>
+            <p role="alert" className="text-xs text-error-border">{photoError}</p>
           ) : (
-            <p className="text-[12px] text-[#A2938A]">
+            <p className="text-xs text-placeholder">
               {photoFile ? "New photo — saved with the employee." : "Optional. JPEG, PNG, or WebP, up to 5MB."}
             </p>
           )}
@@ -448,7 +449,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
 
           {/* Mobile number */}
           <div className="flex flex-col gap-1.5 w-full">
-            <label htmlFor="employee-phone" className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase">
+            <label htmlFor="employee-phone" className="font-bold text-muted-foreground text-xs tracking-[1.32px] uppercase">
               Mobile Number
             </label>
             <PhoneInput
@@ -461,22 +462,22 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
               onBlur={() => touch("phone")}
               invalid={Boolean(errors.phone)}
               className={cn(
-                "rounded-[12px] border bg-white focus-within:ring-2 focus-within:ring-[#E8541F]",
-                errors.phone ? "border-[#C0392B]" : "border-[#DDCDB8]",
+                "rounded-md border bg-white focus-within:ring-2 focus-within:ring-accent",
+                errors.phone ? "border-error-border" : "border-field-border",
               )}
-              prefixClassName="pl-[14px] text-[15px] text-[#7A6A60]"
-              inputClassName="px-[6px] py-[14px] text-[15px] text-[#1A1210] placeholder:text-[#A2938A]"
+              prefixClassName="pl-[14px] text-base text-muted-foreground"
+              inputClassName="px-[6px] py-[14px] text-base text-foreground placeholder:text-placeholder"
             />
             {errors.phone ? (
-              <p className="text-[12px] text-[#C0392B]">{errors.phone}</p>
+              <p className="text-xs text-error-border">{errors.phone}</p>
             ) : (
-              <p className="text-[12px] text-[#A2938A]">Optional. Format: {PH_MOBILE_EXAMPLE}</p>
+              <p className="text-xs text-placeholder">Optional. Format: {PH_MOBILE_EXAMPLE}</p>
             )}
           </div>
 
           {/* Date of birth */}
           <div className="flex flex-col gap-1.5 w-full">
-            <label htmlFor="employee-dateOfBirth" className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase">
+            <label htmlFor="employee-dateOfBirth" className="font-bold text-muted-foreground text-xs tracking-[1.32px] uppercase">
               Date of Birth
             </label>
             <input
@@ -493,37 +494,37 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
               aria-invalid={errors.dateOfBirth ? true : undefined}
               className={inputClass(Boolean(errors.dateOfBirth))}
             />
-            {errors.dateOfBirth && <p className="text-[12px] text-[#C0392B]">{errors.dateOfBirth}</p>}
+            {errors.dateOfBirth && <p className="text-xs text-error-border">{errors.dateOfBirth}</p>}
           </div>
 
           {/* Role Dropdown */}
           <div className="flex flex-col gap-1.5 w-full">
-            <label {...roleMenu.labelProps} className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase">
+            <label {...roleMenu.labelProps} className="font-bold text-muted-foreground text-xs tracking-[1.32px] uppercase">
               Role
             </label>
             <div className="relative">
-              <button
+              <Button variant="unstyled"
                 {...roleMenu.triggerProps}
-                className="flex w-full items-center justify-between bg-white border border-[#DDCDB8] rounded-[12px] p-[14px] text-[15px] text-[#1A1210] transition-colors hover:bg-[#FAF5EB] focus:outline-none focus:ring-2 focus:ring-[#E8541F]"
+                className="flex w-full items-center justify-between bg-white border border-field-border rounded-md p-[14px] text-base text-foreground transition-colors hover:bg-background focus:outline-none focus:ring-2 focus:ring-accent"
               >
                 <span>{role}</span>
-                {roleOpen ? <ChevronDown aria-hidden="true" className="w-6 h-6 text-[#1A1210]" /> : <ChevronRight aria-hidden="true" className="w-6 h-6 text-[#1A1210]" />}
-              </button>
+                {roleOpen ? <ChevronDown aria-hidden="true" className="w-6 h-6 text-foreground" /> : <ChevronRight aria-hidden="true" className="w-6 h-6 text-foreground" />}
+              </Button>
               {roleOpen && (
-                <div {...roleMenu.listProps} className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 bg-white border border-[#DDCDB8] rounded-[12px] p-1 shadow-lg max-h-[160px] overflow-y-auto">
+                <div {...roleMenu.listProps} className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 bg-white border border-field-border rounded-md p-1 shadow-lg max-h-[160px] overflow-y-auto">
                   {ROLES.map(r => (
-                    <button
+                    <Button variant="unstyled"
                       key={r}
                       {...roleMenu.optionProps(role === r)}
                       onClick={() => { setRole(r); roleMenu.close(); }}
                       className={cn(
-                        "w-full text-left px-3 py-2.5 rounded-lg text-[14px] transition-colors",
+                        "w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors",
                         DROPDOWN_FOCUS_RING,
-                        role === r ? "bg-[#F6E9D9] font-bold text-[#8C1C13]" : "text-[#1A1210] hover:bg-[#FAF5EB]"
+                        role === r ? "bg-highlight font-bold text-primary" : "text-foreground hover:bg-background"
                       )}
                     >
                       {r}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               )}
@@ -531,32 +532,32 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
           </div>
 
           <div className="flex flex-col gap-1.5 w-full">
-            <label {...shiftMenu.labelProps} className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase">
+            <label {...shiftMenu.labelProps} className="font-bold text-muted-foreground text-xs tracking-[1.32px] uppercase">
               Scheduled Shift
             </label>
             <div className="relative">
-              <button
+              <Button variant="unstyled"
                 {...shiftMenu.triggerProps}
-                className="flex w-full items-center justify-between bg-white border border-[#DDCDB8] rounded-[12px] p-[14px] text-[15px] text-[#1A1210] transition-colors hover:bg-[#FAF5EB] focus:outline-none focus:ring-2 focus:ring-[#E8541F]"
+                className="flex w-full items-center justify-between bg-white border border-field-border rounded-md p-[14px] text-base text-foreground transition-colors hover:bg-background focus:outline-none focus:ring-2 focus:ring-accent"
               >
                 <span>{shift}</span>
-                {shiftOpen ? <ChevronDown aria-hidden="true" className="w-6 h-6 text-[#1A1210]" /> : <ChevronRight aria-hidden="true" className="w-6 h-6 text-[#1A1210]" />}
-              </button>
+                {shiftOpen ? <ChevronDown aria-hidden="true" className="w-6 h-6 text-foreground" /> : <ChevronRight aria-hidden="true" className="w-6 h-6 text-foreground" />}
+              </Button>
               {shiftOpen && (
-                <div {...shiftMenu.listProps} className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 bg-white border border-[#DDCDB8] rounded-[12px] p-1 shadow-lg max-h-[160px] overflow-y-auto">
+                <div {...shiftMenu.listProps} className="absolute left-0 right-0 top-[calc(100%+4px)] z-20 bg-white border border-field-border rounded-md p-1 shadow-lg max-h-[160px] overflow-y-auto">
                   {SHIFTS.map(s => (
-                    <button
+                    <Button variant="unstyled"
                       key={s}
                       {...shiftMenu.optionProps(shift === s)}
                       onClick={() => { setShift(s); shiftMenu.close(); }}
                       className={cn(
-                        "w-full text-left px-3 py-2.5 rounded-lg text-[14px] transition-colors",
+                        "w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors",
                         DROPDOWN_FOCUS_RING,
-                        shift === s ? "bg-[#F6E9D9] font-bold text-[#8C1C13]" : "text-[#1A1210] hover:bg-[#FAF5EB]"
+                        shift === s ? "bg-highlight font-bold text-primary" : "text-foreground hover:bg-background"
                       )}
                     >
                       {s}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               )}
@@ -565,7 +566,7 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
 
           {/* Password */}
           <div className="flex flex-col gap-1.5 w-full">
-            <label htmlFor="employee-password" className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase">
+            <label htmlFor="employee-password" className="font-bold text-muted-foreground text-xs tracking-[1.32px] uppercase">
               Password
             </label>
             <div className="relative">
@@ -584,16 +585,16 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
                 aria-invalid={errors.password ? true : undefined}
                 className={cn(inputClass(Boolean(errors.password)), "pr-[40px] w-full")}
               />
-              <button
+              <Button variant="unstyled"
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 aria-label={showPassword ? "Hide password" : "Show password"}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#A2938A] hover:text-[#7A6A60] transition-colors focus:outline-none"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-placeholder hover:text-muted-foreground transition-colors focus:outline-none"
               >
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
+              </Button>
             </div>
-            {errors.password && <p className="text-[12px] text-[#C0392B]">{errors.password}</p>}
+            {errors.password && <p className="text-xs text-error-border">{errors.password}</p>}
           </div>
 
           {/* Account status — only for an existing employee.
@@ -607,12 +608,12 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
             <div className="flex flex-col gap-1.5 w-full">
               <label
                 id="employee-account-status-label"
-                className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase"
+                className="font-bold text-muted-foreground text-xs tracking-[1.32px] uppercase"
               >
                 Account Status
               </label>
-              <div className="flex items-center justify-between rounded-[12px] border border-[#DDCDB8] bg-white p-[14px]">
-                <span className="text-[14px] font-bold text-[#1A1210]">
+              <div className="flex items-center justify-between rounded-md border border-field-border bg-white p-[14px]">
+                <span className="text-sm font-bold text-foreground">
                   {isDisabled ? "Disabled — they can’t sign in" : "Active"}
                 </span>
                 <Switch
@@ -626,13 +627,13 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
 
           {/* Last Access Log */}
           <div className="flex flex-col gap-1.5 w-full">
-            <label className="font-bold text-[#7A6A60] text-[11px] tracking-[1.32px] uppercase">
+            <label className="font-bold text-muted-foreground text-xs tracking-[1.32px] uppercase">
               Last Access Log
             </label>
             <input
               readOnly
               value={lastAccessLog}
-              className="bg-[#FAF5EB] border border-[#DDCDB8] rounded-[12px] p-[14px] text-[15px] text-[#7A6A60] focus:outline-none cursor-not-allowed"
+              className="bg-background border border-field-border rounded-md p-[14px] text-base text-muted-foreground focus:outline-none cursor-not-allowed"
             />
           </div>
 
@@ -641,13 +642,13 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
             <div className="flex gap-[10px] w-full">
               <DialogDismiss fallback={onClose}>
                 {(requestClose) => (
-                  <button
+                  <Button variant="unstyled"
                     type="button"
                     onClick={requestClose}
-                    className="flex-1 border border-[#DDCDB8] rounded-[13px] py-[10px] font-bold text-[#7A6A60] text-[14px] hover:bg-black/5 transition-colors"
+                    className="flex-1 border border-field-border rounded-md py-[10px] font-bold text-muted-foreground text-sm hover:bg-black/5 transition-colors"
                   >
                     Cancel
-                  </button>
+                  </Button>
                 )}
               </DialogDismiss>
               <Tooltip
@@ -661,30 +662,30 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
                 shortcut={canSave ? SHORTCUTS.submitForm.combo : undefined}
                 className="flex-1"
               >
-                <button
+                <Button variant="unstyled"
                   type="button"
                   onClick={handleSave}
                   // Not while the stored details are still loading — saving the
                   // still-empty boxes would overwrite them — nor while any field
                   // is invalid.
                   disabled={!canSave}
-                  className="w-full bg-[#E8541F] rounded-[13px] py-[10px] font-bold text-white text-[14px] hover:bg-[#E8541F]/90 transition-colors disabled:opacity-60 disabled:pointer-events-none"
+                  className="w-full bg-accent rounded-md py-[10px] font-bold text-white text-sm hover:bg-accent/90 transition-colors disabled:opacity-60 disabled:pointer-events-none"
                 >
                   {isEditMode ? "Save Changes" : "Add Employee"}
-                </button>
+                </Button>
               </Tooltip>
             </div>
 
             {isEditMode && (
-              <button
+              <Button variant="unstyled"
                 type="button"
                 onClick={() => {
                   onDelete?.(employee);
                 }}
-                className="w-full bg-[#B8352A] rounded-[13px] py-[10px] font-bold text-white text-[14px] hover:bg-[#B8352A]/90 transition-colors"
+                className="w-full bg-backoffice rounded-md py-[10px] font-bold text-white text-sm hover:bg-backoffice/90 transition-colors"
               >
                 Delete
-              </button>
+              </Button>
             )}
           </div>
 

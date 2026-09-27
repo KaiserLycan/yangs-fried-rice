@@ -9,6 +9,7 @@ import { formatPeso } from "@/lib/menu/product-listing";
 import { lineTotal, type CartLine } from "@/lib/menu/cart-totals";
 import { MAX_QUANTITY, MIN_QUANTITY, clampQuantity } from "@/lib/menu/quantity";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 /**
  * One line in the cart (`133:955` desktop, `132:329` mobile): dish name and
@@ -110,12 +111,12 @@ export function CartLineRow({
 
   if (isOptimistic) {
     return (
-      <div className="flex flex-col gap-[7px] rounded-[13px] border border-field-border bg-card p-[11px]">
+      <div className="flex flex-col gap-[7px] rounded-md border border-field-border bg-card p-[11px]">
         <div className="flex justify-between">
-          <div className="h-[18px] w-1/2 animate-pulse rounded bg-secondary/40" />
-          <div className="h-[18px] w-12 animate-pulse rounded bg-secondary/40" />
+          <div className="h-[18px] w-1/2 animate-pulse rounded-sm bg-secondary/40" />
+          <div className="h-[18px] w-12 animate-pulse rounded-sm bg-secondary/40" />
         </div>
-        <div className="mt-[8px] h-[27px] w-[90px] animate-pulse rounded-[7px] bg-secondary/40" />
+        <div className="mt-[8px] h-[27px] w-[90px] animate-pulse rounded-sm bg-secondary/40" />
       </div>
     );
   }
@@ -124,18 +125,18 @@ export function CartLineRow({
   const localLineTotal = lineTotal({ ...line, quantity: localQuantity });
 
   return (
-    <div className="flex flex-col gap-[7px] rounded-[13px] border border-field-border bg-card p-[11px]">
+    <div className="flex flex-col gap-[7px] rounded-md border border-field-border bg-card p-[11px]">
       <div className="flex items-start justify-between gap-[8px]">
-        <span className="text-[14px] font-bold text-foreground">
+        <span className="text-sm font-bold text-foreground">
           {line.name}
         </span>
-        <span className="text-[14px] font-bold text-primary">
+        <span className="text-sm font-bold text-primary">
           {formatPeso(localLineTotal)}
         </span>
       </div>
 
       {line.addOns && line.addOns.length > 0 ? (
-        <ul className="-mt-1 flex flex-col gap-0.5 pl-0 text-[14px] text-muted-foreground">
+        <ul className="-mt-1 flex flex-col gap-0.5 pl-0 text-sm text-muted-foreground">
           {line.addOns.map((addon) => (
             <li key={addon.addon_id}>+ {addon.name}</li>
           ))}
@@ -143,7 +144,7 @@ export function CartLineRow({
       ) : null}
 
       {line.specialInstructions ? (
-        <p className="text-[14px] italic text-muted-foreground">
+        <p className="text-sm italic text-muted-foreground">
           Note: {line.specialInstructions}
         </p>
       ) : null}
@@ -160,7 +161,7 @@ export function CartLineRow({
           onChange={setQuantity}
           disabled={isPending}
           label={`Quantity of ${line.name}`}
-          className="h-[44px] w-[48px] rounded-[7px] border border-field-border bg-background text-center text-[15px] font-bold text-foreground"
+          className="h-[44px] w-[48px] rounded-sm border border-field-border bg-background text-center text-base font-bold text-foreground"
         />
         <StepButton
           glyph="+"
@@ -171,23 +172,23 @@ export function CartLineRow({
 
         <div className="ml-auto flex items-center gap-[4px]">
           {line.product ? (
-            <button
+            <Button variant="unstyled"
               type="button"
               onClick={openEditor}
               disabled={isPending}
-              className="min-h-[44px] px-[6px] text-[14px] font-bold text-foreground underline disabled:opacity-60"
+              className="min-h-[44px] px-[6px] text-sm font-bold text-foreground underline disabled:opacity-60"
             >
               Edit
-            </button>
+            </Button>
           ) : null}
-          <button
+          <Button variant="unstyled"
             type="button"
             onClick={remove}
             disabled={isPending}
-            className="min-h-[44px] px-[6px] text-[14px] font-bold text-primary underline disabled:opacity-60"
+            className="min-h-[44px] px-[6px] text-sm font-bold text-primary underline disabled:opacity-60"
           >
             Remove
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -219,14 +220,14 @@ function StepButton({
   onClick: () => void;
 }) {
   return (
-    <button
+    <Button variant="unstyled"
       type="button"
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="flex size-[44px] items-center justify-center rounded-[7px] border border-field-border bg-background text-[16px] font-bold text-foreground disabled:opacity-60"
+      className="flex size-[44px] items-center justify-center rounded-sm border border-field-border bg-background text-base font-bold text-foreground disabled:opacity-60"
     >
       {glyph}
-    </button>
+    </Button>
   );
 }

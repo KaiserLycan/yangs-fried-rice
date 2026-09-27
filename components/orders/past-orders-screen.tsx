@@ -23,11 +23,11 @@ export function PastOrdersScreen({ orders }: { orders: PastOrder[] }) {
       {/* Mobile's own header. The red nav bar is desktop-only by design (see
           `SiteNavBar`), so each screen brings its own. */}
       <div className="flex items-center gap-[12px] border-b border-rule px-[20px] py-[18px] md:hidden">
-        <h1 className="font-display text-[24px] uppercase text-foreground">MY ORDERS</h1>
+        <h1 className="font-display text-2xl uppercase text-foreground">MY ORDERS</h1>
       </div>
 
       <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-[12px] px-[20px] pb-[calc(var(--tab-bar-height)+24px)] pt-[16px] md:gap-[20px] md:px-[40px] md:pb-[60px] md:pt-[30px]">
-        <h1 className="hidden font-display text-[32px] text-foreground md:block">
+        <h1 className="hidden font-display text-3xl text-foreground md:block">
           MY ORDERS
         </h1>
 
@@ -54,10 +54,10 @@ export function PastOrdersScreen({ orders }: { orders: PastOrder[] }) {
 function PastOrdersEmptyState() {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-[8px] px-[20px] py-[48px] text-center">
-      <p className="text-[14px] text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         You haven’t placed any orders yet.
       </p>
-      <Link href="/menu" className="text-[14px] text-accent underline">
+      <Link href="/menu" className="text-sm text-accent underline">
         Browse the menu
       </Link>
     </div>

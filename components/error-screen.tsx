@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { RotateCcw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 /**
  * The body of the app's error pages (`app/error.tsx`, `app/manage/error.tsx`,
@@ -48,28 +49,28 @@ export function ErrorScreen({
       <h1
         ref={headingRef}
         tabIndex={-1}
-        className="font-display text-[30px] leading-tight text-primary outline-none md:text-[36px]"
+        className="font-display text-3xl leading-tight text-primary outline-none md:text-3xl"
       >
         {title}
       </h1>
-      <p className="text-[15px] leading-relaxed text-muted-strong">{message}</p>
+      <p className="text-base leading-relaxed text-muted-strong">{message}</p>
       {error.digest ? (
-        <p className="text-[14px] text-muted-strong">
+        <p className="text-sm text-muted-strong">
           Reference: <code className="font-mono">{error.digest}</code>
         </p>
       ) : null}
       <div className="mt-2 flex flex-col gap-[10px] sm:flex-row">
-        <button
+        <Button variant="unstyled"
           type="button"
           onClick={reset}
-          className="flex min-h-[44px] items-center justify-center gap-[8px] rounded-[8px] bg-primary px-[18px] text-[15px] font-bold text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="flex min-h-[44px] items-center justify-center gap-[8px] rounded-sm bg-primary px-[18px] text-base font-bold text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <RotateCcw aria-hidden="true" className="size-[16px]" />
           Try again
-        </button>
+        </Button>
         <Link
           href={homeHref}
-          className="flex min-h-[44px] items-center justify-center rounded-[8px] border border-field-border bg-card px-[18px] text-[15px] font-bold text-foreground transition-colors hover:bg-secondary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          className="flex min-h-[44px] items-center justify-center rounded-sm border border-field-border bg-card px-[18px] text-base font-bold text-foreground transition-colors hover:bg-secondary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
         >
           {homeLabel}
         </Link>

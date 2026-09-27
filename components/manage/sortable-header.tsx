@@ -1,4 +1,5 @@
 import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export type SortDirection = "asc" | "desc" | "none";
 
@@ -22,8 +23,8 @@ export function SortableHeader({
   };
 
   return (
-    <button
-      className={`flex items-center gap-2 hover:text-[#4A3D36] transition-colors focus:outline-none w-fit ${className}`}
+    <Button variant="unstyled"
+      className={`flex items-center gap-2 hover:text-muted-strong transition-colors focus:outline-none w-fit ${className}`}
       onClick={toggleSort}
     >
       {label}
@@ -34,6 +35,6 @@ export function SortableHeader({
       ) : (
         <ChevronsUpDown className="h-[14px] w-[14px]" />
       )}
-    </button>
+    </Button>
   );
 }

@@ -57,15 +57,15 @@ export function AccountActions() {
   return (
     <>
       <div className="flex flex-col gap-[12px] md:gap-[26px]">
-        <LogOutControl className="w-full rounded-sm bg-error-border p-[10px] text-center text-[13.5px] font-bold text-white transition-colors hover:bg-error-border/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error-border/40 disabled:cursor-not-allowed disabled:opacity-60 md:px-[18px] md:py-[15px]" />
+        <LogOutControl className="w-full rounded-sm bg-error-border p-[10px] text-center text-sm font-bold text-white transition-colors hover:bg-error-border/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error-border/40 disabled:cursor-not-allowed disabled:opacity-60 md:px-[18px] md:py-[15px]" />
 
-        <button
+        <Button variant="unstyled"
           type="button"
           onClick={() => setDialog("delete")}
-          className="w-full p-[10px] text-center text-[12px] font-bold text-muted-foreground underline hover:text-foreground"
+          className="w-full p-[10px] text-center text-sm font-bold text-muted-foreground underline hover:text-foreground"
         >
           Delete Account
-        </button>
+        </Button>
       </div>
 
       <Dialog

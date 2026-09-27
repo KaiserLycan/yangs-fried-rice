@@ -92,13 +92,13 @@ function KdsInner() {
   const inPrep = orders.filter((o) => o.status === "PREP").length;
 
   return (
-    <div className="flex flex-col h-full w-full bg-[#efe6d8]">
+    <div className="flex flex-col h-full w-full bg-track">
       {/* Header */}
-      <div className="bg-[#b8352a] border-[#2e2523] border-b flex flex-wrap md:flex-nowrap gap-3 md:gap-[20px] items-center px-4 md:px-[24px] py-[12px] md:py-[18px] shrink-0 w-full z-10 shadow-sm">
+      <div className="bg-backoffice border-on-console-rule border-b flex flex-wrap md:flex-nowrap gap-3 md:gap-[20px] items-center px-4 md:px-[24px] py-[12px] md:py-[18px] shrink-0 w-full z-10 shadow-sm">
         {/* Back Button */}
         <Link
           href="/manage/orders"
-          className="text-[#fbf6ec] hover:opacity-80 transition-opacity flex items-center justify-center"
+          className="text-background hover:opacity-80 transition-opacity flex items-center justify-center"
           title="Back to Orders"
         >
           <ArrowLeft className="w-5 h-5 md:w-6 md:h-6" />
@@ -106,10 +106,10 @@ function KdsInner() {
 
         {/* Title */}
         <div className="flex flex-col items-start ml-2 flex-1 md:flex-none">
-          <div className="font-display text-[18px] md:text-[22px] tracking-[0.44px] whitespace-nowrap leading-none">
-            <span className="text-[#f0b27a]">KITCHEN</span>
+          <div className="font-display text-lg md:text-2xl tracking-[0.44px] whitespace-nowrap leading-none">
+            <span className="text-on-brand-accent">KITCHEN</span>
             <span>{` `}</span>
-            <span className="text-[#fbf6ec]">DISPLAY</span>
+            <span className="text-background">DISPLAY</span>
           </div>
         </div>
 
@@ -117,19 +117,19 @@ function KdsInner() {
 
         {/* Stats */}
         <div className="flex flex-col items-end text-right justify-center ml-auto md:ml-0">
-          <p className="font-bold text-[#fbf6ec] text-[9px] md:text-[10px] tracking-[1.4px] leading-none mb-1">
+          <p className="font-bold text-background text-sm md:text-sm tracking-[1.4px] leading-none mb-1">
             IN QUEUE
           </p>
-          <p className="font-display text-[#f0b27a] text-[18px] md:text-[22px] leading-none">
+          <p className="font-display text-on-brand-accent text-lg md:text-2xl leading-none">
             {inQueue}
           </p>
         </div>
 
         <div className="flex flex-col items-end text-right justify-center ml-4 md:ml-2">
-          <p className="font-bold text-[#fbf6ec] text-[9px] md:text-[10px] tracking-[1.4px] leading-none mb-1">
+          <p className="font-bold text-background text-sm md:text-sm tracking-[1.4px] leading-none mb-1">
             PREPARING
           </p>
-          <p className="font-display text-[#f0b27a] text-[18px] md:text-[22px] leading-none">
+          <p className="font-display text-on-brand-accent text-lg md:text-2xl leading-none">
             {inPrep}
           </p>
         </div>
@@ -142,31 +142,31 @@ function KdsInner() {
             {Array.from({ length: 8 }).map((_, i) => (
               <div
                 key={i}
-                className="bg-[#fbf6ec] border border-[#3a2e2c] flex flex-col overflow-hidden rounded-[14px] w-full min-h-[320px] shadow-sm"
+                className="bg-background border border-foreground flex flex-col overflow-hidden rounded-md w-full min-h-[320px] shadow-sm"
               >
-                <div className="bg-[#efe6d8] p-[12px] flex justify-between">
+                <div className="bg-track p-[12px] flex justify-between">
                   <div className="flex flex-col gap-2">
-                    <div className="h-5 w-16 bg-[#e3d6c3] rounded-full animate-pulse" />
-                    <div className="h-3 w-12 bg-[#e3d6c3] rounded-full animate-pulse" />
+                    <div className="h-5 w-16 bg-rule rounded-full animate-pulse" />
+                    <div className="h-3 w-12 bg-rule rounded-full animate-pulse" />
                   </div>
                   <div className="flex flex-col items-end gap-2">
-                    <div className="h-3 w-10 bg-[#e3d6c3] rounded-full animate-pulse" />
-                    <div className="h-5 w-12 bg-[#e3d6c3] rounded-full animate-pulse" />
+                    <div className="h-3 w-10 bg-rule rounded-full animate-pulse" />
+                    <div className="h-5 w-12 bg-rule rounded-full animate-pulse" />
                   </div>
                 </div>
                 <div className="flex-1 p-[13px] flex flex-col gap-3">
-                  <div className="h-4 w-3/4 bg-[#efe6d8] rounded-full animate-pulse" />
-                  <div className="h-4 w-1/2 bg-[#efe6d8] rounded-full animate-pulse" />
+                  <div className="h-4 w-3/4 bg-track rounded-full animate-pulse" />
+                  <div className="h-4 w-1/2 bg-track rounded-full animate-pulse" />
                 </div>
                 <div className="flex w-full h-[44px]">
-                  <div className="flex-1 bg-[#efe6d8] border-r border-[#e3d6c3] animate-pulse" />
-                  <div className="flex-1 bg-[#efe6d8] animate-pulse" />
+                  <div className="flex-1 bg-track border-r border-rule animate-pulse" />
+                  <div className="flex-1 bg-track animate-pulse" />
                 </div>
               </div>
             ))}
           </div>
         ) : orders.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-[15px] text-[#7a6a60]">
+          <div className="flex h-full items-center justify-center text-base text-muted-foreground">
             No active orders in the kitchen.
           </div>
         ) : (

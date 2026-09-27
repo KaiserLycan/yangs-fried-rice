@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { isRestaurantOpen } from "./store-hours";
+import { isRestaurantOpen, nextOpeningLabel, STORE_HOURS_LABEL } from "./store-hours";
 
 /**
  * The opening-hours rule, tested against a controlled clock rather than the
@@ -38,5 +38,20 @@ describe("isRestaurantOpen", () => {
 
     vi.setSystemTime(new Date(Date.UTC(2026, 8, 21, 10, 0))); // 18:00 Manila
     expect(isRestaurantOpen()).toBe(false);
+  });
+});
+
+describe("nextOpeningLabel", () => {
+  // Manila is UTC+8 and has no daylight saving.
+  const atManila = (hour: number, minute = 0) => new Date(Date.UTC(2026, 8, 21, hour - 8, minute));
+
+  it("says today before opening and tomorrow after closing", () => {
+    expect(nextOpeningLabel(atManila(6, 30))).toBe("Opens today at 8:00 AM");
+    expect(nextOpeningLabel(atManila(18, 0))).toBe("Opens tomorrow at 8:00 AM");
+    expect(nextOpeningLabel(atManila(23, 59))).toBe("Opens tomorrow at 8:00 AM");
+  });
+
+  it("prints the hours the way the banner does", () => {
+    expect(STORE_HOURS_LABEL).toBe("8:00 AM – 6:00 PM");
   });
 });

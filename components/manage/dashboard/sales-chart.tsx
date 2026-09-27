@@ -6,8 +6,8 @@
  * Uses recharts (already a project dependency) with custom bar rendering
  * to match the Figma design:
  *   - Bars have rounded top corners (6px radius)
- *   - Mon–Thu use #bf4342 (lighter red)
- *   - Fri–Sun use #8c1c13 (darker red, "highlight" days)
+ *   - Mon–Thu use the destructive token (lighter red)
+ *   - Fri–Sun use the primary token (darker red, "highlight" days)
  *   - Value labels sit above each bar in bold, and drop out when a bar is
  *     too narrow to hold one (see `renderValueLabel`); the tooltip still
  *     gives the figure on tap
@@ -28,13 +28,14 @@ import {
   Tooltip,
 } from "recharts";
 import type { DailySales } from "@/lib/actions/dashboard";
+import { CHART_COLORS } from "@/lib/design/chart-colors";
 
 interface SalesChartProps {
   data: DailySales[];
 }
 
-const BAR_COLOR_DEFAULT = "#bf4342";
-const BAR_COLOR_HIGHLIGHT = "#8c1c13";
+const BAR_COLOR_DEFAULT = CHART_COLORS.bar;
+const BAR_COLOR_HIGHLIGHT = CHART_COLORS.barHighlight;
 
 /** Matches `barCategoryGap` below: the share of each slot left empty. */
 const CATEGORY_GAP = 0.18;
@@ -72,7 +73,7 @@ function renderValueLabel(props: any) {
       x={Number(x) + Number(width) / 2}
       y={Number(y) - 8}
       textAnchor="middle"
-      className="fill-[#8c1c13] text-[11px] font-bold"
+      className="fill-primary text-xs font-bold"
       style={{ fontFamily: "var(--font-sans)", fontWeight: 700 }}
     >
       {text}
@@ -82,16 +83,16 @@ function renderValueLabel(props: any) {
 
 export function SalesChart({ data }: SalesChartProps) {
   return (
-    <div className="flex flex-col gap-[18px] rounded-2xl border border-[#e3d6c3] bg-white p-[18px]">
+    <div className="flex flex-col gap-[18px] rounded-lg border border-rule bg-white p-[18px]">
       {/* Section header */}
-      <span className="text-[12px] font-bold uppercase tracking-[1.44px] text-[#7a6a60]">
+      <span className="text-xs font-bold uppercase tracking-[1.44px] text-muted-foreground">
         Sales, last 7 days
       </span>
 
       {/* Chart */}
       <div className="h-[190px] w-full">
         {!data.some(d => d.amount > 0) ? (
-          <div className="flex h-full w-full items-center justify-center text-[13px] text-[#7a6a60]">
+          <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
             No data available.
           </div>
         ) : (
@@ -106,7 +107,7 @@ export function SalesChart({ data }: SalesChartProps) {
                 axisLine={false}
                 tickLine={false}
                 tick={{
-                  fill: "#7a6a60",
+                  fill: CHART_COLORS.axis,
                   fontSize: 11,
                   fontFamily: "var(--font-sans)",
                 }}
@@ -121,12 +122,12 @@ export function SalesChart({ data }: SalesChartProps) {
                 ]}
                 contentStyle={{
                   borderRadius: 12,
-                  border: "1px solid #DDCDB8",
+                  border: "1px solid hsl(var(--field-border))",
                   fontSize: 12,
                   fontFamily: "var(--font-sans)",
                 }}
-                labelStyle={{ color: "#7a6a60", fontWeight: 700 }}
-                itemStyle={{ color: "#8c1c13", fontWeight: 700 }}
+                labelStyle={{ color: "hsl(var(--muted-foreground))", fontWeight: 700 }}
+                itemStyle={{ color: "hsl(var(--primary))", fontWeight: 700 }}
               />
               <Bar
                 dataKey="amount"

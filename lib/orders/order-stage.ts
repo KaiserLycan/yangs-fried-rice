@@ -70,7 +70,7 @@ export const STAGE_HEADLINES: Record<OrderStage, string> = {
 /**
  * How the order reaches the customer. The four stages are the same; only the
  * words for the last two change. A take-out order is never "out for delivery"
- * — it is "ready for pick up" and then "picked up".
+ * — it is "ready for pickup" and then "picked up".
  */
 export type Fulfilment = "delivery" | "pickup";
 
@@ -80,13 +80,13 @@ export function fulfilmentOf(orderType: string | null | undefined): Fulfilment {
 
 const PICKUP_STAGE_LABELS: Record<OrderStage, string> = {
   ...STAGE_LABELS,
-  out_for_delivery: "Ready for pick up",
+  out_for_delivery: "Ready for pickup",
   delivered: "Picked up",
 };
 
 const PICKUP_STAGE_HEADLINES: Record<OrderStage, string> = {
   ...STAGE_HEADLINES,
-  out_for_delivery: "READY FOR PICK UP",
+  out_for_delivery: "READY FOR PICKUP",
   delivered: "PICKED UP",
 };
 
@@ -266,7 +266,7 @@ export function resolveOrderProgress(input: OrderStageInput): OrderProgress {
 
   // For a delivery, "ready" is still the kitchen's business (see the table
   // above). For a take-out order it is the moment the customer can come and
-  // get it — the stage the timeline calls "Ready for pick up".
+  // get it — the stage the timeline calls "Ready for pickup".
   if (orderStatus === "ready" && isPickupOrder(input.orderType)) {
     fromOrder = "out_for_delivery";
   }

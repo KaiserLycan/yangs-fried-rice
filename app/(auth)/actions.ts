@@ -103,7 +103,9 @@ export async function registerCustomer(
       // and answered, now that no birthday is taken at sign-up. The schema
       // has already refused a sign-up without it.
       data: { name, age_confirmed_at: new Date().toISOString() },
-      ...(origin && { emailRedirectTo: `${origin}/login` }),
+      // /auth/confirm turns the link into a session and lands them on the
+      // menu, signed in, instead of back on the login form.
+      ...(origin && { emailRedirectTo: `${origin}/auth/confirm?next=/menu` }),
     },
   });
 
