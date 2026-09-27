@@ -281,7 +281,7 @@ export async function getDetailedOrders(
         product_name,
         unit_price,
         product:product_id ( product_name, product_price ),
-        order_item_add_on ( add_on ( name, price ) )
+        order_item_add_on ( add_on ( add_on_name, price ) )
       ),
       ${transactionJoin}
     `,
@@ -377,7 +377,7 @@ export async function getOrderDetail(
         subtotal,
         special_instructions,
         product:product_id ( product_name, product_price ),
-        order_item_add_on ( add_on ( name, price ) )
+        order_item_add_on ( add_on ( add_on_name, price ) )
       ),
       transaction (
         transaction_id,
@@ -594,7 +594,7 @@ export interface PaymentIssueOrder {
   order: OrderWithDetails;
 }
 
-async function _fetchPaymentIssuesBase(supabase: ReturnType<typeof createClient>): Promise<ActionResult<PaymentIssueOrder[]>> {
+async function _fetchPaymentIssuesBase(supabase: ReturnType<typeof createClient>, isKds: boolean): Promise<ActionResult<PaymentIssueOrder[]>> {
   // We need to fetch two groups:
   // 1. payment_failed: (order_status = 'payment_failed' OR (order_status = 'awaiting_payment' AND created_at < 5 mins ago)) AND payment_method IN ('gcash','paymongo')
   // 2. pickup_overdue: order_status = 'ready' AND order_type = 'take_out' AND payment_method IN ('pay_in_store', 'pay-in-store', 'cash') AND ready_at < 90 mins ago
