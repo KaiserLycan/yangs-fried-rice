@@ -3273,8 +3273,8 @@
         "tags": [
           "Address & Validation"
         ],
-        "summary": "Add new customer address (NCR restricted)",
-        "description": "Adds a new delivery address for the authenticated customer. Strictly enforces NCR boundary check (maximum 25 km radius from Malate store). Rejects addresses outside Metro Manila.",
+        "summary": "Add new customer address",
+        "description": "Adds a new address for the authenticated customer.",
         "operationId": "addCustomerAddress",
         "requestBody": {
           "required": true,
@@ -3307,7 +3307,7 @@
             }
           },
           "400": {
-            "description": "Validation error or outside NCR delivery zone",
+            "description": "Validation error",
             "content": {
               "application/json": {
                 "schema": {

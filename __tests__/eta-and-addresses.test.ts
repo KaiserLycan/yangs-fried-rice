@@ -27,7 +27,7 @@ describe("Customer Addresses API", () => {
     expect(body.error).toContain("Unauthorized");
   });
 
-  it("TC-ADDR-3: Successfully saves valid NCR address with 201", async () => {
+  it("TC-ADDR-3: Successfully saves a valid address with 201", async () => {
     const mockInsert = vi.fn().mockReturnValue({
       select: vi.fn().mockReturnValue({
         single: vi.fn().mockResolvedValue({

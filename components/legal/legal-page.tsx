@@ -27,12 +27,12 @@ export function LegalPage({
         <div className="flex flex-col gap-[14px] rounded-[22px] bg-background p-5 shadow-sm md:gap-[18px] md:rounded-none md:bg-transparent md:p-0 md:shadow-none">
           <Link
             href="/"
-            className="inline-block w-fit text-[14px] font-bold text-[#e8541f] hover:underline"
+            className="inline-block w-fit text-[14px] font-bold text-accent hover:underline"
           >
             &larr; Back
           </Link>
 
-          <h1 className="mt-2 font-display text-[32px] uppercase text-[#e8541f] md:text-[40px]">
+          <h1 className="mt-2 font-display text-[32px] uppercase text-accent md:text-[40px]">
             {title}
           </h1>
           <p className="text-[13px] text-muted-foreground">

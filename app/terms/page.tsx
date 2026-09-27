@@ -26,7 +26,7 @@ export default function TermsPage() {
           How we handle your personal data is in our{" "}
           <Link
             href="/privacy"
-            className="font-bold text-primary hover:underline"
+            className="font-bold text-accent hover:underline"
           >
             Privacy Notice
           </Link>
@@ -67,9 +67,9 @@ export default function TermsPage() {
 
       <LegalSection title="5. When we cancel your order">
         <p>
-          We may cancel an order if an item runs out, the store has to close, an
-          online payment does not go through, or the order is not picked up by
-          closing time. We will show the reason on your order page.
+          We may cancel an order if an item runs out, the store has to close, or
+          an online payment does not go through. We will show the reason on your
+          order page.
         </p>
       </LegalSection>
 

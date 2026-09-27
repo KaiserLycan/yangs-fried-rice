@@ -101,8 +101,9 @@ Philippine news and social media reports); see [`lacking.md`](lacking.md#round-3
 - **Fix:** add `async headers()` in `next.config.mjs` with `X-Frame-Options: DENY`,
   `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`,
   `Permissions-Policy: camera=(self), geolocation=(self)`, `Strict-Transport-Security`, and a
-  basic `Content-Security-Policy` that allows Supabase, PayMongo, LocationIQ and the map tile hosts.
-  Check the map, image uploads and PayMongo redirect still work afterwards.
+  basic `Content-Security-Policy` that allows Supabase and PayMongo.
+  Check image uploads and the PayMongo redirect still work afterwards.
+- **✅ Done in #116:** `next.config.mjs` sends all of these. The map and LocationIQ were removed, so the CSP doesn't allow them.
 
 ### 6. No minimum order or cash-on-delivery cap
 - **Now:** a ₱15 order is allowed, and so is a ₱20,000 cash order. The second is

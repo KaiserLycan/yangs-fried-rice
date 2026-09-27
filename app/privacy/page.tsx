@@ -128,7 +128,7 @@ export default function PrivacyPage() {
           You can correct most details yourself on your{" "}
           <Link
             href="/profile"
-            className="font-bold text-primary hover:underline"
+            className="font-bold text-accent hover:underline"
           >
             profile page
           </Link>
