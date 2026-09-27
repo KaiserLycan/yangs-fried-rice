@@ -1275,12 +1275,16 @@ function hourLabel(hour: number): string {
   return `${fmt(hour)} – ${fmt(hour + 1)}`;
 }
 
+export type CashRemittedDay = { day: string; totalOrders: number; cashTotal: number };
+
 /**
- * Fetch cash remitted for UI display.
+ * Cash collected at the counter, one row per Manila day with at least one
+ * completed pay-in-store order. The range total is the sum of the rows.
+ * Requires: manager.
  */
-export async function getCashRemitted(
+export async function getCashRemittedDaily(
   input: ReportDateRange,
-): Promise<ActionResult<number>> {
+): Promise<ActionResult<{ days: CashRemittedDay[]; total: number }>> {
   const parsed = reportDateRangeSchema.safeParse(input);
   if (!parsed.success) return { data: null, error: parsed.error.errors[0].message };
 
@@ -1288,11 +1292,27 @@ export async function getCashRemitted(
   if (!auth.data) return { data: null, error: auth.error };
 
   const supabase = createClient();
-  const { data, error } = await supabase.rpc("get_cash_remitted", { 
-    start_date: parsed.data.start_date, 
-    end_date: parsed.data.end_date 
+  // The generated database types predate this function.
+  const rpc = supabase.rpc as unknown as (
+    fn: string,
+    args: Record<string, unknown>,
+  ) => Promise<{
+    data: { day: string; total_orders: number; cash_total: number | string }[] | null;
+    error: { message: string } | null;
+  }>;
+  const { data, error } = await rpc("get_cash_remitted_daily", {
+    start_date: parsed.data.start_date,
+    end_date: parsed.data.end_date,
   });
 
   if (error) return { data: null, error: error.message };
-  return { data: Number(data), error: null };
+  const days = (data ?? []).map((row) => ({
+    day: row.day,
+    totalOrders: Number(row.total_orders),
+    cashTotal: Number(row.cash_total),
+  }));
+  return {
+    data: { days, total: days.reduce((sum, row) => sum + row.cashTotal, 0) },
+    error: null,
+  };
 }
