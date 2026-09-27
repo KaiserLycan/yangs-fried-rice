@@ -662,26 +662,21 @@ async function _fetchPaymentIssuesBase(supabase: ReturnType<typeof createClient>
   const issues: PaymentIssueOrder[] = [];
 
   for (const order of data as unknown as OrderWithDetails[]) {
-    const tx = Array.isArray(order.transaction) ? order.transaction[0] : order.transaction;
-    const paymentMethod = tx?.payment_method || "";
-
-    // 1. payment_failed
-    const isEwallet = WALLET_PAYMENT_METHODS.includes(paymentMethod);
-    // Same rule as the Orders page's Payment Issues tab: still unpaid
-    // STUCK_PAYMENT_MINUTES after it was placed.
-    if (isEwallet && (order.order_status === "payment_failed" || order.order_status === "awaiting_payment")) {
-      const elapsedMins = (now - new Date(order.created_at as string).getTime()) / 60000;
-      if (elapsedMins >= STUCK_PAYMENT_MINUTES) {
-        issues.push({ type: "payment_failed", order });
-        continue;
-      }
+    // 1. Unpaid: waiting for the wallet, or refused. Listed straight away,
+    //    same as the Orders page's Payment Issues tab; the card's clock
+    //    turns amber at STUCK_PAYMENT_MINUTES.
+    if (isUnpaidStatus(order.order_status)) {
+      issues.push({ type: "payment_failed", order });
+      continue;
     }
 
-    // 2. pickup_overdue
-    const isCash = CASH_PAYMENT_METHODS.includes(paymentMethod);
-    if (order.order_status === "ready" && (order.order_type === "take_out" || order.order_type === "pickup") && isCash && order.ready_at) {
-      const elapsedMins = (now - new Date(order.ready_at as string).getTime()) / 60000;
-      if (elapsedMins >= 90) {
+    // 2. Ready but not collected for FAILED_PICKUP_MINUTES, whoever it was
+    //    for and however it was paid. Before this it was take-out + cash
+    //    only, and anything else sat on "For Pick-up" forever.
+    if (order.order_status === "ready") {
+      const readyAt = order.ready_at ?? order.created_at;
+      const elapsedMins = readyAt ? (now - new Date(readyAt).getTime()) / 60000 : 0;
+      if (elapsedMins >= FAILED_PICKUP_MINUTES) {
         issues.push({ type: "pickup_overdue", order });
       }
     }
