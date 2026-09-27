@@ -254,7 +254,13 @@ function ManageOrdersInner() {
               </div>
             ) : orders.length === 0 ? (
               <div className="p-8 text-center text-[#7A6A60] bg-white rounded-xl border border-[#F0E6D8]">
-                {search ? `No orders starting with #${search.replace(/^#/, "")}.` : "No orders found for this status."}
+                {search
+                  ? `No orders starting with #${search.replace(/^#/, "")}.`
+                  : Object.keys(advancedFilters).some((k) => advancedFilters[k as keyof OrderFilterState])
+                  ? "No orders match these filters."
+                  : activeStatus === "Payment Issues"
+                  ? "No stuck or failed payments right now."
+                  : "No orders found for this status."}
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
