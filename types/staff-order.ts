@@ -13,8 +13,10 @@
  * statuses land in one column: `pending` → QUEUE, `ready` and legacy
  * `out_for_delivery` → DELIVERY (read as "Ready for pick up" for a pickup
  * order; see `statusLabelFor` in `lib/orders/staff-actions.ts`).
+ * `awaiting_payment` and `payment_failed` → UNPAID: shown only on the
+ * payment-issue views, and never confirmable until the money lands.
  */
-export type StaffOrderStatus = "QUEUE" | "PREP" | "DELIVERY" | "COMPLETED" | "CANCELED";
+export type StaffOrderStatus = "UNPAID" | "QUEUE" | "PREP" | "DELIVERY" | "COMPLETED" | "CANCELED";
 
 export type OrderData = {
   id: string;
