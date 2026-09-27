@@ -8,6 +8,7 @@ import { findAwaitingPaymentOrder } from "@/lib/checkout/find-awaiting-payment-o
 import { readCustomerProfile } from "@/lib/profile/customer-profile";
 import { readArrivalQuote } from "@/lib/checkout/read-arrival-quote";
 import { readCashHistory } from "@/lib/checkout/read-cash-history";
+import { cartItemCount } from "@/lib/menu/cart-totals";
 
 /**
  * Checkout (Browsing8-10, TPI1; GitHub issue #22) — order review and payment
@@ -61,7 +62,7 @@ export default async function CheckoutPage({
   // here is produced by the same engine that will tell them where their
   // order is a minute later (issue #106).
   const [arrivalEstimate, cashHistory] = await Promise.all([
-    readArrivalQuote({ fulfilment, distanceKm, currentCartItemCount: count }),
+    readArrivalQuote({ fulfilment, distanceKm, currentCartItemCount: cartItemCount(lines) }),
     readCashHistory(),
   ]);
 
