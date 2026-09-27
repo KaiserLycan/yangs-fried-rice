@@ -1328,8 +1328,7 @@ export async function exportReportCSV(
     (cancelRes.data ?? []).map((row) => [row.reason, row.total_orders]),
   );
 
-  // Excel opens a UTF-8 CSV correctly only with the byte-order mark.
-  return { data: "﻿" + rows.map((row) => row.map(csvCell).join(",")).join("\r\n"), error: null };
+  return { data: toCsv(rows), error: null };
 }
 
 /** Rows → CSV text. Excel opens a UTF-8 CSV correctly only with the byte-order mark. */
