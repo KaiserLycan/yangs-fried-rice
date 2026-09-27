@@ -132,20 +132,47 @@ function ManageCustomersInner() {
         <h1 className="font-display text-[24px] md:text-[30px] leading-normal text-[#1a1210]">
           CUSTOMER MANAGEMENT
         </h1>
-        <div className="relative w-full md:w-auto">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-[#A2938A]" />
-          <input
-            type="text"
-            placeholder="Search..."
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
+        <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+          <div className="relative w-full md:w-auto">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-[#A2938A]" />
+            <input
+              type="text"
+              placeholder="Search name, email or phone..."
+              aria-label="Search customers by name, email or phone"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full md:w-[360px] h-[45px] pl-11 pr-4 rounded-xl border border-[#DDCDB8] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#E8541F] placeholder:text-[#A2938A]"
+            />
+          </div>
+          <CustomerFilterPopover
+            filters={filters}
+            onFilterChange={(next) => {
+              setFilters(next);
               setCurrentPage(1);
             }}
-            className="w-full md:w-[442px] h-[45px] pl-11 pr-4 rounded-xl border border-[#DDCDB8] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#E8541F] placeholder:text-[#A2938A]"
           />
         </div>
       </div>
+
+      {/* What Orders / Spent mean right now, and what is filtered */}
+      {activeCustomerFilterCount(filters) > 0 && (
+        <p className="-mt-2 md:-mt-5 mb-3 text-[13px] text-[#7A6A60]">
+          {hasPeriod
+            ? `Orders and Spent: completed orders ${
+                filters.from && filters.to
+                  ? `from ${formatDay(filters.from)} to ${formatDay(filters.to)}`
+                  : filters.from
+                  ? `since ${formatDay(filters.from)}`
+                  : `up to ${formatDay(filters.to!)}`
+              }.`
+            : "Orders and Spent: lifetime totals."}
+          {" "}
+          {totalCount} customer{totalCount === 1 ? "" : "s"} match.
+        </p>
+      )}
 
       {/* Table Container */}
       <div className="flex-1 flex flex-col min-h-0">
