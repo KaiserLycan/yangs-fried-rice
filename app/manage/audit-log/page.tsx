@@ -1,8 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Search, ChevronDown, Filter } from "lucide-react";
 import { ManagePagination } from "@/components/manage/manage-pagination";
+import { SortableHeader, type SortDirection } from "@/components/manage/sortable-header";
+import { Kbd } from "@/components/ui/tooltip";
+import { SHORTCUTS, useShortcut } from "@/lib/hooks/use-shortcut";
 import { DateInput } from "@/components/manage/reports/report-controls";
 import { AuditLogModal, formatAuditTime } from "@/components/manage/audit-log/audit-log-modal";
 import { useDebounce } from "@/lib/hooks/use-debounce";
@@ -14,6 +17,7 @@ import {
   auditActionLabel,
   type AuditCategoryId,
 } from "@/lib/audit/audit-actions";
+import type { AuditSortColumn } from "@/lib/validation/audit";
 import { roleDisplayLabel } from "@/lib/auth/roles";
 
 /**
@@ -43,6 +47,12 @@ const CATEGORY_OPTIONS: Option[] = [
   ...AUDIT_CATEGORIES.map((c) => ({ id: c.id, label: c.label })),
 ];
 
+/**
+ * A filter the same shape as the reports' `DateInput` beside it — a visible
+ * label over a box of the same fixed height — so the whole filter row lines
+ * up along its bottom edge. The list itself is the employee page's role
+ * filter (`useDropdown`, same option styling).
+ */
 function FilterDropdown({
   label,
   options,
@@ -59,25 +69,25 @@ function FilterDropdown({
   const current = options.find((o) => o.id === value)?.label ?? options[0]?.label ?? "";
 
   return (
-    <div className="relative w-full sm:w-auto">
-      <span {...menu.labelProps} className="sr-only">
+    <div className="relative flex w-full md:w-auto md:min-w-[200px] flex-col gap-[6px]">
+      <span {...menu.labelProps} className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
         {label}
       </span>
       <button
         {...menu.triggerProps}
-        className="w-full sm:w-auto h-[45px] px-4 rounded-xl border border-[#DDCDB8] bg-white text-sm flex items-center justify-between sm:justify-start gap-2 hover:bg-[#FAF5EB] transition-colors focus:outline-none focus:ring-2 focus:ring-[#E8541F]"
+        className="flex h-[46px] md:h-[50px] w-full items-center justify-between gap-2 rounded-[12px] border border-[#ddcdb8] bg-white px-3 md:px-[14px] text-[13px] md:text-[15px] hover:bg-[#FAF5EB] transition-colors focus:outline-none focus:ring-2 focus:ring-[#E8541F]"
       >
-        <div className="flex items-center gap-2 min-w-0">
-          <Filter aria-hidden="true" className="w-[16px] h-[16px] shrink-0 text-[#A2938A]" />
-          <span className="text-[#1A1210] font-medium min-w-[90px] max-w-[180px] truncate text-left">{current}</span>
-        </div>
-        <ChevronDown aria-hidden="true" className="w-4 h-4 text-[#A2938A]" />
+        <span className="flex min-w-0 items-center gap-2">
+          <Filter aria-hidden="true" className="h-[16px] w-[16px] shrink-0 text-[#A2938A]" />
+          <span className="truncate text-left text-[#1a1210]">{current}</span>
+        </span>
+        <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-[#A2938A]" />
       </button>
 
       {open && (
         <div
           {...menu.listProps}
-          className="absolute left-0 top-[calc(100%+8px)] z-20 w-full sm:w-[220px] max-h-[300px] overflow-y-auto bg-white border border-[#DDCDB8] rounded-xl p-1 shadow-[0_8px_20px_rgba(26,18,16,0.08)]"
+          className="absolute left-0 top-[calc(100%+8px)] z-20 w-full md:w-[240px] max-h-[300px] overflow-y-auto bg-white border border-[#DDCDB8] rounded-xl p-1 shadow-[0_8px_20px_rgba(26,18,16,0.08)]"
         >
           {options.map((option) => (
             <button
@@ -100,6 +110,12 @@ function FilterDropdown({
   );
 }
 
+/** Newest first unless a manager asks otherwise — the order the log is read in. */
+const DEFAULT_SORT: { column: AuditSortColumn; direction: "asc" | "desc" } = {
+  column: "occurred_at",
+  direction: "desc",
+};
+
 function ManageAuditLogInner() {
   const showToast = useToast();
 
@@ -115,6 +131,29 @@ function ManageAuditLogInner() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 300);
+  const searchRef = useRef<HTMLInputElement>(null);
+  // "/" jumps to the search box, the same key as the customer menu's search.
+  useShortcut(SHORTCUTS.focusSearch.combo, () => {
+    searchRef.current?.focus();
+    searchRef.current?.select();
+  });
+
+  // Sorting is done by the server: the log is paged, so sorting one page in
+  // the browser would only reorder the ten rows on screen.
+  const [sort, setSort] = useState(DEFAULT_SORT);
+  const sortFor = (column: AuditSortColumn): SortDirection =>
+    sort.column === column ? sort.direction : "none";
+  const changeSort = (column: AuditSortColumn) => (next: SortDirection) => {
+    if (next !== "none") {
+      setSort({ column, direction: next });
+    } else if (column === DEFAULT_SORT.column) {
+      // "When" is always sorted one way or the other; its third click goes
+      // back to ascending rather than to an unsorted state it can't have.
+      setSort({ column, direction: "asc" });
+    } else {
+      setSort(DEFAULT_SORT);
+    }
+  };
   const [category, setCategory] = useState<string>(ALL);
   const [actorId, setActorId] = useState<string>(ALL);
   const [startDate, setStartDate] = useState("");
@@ -123,10 +162,10 @@ function ManageAuditLogInner() {
   const datesInvalid = Boolean(startDate && endDate && endDate < startDate);
   const hasFilters = Boolean(searchQuery || category !== ALL || actorId !== ALL || startDate || endDate);
 
-  // Any filter change starts again from the first page.
+  // Any filter or sort change starts again from the first page.
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearch, category, actorId, startDate, endDate]);
+  }, [debouncedSearch, category, actorId, startDate, endDate, sort]);
 
   useEffect(() => {
     getAuditActors().then((result) => {
@@ -149,6 +188,8 @@ function ManageAuditLogInner() {
       date_from: startDate || undefined,
       date_to: endDate || undefined,
       search: debouncedSearch.trim() || undefined,
+      sort: sort.column,
+      direction: sort.direction,
       limit: pageSize,
       offset: (currentPage - 1) * pageSize,
     });
@@ -162,7 +203,7 @@ function ManageAuditLogInner() {
       setTotalPages(Math.max(1, Math.ceil(result.data.totalCount / pageSize)));
     }
     setIsLoading(false);
-  }, [category, actorId, startDate, endDate, debouncedSearch, currentPage, pageSize, datesInvalid, showToast]);
+  }, [category, actorId, startDate, endDate, debouncedSearch, sort, currentPage, pageSize, datesInvalid, showToast]);
 
   useEffect(() => {
     fetchEntries();
@@ -170,6 +211,7 @@ function ManageAuditLogInner() {
 
   const clearFilters = () => {
     setSearchQuery("");
+    setSort(DEFAULT_SORT);
     setCategory(ALL);
     setActorId(ALL);
     setStartDate("");
@@ -186,22 +228,32 @@ function ManageAuditLogInner() {
         <div className="relative w-full md:w-auto">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-[#A2938A]" />
           <input
+            ref={searchRef}
             type="search"
             aria-label="Search the audit log"
+            aria-keyshortcuts="/"
+            title="Search the audit log (press / to jump here)"
             placeholder="Search..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             maxLength={80}
-            className="w-full md:w-[360px] h-[45px] pl-11 pr-4 rounded-xl border border-[#DDCDB8] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#E8541F] placeholder:text-[#A2938A]"
+            className="w-full md:w-[360px] h-[45px] pl-11 pr-10 rounded-xl border border-[#DDCDB8] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#E8541F] placeholder:text-[#A2938A]"
           />
+          {!searchQuery && (
+            <Kbd className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 border-[#DDCDB8] bg-transparent text-[#A2938A]">
+              /
+            </Kbd>
+          )}
         </div>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col md:flex-row md:items-end gap-3 md:gap-[10px] md:mb-6">
-        <div className="flex flex-col sm:flex-row gap-3 md:gap-[10px]">
-          <FilterDropdown label="Filter by action" options={CATEGORY_OPTIONS} value={category} onChange={setCategory} />
-          <FilterDropdown label="Filter by employee" options={actorOptions} value={actorId} onChange={setActorId} />
+      {/* Every control is a labelled field of the same fixed height (the
+          reports' DateInput), so the row shares one bottom edge. */}
+      <div className="flex flex-col md:flex-row md:flex-wrap md:items-end gap-3 md:gap-[10px] md:mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:flex gap-3 md:gap-[10px]">
+          <FilterDropdown label="Action" options={CATEGORY_OPTIONS} value={category} onChange={setCategory} />
+          <FilterDropdown label="Employee" options={actorOptions} value={actorId} onChange={setActorId} />
         </div>
         <div className="grid grid-cols-2 md:flex gap-3 md:gap-[10px]">
           <DateInput label="Start Date" max={today} value={startDate} onChange={setStartDate} />
@@ -211,7 +263,7 @@ function ManageAuditLogInner() {
           <button
             type="button"
             onClick={clearFilters}
-            className="h-[45px] px-4 rounded-xl border border-[#DDCDB8] bg-white text-sm font-bold text-[#7A6A60] hover:bg-[#FAF5EB] transition-colors focus:outline-none focus:ring-2 focus:ring-[#E8541F]"
+            className="flex h-[46px] md:h-[50px] items-center justify-center rounded-[12px] border border-[#ddcdb8] bg-white px-4 text-[13px] md:text-[15px] font-bold text-[#7A6A60] hover:bg-[#FAF5EB] transition-colors focus:outline-none focus:ring-2 focus:ring-[#E8541F]"
           >
             Clear filters
           </button>
@@ -227,10 +279,10 @@ function ManageAuditLogInner() {
       <div className="flex-1 flex flex-col min-h-0">
         <div className="bg-white rounded-[12px] overflow-hidden flex flex-col min-h-0 border border-[#F0E6D8] shadow-[0_2px_10px_rgba(26,18,16,0.02)]">
           <div className="hidden md:grid grid-cols-[1fr_1.1fr_1.1fr_2.4fr] px-8 py-5 border-b border-[#F0E6D8] bg-[#EAE0D5] text-[12px] font-bold text-[#7A6A60] uppercase tracking-[1px]">
-            <div className="flex items-center">When</div>
-            <div className="flex items-center">Employee</div>
-            <div className="flex items-center">Action</div>
-            <div className="flex items-center">Details</div>
+            <SortableHeader label="When" currentSort={sortFor("occurred_at")} onSortChange={changeSort("occurred_at")} />
+            <SortableHeader label="Employee" currentSort={sortFor("actor_name")} onSortChange={changeSort("actor_name")} />
+            <SortableHeader label="Action" currentSort={sortFor("action")} onSortChange={changeSort("action")} />
+            <SortableHeader label="Details" currentSort={sortFor("summary")} onSortChange={changeSort("summary")} />
           </div>
 
           <div className="flex-1 overflow-y-auto">

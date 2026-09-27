@@ -7,10 +7,22 @@ import {
 } from "./audit";
 
 describe("auditLogFilterSchema", () => {
-  it("defaults to the first 25 entries", () => {
+  it("defaults to the first 25 entries, newest first", () => {
     const parsed = auditLogFilterSchema.parse({});
     expect(parsed.limit).toBe(25);
     expect(parsed.offset).toBe(0);
+    expect(parsed.sort).toBe("occurred_at");
+    expect(parsed.direction).toBe("desc");
+  });
+
+  it("sorts only by the columns the table offers", () => {
+    for (const sort of ["occurred_at", "actor_name", "action", "summary"]) {
+      expect(auditLogFilterSchema.safeParse({ sort, direction: "asc" }).success).toBe(true);
+    }
+    // Never an arbitrary column name, and never anything but asc/desc.
+    expect(auditLogFilterSchema.safeParse({ sort: "changes" }).success).toBe(false);
+    expect(auditLogFilterSchema.safeParse({ sort: "actor_id;drop" }).success).toBe(false);
+    expect(auditLogFilterSchema.safeParse({ direction: "sideways" }).success).toBe(false);
   });
 
   it("accepts every filter together", () => {

@@ -96,11 +96,19 @@ export async function getAuditLog(
   const filters = parsed.data;
 
   const supabase = createClient();
+  const ascending = filters.direction === "asc";
   let query = supabase
     .from("audit_log")
     .select("*", { count: "exact" })
-    .order("occurred_at", { ascending: false })
-    .order("audit_id", { ascending: false })
+    // The chosen column first (validated against a fixed list), then newest
+    // first, then the id — so rows that tie keep a stable order from page to
+    // page instead of shuffling between requests.
+    .order(filters.sort, { ascending, nullsFirst: false });
+  if (filters.sort !== "occurred_at") {
+    query = query.order("occurred_at", { ascending: false });
+  }
+  query = query
+    .order("audit_id", { ascending: filters.sort === "occurred_at" ? ascending : false })
     .range(filters.offset, filters.offset + filters.limit - 1);
 
   if (filters.category) {

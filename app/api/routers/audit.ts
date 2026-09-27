@@ -19,13 +19,15 @@ function errorToStatus(error: string, code?: string): number {
  *   ?actor_id=<employee uuid>
  *   ?date_from=YYYY-MM-DD  ?date_to=YYYY-MM-DD   (Manila days, inclusive)
  *   ?search=<text>          matches the summary (use actor_id for a person)
+ *   ?sort=occurred_at|actor_name|action|summary (default occurred_at)
+ *   ?direction=asc|desc     (default desc)
  *   ?limit=1..100 (default 25)  ?offset=0..
  * Requires: manager.
  */
 export async function getAuditLog(request: Request) {
   const { searchParams } = new URL(request.url);
   const filters: Record<string, string> = {};
-  for (const key of ["category", "actor_id", "date_from", "date_to", "search", "limit", "offset"]) {
+  for (const key of ["category", "actor_id", "date_from", "date_to", "search", "sort", "direction", "limit", "offset"]) {
     const value = searchParams.get(key);
     if (value !== null && value.trim() !== "") filters[key] = value.trim();
   }

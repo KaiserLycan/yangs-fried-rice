@@ -1,6 +1,13 @@
 import { z } from "zod";
 import { AUDIT_CATEGORY_IDS } from "@/lib/audit/audit-actions";
 
+/**
+ * The columns the table can sort by. A fixed list, so a sort parameter can
+ * only ever name one of these — never an arbitrary column.
+ */
+export const AUDIT_SORT_COLUMNS = ["occurred_at", "actor_name", "action", "summary"] as const;
+export type AuditSortColumn = (typeof AUDIT_SORT_COLUMNS)[number];
+
 const isoDate = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Dates must be YYYY-MM-DD." });
@@ -18,6 +25,9 @@ export const auditLogFilterSchema = z
     date_to: isoDate.optional(),
     /** Matches the summary, case-insensitively. Filter by person with `actor_id`. */
     search: z.string().trim().max(80).optional(),
+    /** Newest first unless asked otherwise. */
+    sort: z.enum(AUDIT_SORT_COLUMNS).default("occurred_at"),
+    direction: z.enum(["asc", "desc"]).default("desc"),
     limit: z.coerce.number().int().min(1).max(100).default(25),
     offset: z.coerce.number().int().min(0).default(0),
   })

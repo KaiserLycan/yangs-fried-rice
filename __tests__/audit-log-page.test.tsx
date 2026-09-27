@@ -74,7 +74,9 @@ describe("Audit log page", () => {
     expect(screen.getByText("Grace Lim")).toBeInTheDocument();
     expect(screen.getByText("Order status changed")).toBeInTheDocument();
     expect(screen.getByText("Price changed")).toBeInTheDocument();
-    expect(getAuditLog).toHaveBeenCalledWith(expect.objectContaining({ limit: 10, offset: 0 }));
+    expect(getAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({ limit: 10, offset: 0, sort: "occurred_at", direction: "desc" }),
+    );
   });
 
   it("asks the server for a category when one is picked", async () => {
@@ -82,13 +84,72 @@ describe("Audit log page", () => {
     render(<ManageAuditLogPage />);
     await waitFor(() => expect(getAuditLog).toHaveBeenCalled());
 
-    fireEvent.click(screen.getByRole("button", { name: /filter by action/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^action all actions$/i }));
     fireEvent.click(screen.getByRole("option", { name: "Menu" }));
 
     await waitFor(() =>
       expect(getAuditLog).toHaveBeenLastCalledWith(expect.objectContaining({ category: "menu", offset: 0 })),
     );
     expect(await screen.findByText("No actions match these filters.")).toBeInTheDocument();
+  });
+
+  it("sorts on the server when a column header is clicked", async () => {
+    getAuditLog.mockResolvedValue({ data: { entries: [entry()], totalCount: 1 }, error: null });
+    render(<ManageAuditLogPage />);
+    await screen.findByText(/price ₱250\.00 → ₱260\.00/);
+
+    // Employee: none → A–Z → Z–A → back to newest first.
+    const employee = screen.getByRole("button", { name: "Employee" });
+    fireEvent.click(employee);
+    await waitFor(() =>
+      expect(getAuditLog).toHaveBeenLastCalledWith(
+        expect.objectContaining({ sort: "actor_name", direction: "asc", offset: 0 }),
+      ),
+    );
+    fireEvent.click(employee);
+    await waitFor(() =>
+      expect(getAuditLog).toHaveBeenLastCalledWith(
+        expect.objectContaining({ sort: "actor_name", direction: "desc" }),
+      ),
+    );
+    fireEvent.click(employee);
+    await waitFor(() =>
+      expect(getAuditLog).toHaveBeenLastCalledWith(
+        expect.objectContaining({ sort: "occurred_at", direction: "desc" }),
+      ),
+    );
+
+    // "When" only flips between newest and oldest first.
+    const when = screen.getByRole("button", { name: "When" });
+    fireEvent.click(when);
+    await waitFor(() =>
+      expect(getAuditLog).toHaveBeenLastCalledWith(
+        expect.objectContaining({ sort: "occurred_at", direction: "asc" }),
+      ),
+    );
+  });
+
+  it("jumps to the search box on /, like the customer menu", async () => {
+    getAuditLog.mockResolvedValue({ data: { entries: [], totalCount: 0 }, error: null });
+    render(<ManageAuditLogPage />);
+    await screen.findByText("No employee actions recorded yet.");
+
+    const search = screen.getByRole("searchbox", { name: "Search the audit log" });
+    expect(search).toHaveAttribute("aria-keyshortcuts", "/");
+    expect(document.activeElement).not.toBe(search);
+
+    fireEvent.keyDown(document, { key: "/" });
+    expect(document.activeElement).toBe(search);
+  });
+
+  it("labels every filter so the row lines up along one edge", async () => {
+    getAuditLog.mockResolvedValue({ data: { entries: [], totalCount: 0 }, error: null });
+    render(<ManageAuditLogPage />);
+    await screen.findByText("No employee actions recorded yet.");
+
+    for (const label of ["Action", "Employee", "Start Date", "End Date"]) {
+      expect(screen.getByText(label, { selector: "span, label" })).toBeInTheDocument();
+    }
   });
 
   it("says so when nothing has been recorded yet", async () => {

@@ -30,7 +30,10 @@ export function DateInput({ label, max, value, onChange }: DateInputProps) {
       </label>
       {/* The input drops its own outline to sit flush in this box, so the box
           shows the focus ring instead. */}
-      <div className="flex rounded-[12px] border border-[#ddcdb8] bg-white p-3 md:p-[14px] focus-within:ring-2 focus-within:ring-[#E8541F]">
+      {/* A fixed height, not just padding: a date input's intrinsic height
+          differs by browser, and the boxes beside it (the reports Export
+          button, the audit log's filters) are sized to match exactly. */}
+      <div className="flex h-[46px] md:h-[50px] items-center rounded-[12px] border border-[#ddcdb8] bg-white px-3 md:px-[14px] focus-within:ring-2 focus-within:ring-[#E8541F]">
         <input
           id={id}
           type="date"
