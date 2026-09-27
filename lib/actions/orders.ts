@@ -345,12 +345,18 @@ export async function getDetailedOrders(
   }
   if (filters.payment_method) {
     if (filters.payment_method === "wallet") {
-      query = query.in("transaction.payment_method", ["paymongo", "gcash", "paymaya"]);
+      query = query.in("transaction.payment_method", WALLET_PAYMENT_METHODS);
     } else if (filters.payment_method === "pay_in_store") {
-      query = query.in("transaction.payment_method", ["pay_in_store", "pay-in-store", "cash"]);
+      query = query.in("transaction.payment_method", CASH_PAYMENT_METHODS);
     } else {
       query = query.eq("transaction.payment_method", filters.payment_method);
     }
+  }
+  if (filters.order_type === "take_out") {
+    // Older orders were stored as "pickup" before take-out was the only kind.
+    query = query.in("order_type", ["take_out", "takeout", "pickup", "pick_up"]);
+  } else if (filters.order_type === "dine_in") {
+    query = query.eq("order_type", "dine_in");
   }
 
   const { data, count, error } = await query;
