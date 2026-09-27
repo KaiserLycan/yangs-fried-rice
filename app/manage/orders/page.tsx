@@ -7,13 +7,14 @@ import { OrderSidebar, OrderStatus } from "@/components/manage/orders/order-side
 import { OrderCard } from "@/components/manage/orders/order-card";
 import type { OrderData } from "@/types/staff-order";
 import { OrderDetailModal } from "@/components/manage/orders/order-detail-modal";
+import { CancelReasonModal } from "@/components/manage/orders/cancel-reason-modal";
 import { OpenIssuesPanel } from "@/components/manage/orders/open-issues-panel";
 import { ManagePagination } from "@/components/manage/manage-pagination";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast, ToastProvider } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
-import { getDetailedOrders, updateOrderStatus } from "@/lib/actions/orders";
+import { getDetailedOrders, updateOrderStatus, getPaymentIssuesForAdmin, type PaymentIssueOrder } from "@/lib/actions/orders";
 import { mapStaffOrder, type StaffOrderRow } from "@/lib/orders/map-staff-order";
 import { actionCopy, dbStatusFor, type StaffAction } from "@/lib/orders/staff-actions";
 
@@ -44,8 +45,6 @@ function ManageOrdersInner() {
   const [itemsPerPage, setItemsPerPage] = useState(6);
   
   const [confirmAction, setConfirmAction] = useState<{ type: StaffAction, order: OrderData } | null>(null);
-  const [cancelReason, setCancelReason] = useState("");
-  const [showCancelError, setShowCancelError] = useState(false);
 
   // Order-id search (P52). The box updates on every key; the query waits
   // until typing pauses so each keystroke is not a round trip.
@@ -112,13 +111,8 @@ function ManageOrdersInner() {
 
   // Execute Backend Mutations
   const handleConfirmAction = async () => {
-    if (!confirmAction) return;
+    if (!confirmAction || confirmAction.type === "Cancel") return;
     
-    if (confirmAction.type === "Cancel" && !cancelReason.trim()) {
-      setShowCancelError(true);
-      return;
-    }
-
     setIsProcessing(true);
 
     const newDbStatus = dbStatusFor(confirmAction.type);
@@ -126,7 +120,7 @@ function ManageOrdersInner() {
     const result = await updateOrderStatus(
       confirmAction.order.id,
       newDbStatus,
-      confirmAction.type === "Cancel" ? cancelReason : undefined,
+      undefined,
     );
 
     if (result.error) {
@@ -136,8 +130,28 @@ function ManageOrdersInner() {
       await fetchOrders(); // Refresh the active list
       setConfirmAction(null);
       setSelectedOrder(null);
-      setCancelReason("");
-      setShowCancelError(false);
+    }
+    
+    setIsProcessing(false);
+  };
+
+  const handleCancelConfirm = async (reason: string) => {
+    if (!confirmAction || confirmAction.type !== "Cancel") return;
+    
+    setIsProcessing(true);
+    const result = await updateOrderStatus(
+      confirmAction.order.id,
+      "cancelled",
+      reason,
+    );
+
+    if (result.error) {
+      showToast(`Failed to update order: ${result.error}`, "error");
+    } else {
+      showToast(actionCopy("Cancel", confirmAction.order.orderNumber).done, "success");
+      await fetchOrders();
+      setConfirmAction(null);
+      setSelectedOrder(null);
     }
     
     setIsProcessing(false);
@@ -255,26 +269,18 @@ function ManageOrdersInner() {
         onAction={(type, order) => setConfirmAction({ type, order })}
       />
 
-      {/* Confirmation Dialog */}
+      {/* Confirmation Dialog (Non-Cancel) */}
       <Dialog 
-        open={confirmAction !== null}
-        onClose={() => {
-          setConfirmAction(null);
-          setCancelReason("");
-          setShowCancelError(false);
-        }}
+        open={confirmAction !== null && confirmAction.type !== "Cancel"}
+        onClose={() => setConfirmAction(null)}
         title={confirmAction ? actionCopy(confirmAction.type, confirmAction.order.orderNumber).title : ""}
         description={confirmAction ? actionCopy(confirmAction.type, confirmAction.order.orderNumber).description : ""}
         tone="default"
         footer={
           <>
-            <Button variant="outline" onClick={() => {
-              setConfirmAction(null);
-              setCancelReason("");
-              setShowCancelError(false);
-            }} disabled={isProcessing}>Back</Button>
+            <Button variant="outline" onClick={() => setConfirmAction(null)} disabled={isProcessing}>Back</Button>
             <Button 
-              variant={confirmAction?.type === "Cancel" ? "confirm" : "primary"}
+              variant="primary"
               onClick={handleConfirmAction}
               disabled={isProcessing}
             >
@@ -282,30 +288,16 @@ function ManageOrdersInner() {
             </Button>
           </>
         }
-      >
-        {confirmAction?.type === "Cancel" && (
-          <div className="flex flex-col gap-2 mt-4">
-            <label className="text-[11px] font-bold text-gray-500 tracking-wider uppercase">
-              Reason <span className="text-red-500">*</span>
-            </label>
-            <textarea 
-              placeholder="Why do you want to cancel this order?"
-              value={cancelReason}
-              onChange={(e) => {
-                setCancelReason(e.target.value);
-                if (e.target.value.trim()) setShowCancelError(false);
-              }}
-              className={cn(
-                "w-full min-h-[100px] p-3 rounded-lg border bg-white text-sm text-foreground focus:outline-none focus:ring-2 placeholder:text-[#A2938A] resize-none transition-colors",
-                showCancelError ? "border-red-500 focus:ring-red-500" : "border-[#DDCDB8] focus:ring-[#E8541F]"
-              )}
-            />
-            {showCancelError && (
-              <span className="text-[13px] text-red-500 font-medium">Please provide a reason for cancellation.</span>
-            )}
-          </div>
-        )}
-      </Dialog>
+      />
+
+      {/* Cancel Reason Modal */}
+      <CancelReasonModal 
+        isOpen={confirmAction !== null && confirmAction.type === "Cancel"}
+        order={confirmAction?.type === "Cancel" ? confirmAction.order : null}
+        isProcessing={isProcessing}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={handleCancelConfirm}
+      />
     </div>
   );
 }

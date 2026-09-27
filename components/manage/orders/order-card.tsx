@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 
 import type { OrderData } from "@/types/staff-order";
+import { useKdsTimer } from "@/hooks/use-kds-timer";
 import { canCancel, primaryActionFor, statusLabelFor, type StaffAction } from "@/lib/orders/staff-actions";
 
 interface OrderCardProps {
@@ -36,8 +37,17 @@ const statusConfig = {
 };
 
 export function OrderCard({ order, onClick, onAction }: OrderCardProps) {
+  const { timerString, color: timerColor } = useKdsTimer(order.rawCreatedAt);
   const config = statusConfig[order.status];
   const primary = primaryActionFor(order);
+  
+  // Timer overrides colors only for active orders (QUEUE/PREP)
+  let headerBg = config.headerBg;
+  if ((order.status === "QUEUE" || order.status === "PREP") && timerColor === "red") {
+    headerBg = "bg-red-700 animate-pulse";
+  } else if (order.status === "PREP" && timerColor === "amber") {
+    headerBg = "bg-amber-600";
+  }
 
   return (
     <div 
@@ -53,7 +63,7 @@ export function OrderCard({ order, onClick, onAction }: OrderCardProps) {
       className="flex flex-col text-left w-full rounded-xl overflow-hidden shadow-sm bg-[#FAF7F0] border border-field-border h-full transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CD7D39]"
     >
       {/* Header */}
-      <div className={cn("flex justify-between items-start p-4 text-white", config.headerBg)}>
+      <div className={cn("flex justify-between items-start p-4 text-white", headerBg)}>
         <div>
           {/* The same eight characters the customer sees since issue
               #106 — this used to be the id's first four. */}
@@ -66,13 +76,29 @@ export function OrderCard({ order, onClick, onAction }: OrderCardProps) {
           <div className="text-[10px] font-bold uppercase tracking-widest leading-none mb-1">
             {statusLabelFor(order)}
           </div>
-          {order.timer && (
-            <div className="text-lg font-bold tracking-wider leading-none">
-              {order.timer}
-            </div>
-          )}
+          {(order.status === "QUEUE" || order.status === "PREP") && (
+              <div className="text-lg font-bold tracking-wider leading-none">
+                {timerString}
+              </div>
+            )}
         </div>
       </div>
+
+      {/* Fulfillment Badge */}
+      {order.fulfillmentMethod && (
+        <div className="px-4 pt-2">
+          <span
+            className={cn(
+              "inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider",
+              order.fulfillmentMethod === "3rd_party_courier"
+                ? "bg-indigo-100 text-indigo-700"
+                : "bg-teal-100 text-teal-700"
+            )}
+          >
+            {order.fulfillmentMethod === "3rd_party_courier" ? "3rd Party Courier" : "Self Pickup"}
+          </span>
+        </div>
+      )}
 
       {/* Body */}
       <div className="p-4 flex-1 overflow-y-auto min-h-0">

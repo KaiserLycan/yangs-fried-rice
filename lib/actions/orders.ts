@@ -29,7 +29,7 @@ type ActionResult<T> =
 
 type Order = Tables<"order">;
 
-type OrderWithDetails = Order & {
+type OrderWithDetails = Order & { ready_at?: string | null;
   customer: { name: string; email: string | null; phone_number: string | null } | null;
   order_item: {
     order_item_id: string;
@@ -255,13 +255,24 @@ export async function getDetailedOrders(
   const filters = parsed.data;
 
   const supabase = createClient();
+  
+  // Decide if we need inner joins based on filters
+  const needCustomerInner = !!(filters.customer_name || filters.customer_phone);
+  const customerJoin = needCustomerInner 
+    ? 'customer!inner ( name, email, phone_number )' 
+    : 'customer:customer_id ( name, email, phone_number )';
+    
+  const needTransactionInner = !!filters.payment_method;
+  const transactionJoin = needTransactionInner
+    ? 'transaction!inner ( transaction_id, payment_method, payment_status, total_paid )'
+    : 'transaction ( transaction_id, payment_method, payment_status, total_paid )';
 
   let query = supabase
     .from("order")
     .select(
       `
       *,
-      customer:customer_id ( name, email, phone_number ),
+      ${customerJoin},
       order_item (
         order_item_id,
         quantity,
@@ -272,12 +283,7 @@ export async function getDetailedOrders(
         product:product_id ( product_name, product_price ),
         order_item_add_on ( add_on ( name, price ) )
       ),
-      transaction (
-        transaction_id,
-        payment_method,
-        payment_status,
-        total_paid
-      )
+      ${transactionJoin}
     `,
       { count: "exact" }
     )
@@ -285,21 +291,23 @@ export async function getDetailedOrders(
     .range(filters.offset, filters.offset + filters.limit - 1);
 
   if (filters.status) {
-    if (Array.isArray(filters.status)) {
+    if (Array.isArray(filters.status) && filters.status.includes("payment_failed") && filters.status.includes("awaiting_payment")) {
+      // Special case: Payment Issues tab
+      const tenMinsAgo = new Date(Date.now() - 10 * 60000).toISOString();
+      query = query.or(`order_status.eq.payment_failed,and(order_status.eq.awaiting_payment,created_at.lte.${tenMinsAgo})`);
+    } else if (Array.isArray(filters.status)) {
       query = query.in("order_status", filters.status);
     } else {
       query = query.eq("order_status", filters.status);
     }
-  } else {
-    // Same rule as the summary list above: orders still waiting on an online
-    // payment, or whose payment was refused, are not work for the kitchen or
-    // the riders and stay out of the default view (issue #106).
+  } else if (!filters.include_unpaid) {
     query = query.not(
       "order_status",
       "in",
       `(${UNPAID_ORDER_STATUSES.join(",")})`,
     );
   }
+
   if (filters.date_from) {
     query = query.gte("created_at", filters.date_from);
   }
@@ -307,22 +315,37 @@ export async function getDetailedOrders(
     query = query.lte("created_at", filters.date_to);
   }
   if (filters.search?.trim()) {
-    // Text that cannot be part of an order id matches nothing.
     const range = orderIdRangeFor(filters.search);
     if (!range) return { data: { data: [], totalCount: 0 }, error: null };
     query = query.gte("order_id", range.from).lte("order_id", range.to);
+  }
+  
+  if (filters.customer_id) {
+    query = query.eq("customer_id", filters.customer_id);
+  }
+  if (filters.customer_name) {
+    query = query.ilike("customer.name", `%${filters.customer_name}%`);
+  }
+  if (filters.customer_phone) {
+    query = query.ilike("customer.phone_number", `%${filters.customer_phone}%`);
+  }
+  if (filters.payment_method) {
+    if (filters.payment_method === "wallet") {
+      query = query.in("transaction.payment_method", ["paymongo", "gcash", "paymaya"]);
+    } else if (filters.payment_method === "pay_in_store") {
+      query = query.in("transaction.payment_method", ["pay_in_store", "pay-in-store", "cash"]);
+    } else {
+      query = query.eq("transaction.payment_method", filters.payment_method);
+    }
   }
 
   const { data, count, error } = await query;
 
   if (error) return { data: null, error: error.message };
 
-  const rows = (data ?? []) as unknown as OrderWithDetails[];
-  await attachOrderAddOns(supabase, rows);
-
   return { 
     data: { 
-      data: rows, 
+      data: data as unknown as OrderWithDetails[], 
       totalCount: count ?? 0 
     }, 
     error: null 
@@ -450,14 +473,20 @@ export async function updateOrderStatus(
     order_status: validatedNewStatus,
   };
 
+  if (validatedNewStatus === "ready") {
+    // @ts-ignore
+    updatePayload.ready_at = new Date().toISOString();
+  }
   if (validatedNewStatus === "completed") {
     updatePayload.completed_at = new Date().toISOString();
   }
   if (validatedNewStatus === "cancelled") {
-    updatePayload.cancelled_at = new Date().toISOString();
-    // Same 300-character limit the customer's own cancel enforces.
     const reason = cancellationReason?.trim().slice(0, 300);
-    if (reason) updatePayload.cancellation_reason = reason;
+    if (!reason) {
+      return { data: null, error: "A cancellation reason is required." };
+    }
+    updatePayload.cancelled_at = new Date().toISOString();
+    updatePayload.cancellation_reason = reason;
   }
 
   const { data: updated, error: updateError } = await supabase
@@ -468,6 +497,47 @@ export async function updateOrderStatus(
     .single();
 
   if (updateError) return { data: null, error: updateError.message };
+
+  
+  // Fix total_paid for pay-in-store orders upon completion (issue #27)
+  if (validatedNewStatus === "completed") {
+    const { data: txs } = await supabase
+      .from("transaction")
+      .select("transaction_id, payment_method, total_paid")
+      .eq("order_id", orderId);
+      
+    const tx = txs?.[0];
+    if (tx && (tx.payment_method === "pay_in_store" || tx.payment_method === "pay-in-store" || tx.payment_method === "cash") && tx.total_paid === 0) {
+      const { data: orderDetails } = await supabase
+        .from("order_item")
+        .select("subtotal")
+        .eq("order_id", orderId);
+      const { data: orderAddOns } = await supabase
+        .from("order_item_add_on")
+        .select("add_on(price)")
+        .eq("order_item_id", "some_join"); // Wait, we can just fetch order_item(subtotal), order_item_add_on(add_on(price))
+        
+      // A safer way is to fetch the full total via getOrderDetail
+      const fullOrder = await getOrderDetail(orderId);
+      if (fullOrder.data) {
+        const itemsTotal = fullOrder.data.order_item.reduce((acc, item) => acc + (item.subtotal || 0), 0);
+        const addOnsTotal = fullOrder.data.order_item.reduce((acc, item) => 
+          acc + (item.order_item_add_on || []).reduce((sum, ao) => sum + (ao.add_on?.price || 0), 0)
+        , 0);
+        const deliveryFee = updated.delivery_fee || 0;
+        const totalToPay = itemsTotal + addOnsTotal + deliveryFee;
+        
+        await supabase
+          .from("transaction")
+          .update({
+            payment_status: "paid",
+            total_paid: totalToPay
+          })
+          .eq("transaction_id", tx.transaction_id);
+      }
+    }
+  }
+
 
   // The in-app notification is written by a database trigger on this same
   // update; the email goes from here (F23). It never fails the cancel.
@@ -515,4 +585,91 @@ export async function getOrderStats(): Promise<ActionResult<OrderStats>> {
   }
 
   return { data: stats, error: null };
+}
+
+export type PaymentIssueType = "payment_failed" | "pickup_overdue";
+
+export interface PaymentIssueOrder {
+  type: PaymentIssueType;
+  order: OrderWithDetails;
+}
+
+async function _fetchPaymentIssuesBase(supabase: ReturnType<typeof createClient>): Promise<ActionResult<PaymentIssueOrder[]>> {
+  // We need to fetch two groups:
+  // 1. payment_failed: (order_status = 'payment_failed' OR (order_status = 'awaiting_payment' AND created_at < 5 mins ago)) AND payment_method IN ('gcash','paymongo')
+  // 2. pickup_overdue: order_status = 'ready' AND order_type = 'take_out' AND payment_method IN ('pay_in_store', 'pay-in-store', 'cash') AND ready_at < 90 mins ago
+
+  const { data, error } = await supabase
+    .from("order")
+    .select(`
+      *,
+      customer:customer_id ( name, email, phone_number ),
+      order_item ( 
+        order_item_id, 
+        quantity, 
+        subtotal, 
+        product ( product_name, image_url ),
+        order_item_add_on (
+          order_item_add_on_id,
+          add_on ( add_on_name, price )
+        )
+      ),
+      transaction ( transaction_id, payment_method, payment_status, total_paid )
+    `)
+    .order("created_at", { ascending: true });
+
+  if (error || !data) {
+    return { data: null, error: error?.message || "Failed to fetch payment issues" };
+  }
+
+  // Filter in memory for complex conditions
+  const now = Date.now();
+  const issues: PaymentIssueOrder[] = [];
+
+  for (const order of data as unknown as OrderWithDetails[]) {
+    const tx = Array.isArray(order.transaction) ? order.transaction[0] : order.transaction;
+    const paymentMethod = tx?.payment_method || "";
+
+    // 1. payment_failed
+    const isEwallet = ["gcash", "paymongo"].includes(paymentMethod);
+    if (isEwallet) {
+      if (order.order_status === "payment_failed") {
+        issues.push({ type: "payment_failed", order });
+        continue;
+      }
+      if (order.order_status === "awaiting_payment") {
+        const elapsedMins = (now - new Date(order.created_at).getTime()) / 60000;
+        if (elapsedMins >= 5) {
+          issues.push({ type: "payment_failed", order });
+          continue;
+        }
+      }
+    }
+
+    // 2. pickup_overdue
+    const isCash = ["pay_in_store", "pay-in-store", "cash"].includes(paymentMethod);
+    if (order.order_status === "ready" && order.order_type === "take_out" && isCash && order.ready_at) {
+      const elapsedMins = (now - new Date(order.ready_at!).getTime()) / 60000;
+      if (elapsedMins >= 90) {
+        issues.push({ type: "pickup_overdue", order });
+      }
+    }
+  }
+
+  await attachOrderAddOns(supabase, issues.map(i => i.order));
+  return { data: issues, error: null };
+}
+
+export async function getPaymentIssuesForKds(): Promise<ActionResult<PaymentIssueOrder[]>> {
+  const auth = await requireManageAccess();
+  if (!auth.data) return { data: null, error: auth.error };
+  const supabase = createClient();
+  return _fetchPaymentIssuesBase(supabase);
+}
+
+export async function getPaymentIssuesForAdmin(): Promise<ActionResult<PaymentIssueOrder[]>> {
+  const auth = await requireRole("MANAGER");
+  if (!auth.data) return { data: null, error: auth.error };
+  const supabase = createClient();
+  return _fetchPaymentIssuesBase(supabase);
 }

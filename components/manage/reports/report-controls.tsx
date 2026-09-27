@@ -3,7 +3,7 @@
 import { useId, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown, Download, Loader2 } from "lucide-react";
-import { generateSalesPDF, generatePerformancePDF } from "@/lib/actions/reports";
+import { generateSalesPDF, generatePerformancePDF, exportReportCSV } from "@/lib/actions/reports";
 import {
   REPORT_TYPES,
   SALES_REPORT,
@@ -104,6 +104,7 @@ export function ReportTypeSelect() {
 }
 
 interface ReportDateFiltersProps {
+  isManager?: boolean;
   startDate: string;
   endDate: string;
   onStartDateChange: (value: string) => void;
@@ -112,6 +113,7 @@ interface ReportDateFiltersProps {
 }
 
 export function ReportDateFilters({
+  isManager,
   startDate,
   endDate,
   onStartDateChange,
@@ -119,10 +121,35 @@ export function ReportDateFilters({
   reportType,
 }: ReportDateFiltersProps) {
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingCSV, setIsExportingCSV] = useState(false);
   const showToast = useToast();
 
   // Get current date in YYYY-MM-DD format for the max attribute
   const today = new Date().toISOString().split("T")[0];
+
+  const handleExportCSV = async () => {
+    setIsExportingCSV(true);
+    try {
+      const result = await exportReportCSV({ start_date: startDate, end_date: endDate });
+      if (result.error) {
+        showToast(`Couldn't export CSV: ${result.error}`, "error");
+      } else if (result.data) {
+        const blob = new Blob([result.data], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `yangs_report_${startDate}_to_${endDate}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+    } catch {
+      showToast("Couldn't export CSV. Please try again.", "error");
+    } finally {
+      setIsExportingCSV(false);
+    }
+  };
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -199,6 +226,21 @@ export function ReportDateFilters({
         )}
         <span>{isExporting ? "Generating..." : "Export to PDF"}</span>
       </button>
+
+      {reportType === SALES_REPORT && isManager && (
+        <button
+          onClick={handleExportCSV}
+          disabled={isExportingCSV || isExporting || !startDate || !endDate || endDate < startDate}
+          className="flex h-[50px] w-full md:w-auto items-center justify-center md:justify-start gap-[10px] rounded-[12px] bg-[#CD7D39] px-[20px] text-[15px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {isExportingCSV ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            <Download className="h-5 w-5" />
+          )}
+          <span>{isExportingCSV ? "Generating..." : "Export CSV"}</span>
+        </button>
+      )}
     </div>
   );
 }

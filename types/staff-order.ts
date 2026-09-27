@@ -19,12 +19,16 @@ export type StaffOrderStatus = "QUEUE" | "PREP" | "DELIVERY" | "COMPLETED" | "CA
 export type OrderData = {
   id: string;
   rawCreatedAt?: string | null;
+  rawReadyAt?: string | null;
+  paymentMethod?: string | null;
   /**
    * True only for an order placed before the shop went pickup-only
    * (issue #114). Such orders still exist and still need finishing, so the
    * wording on their card differs; nothing new is ever a delivery.
    */
   isDelivery?: boolean;
+  /** 'self_pickup' (default) or '3rd_party_courier'. */
+  fulfillmentMethod?: string;
   orderNumber: string;
   time: string;
   status: StaffOrderStatus;

@@ -21,6 +21,7 @@ import { useToast } from "@/components/ui/toast";
 // Menu Item Detail Modal
 // ---------------------------------------------------------------------------
 interface MenuItemDetailModalProps {
+  isManager?: boolean;
   isOpen: boolean;
   onClose: () => void;
   onEdit: (item: MenuItem, file?: File) => void;
@@ -30,6 +31,7 @@ interface MenuItemDetailModalProps {
 }
 
 export function MenuItemDetailModal({
+  isManager = false,
   isOpen,
   onClose,
   onEdit,
@@ -250,7 +252,8 @@ export function MenuItemDetailModal({
                 {...lengthProps("productName")}
                 aria-invalid={itemForm.errors.name ? true : undefined}
                 className={cn(
-                  "w-full rounded-[12px] border bg-white px-4 py-3 text-[15px] text-[#1a1210] outline-none placeholder:text-[#a2938a]",
+                    "w-full rounded-[12px] border bg-white px-4 py-3 text-[15px] text-[#1a1210] outline-none placeholder:text-[#a2938a]",
+                    !isManager ? "bg-gray-100 cursor-not-allowed opacity-70" : "",
                   itemForm.errors.name ? "border-[#bf4342]" : "border-[#ddcdb8]",
                 )}
               />
@@ -340,9 +343,10 @@ export function MenuItemDetailModal({
                 Price ₱ <span className="text-[#bf4342]">*</span>
               </label>
               <input
-                type="text"
-                inputMode="decimal"
-                value={price}
+                  disabled={!isManager}
+                  type="text"
+                  inputMode="decimal"
+                  value={price}
                 onChange={(e) => {
                   const val = e.target.value;
                   if (val === "" || /^\d{0,5}(\.\d{0,2})?$/.test(val)) {
@@ -431,6 +435,7 @@ export function MenuItemDetailModal({
                   aria-invalid={addOnForm.errors.addonPrice ? true : undefined}
                   className={cn(
                     "w-[70px] shrink-0 rounded-[10px] border bg-white px-3 py-2 text-[14px] text-[#1a1210] outline-none placeholder:text-[#a2938a]",
+                      !isManager ? "bg-gray-100 cursor-not-allowed opacity-70" : "",
                     addOnForm.errors.addonPrice ? "border-[#bf4342]" : "border-[#ddcdb8]",
                   )}
                 />

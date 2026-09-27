@@ -88,6 +88,7 @@ export function ConfirmationModal({
 
 // 2. Add New Item Modal — matches Figma node 2102-5225
 interface MenuItemModalProps {
+  isManager?: boolean;
   isOpen: boolean;
   onClose: () => void;
   onSave: (item: Partial<MenuItem>, addOns: { name: string; price: number }[], file?: File) => void;
@@ -96,6 +97,7 @@ interface MenuItemModalProps {
 }
 
 export function MenuItemModal({
+  isManager = false,
   isOpen,
   onClose,
   onSave,
@@ -296,7 +298,8 @@ export function MenuItemModal({
               {...lengthProps("productName")}
               aria-invalid={itemErrors.name ? true : undefined}
               className={cn(
-                "w-full rounded-[12px] border bg-white px-4 py-3 text-[15px] text-[#1a1210] outline-none placeholder:text-[#a2938a]",
+                  "w-full rounded-[12px] border bg-white px-4 py-3 text-[15px] text-[#1a1210] outline-none placeholder:text-[#a2938a]",
+                  !isManager ? "bg-gray-100 cursor-not-allowed opacity-70" : "",
                 itemErrors.name ? "border-[#bf4342]" : "border-[#ddcdb8]",
               )}
             />
@@ -389,7 +392,8 @@ export function MenuItemModal({
               Price ₱ <span className="text-[#bf4342]">*</span>
             </label>
             <input
-              type="text" // Changed from "number" to prevent browser default 'e' and '-' characters
+                disabled={!isManager}
+                type="text" // Changed from "number" to prevent browser default 'e' and '-' characters
               inputMode="decimal"
               value={price}
               onChange={(e) => {
@@ -473,6 +477,7 @@ export function MenuItemModal({
                   aria-invalid={addOnForm.errors.addonPrice ? true : undefined}
                   className={cn(
                     "w-[70px] shrink-0 rounded-[10px] border bg-white px-3 py-2 text-[14px] text-[#1a1210] outline-none placeholder:text-[#a2938a]",
+                      !isManager ? "bg-gray-100 cursor-not-allowed opacity-70" : "",
                     addOnForm.errors.addonPrice ? "border-[#bf4342]" : "border-[#ddcdb8]",
                   )}
                 />

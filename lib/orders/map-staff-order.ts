@@ -25,6 +25,7 @@ export type StaffOrderRow = {
   delivery_address: string | null;
   /** The order-wide note from checkout, not any one line's. */
   special_instructions?: string | null;
+  fulfillment_method?: string | null;
   customer: One<{
     name: string | null;
     email: string | null;
@@ -113,6 +114,7 @@ export function mapStaffOrder(order: StaffOrderRow): OrderData {
       : "Unknown time",
     status: uiStatusFor(order.order_status),
     isDelivery: delivery,
+    fulfillmentMethod: order.fulfillment_method || undefined,
     timer: `${prepMinutes}:00`,
     contactInfo: {
       name: customer?.name || "Walk-in Customer",

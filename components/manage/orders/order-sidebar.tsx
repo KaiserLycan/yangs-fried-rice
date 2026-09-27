@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-export type OrderStatus = "All" | "Queue" | "Preparation" | "Delivering" | "Completed" | "Canceled";
+export type OrderStatus = "All" | "Queue" | "Preparation" | "Delivering" | "Completed" | "Canceled" | "Payment Issues";
 
 interface OrderSidebarProps {
   activeStatus: OrderStatus;
@@ -8,6 +8,7 @@ interface OrderSidebarProps {
 }
 
 const statuses: OrderStatus[] = [
+  "Payment Issues",
   "All",
   "Queue",
   "Preparation",

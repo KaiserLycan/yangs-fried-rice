@@ -1,16 +1,22 @@
 "use client";
 
 import { formatMobileNumber } from "@/lib/validation/phone";
-import { useState, useEffect } from "react";
-import { Search, ChevronDown, ChevronUp, ChevronsUpDown, Loader2 } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Search } from "lucide-react";
 import { ManagePagination } from "@/components/manage/manage-pagination";
 import { SortableHeader } from "@/components/manage/sortable-header";
-import { CustomerModal, CustomerData } from "@/components/manage/customers/customer-modal";
+import { CustomerModal, type CustomerData } from "@/components/manage/customers/customer-modal";
 import { useDebounce } from "@/lib/hooks/use-debounce";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast, ToastProvider } from "@/components/ui/toast";
-import { getAllCustomers, deleteCustomer } from "@/lib/actions/admin";
+import { getCustomersPaginated, deleteCustomer, type CustomerStats } from "@/lib/actions/admin";
+
+// Extend CustomerData to include lifetime stats for the table display
+export type EnhancedCustomerData = CustomerData & {
+  totalOrders: number;
+  totalSpent: number;
+};
 
 // 1. Wrapper component to provide the Toast context
 export default function ManageCustomersPage() {
@@ -26,7 +32,8 @@ function ManageCustomersInner() {
   const showToast = useToast();
   
   // Real Data State
-  const [customers, setCustomers] = useState<CustomerData[]>([]);
+  const [customers, setCustomers] = useState<EnhancedCustomerData[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -35,40 +42,60 @@ function ManageCustomersInner() {
   const [pageSize, setPageSize] = useState(10);
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
-  const [selectedCustomer, setSelectedCustomer] = useState<CustomerData | null>(null);
-  const [customerToDelete, setCustomerToDelete] = useState<CustomerData | null>(null);
-  const [nameSort, setNameSort] = useState<"asc" | "desc" | "none">("none");
+  const [selectedCustomer, setSelectedCustomer] = useState<EnhancedCustomerData | null>(null);
+  const [customerToDelete, setCustomerToDelete] = useState<EnhancedCustomerData | null>(null);
+  
+  // Sorting State
+  const [sortColumn, setSortColumn] = useState<string>("created_at");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
-  // Fetch Customers on Mount
-  useEffect(() => {
-    async function loadCustomers() {
-      setIsLoading(true);
-      const result = await getAllCustomers();
-      
-      if (result.error) {
-        showToast(`Failed to load customers: ${result.error}`, "error");
-      } else if (result.data) {
-        // Safely map backend data to our UI schema
-        const mappedData: CustomerData[] = result.data.map((c: any) => ({
-          id: c.customer_id,
-          name: c.name || "Unknown User",
-          firstName: c.first_name || "",
-          lastName: c.last_name || "",
-          dateOfBirth: c.date_of_birth ?? null,
-          email: c.email || "No email",
-          // Grouped for reading: stored numbers are a dense +639171234567.
-          contact: formatMobileNumber(c.phone_number) || "No contact",
-          // Fallback to "Unknown" if created_at doesn't exist on the table yet
-          customerSince: c.created_at ? new Date(c.created_at).toLocaleDateString() : "Unknown",
-          imageUrl: c.profileImage_URL || undefined,
-        }));
-        setCustomers(mappedData);
-      }
-      setIsLoading(false);
+  const handleSortChange = (column: string, direction: "asc" | "desc" | "none") => {
+    if (direction === "none") {
+      setSortColumn("created_at");
+      setSortDirection("desc");
+    } else {
+      setSortColumn(column);
+      setSortDirection(direction);
     }
+    setCurrentPage(1);
+  };
+
+  // Fetch Customers
+  const loadCustomers = useCallback(async () => {
+    setIsLoading(true);
+    const result = await getCustomersPaginated({
+      page: currentPage,
+      pageSize,
+      search: debouncedSearchQuery,
+      sortColumn,
+      sortDirection,
+    });
     
+    if (result.error) {
+      showToast(`Failed to load customers: ${result.error}`, "error");
+    } else if (result.data) {
+      const mappedData = result.data.customers.map((c: CustomerStats) => ({
+        id: c.customer_id,
+        name: c.name || "Unknown User",
+        firstName: c.first_name || "",
+        lastName: c.last_name || "",
+        dateOfBirth: c.date_of_birth ?? null,
+        email: c.email || "No email",
+        contact: formatMobileNumber(c.phone_number || "") || "No contact",
+        customerSince: c.created_at ? new Date(c.created_at).toLocaleDateString() : "Unknown",
+        imageUrl: c.profileImage_URL || undefined,
+        totalOrders: c.total_orders,
+        totalSpent: c.total_spent,
+      }));
+      setCustomers(mappedData);
+      setTotalCount(result.data.totalCount);
+    }
+    setIsLoading(false);
+  }, [currentPage, pageSize, debouncedSearchQuery, sortColumn, sortDirection, showToast]);
+
+  useEffect(() => {
     loadCustomers();
-  }, [showToast]);
+  }, [loadCustomers]);
 
   // Execute Backend Deletion
   const handleDeleteConfirm = async () => {
@@ -81,44 +108,15 @@ function ManageCustomersInner() {
       showToast(`Failed to delete customer: ${result.error}`, "error");
     } else {
       showToast("Customer account deleted successfully.", "success");
-      // Remove from local state instantly to update the UI
-      setCustomers(prev => prev.filter(c => c.id !== customerToDelete.id));
       setCustomerToDelete(null);
       setSelectedCustomer(null);
+      loadCustomers(); // Reload page
     }
     
     setIsDeleting(false);
   };
 
-  // Derive filtered and sorted customers client-side
-  let filteredCustomers = [...customers];
-
-  if (debouncedSearchQuery) {
-    const q = debouncedSearchQuery.toLowerCase();
-    filteredCustomers = filteredCustomers.filter(c =>
-      c.name.toLowerCase().includes(q) ||
-      c.email.toLowerCase().includes(q) ||
-      c.contact.includes(q)
-    );
-  }
-
-  if (nameSort === "asc") {
-    filteredCustomers.sort((a, b) => a.name.localeCompare(b.name));
-  } else if (nameSort === "desc") {
-    filteredCustomers.sort((a, b) => b.name.localeCompare(a.name));
-  }
-
-  const totalPages = Math.max(1, Math.ceil(filteredCustomers.length / pageSize));
-  
-  // Ensure current page is valid after filtering
-  if (currentPage > totalPages) {
-    setCurrentPage(totalPages);
-  }
-
-  const paginatedCustomers = filteredCustomers.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   return (
     <div className="flex flex-col h-full gap-4 md:gap-0">
@@ -133,7 +131,10 @@ function ManageCustomersInner() {
             type="text"
             placeholder="Search..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(1);
+            }}
             className="w-full md:w-[442px] h-[45px] pl-11 pr-4 rounded-xl border border-[#DDCDB8] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#E8541F] placeholder:text-[#A2938A]"
           />
         </div>
@@ -141,18 +142,31 @@ function ManageCustomersInner() {
 
       {/* Table Container */}
       <div className="flex-1 flex flex-col min-h-0">
-
         <div className="bg-white rounded-[12px] overflow-hidden flex flex-col min-h-0 border border-[#F0E6D8] shadow-[0_2px_10px_rgba(26,18,16,0.02)]">
           {/* Table Head - Hidden on Mobile */}
-          <div className="hidden md:grid grid-cols-[1.5fr_1.5fr_1fr_1fr] px-8 py-5 border-b border-[#F0E6D8] bg-[#EAE0D5] text-[12px] font-bold text-[#7A6A60] uppercase tracking-[1px]">
+          <div className="hidden md:grid grid-cols-[1.2fr_1fr_1fr_0.8fr_0.8fr_0.8fr] px-8 py-5 border-b border-[#F0E6D8] bg-[#EAE0D5] text-[12px] font-bold text-[#7A6A60] uppercase tracking-[1px]">
             <SortableHeader 
               label="Name" 
-              currentSort={nameSort} 
-              onSortChange={setNameSort} 
+              currentSort={sortColumn === "name" ? sortDirection : "none"} 
+              onSortChange={(dir) => handleSortChange("name", dir)} 
             />
             <div className="flex items-center">Email</div>
             <div className="flex items-center">Contact</div>
-            <div className="flex items-center">Customer Since</div>
+            <SortableHeader 
+              label="Since" 
+              currentSort={sortColumn === "created_at" ? sortDirection : "none"} 
+              onSortChange={(dir) => handleSortChange("created_at", dir)} 
+            />
+            <SortableHeader 
+              label="Orders" 
+              currentSort={sortColumn === "total_orders" ? sortDirection : "none"} 
+              onSortChange={(dir) => handleSortChange("total_orders", dir)} 
+            />
+            <SortableHeader 
+              label="Spent" 
+              currentSort={sortColumn === "total_spent" ? sortDirection : "none"} 
+              onSortChange={(dir) => handleSortChange("total_spent", dir)} 
+            />
           </div>
 
           {/* Table Body */}
@@ -160,25 +174,26 @@ function ManageCustomersInner() {
             {isLoading ? (
               <div className="flex flex-col">
                 {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="flex flex-col md:grid md:grid-cols-[1.5fr_1.5fr_1fr_1fr] px-5 md:px-8 py-4 md:py-5 border-b border-[#F0E6D8] gap-2 md:gap-0 items-start md:items-center">
+                  <div key={i} className="flex flex-col md:grid md:grid-cols-[1.2fr_1fr_1fr_0.8fr_0.8fr_0.8fr] px-5 md:px-8 py-4 md:py-5 border-b border-[#F0E6D8] gap-2 md:gap-0 items-start md:items-center">
                     <div className="h-[18px] w-[140px] bg-[#efe6d8] rounded-full animate-pulse" />
                     <div className="h-[18px] w-[180px] bg-[#efe6d8] rounded-full animate-pulse" />
                     <div className="h-[18px] w-[120px] bg-[#efe6d8] rounded-full animate-pulse" />
-                    <div className="hidden md:block h-[18px] w-[100px] bg-[#efe6d8] rounded-full animate-pulse" />
+                    <div className="hidden md:block h-[18px] w-[80px] bg-[#efe6d8] rounded-full animate-pulse" />
+                    <div className="hidden md:block h-[18px] w-[60px] bg-[#efe6d8] rounded-full animate-pulse" />
+                    <div className="hidden md:block h-[18px] w-[80px] bg-[#efe6d8] rounded-full animate-pulse" />
                   </div>
                 ))}
               </div>
-            ) : paginatedCustomers.length === 0 ? (
+            ) : customers.length === 0 ? (
               <div className="p-8 text-center text-[#7A6A60]">
                 No customers found.
               </div>
             ) : (
-              paginatedCustomers.map((customer, index) => (
+              customers.map((customer, index) => (
                 <div
                   key={customer.id}
                   onClick={() => setSelectedCustomer(customer)}
-                  className={`flex flex-col md:grid md:grid-cols-[1.5fr_1.5fr_1fr_1fr] px-5 md:px-8 py-4 md:py-5 cursor-pointer transition-colors hover:bg-[#FAF7F0] gap-1 md:gap-0 ${index !== paginatedCustomers.length - 1 ? "border-b border-[#F0E6D8]" : ""
-                    }`}
+                  className={`flex flex-col md:grid md:grid-cols-[1.2fr_1fr_1fr_0.8fr_0.8fr_0.8fr] px-5 md:px-8 py-4 md:py-5 cursor-pointer transition-colors hover:bg-[#FAF7F0] gap-1 md:gap-0 ${index !== customers.length - 1 ? "border-b border-[#F0E6D8]" : ""}`}
                 >
                   <div className="font-bold text-[#1A1210] flex items-center justify-between text-[15px]">
                     {customer.name}
@@ -187,6 +202,8 @@ function ManageCustomersInner() {
                   <div className="text-[#7A6A60] md:font-bold md:text-[#1A1210] flex items-center text-[13px] md:text-[15px]">{customer.email}</div>
                   <div className="text-[#7A6A60] md:font-bold md:text-[#1A1210] flex items-center text-[13px] md:text-[15px]">{customer.contact}</div>
                   <div className="hidden md:flex font-bold text-[#1A1210] items-center text-[15px]">{customer.customerSince}</div>
+                  <div className="hidden md:flex font-bold text-[#1A1210] items-center text-[15px]">{customer.totalOrders}</div>
+                  <div className="hidden md:flex font-bold text-[#1A1210] items-center text-[15px]">₱{Number(customer.totalSpent).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                 </div>
               ))
             )}
@@ -215,7 +232,7 @@ function ManageCustomersInner() {
         customer={selectedCustomer}
         onAction={(type, customer) => {
           if (type === "Delete") {
-            setCustomerToDelete(customer);
+            setCustomerToDelete(customer as EnhancedCustomerData);
           }
         }}
       />

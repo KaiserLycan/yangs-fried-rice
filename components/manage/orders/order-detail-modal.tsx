@@ -77,6 +77,22 @@ export function OrderDetailModal({ order, isOpen, onClose, onAction }: OrderDeta
           </div>
         </div>
 
+        {/* Fulfillment Badge */}
+        {order.fulfillmentMethod && (
+          <div className="px-5 pt-3 shrink-0">
+            <span
+              className={cn(
+                "inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider",
+                order.fulfillmentMethod === "3rd_party_courier"
+                  ? "bg-indigo-100 text-indigo-700"
+                  : "bg-teal-100 text-teal-700"
+              )}
+            >
+              {order.fulfillmentMethod === "3rd_party_courier" ? "3rd Party Courier" : "Self Pickup"}
+            </span>
+          </div>
+        )}
+
         {/* Scrollable Body */}
         <div className="p-5 flex-1 overflow-y-auto max-h-[60vh]">
           {/* Contact Information */}

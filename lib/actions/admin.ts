@@ -130,7 +130,7 @@ export async function getCurrentEmployee(): Promise<
  * Internal helper — resolves the caller and asserts their role is one
  * of the allowed roles. Returns the employee row or an error.
  */
-async function requireRole(
+export async function requireRole(
   ...allowed: EmployeeRole[]
 ): Promise<ActionResult<Employee>> {
   const result = await getCurrentEmployee();
@@ -946,6 +946,57 @@ export async function getAllCustomers(): Promise<ActionResult<(Customer & { crea
   }
 
   return { data: enrichedCustomers, error: null };
+}
+
+export type CustomerStats = {
+  customer_id: string;
+  name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  phone_number: string | null;
+  profileImage_URL: string | null;
+  date_of_birth: string | null;
+  created_at: string | null;
+  total_orders: number;
+  total_spent: number;
+};
+
+export async function getCustomersPaginated({
+  page = 1,
+  pageSize = 10,
+  search = "",
+  sortColumn = "name",
+  sortDirection = "asc",
+}: {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  sortColumn?: string;
+  sortDirection?: "asc" | "desc";
+}): Promise<ActionResult<{ customers: CustomerStats[]; totalCount: number }>> {
+  const auth = await requireRole("MANAGER");
+  if (!auth.data) return { data: null, error: auth.error };
+
+  const supabase = createClient();
+  let query = supabase.rpc("get_customer_stats", undefined, { count: "exact" });
+
+  if (search.trim()) {
+    query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,phone_number.ilike.%${search}%`);
+  }
+
+  // Handle sort
+  const isAsc = sortDirection === "asc";
+  query = query.order(sortColumn, { ascending: isAsc }).order("customer_id", { ascending: true });
+
+  const offset = (page - 1) * pageSize;
+  const limit = pageSize - 1;
+  query = query.range(offset, offset + limit);
+
+  const { data, count, error } = await query;
+  if (error) return { data: null, error: error.message };
+
+  return { data: { customers: data as any, totalCount: count || 0 }, error: null };
 }
 
 /**

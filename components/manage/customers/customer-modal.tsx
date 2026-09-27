@@ -2,6 +2,7 @@ import * as React from "react";
 import { DialogRoot } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { formatDateOfBirth } from "@/lib/profile/identity";
+import { CustomerOrderHistory } from "./customer-order-history";
 
 export interface CustomerData {
   id: string;
@@ -87,6 +88,8 @@ export function CustomerModal({ customer, isOpen, onClose, onAction }: CustomerM
           <DisplayField label="Email Address" value={customer.email} />
           <DisplayField label="Member Since" value={customer.customerSince} />
           
+          <CustomerOrderHistory customerId={customer.id} />
+
           {/* Actions */}
           <div className="flex gap-[10px] pt-3 shrink-0">
             <button 

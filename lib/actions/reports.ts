@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { requireRole } from "@/lib/actions/admin";
 import { recordEmployeeAction } from "@/lib/audit/record-employee-action";
 import {
   ACCOUNT_DISABLED_CODE,
@@ -1176,4 +1177,78 @@ export async function saveReport(
 
   if (error) return { data: null, error: error.message };
   return { data, error: null };
+}
+
+/**
+ * Export report breakdown as CSV.
+ * Requires: manager.
+ */
+export async function exportReportCSV(
+  input: ReportDateRange,
+): Promise<ActionResult<string>> {
+  const parsed = reportDateRangeSchema.safeParse(input);
+  if (!parsed.success) return { data: null, error: parsed.error.errors[0].message };
+
+  const auth = await requireRole("MANAGER");
+  if (!auth.data) return { data: null, error: auth.error };
+
+  const { start_date, end_date } = parsed.data;
+  const supabase = createClient();
+
+  const [pmRes, cancelRes, remittedRes] = await Promise.all([
+    supabase.rpc("get_payment_method_breakdown", { start_date, end_date }),
+    supabase.rpc("get_cancellation_reason_breakdown", { start_date, end_date }),
+    supabase.rpc("get_cash_remitted", { start_date, end_date }),
+  ]);
+
+  if (pmRes.error) return { data: null, error: pmRes.error.message };
+  if (cancelRes.error) return { data: null, error: cancelRes.error.message };
+  if (remittedRes.error) return { data: null, error: remittedRes.error.message };
+
+  const csvRows = [];
+  
+  csvRows.push("REPORT METRICS EXPORT");
+  csvRows.push(`Date Range:,${start_date} to ${end_date}`);
+  csvRows.push("");
+
+  csvRows.push("Cash Remitted (Counter Collection)");
+  csvRows.push(`Total:,${remittedRes.data}`);
+  csvRows.push("");
+
+  csvRows.push("Payment Method Breakdown");
+  csvRows.push("Method,Orders,Revenue");
+  for (const row of pmRes.data || []) {
+    csvRows.push(`${row.method},${row.total_orders},${row.total_revenue}`);
+  }
+  csvRows.push("");
+
+  csvRows.push("Cancellation Breakdown");
+  csvRows.push("Reason,Orders");
+  for (const row of cancelRes.data || []) {
+    csvRows.push(`"${row.reason}",${row.total_orders}`);
+  }
+
+  return { data: csvRows.join("\n"), error: null };
+}
+
+/**
+ * Fetch cash remitted for UI display.
+ */
+export async function getCashRemitted(
+  input: ReportDateRange,
+): Promise<ActionResult<number>> {
+  const parsed = reportDateRangeSchema.safeParse(input);
+  if (!parsed.success) return { data: null, error: parsed.error.errors[0].message };
+
+  const auth = await requireRole("MANAGER");
+  if (!auth.data) return { data: null, error: auth.error };
+
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("get_cash_remitted", { 
+    start_date: parsed.data.start_date, 
+    end_date: parsed.data.end_date 
+  });
+
+  if (error) return { data: null, error: error.message };
+  return { data: Number(data), error: null };
 }
