@@ -270,6 +270,19 @@ Expected: the panel shows the filters actually applied, not the abandoned edits.
 Expected: page 2 still only contains matching orders; the page count matches the filtered total. Changing a filter jumps back to page 1.
 - [ ] Pass - [ ] Fail — notes: ______
 
+**TC-01-11 Order total ("every order over ₱2,000 paid in cash this month")** · M · setup: one test order worth at least ₱500 (several dishes)
+1. Filter → Total from `500` → Apply.
+
+Expected: only orders whose card total is ₱500 or more.
+2. Add Payment **Pay in store** and From = 1st of this month.
+
+Expected: only this month's pay-in-store orders of ₱500+ (badge **3**).
+3. Set Total up to `100` while Total from is `500`.
+
+Expected: "'Up to' can't be less than 'from'." and Apply is disabled. Typing `abc` shows "Totals must be amounts of 0 or more."
+4. Clear.
+- [ ] Pass - [ ] Fail — notes: ______
+
 ---
 
 ### AC-02 — Manager-only "Payment Issues" tab
