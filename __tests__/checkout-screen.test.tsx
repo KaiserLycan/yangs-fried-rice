@@ -327,10 +327,29 @@ describe("Checkout place order", () => {
         // It used to send cash on delivery here — on an order nobody was
         // delivering (issue #106).
         payment_method: "pay-in-store",
+        // Nobody chose a courier, so the customer collects it themself.
+        fulfillment_method: "self_pickup",
       }),
     );
     await waitFor(() =>
       expect(push).toHaveBeenCalledWith("/checkout/confirmation?order=order-77"),
+    );
+  });
+
+  it("tells the store when a courier is collecting the order", async () => {
+    vi.mocked(submitCart).mockResolvedValue({
+      data: { order_id: "order-78", order_status: "pending", cart_id: "cart-1", is_final: true },
+      error: null,
+    });
+    renderCheckout({ fulfilment: "pickup" });
+
+    fireEvent.click(screen.getByRole("radio", { name: /A courier will pick it up/ }));
+    fireEvent.click(screen.getAllByRole("button", { name: /Place order/ })[0]);
+
+    await waitFor(() =>
+      expect(submitCart).toHaveBeenCalledWith(
+        expect.objectContaining({ fulfillment_method: "3rd_party_courier" }),
+      ),
     );
   });
 
