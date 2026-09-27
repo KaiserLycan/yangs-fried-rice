@@ -655,7 +655,7 @@ async function _fetchPaymentIssuesBase(supabase: ReturnType<typeof createClient>
     const paymentMethod = tx?.payment_method || "";
 
     // 1. payment_failed
-    const isEwallet = ["gcash", "paymongo"].includes(paymentMethod);
+    const isEwallet = WALLET_PAYMENT_METHODS.includes(paymentMethod);
     if (isEwallet) {
       if (order.order_status === "payment_failed") {
         issues.push({ type: "payment_failed", order });
@@ -663,7 +663,7 @@ async function _fetchPaymentIssuesBase(supabase: ReturnType<typeof createClient>
       }
       if (order.order_status === "awaiting_payment") {
         const elapsedMins = (now - new Date(order.created_at as string).getTime()) / 60000;
-        if (elapsedMins >= 5) {
+        if (elapsedMins >= STUCK_PAYMENT_MINUTES) {
           issues.push({ type: "payment_failed", order });
           continue;
         }
@@ -671,7 +671,7 @@ async function _fetchPaymentIssuesBase(supabase: ReturnType<typeof createClient>
     }
 
     // 2. pickup_overdue
-    const isCash = ["pay_in_store", "pay-in-store", "cash"].includes(paymentMethod);
+    const isCash = CASH_PAYMENT_METHODS.includes(paymentMethod);
     if (order.order_status === "ready" && (order.order_type === "take_out" || order.order_type === "pickup") && isCash && order.ready_at) {
       const elapsedMins = (now - new Date(order.ready_at as string).getTime()) / 60000;
       if (elapsedMins >= 90) {
