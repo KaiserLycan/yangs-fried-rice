@@ -254,6 +254,11 @@ docs/              # Audits, handoffs, screenshots
 - [`docs/unimplemented_issues.md`](docs/unimplemented_issues.md) — what is still open.
 - [`docs/issue-106-followups.md`](docs/issue-106-followups.md) — QA follow-ups from issue #106.
 - [`docs/phase4-security-testing-report.md`](docs/phase4-security-testing-report.md) — security testing results.
-- [`docs/limitations.md`](docs/limitations.md) — known gaps and their status. Issue #114 closed items 15, 21, 26 and 28.
-- [`docs/user-simulation.md`](docs/user-simulation.md) — persona walkthroughs. The personas used to verify changes live in `.agents/skills/`.
+- [`docs/limitations.md`](docs/limitations.md) — known gaps and their status. Issues #114 and #118 closed many items; migrations `20260928000003`–`20260928000015` partially address several more.
+- [`docs/lacking.md`](docs/lacking.md) — features too large for the development window. Compared against Jollibee, McDelivery PH, Mang Inasal, Chowking, GrabFood, foodpanda and Philippine law.
+- [`docs/feedback-verification.md`](docs/feedback-verification.md) — panel feedback points verified against the code. 25 points checked.
+- [`docs/user-simulation.md`](docs/user-simulation.md) — 17 persona walkthroughs plus 12 hard UI questions. The personas used to verify changes live in `.agents/skills/`.
+- [`docs/copy-glossary.md`](docs/copy-glossary.md) — one name per status, one spelling, one order-type word.
+- [`docs/comparison.md`](docs/comparison.md) — feature comparison with similar ordering systems.
 - [`docs/reference/`](docs/reference/) — business case, storage draft, handoffs.
+- [`FINALE.md`](FINALE.md) — comprehensive list of all remaining unimplemented features for one final implementation run. Excludes issue #117 items.
