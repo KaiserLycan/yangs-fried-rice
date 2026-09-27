@@ -675,8 +675,10 @@ describe("Checkout layout", () => {
     expect(screen.getAllByRole("button", { name: /Place order/ })).toHaveLength(
       1,
     );
-    expect(screen.getAllByRole("radiogroup")).toHaveLength(1);
+    expect(screen.getAllByRole("radiogroup", { name: "Payment method" })).toHaveLength(1);
+    expect(screen.getAllByRole("radiogroup", { name: "Who is picking up" })).toHaveLength(1);
     // Two payment methods apply to a delivery; the third is pickup-only.
-    expect(screen.getAllByRole("radio")).toHaveLength(2);
+    const [payment] = screen.getAllByRole("radiogroup", { name: "Payment method" });
+    expect(within(payment).getAllByRole("radio")).toHaveLength(2);
   });
 });
