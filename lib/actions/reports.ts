@@ -1332,6 +1332,11 @@ export async function exportReportCSV(
   return { data: "﻿" + rows.map((row) => row.map(csvCell).join(",")).join("\r\n"), error: null };
 }
 
+/** Rows → CSV text. Excel opens a UTF-8 CSV correctly only with the byte-order mark. */
+function toCsv(rows: (string | number | null | undefined)[][]): string {
+  return "﻿" + rows.map((row) => row.map(csvCell).join(",")).join("\r\n");
+}
+
 /** One CSV field: quoted when it holds a comma, quote or line break. */
 function csvCell(value: string | number | null | undefined): string {
   const text = value === null || value === undefined ? "" : String(value);
