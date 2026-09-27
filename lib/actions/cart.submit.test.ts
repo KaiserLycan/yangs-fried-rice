@@ -113,4 +113,31 @@ describe("submitCart store check", () => {
       code: "STORE_CLOSED",
     });
   });
+
+  it("sends the prices the customer saw, for the PRICE_CHANGED check", async () => {
+    readStoreStatus.mockResolvedValue(open());
+    rpc.mockResolvedValue({
+      data: null,
+      error: {
+        message: "Prices changed: Yang Chow ₱150.00 → ₱165.00. Please review your cart.",
+        hint: "PRICE_CHANGED",
+      },
+    });
+    const lineId = "1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f";
+
+    const result = await submitCart({
+      cart_id: CART_ID,
+      expected_prices: { [lineId]: 150 },
+    } as never);
+
+    expect(rpc).toHaveBeenCalledWith(
+      "submit_cart_to_order",
+      expect.objectContaining({ p_expected_prices: { [lineId]: 150 } }),
+    );
+    expect(result).toEqual({
+      data: null,
+      error: "Prices changed: Yang Chow ₱150.00 → ₱165.00. Please review your cart.",
+      code: "PRICE_CHANGED",
+    });
+  });
 });

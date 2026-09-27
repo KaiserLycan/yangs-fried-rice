@@ -6,6 +6,8 @@ import { formatPeso } from "@/lib/menu/product-listing";
 import type { CartTotals, Fulfilment } from "@/lib/menu/cart-totals";
 import { useStoreStatus } from "@/lib/hooks/use-store-status";
 import { storeBlockFor } from "@/lib/store/store-status";
+import { BIG_ORDER_MESSAGE, isOverOrderCap } from "@/lib/cart/limits";
+import { Alert } from "@/components/ui/alert";
 
 /**
  * Subtotal, delivery fee, Total, and the call to action — `133:990` desktop
@@ -26,6 +28,7 @@ export function CartTotalsSummary({
   ctaLabel,
   arrivalEstimate,
   fulfilment,
+  totalItems = 0,
 }: {
   totals: CartTotals;
   ctaLabel: string;
@@ -37,13 +40,20 @@ export function CartTotalsSummary({
    */
   arrivalEstimate: string | null;
   fulfilment: Fulfilment;
+  /**
+   * Items in the cart (sum of quantities). Over MAX_ITEMS_PER_ORDER the
+   * button is disabled with the "big order" message (issue #115); the server
+   * refuses the same cart at checkout.
+   */
+  totalItems?: number;
 }) {
   const [isClicked, setIsClicked] = React.useState(false);
   // Closed, paused or busy (issue #115). Null while the status loads: the
   // button stays usable, and checkout itself is refused server-side anyway.
   const storeStatus = useStoreStatus();
   const block = storeStatus ? storeBlockFor(storeStatus) : null;
-  const isOpen = block === null;
+  const tooLarge = isOverOrderCap(totalItems);
+  const isOpen = block === null && !tooLarge;
 
   return (
     <div className="flex flex-col gap-[8px] border-t border-field-border pt-[14px]">
@@ -63,8 +73,20 @@ export function CartTotalsSummary({
         </p>
       ) : null}
 
+      {tooLarge ? (
+        <Alert role="status" className="mt-[6px]">
+          {BIG_ORDER_MESSAGE}
+        </Alert>
+      ) : null}
+
       <Link
-        title={block ? block.message : "Review your order and pay"}
+        title={
+          block
+            ? block.message
+            : tooLarge
+              ? BIG_ORDER_MESSAGE
+              : "Review your order and pay"
+        }
         href={!isOpen || isClicked ? "#" : `/checkout?fulfilment=${fulfilment}`}
         onClick={(e) => {
           if (!isOpen || isClicked) {
@@ -83,7 +105,9 @@ export function CartTotalsSummary({
           ? "Store Closed"
           : block
             ? "Very Busy — Try Again Soon"
-            : ctaLabel}
+            : tooLarge
+              ? "Too Many Items"
+              : ctaLabel}
       </Link>
     </div>
   );

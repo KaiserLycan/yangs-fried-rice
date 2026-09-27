@@ -247,4 +247,33 @@ describe("CartLineRow lower bound", () => {
     await waitFor(() => expect(removeCartItem).toHaveBeenCalled());
     expect(updateCartItem).not.toHaveBeenCalled();
   });
+
+  // Issue #115: MAX_ITEMS_PER_ORDER. The server refuses the same cart.
+  it("blocks checkout with the big-order message above 30 items", () => {
+    const big: CartLine[] = [
+      { id: "1", name: "Yangzhou Special", unitPrice: 180, quantity: 20, specialInstructions: null },
+      { id: "2", name: "Lumpia (5pc)", unitPrice: 90, quantity: 11, specialInstructions: null },
+    ];
+    renderCart(<CartContents lines={big} ctaLabel="Checkout" arrivalEstimate={null} />);
+
+    expect(
+      screen.getByText("That's a big order! Please contact us for a bulk order or catering."),
+    ).toBeInTheDocument();
+    const cta = screen.getByRole("link", { name: /too many items/i });
+    expect(cta).toHaveAttribute("href", "#");
+  });
+
+  it("allows checkout at exactly 30 items", () => {
+    const full: CartLine[] = [
+      { id: "1", name: "Yangzhou Special", unitPrice: 180, quantity: 20, specialInstructions: null },
+      { id: "2", name: "Lumpia (5pc)", unitPrice: 90, quantity: 10, specialInstructions: null },
+    ];
+    renderCart(<CartContents lines={full} ctaLabel="Checkout" arrivalEstimate={null} />);
+
+    expect(screen.queryByText(/big order/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Checkout" })).toHaveAttribute(
+      "href",
+      "/checkout?fulfilment=pickup",
+    );
+  });
 });

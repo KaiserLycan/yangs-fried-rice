@@ -22,6 +22,12 @@ import {
 } from "@/lib/auth/account-status";
 import { readStoreStatus } from "@/lib/store/read-store-status";
 import { storeBlockFor } from "@/lib/store/store-status";
+import { MAX_QUANTITY } from "@/lib/menu/quantity";
+import {
+  BIG_ORDER_MESSAGE,
+  ORDER_TOO_LARGE_CODE,
+  wouldExceedOrderCap,
+} from "@/lib/cart/limits";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -102,6 +108,43 @@ async function requireCustomer(): Promise<
 
   return { data: { customer_id: user.id }, error: null };
 }
+
+// ---------------------------------------------------------------------------
+// Order size (issue #115)
+// ---------------------------------------------------------------------------
+
+/**
+ * How many items are in a cart: the sum of its lines' quantities, leaving
+ * out `excludeCartItemId` (the line being changed, whose new quantity the
+ * caller adds back itself).
+ *
+ * Every path that grows a cart — adding a dish, the stepper, reorder — checks
+ * this against MAX_ITEMS_PER_ORDER, so the customer hears "that's a big
+ * order" while building the cart rather than at checkout.
+ * `submit_cart_to_order` checks again.
+ */
+async function cartQuantityTotal(
+  supabase: ReturnType<typeof createClient>,
+  cartId: string,
+  excludeCartItemId?: string,
+): Promise<number> {
+  const { data } = await supabase
+    .from("cart_item")
+    .select("cart_item_id, quantity")
+    .eq("cart_id", cartId);
+
+  return (data ?? [])
+    .filter((row) => row.cart_item_id !== excludeCartItemId)
+    .reduce((sum, row) => sum + (row.quantity ?? 0), 0);
+}
+
+const TOO_LARGE = {
+  data: null,
+  error: BIG_ORDER_MESSAGE,
+  code: ORDER_TOO_LARGE_CODE,
+} as const;
+
+const PER_DISH_LIMIT_MESSAGE = `You can have at most ${MAX_QUANTITY} of one dish in your cart.`;
 
 // ---------------------------------------------------------------------------
 // 1. Get Active Cart
@@ -280,6 +323,13 @@ export async function addCartItem(
   const notes = parsed.data.special_instructions?.trim() || null;
   const addOnIds = Array.from(new Set(parsed.data.add_on_ids ?? [])).sort();
 
+  // Merged into an existing line or added as a new one, the cart grows by
+  // the same number of items.
+  const currentTotal = await cartQuantityTotal(supabase, cart.cart_id);
+  if (wouldExceedOrderCap(currentTotal, parsed.data.quantity)) {
+    return TOO_LARGE;
+  }
+
   // Adding a dish that is already in the cart raises its quantity instead of
   // creating a second identical line — unless the customer attached special
   // notes, in which case they mean this portion to be different. "Identical"
@@ -304,7 +354,15 @@ export async function addCartItem(
     });
 
     if (match) {
-      const mergedQuantity = Math.min(99, match.quantity + parsed.data.quantity);
+      const mergedQuantity = match.quantity + parsed.data.quantity;
+      // Used to clamp silently at 99, so "add 5" could add 2 without a word.
+      if (mergedQuantity > MAX_QUANTITY) {
+        return {
+          data: null,
+          error: PER_DISH_LIMIT_MESSAGE,
+          code: "QUANTITY_LIMIT",
+        };
+      }
       const now = new Date().toISOString();
 
       const [mergeResult] = await Promise.all([
@@ -466,6 +524,26 @@ export async function updateCartItem(
       error: "Cart is locked and cannot be modified.",
       code: "CART_LOCKED",
     };
+  }
+
+  // Raising a line's quantity grows the cart; lowering it is always allowed.
+  if (
+    parsed.data.quantity !== undefined &&
+    parsed.data.quantity > item.quantity
+  ) {
+    const otherLines = await cartQuantityTotal(
+      supabase,
+      parentCart.cart_id,
+      item.cart_item_id,
+    );
+    if (
+      wouldExceedOrderCap(
+        otherLines + item.quantity,
+        parsed.data.quantity - item.quantity,
+      )
+    ) {
+      return TOO_LARGE;
+    }
   }
 
   const updatePayload: { quantity?: number; special_instructions?: string | null } = {};
@@ -706,6 +784,9 @@ export async function submitCart(
     p_order_type: parsed.data.order_type,
     p_special_instructions: parsed.data.special_instructions ?? undefined,
     p_payment_method: parsed.data.payment_method,
+    // The prices the customer was shown; the function refuses with
+    // PRICE_CHANGED, naming the dishes, if the menu has moved since.
+    p_expected_prices: parsed.data.expected_prices,
   });
 
   if (error || !data) {
@@ -1104,16 +1185,24 @@ export async function reorderPastOrder(
     };
   }
 
-  // 5. Insert available items into cart
+  // 5. Insert available items into cart. A line from before the per-dish
+  // cap (issue #115) can be over 20; it comes back at 20, since the cart
+  // can no longer hold more.
   const cartItemsToInsert = availableItems.map((item) => {
     const p = (Array.isArray(item.product) ? item.product[0] : item.product) as unknown as { product_id: string };
     return {
       cart_id: cart!.cart_id,
       product_id: p.product_id,
-      quantity: item.quantity,
+      quantity: Math.min(MAX_QUANTITY, item.quantity),
       special_instructions: item.special_instructions,
     };
   });
+
+  const reorderedItems = cartItemsToInsert.reduce((sum, line) => sum + line.quantity, 0);
+  const currentTotal = await cartQuantityTotal(supabase, cart.cart_id);
+  if (wouldExceedOrderCap(currentTotal, reorderedItems)) {
+    return TOO_LARGE;
+  }
 
   const [insertResult] = await Promise.all([
     supabase.from("cart_item").insert(cartItemsToInsert),
