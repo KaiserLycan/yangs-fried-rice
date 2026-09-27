@@ -49,7 +49,10 @@ export function OrderSummaryCard({
   paymentMethod,
   wallet,
   arrivalEstimate,
+  pickupBy = "self_pickup",
 }: {
+  /** Who collects the order — shown to staff as a badge. */
+  pickupBy?: PickupBy;
   customerName: string;
   placedAtLabel: string;
   address: string | null;
