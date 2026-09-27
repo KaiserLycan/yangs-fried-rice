@@ -85,7 +85,7 @@ BEGIN
   RETURN QUERY
   SELECT
     h.hour,
-    COUNT(o.order_id) AS total_orders,
+    COUNT(DISTINCT o.order_id) AS total_orders,
     COALESCE(SUM(t.total_paid), 0) AS total_revenue
   FROM generate_series(0, 23) AS h(hour)
   LEFT JOIN public."order" o
@@ -114,7 +114,7 @@ BEGIN
   SELECT
     w.dow AS weekday,
     (ARRAY['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'])[w.dow + 1] AS weekday_name,
-    COUNT(o.order_id) AS total_orders,
+    COUNT(DISTINCT o.order_id) AS total_orders,
     COALESCE(SUM(t.total_paid), 0) AS total_revenue
   FROM generate_series(0, 6) AS w(dow)
   LEFT JOIN public."order" o
@@ -151,7 +151,7 @@ BEGIN
       WHEN t.payment_method IN ('paymongo', 'gcash', 'paymaya') THEN 'GCash / e-wallet'
       ELSE coalesce(t.payment_method, 'Unknown')
     END AS method,
-    COUNT(o.order_id) AS total_orders,
+    COUNT(DISTINCT o.order_id) AS total_orders,
     COALESCE(SUM(t.total_paid), 0) AS total_revenue
   FROM public."order" o
   JOIN public.transaction t ON t.order_id = o.order_id
