@@ -39,6 +39,18 @@ function revalidateMenuPaths() {
   revalidatePath("/menu");
 }
 
+const PRICE_MANAGER_ONLY = "Only a manager can set or change menu prices.";
+
+/**
+ * Prices are manager-only. The database enforces it too (trigger
+ * `trg_guard_product_price`); checking here gives staff a readable message
+ * instead of a raw database error.
+ */
+async function callerIsManager(): Promise<boolean> {
+  const caller = await getCurrentEmployee();
+  return (caller.data ? resolveEmployeeRole(caller.data.role) : null) === "MANAGER";
+}
+
 // CATEGORIES
 
 // Fetch categories and products together in a single request for the Menu page
