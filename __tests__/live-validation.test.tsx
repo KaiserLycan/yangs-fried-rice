@@ -79,19 +79,18 @@ describe("sign-up", () => {
     set(/^email/i, "liza@example.com");
     set(/mobile number/i, "9171234567");
     set(/^password/i, "Long-enough-Passw0rd");
-    set(/building \/ house no/i, "21");
-    set(/^street/i, "Mabini St.");
-    set(/^barangay/i, "Malate");
-    set(/^city/i, "Manila");
-    set(/zip code/i, "1004");
     fireEvent.click(screen.getByRole("checkbox", { name: /i am at least 18/i }));
     fireEvent.click(screen.getByRole("checkbox", { name: /terms & policy/i }));
   }
 
-  it("has separate first name, last name and five address inputs", () => {
+  it("has separate first and last name inputs, and no address or birthday", () => {
     render(<CustomerSignupForm />);
-    for (const label of [/first name/i, /last name/i, /building \/ house no/i, /^street/i, /^barangay/i, /^city/i, /zip code/i]) {
+    for (const label of [/first name/i, /last name/i]) {
       expect(screen.getByLabelText(label)).toBeInTheDocument();
+    }
+    // Pickup-only, no delivery service, no birthday promotion.
+    for (const label of [/building \/ house no/i, /^street/i, /^barangay/i, /^city/i, /zip code/i, /date of birth/i]) {
+      expect(screen.queryByLabelText(label)).not.toBeInTheDocument();
     }
   });
 
@@ -99,7 +98,6 @@ describe("sign-up", () => {
     render(<CustomerSignupForm />);
     expect(screen.getByLabelText(/first name/i)).toHaveAttribute("maxLength", "50");
     expect(screen.getByLabelText(/first name/i)).toHaveAttribute("minLength", "2");
-    expect(screen.getByLabelText(/zip code/i)).toHaveAttribute("maxLength", "4");
   });
 
   it("masks the mobile number as it is typed", () => {
@@ -170,11 +168,6 @@ describe("sign-up", () => {
         firstName: "Liza",
         lastName: "Reyes",
         phone: "+639171234567",
-        buildingNo: "21",
-        street: "Mabini St.",
-        barangay: "Malate",
-        city: "Manila",
-        zip: "1004",
       }),
     );
     expect(loginCustomer).not.toHaveBeenCalled();

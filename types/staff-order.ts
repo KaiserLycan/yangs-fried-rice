@@ -46,8 +46,6 @@ export type OrderData = {
   }[];
   contactInfo: {
     name: string;
-    /** Only ever filled for a legacy delivery order. */
-    address: string;
     phone: string;
   };
   orderInfo: {

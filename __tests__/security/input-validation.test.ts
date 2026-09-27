@@ -4,14 +4,12 @@ import { loginSchema } from "@/lib/validation/login";
 import {
   contactDetailsSchema,
   personalDetailsSchema,
-  deliveryAddressSchema,
 } from "@/lib/validation/profile";
 import { addCartItemSchema, updateCartItemSchema, cancelOrderSchema } from "@/lib/validation/cart";
 import { reviewSubmissionSchema } from "@/lib/validation/reviews";
 import { createEmployeeSchema } from "@/lib/validation/admin";
 import { transactionSchema } from "@/lib/validation/transaction";
 import { orderStatusSchema, isValidTransition } from "@/lib/validation/orders";
-import { toIsoDate } from "@/lib/validation/date-of-birth";
 
 /**
  * Input validation — Phase 4 section A.
@@ -27,11 +25,6 @@ const SIGNUP = {
   email: "liza@example.com",
   phone: "+639171234567",
   password: "Yangs!Pass2026",
-  buildingNo: "10",
-  street: "Mercedes Ave",
-  barangay: "San Miguel",
-  city: "Pasig",
-  zip: "1600",
   ageConfirmed: true,
 };
 
@@ -45,11 +38,6 @@ describe("A1. required fields reject blank input", () => {
   it.each([
     ["first name", "firstName", "Enter your first name."],
     ["last name", "lastName", "Enter your last name."],
-    ["building / house no.", "buildingNo", "Enter building/house number."],
-    ["street", "street", "Enter street."],
-    ["barangay", "barangay", "Enter barangay."],
-    ["city", "city", "Enter city."],
-    ["ZIP code", "zip", "Enter ZIP code."],
   ])("%s shows its own error when left blank", (_label, field, expected) => {
     expect(messageFor(signupSchema, { ...SIGNUP, [field]: "" }, field)).toBe(expected);
   });
@@ -120,26 +108,23 @@ describe("A4. password", () => {
   });
 });
 
-describe("A5. date of birth", () => {
-  it("rejects a date in the future", () => {
-    // Built as a *local* calendar date. `toISOString()` renders UTC, so
-    // between midnight and 08:00 in Manila (UTC+8) its "tomorrow" is still
-    // today's local date — the schema rightly called that not-in-the-future
-    // and this case failed for eight hours a day.
-    const now = new Date();
-    const tomorrow = toIsoDate(
-      new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1),
-    );
-    expect(messageFor(personalDetailsSchema, { firstName: "Liza", lastName: "Reyes", dateOfBirth: tomorrow }, "dateOfBirth"))
-      .toMatch(/future/i);
+describe("A5. no birthday and no address are collected", () => {
+  // Pickup-only, no delivery service and no birthday promotion: sign-up
+  // neither asks for nor keeps either, even if a client sends them.
+  it("signs up without an address or a birthday", () => {
+    expect(signupSchema.safeParse(SIGNUP).success).toBe(true);
   });
 
-  it("rejects an impossible calendar date", () => {
-    expect(personalDetailsSchema.safeParse({ firstName: "Liza", lastName: "Reyes", dateOfBirth: "2001-02-30" }).success).toBe(false);
-  });
-
-  it("accepts a blank date — the field is optional", () => {
-    expect(personalDetailsSchema.safeParse({ firstName: "Liza", lastName: "Reyes", dateOfBirth: "" }).success).toBe(true);
+  it("drops an address or birthday a client sends anyway", () => {
+    const parsed = signupSchema.parse({
+      ...SIGNUP,
+      street: "Mercedes Ave",
+      zip: "1600",
+      dateOfBirth: "1990-01-01",
+    });
+    expect(parsed).not.toHaveProperty("street");
+    expect(parsed).not.toHaveProperty("zip");
+    expect(parsed).not.toHaveProperty("dateOfBirth");
   });
 });
 
@@ -241,33 +226,6 @@ describe("A9. fixed vocabularies and state transitions", () => {
     expect(isValidTransition("pending", "preparing")).toBe(true);
     expect(isValidTransition("preparing", "ready")).toBe(true);
     expect(isValidTransition("ready", "completed")).toBe(true);
-  });
-});
-
-describe("A10. address form", () => {
-  const ADDRESS = {
-    label: "Home",
-    buildingNo: "10",
-    street: "Mercedes Ave",
-    barangay: "San Miguel",
-    city: "Pasig",
-    zip: "1600",
-    deliveryNote: "",
-  };
-
-  it("accepts a complete address", () => {
-    expect(deliveryAddressSchema.safeParse(ADDRESS).success).toBe(true);
-  });
-
-  it.each(["buildingNo", "street", "barangay", "city", "zip"])(
-    "rejects an address missing %s",
-    (field) => {
-      expect(deliveryAddressSchema.safeParse({ ...ADDRESS, [field]: "" }).success).toBe(false);
-    },
-  );
-
-  it("treats the label and the delivery note as optional", () => {
-    expect(deliveryAddressSchema.safeParse({ ...ADDRESS, label: "", deliveryNote: "" }).success).toBe(true);
   });
 });
 

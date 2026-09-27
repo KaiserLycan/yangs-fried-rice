@@ -9,12 +9,6 @@ import { compressImage } from "@/lib/image/compress";
 import { ALLOWED_IMAGE_TYPES, imageUploadProblem } from "@/lib/storage/stored-image";
 import { roleDisplayLabel } from "@/lib/auth/roles";
 import { getEmployeeForEdit } from "@/lib/actions/admin";
-import {
-  EMPLOYEE_MIN_AGE_YEARS,
-  earliestBirthdate,
-  employeeDateOfBirthSchema,
-  latestBirthdateForMinAge,
-} from "@/lib/validation/date-of-birth";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { useValidatedValues } from "@/lib/forms/use-live-validation";
 import { SHORTCUTS, useShortcut } from "@/lib/hooks/use-shortcut";
@@ -69,7 +63,6 @@ interface EmployeeModalProps {
     lastAccessLog?: string;
     imageUrl?: string;
     phone?: string;
-    dateOfBirth?: string;
     isDisabled?: boolean;
   } | null;
 }
@@ -89,7 +82,6 @@ function employeeFormSchema(isEditMode: boolean) {
     // Required for a new account; on edit, blank means "leave unchanged".
     password: isEditMode ? z.union([z.literal(""), newPasswordSchema]) : newPasswordSchema,
     phone: optionalPhoneSchema,
-    dateOfBirth: employeeDateOfBirthSchema,
   });
 }
 
@@ -102,7 +94,6 @@ type FormSnapshot = {
   shift: string;
   password: string;
   phone: string;
-  dateOfBirth: string;
   isDisabled: boolean;
 };
 
@@ -116,7 +107,6 @@ function snapshotFields(values: Partial<FormSnapshot>): FormSnapshot {
     shift: SHIFTS[0],
     password: "",
     phone: "",
-    dateOfBirth: "",
     isDisabled: false,
     ...values,
   };
@@ -142,7 +132,6 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
   const [shift, setShift] = useState(SHIFTS[0]);
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
-  const [dateOfBirth, setDateOfBirth] = useState("");
   const [isDisabled, setIsDisabled] = useState(false);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [lastAccessLog, setLastAccessLog] = useState("");
@@ -168,9 +157,8 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
       email,
       password,
       phone: phone ? toInternationalMobile(phone) : "",
-      dateOfBirth,
     }),
-    [firstName, lastName, email, password, phone, dateOfBirth],
+    [firstName, lastName, email, password, phone],
   );
   const form = useValidatedValues(schema, values);
   const { errors, touch } = form;
@@ -191,7 +179,6 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
         setShift(employee.shift || SHIFTS[0]);
         setPassword(""); // Admin shouldn't see passwords. Leave blank unless changing it.
         setPhone(phoneDigitsOf(employee.phone));
-        setDateOfBirth(employee.dateOfBirth ?? "");
         setIsDisabled(Boolean(employee.isDisabled));
         setLastAccessLog(employee.lastAccessLog || "No login history");
       } else {
@@ -202,7 +189,6 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
         setShift(SHIFTS[0]);
         setPassword("");
         setPhone("");
-        setDateOfBirth("");
         setIsDisabled(false);
         setLastAccessLog("");
       }
@@ -216,7 +202,6 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
                 role: roleDisplayLabel(employee.role),
                 shift: employee.shift || SHIFTS[0],
                 phone: phoneDigitsOf(employee.phone),
-                dateOfBirth: employee.dateOfBirth ?? "",
                 isDisabled: Boolean(employee.isDisabled),
               }
             : {},
@@ -299,7 +284,6 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
           shift,
           password,
           phone,
-          dateOfBirth,
           isDisabled,
         }));
 
@@ -320,7 +304,6 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
       shift,
       password,
       phone: form.parsed.phone,
-      dateOfBirth,
       isAccountDisabled: isDisabled,
       lastAccessLog,
       photoFile,
@@ -473,28 +456,6 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
             ) : (
               <p className="text-xs text-placeholder">Optional. Format: {PH_MOBILE_EXAMPLE}</p>
             )}
-          </div>
-
-          {/* Date of birth */}
-          <div className="flex flex-col gap-1.5 w-full">
-            <label htmlFor="employee-dateOfBirth" className="font-bold text-muted-foreground text-xs tracking-[1.32px] uppercase">
-              Date of Birth
-            </label>
-            <input
-              id="employee-dateOfBirth"
-              type="date"
-              value={dateOfBirth}
-              onChange={e => {
-                setDateOfBirth(e.target.value);
-                touch("dateOfBirth");
-              }}
-              onBlur={() => touch("dateOfBirth")}
-              min={earliestBirthdate()}
-              max={latestBirthdateForMinAge(EMPLOYEE_MIN_AGE_YEARS)}
-              aria-invalid={errors.dateOfBirth ? true : undefined}
-              className={inputClass(Boolean(errors.dateOfBirth))}
-            />
-            {errors.dateOfBirth && <p className="text-xs text-error-border">{errors.dateOfBirth}</p>}
           </div>
 
           {/* Role Dropdown */}

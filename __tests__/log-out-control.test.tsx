@@ -25,14 +25,10 @@ const profile = {
   firstName: "Liza",
   lastName: "Reyes",
   name: "Liza Reyes",
-  dateOfBirth: null,
   mobile: null,
   email: "liza@example.com",
   profileImageUrl: null,
   passwordLastUpdated: null,
-  addresses: [],
-  activeAddressId: null,
-  deliverToAddress: null,
 } as unknown as CustomerProfile;
 
 function renderControl() {

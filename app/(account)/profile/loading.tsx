@@ -40,7 +40,6 @@ export default function ProfileLoading() {
             {[
               { id: "profile", label: "Profile" },
               { id: "contact", label: "Contact details" },
-              { id: "addresses", label: "Addresses" },
               { id: "password", label: "Password" },
             ].map(({ id, label }) => {
               const isCurrent = id === "profile";
@@ -82,7 +81,7 @@ export default function ProfileLoading() {
                 MY PROFILE
               </h1>
               <p className="text-sm text-muted-foreground">
-                name, contact, addresses and password
+                name, contact and password
               </p>
             </div>
 
@@ -100,9 +99,6 @@ export default function ProfileLoading() {
 
             {/* Contact Details */}
             <div className="h-[160px] w-full animate-pulse rounded-lg bg-secondary/20 border border-rule" />
-
-            {/* Delivery Addresses */}
-            <div className="h-[200px] w-full animate-pulse rounded-lg bg-secondary/20 border border-rule" />
 
             {/* Password */}
             <div className="h-[120px] w-full animate-pulse rounded-lg bg-secondary/20 border border-rule" />

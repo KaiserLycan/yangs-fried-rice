@@ -8,7 +8,6 @@ function row(over: Partial<StaffOrderRow> = {}): StaffOrderRow {
     order_status: "preparing",
     order_type: "delivery",
     delivery_fee: 58.9,
-    delivery_address: "21 Mabini St., Malate, Manila 1004",
     special_instructions: null,
     customer: { name: "Liza Reyes", email: null, phone_number: "+639172200000" },
     order_item: [],

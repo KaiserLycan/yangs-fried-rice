@@ -16,13 +16,6 @@ export const FIELD_LIMITS = {
   lastName: { min: 2, max: 50 },
   email: { min: 6, max: 254 },
   password: { min: 8, max: 72 },
-  buildingNo: { min: 1, max: 50 },
-  street: { min: 3, max: 100 },
-  barangay: { min: 2, max: 100 },
-  city: { min: 3, max: 50 },
-  zip: { min: 4, max: 4 },
-  addressLabel: { min: 0, max: 30 },
-  deliveryNote: { min: 0, max: 200 },
   productName: { min: 2, max: 80 },
   productDetails: { min: 0, max: 300 },
   categoryName: { min: 2, max: 40 },
@@ -127,36 +120,6 @@ export const newPasswordSchema = passwordSchema.superRefine((value, ctx) => {
     message: `Password needs ${missing.length > 1 ? `${missing.slice(0, -1).join(", ")} and ${missing[missing.length - 1]}` : missing[0]}.`,
   });
 });
-
-// ---------------------------------------------------------------------------
-// Addresses
-// ---------------------------------------------------------------------------
-
-export const buildingNoSchema = requiredText("buildingNo", "Building / house number", "Enter building/house number.");
-export const streetSchema = requiredText("street", "Street", "Enter street.");
-export const barangaySchema = requiredText("barangay", "Barangay", "Enter barangay.");
-export const citySchema = requiredText("city", "City", "Enter city.");
-
-/** Philippine ZIP codes are exactly four digits. */
-export const zipSchema = z
-  .string()
-  .trim()
-  .min(1, "Enter ZIP code.")
-  .regex(/^\d{4}$/, "ZIP code must be exactly 4 digits.");
-
-export const addressLabelSchema = boundedText("addressLabel", "Label");
-export const deliveryNoteSchema = boundedText("deliveryNote", "Delivery note");
-
-/** The five parts of a street address, used by sign-up, profile and checkout. */
-export const addressPartsSchema = z.object({
-  buildingNo: buildingNoSchema,
-  street: streetSchema,
-  barangay: barangaySchema,
-  city: citySchema,
-  zip: zipSchema,
-});
-
-export type AddressParts = z.infer<typeof addressPartsSchema>;
 
 // ---------------------------------------------------------------------------
 // Helpers

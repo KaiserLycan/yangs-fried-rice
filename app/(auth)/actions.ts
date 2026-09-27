@@ -13,7 +13,6 @@ import {
 } from "@/lib/auth/login-rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { homePathForRole, resolveEmployeeRole } from "@/lib/auth/roles";
-import { addressRowFromParts } from "@/lib/address/format";
 import { joinFullName } from "@/lib/validation/fields";
 import {
   fieldErrorFromDbError,
@@ -23,7 +22,6 @@ import {
 import { toInternationalMobile } from "@/lib/validation/phone";
 import {
   signupSchema,
-  DEFAULT_ADDRESS_LABEL,
   type SignupValues,
 } from "@/lib/validation/signup";
 import { loginSchema, type LoginValues } from "@/lib/validation/login";
@@ -80,7 +78,7 @@ export async function registerCustomer(
       fieldErrors: fieldErrorsFromIssues(parsed.error.issues),
     };
   }
-  const { firstName, lastName, email, phone, password, buildingNo, street, barangay, city, zip } = parsed.data;
+  const { firstName, lastName, email, phone, password } = parsed.data;
 
   // Kept in the auth user's metadata as a display fallback only; the
   // customer row stores the two parts.
@@ -178,23 +176,7 @@ export async function registerCustomer(
     };
   }
 
-  const { error: addressError } = await writer
-    .from("customer_address")
-    .insert({
-      customer_id: customerId,
-      label: DEFAULT_ADDRESS_LABEL,
-      ...addressRowFromParts({ buildingNo, street, barangay, city, zip }),
-    });
-  if (addressError) {
-    return {
-      success: false,
-      error:
-        "Your account was created, but we couldn't save your address. Please add it from your profile page.",
-      fieldErrors: fieldErrorFromDbError(addressError) ?? undefined,
-    };
-  }
-
-  // With email confirmation on, signing in fails until the address is
+  // With email confirmation on, signing in fails until the email is
   // confirmed. That is not an error — the account exists — so report it as a
   // success without a session and let the form send them to the login page.
   const { error: signInError } = await supabase.auth.signInWithPassword({

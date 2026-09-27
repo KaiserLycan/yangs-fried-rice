@@ -72,17 +72,12 @@ const profile: CustomerProfile = {
   firstName: "Liza",
   lastName: "Reyes",
   name: "Liza Reyes",
-  dateOfBirth: null,
   mobile: "09175550123",
   email: "liza@example.com",
   passwordLastUpdated: null,
   profileImageUrl: null,
-  activeAddressId: "addr-1",
   memberSince: null,
   orderCount: 0,
-  deliverToAddress: "21 Mabini St, Malate, Manila",
-  deliverToNote: null,
-  addresses: [],
 };
 
 const order = (overrides: Partial<PlacedOrder> = {}): PlacedOrder => ({
@@ -90,7 +85,6 @@ const order = (overrides: Partial<PlacedOrder> = {}): PlacedOrder => ({
   orderNumber: "1042",
   customerName: "Liza Reyes",
   placedAtLabel: "Aug 30, 6:40 PM",
-  address: "21 Mabini St, Malate, Manila",
   fulfilment: "delivery",
   paymentMethodLabel: "Cash on delivery",
   paymentStatus: null,
@@ -167,16 +161,16 @@ describe("OrderPlacedScreen", () => {
    * page. It used to be the hardcoded "35–45 min" — on a receipt for an
    * order that existed and could therefore be estimated properly (#106).
    */
-  it("tells a delivery customer when it arrives and where it is going", () => {
+  it("tells a legacy delivery order when it arrives, without an address", () => {
     renderScreen();
     const line = screen.getByTestId("fulfilment-line");
     expect(line).toHaveTextContent(/arriving/i);
     expect(line).toHaveTextContent("25–35 mins");
-    expect(line).toHaveTextContent("21 Mabini St, Malate, Manila");
+    expect(line).not.toHaveTextContent(/ · to /);
   });
 
   it("tells a pickup customer when it is ready, and never mentions delivery", () => {
-    renderScreen(order({ fulfilment: "pickup", address: null }));
+    renderScreen(order({ fulfilment: "pickup" }));
     const line = screen.getByTestId("fulfilment-line");
     expect(line).toHaveTextContent(/ready/i);
     expect(line).not.toHaveTextContent(/arriving/i);

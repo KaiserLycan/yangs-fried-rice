@@ -57,17 +57,12 @@ const profile: CustomerProfile = {
   firstName: "Ben",
   lastName: "Santos",
   name: "Ben Santos",
-  dateOfBirth: null,
   mobile: "09175550123",
   email: "ben@example.com",
   passwordLastUpdated: null,
   profileImageUrl: null,
-  activeAddressId: "addr-1",
   memberSince: null,
   orderCount: 0,
-  deliverToAddress: null,
-  deliverToNote: null,
-  addresses: [],
 };
 
 // ₱112 line (e.g. 1 Yang Chow Fried Rice)
@@ -235,7 +230,6 @@ describe("Staff order view — Senior Citizen / PWD verification (#116 ticket 03
     ],
     contactInfo: {
       name: "Ben Santos",
-      address: "Not applicable",
       phone: "09175550123",
     },
     orderInfo: {
