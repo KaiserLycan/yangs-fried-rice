@@ -38,7 +38,7 @@ import { submitCart } from "./cart";
 const CART_ID = "0b6f3f7e-8c2e-4c1a-9f0e-3b1a2c4d5e6f";
 
 function open(overrides: Partial<StoreStatus> = {}): StoreStatus {
-  return { ...fallbackStoreStatus(), isOpen: true, ...overrides };
+  return { ...fallbackStoreStatus(), isOpen: true, isAccepting: true, ...overrides };
 }
 
 beforeEach(() => {
@@ -48,7 +48,7 @@ beforeEach(() => {
 
 describe("submitCart store check", () => {
   it("refuses when closed, without calling the database", async () => {
-    readStoreStatus.mockResolvedValue(open({ isOpen: false, openTime: "08:00" }));
+    readStoreStatus.mockResolvedValue(open({ isOpen: false, isAccepting: false, openTime: "08:00" }));
 
     const result = await submitCart({ cart_id: CART_ID } as never);
 

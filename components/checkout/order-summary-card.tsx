@@ -34,6 +34,7 @@ import {
 } from "@/lib/storage/senior-pwd-ids";
 import type { SeniorPwdDiscountState } from "@/components/checkout/senior-pwd-discount-picker";
 import { Button } from "@/components/ui/button";
+import { MIN_ORDER, amountToMinimum } from "@/lib/checkout/order-rules";
 
 /**
  * Order summary (`133:1124` desktop, `132:424` mobile) — issue #22's
@@ -63,6 +64,8 @@ export function OrderSummaryCard({
   arrivalEstimate,
   pickupBy = "self_pickup",
   seniorDiscount,
+  tip = 0,
+  cashTendered = null,
 }: {
   /** Who collects the order — shown to staff as a badge. */
   pickupBy?: PickupBy;
@@ -81,6 +84,10 @@ export function OrderSummaryCard({
    */
   arrivalEstimate: string;
   seniorDiscount?: SeniorPwdDiscountState;
+  /** Peso tip for the staff (F19), added to what is paid. */
+  tip?: number;
+  /** Pay in store: the bill the customer will hand over (L8). */
+  cashTendered?: number | null;
 }) {
   const router = useRouter();
   const showToast = useToast();
@@ -161,6 +168,9 @@ export function OrderSummaryCard({
   const discountTotals = isDiscountActive
     ? seniorPwdBreakdown(totals.total)
     : null;
+  // The minimum is on the food, before any discount or tip (L6).
+  const shortOfMinimum = amountToMinimum(totals.subtotal);
+  const amountToPay = (discountTotals ? discountTotals.total : totals.total) + tip;
 
   function handlePlaceOrder() {
     if (paymentMethod === "card") {
@@ -259,6 +269,8 @@ export function OrderSummaryCard({
               lines.map((line) => [line.id, line.unitPrice]),
             ),
             wallet,
+            tip,
+            cash_tendered: cashTendered,
             discount:
               seniorDiscount?.enabled && uploadedPhotoPath
                 ? {
@@ -354,11 +366,23 @@ export function OrderSummaryCard({
         }
       />
 
+      {tip > 0 && (
+        <div className="flex items-center justify-between text-sm text-foreground">
+          <span>Tip for the staff</span>
+          <span className="font-bold">{formatSummaryMoney(tip)}</span>
+        </div>
+      )}
+      {shortOfMinimum > 0 && (
+        <p role="note" className="rounded-md bg-warning-surface p-[12px] text-sm text-warning-text">
+          The minimum order is {formatSummaryMoney(MIN_ORDER)}. Add {formatSummaryMoney(shortOfMinimum)} more to check out.
+        </p>
+      )}
+
       <p className="rounded-md bg-secondary/50 p-[12px] text-sm leading-[18px] text-muted-strong">
         {/* This sentence has always claimed the figure came from the queue
             and the distance. Since issue #106 it does. */}
-        Estimated arrival <strong>{arrivalEstimate}</strong> — based on current
-        kitchen queue and delivery distance.
+        Ready for pickup in <strong>{arrivalEstimate}</strong> — based on the
+        kitchen queue right now.
       </p>
 
       <Tooltip
@@ -369,16 +393,16 @@ export function OrderSummaryCard({
         <Button variant="unstyled"
           type="button"
           onClick={handlePlaceOrder}
-          disabled={pending || redirecting}
+          disabled={pending || redirecting || shortOfMinimum > 0}
           className="w-full rounded-md bg-accent p-[16px] text-base font-bold text-accent-foreground disabled:opacity-60"
         >
           {redirecting
             ? "Opening wallet…"
             : pending
               ? "Placing order…"
-              : `Place order · ${formatSummaryMoney(
-                  discountTotals ? discountTotals.total : totals.total,
-                )}`}
+              : shortOfMinimum > 0
+                ? `Add ${formatSummaryMoney(shortOfMinimum)} more to order`
+                : `Place order · ${formatSummaryMoney(amountToPay)}`}
         </Button>
       </Tooltip>
     </section>

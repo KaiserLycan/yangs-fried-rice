@@ -7,6 +7,7 @@ import { readCart } from "@/lib/cart/read-cart";
 import { findAwaitingPaymentOrder } from "@/lib/checkout/find-awaiting-payment-order";
 import { readCustomerProfile } from "@/lib/profile/customer-profile";
 import { readArrivalQuote } from "@/lib/checkout/read-arrival-quote";
+import { readCashHistory } from "@/lib/checkout/read-cash-history";
 
 /**
  * Checkout (Browsing8-10, TPI1; GitHub issue #22) — order review and payment
@@ -59,7 +60,10 @@ export default async function CheckoutPage({
   // Quoted from the live kitchen queue, so the figure the customer agrees to
   // here is produced by the same engine that will tell them where their
   // order is a minute later (issue #106).
-  const arrivalEstimate = await readArrivalQuote({ fulfilment, distanceKm });
+  const [arrivalEstimate, cashHistory] = await Promise.all([
+    readArrivalQuote({ fulfilment, distanceKm }),
+    readCashHistory(),
+  ]);
 
   return (
     <ToastProvider>
@@ -71,6 +75,7 @@ export default async function CheckoutPage({
         distanceKm={distanceKm}
         placedAtLabel={formatOrderTime(new Date())}
         arrivalEstimate={arrivalEstimate}
+        cashHistory={cashHistory}
       />
     </ToastProvider>
   );

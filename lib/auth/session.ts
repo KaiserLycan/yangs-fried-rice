@@ -11,13 +11,19 @@ import { cookies } from "next/headers";
  * no safe default for a signing key, so a missing one is an error rather than
  * a weak fallback.
  *
- * Set EMPLOYEE_SESSION_SECRET to a long random string in production; the
- * service-role key is accepted as a legacy fallback so existing deployments
- * keep working. Neither is ever sent to the browser.
+ * EMPLOYEE_SESSION_SECRET must be a long random string. In production there
+ * is no fallback (security review S11): signing sessions with the
+ * service-role key tied two secrets together, so leaking or rotating one
+ * affected the other. Local development may still fall back to it, with a
+ * warning, so a fresh checkout runs. Neither is ever sent to the browser.
  */
 function sessionSecret(): Uint8Array {
-  const secret =
-    process.env.EMPLOYEE_SESSION_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const dedicated = process.env.EMPLOYEE_SESSION_SECRET;
+  const isProduction = process.env.NODE_ENV === "production";
+  if (!dedicated && !isProduction && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.warn("EMPLOYEE_SESSION_SECRET is not set; using the service-role key for local development only.");
+  }
+  const secret = dedicated || (isProduction ? undefined : process.env.SUPABASE_SERVICE_ROLE_KEY);
 
   if (!secret || secret.trim().length < 32) {
     throw new Error(

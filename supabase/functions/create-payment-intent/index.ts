@@ -94,17 +94,20 @@ Deno.serve(async (req: Request) => {
 
     const { data: pendingTransaction } = await supabaseAdmin
       .from("transaction")
-      .select("transaction_id, subtotal, discount_amount")
+      .select("transaction_id, subtotal, discount_amount, tip_amount")
       .eq("order_id", orderId)
       .eq("payment_status", "pending")
       .maybeSingle();
 
     let totalPesos: number;
     if (pendingTransaction && pendingTransaction.subtotal !== null) {
-      // What checkout saved: includes order-level add-ons and any discount.
+      // What checkout saved: includes order-level add-ons and any discount,
+      // plus the staff tip the customer chose (F19). The webhook takes the
+      // tip back off total_paid, which stays the sale.
       totalPesos =
         Number(pendingTransaction.subtotal) -
         Number(pendingTransaction.discount_amount ?? 0) +
+        Number(pendingTransaction.tip_amount ?? 0) +
         (order.delivery_fee ?? 0);
     } else {
       // Sum order_item.subtotal server-side.

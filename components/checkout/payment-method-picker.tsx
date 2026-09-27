@@ -33,6 +33,7 @@ export function PaymentMethodPicker({
   wallet,
   onWalletChange,
   fulfilment,
+  disabledReasons = {},
 }: {
   value: PaymentMethodId;
   onChange: (value: PaymentMethodId) => void;
@@ -40,6 +41,11 @@ export function PaymentMethodPicker({
   onWalletChange: (value: WalletProvider) => void;
   /** Decides which methods are on offer — see `paymentMethodsFor`. */
   fulfilment: Fulfilment;
+  /**
+   * Methods this customer can't use for this order, with the reason shown
+   * under the choices (cash caps and no-show strikes, FINALE L6 / F14).
+   */
+  disabledReasons?: Partial<Record<PaymentMethodId, string>>;
 }) {
   const methods = paymentMethodsFor(fulfilment);
 
@@ -52,6 +58,7 @@ export function PaymentMethodPicker({
       >
         {methods.map((method) => {
           const isSelected = method.id === value;
+          const blocked = disabledReasons[method.id];
 
           return (
             <Button variant="unstyled"
@@ -59,6 +66,8 @@ export function PaymentMethodPicker({
               type="button"
               role="radio"
               aria-checked={isSelected}
+              aria-disabled={blocked ? true : undefined}
+              disabled={Boolean(blocked)}
               onClick={() => onChange(method.id)}
               className={cn(
                 "flex items-center justify-between rounded-md border p-[14px] text-left text-sm font-bold text-foreground",
@@ -77,6 +86,12 @@ export function PaymentMethodPicker({
           );
         })}
       </div>
+
+      {Object.values(disabledReasons).filter(Boolean).map((reason) => (
+        <p key={reason} role="note" className="rounded-md bg-warning-surface px-[12px] py-[10px] text-sm text-warning-text">
+          {reason}
+        </p>
+      ))}
 
       {value === "wallet" ? (
         <div

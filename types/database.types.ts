@@ -405,11 +405,13 @@ export type Database = {
           cancellation_reason: string | null
           cancelled_at: string | null
           cart_id: string | null
+          cash_tendered: number | null
           completed_at: string | null
           created_at: string | null
           customer_id: string | null
           delivery_fee: number | null
           fulfillment_method: string | null
+          no_show_reason: string | null
           order_id: string
           order_number: number
           order_status: string | null
@@ -423,11 +425,13 @@ export type Database = {
           cancellation_reason?: string | null
           cancelled_at?: string | null
           cart_id?: string | null
+          cash_tendered?: number | null
           completed_at?: string | null
           created_at?: string | null
           customer_id?: string | null
           delivery_fee?: number | null
           fulfillment_method?: string | null
+          no_show_reason?: string | null
           order_id?: string
           order_number?: never
           order_status?: string | null
@@ -441,11 +445,13 @@ export type Database = {
           cancellation_reason?: string | null
           cancelled_at?: string | null
           cart_id?: string | null
+          cash_tendered?: number | null
           completed_at?: string | null
           created_at?: string | null
           customer_id?: string | null
           delivery_fee?: number | null
           fulfillment_method?: string | null
+          no_show_reason?: string | null
           order_id?: string
           order_number?: never
           order_status?: string | null
@@ -688,6 +694,7 @@ export type Database = {
           image_url: string | null
           is_available: boolean | null
           is_featured: boolean
+          prep_minutes: number
           product_details: string | null
           product_id: string
           product_name: string
@@ -699,6 +706,7 @@ export type Database = {
           image_url?: string | null
           is_available?: boolean | null
           is_featured?: boolean
+          prep_minutes?: number
           product_details?: string | null
           product_id?: string
           product_name: string
@@ -710,6 +718,7 @@ export type Database = {
           image_url?: string | null
           is_available?: boolean | null
           is_featured?: boolean
+          prep_minutes?: number
           product_details?: string | null
           product_id?: string
           product_name?: string
@@ -923,6 +932,7 @@ export type Database = {
           id: boolean
           is_force_open: boolean
           is_paused: boolean
+          last_order_minutes: number
           max_active_orders: number
           open_time: string
           paused_until: string | null
@@ -935,6 +945,7 @@ export type Database = {
           id?: boolean
           is_force_open?: boolean
           is_paused?: boolean
+          last_order_minutes?: number
           max_active_orders?: number
           open_time?: string
           paused_until?: string | null
@@ -947,6 +958,7 @@ export type Database = {
           id?: boolean
           is_force_open?: boolean
           is_paused?: boolean
+          last_order_minutes?: number
           max_active_orders?: number
           open_time?: string
           paused_until?: string | null
@@ -972,6 +984,7 @@ export type Database = {
           refunded_at: string | null
           subtotal: number | null
           tax_amount: number | null
+          tip_amount: number
           total_paid: number | null
           transaction_date: string | null
           transaction_id: string
@@ -993,6 +1006,7 @@ export type Database = {
           refunded_at?: string | null
           subtotal?: number | null
           tax_amount?: number | null
+          tip_amount?: number
           total_paid?: number | null
           transaction_date?: string | null
           transaction_id?: string
@@ -1014,6 +1028,7 @@ export type Database = {
           refunded_at?: string | null
           subtotal?: number | null
           tax_amount?: number | null
+          tip_amount?: number
           total_paid?: number | null
           transaction_date?: string | null
           transaction_id?: string
@@ -1068,47 +1083,30 @@ export type Database = {
         Args: { p_customer_id: string }
         Returns: Json
       }
-      get_customer_stats:
-        | {
-            Args: never
-            Returns: {
-              created_at: string
-              customer_id: string
-              email: string
-              first_name: string
-              last_name: string
-              name: string
-              phone_number: string
-              profileImage_URL: string
-              total_orders: number
-              total_spent: number
-            }[]
-          }
-        | {
-            Args: {
-              p_activity?: string
-              p_from?: string
-              p_joined_from?: string
-              p_joined_to?: string
-              p_min_orders?: number
-              p_min_spent?: number
-              p_search?: string
-              p_to?: string
-            }
-            Returns: {
-              created_at: string
-              customer_id: string
-              date_of_birth: string
-              email: string
-              first_name: string
-              last_name: string
-              name: string
-              phone_number: string
-              profileImage_URL: string
-              total_orders: number
-              total_spent: number
-            }[]
-          }
+      get_customer_stats: {
+        Args: {
+          p_activity?: string
+          p_from?: string
+          p_joined_from?: string
+          p_joined_to?: string
+          p_min_orders?: number
+          p_min_spent?: number
+          p_search?: string
+          p_to?: string
+        }
+        Returns: {
+          created_at: string
+          customer_id: string
+          email: string
+          first_name: string
+          last_name: string
+          name: string
+          phone_number: string
+          profileImage_URL: string
+          total_orders: number
+          total_spent: number
+        }[]
+      }
       get_payment_method_breakdown: {
         Args: { end_date: string; start_date: string }
         Returns: {
@@ -1136,6 +1134,7 @@ export type Database = {
       }
       get_store_status: { Args: never; Returns: Json }
       is_menu_manager: { Args: never; Returns: boolean }
+      purge_expired_personal_data: { Args: never; Returns: Json }
       record_employee_action: {
         Args: {
           p_action: string
@@ -1149,12 +1148,14 @@ export type Database = {
       submit_cart_to_order: {
         Args: {
           p_cart_id: string
+          p_cash_tendered?: number
           p_discount?: Json
           p_expected_prices?: Json
           p_fulfillment_method?: string
           p_order_type?: string
           p_payment_method?: string
           p_special_instructions?: string
+          p_tip?: number
         }
         Returns: Json
       }

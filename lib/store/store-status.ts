@@ -20,6 +20,14 @@ import {
 export type StoreStatus = {
   /** Inside opening hours, or forced open. */
   isOpen: boolean;
+  /**
+   * Open and before the last-order cut-off (limitations L1): the last N
+   * minutes before closing are for the kitchen to finish, not for new orders.
+   */
+  isAccepting: boolean;
+  /** "HH:MM", Manila: the last moment a new order is taken. */
+  lastOrderTime: string;
+  lastOrderMinutes: number;
   /** A manager pressed "Pause" and it has not run out. */
   isPaused: boolean;
   /** When a timed pause ends (ISO), or null for "until resumed". */
@@ -51,6 +59,9 @@ export const BUSY_MESSAGE =
 export function fallbackStoreStatus(now: Date = new Date()): StoreStatus {
   return {
     isOpen: isRestaurantOpen(now, DEFAULT_STORE_HOURS),
+    isAccepting: isRestaurantOpen(now, DEFAULT_STORE_HOURS),
+    lastOrderTime: DEFAULT_STORE_HOURS.closeTime,
+    lastOrderMinutes: 0,
     isPaused: false,
     pausedUntil: null,
     isBusy: false,
@@ -81,6 +92,10 @@ export function parseStoreStatus(raw: unknown, now: Date = new Date()): StoreSta
 
   return {
     isOpen: bool(r.is_open, base.isOpen),
+    // Older databases have no cut-off: accepting is simply open.
+    isAccepting: bool(r.is_accepting, bool(r.is_open, base.isOpen)),
+    lastOrderTime: time(r.last_order_time, time(r.close_time, base.closeTime)),
+    lastOrderMinutes: num(r.last_order_minutes, 0),
     isPaused: bool(r.is_paused, false),
     pausedUntil: typeof r.paused_until === "string" ? r.paused_until : null,
     isBusy: bool(r.is_busy, false),
@@ -105,6 +120,12 @@ export function storeBlockFor(
     return {
       code: "STORE_CLOSED",
       message: `We're closed right now. We open at ${formatTime(status.openTime)}.`,
+    };
+  }
+  if (!status.isAccepting) {
+    return {
+      code: "STORE_CLOSED",
+      message: `Last orders were at ${formatTime(status.lastOrderTime)} today. We open again at ${formatTime(status.openTime)}.`,
     };
   }
   if (status.isPaused) return { code: "STORE_PAUSED", message: BUSY_MESSAGE };

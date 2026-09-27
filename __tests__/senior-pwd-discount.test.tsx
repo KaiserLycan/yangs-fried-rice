@@ -65,13 +65,14 @@ const profile: CustomerProfile = {
   orderCount: 0,
 };
 
-// ₱112 line (e.g. 1 Yang Chow Fried Rice)
+// Two ₱112 dishes: ₱224, over the ₱150 minimum (L6). The discount maths
+// scales the #116 example (₱112 → ₱100 VAT-exempt, ₱20 off, ₱80 due).
 const lines112: CartLine[] = [
   {
     id: "item-1",
     name: "Yang Chow Fried Rice",
     unitPrice: 112,
-    quantity: 1,
+    quantity: 2,
     specialInstructions: null,
   },
 ];
@@ -81,7 +82,7 @@ describe("Senior Citizen / PWD discount at checkout (#116 ticket 03)", () => {
     vi.clearAllMocks();
   });
 
-  it("A ₱112 order with the discount shows: VAT exempt ₱0, discount ₱20, total ₱80", () => {
+  it("A ₱224 order with the discount shows: VAT exempt ₱0, discount ₱40, total ₱160", () => {
     render(
       <ToastProvider>
         <CheckoutScreen
@@ -99,7 +100,7 @@ describe("Senior Citizen / PWD discount at checkout (#116 ticket 03)", () => {
     expect(screen.getByText("VATable sales")).toBeInTheDocument();
     expect(screen.getByText("VAT (12%)")).toBeInTheDocument();
     expect(screen.getByText("Total")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Place order · ₱112/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Place order · ₱224/ })).toBeInTheDocument();
 
     // Toggle Senior / PWD discount checkbox
     const discountToggle = screen.getByRole("checkbox", {
@@ -108,13 +109,13 @@ describe("Senior Citizen / PWD discount at checkout (#116 ticket 03)", () => {
     fireEvent.click(discountToggle);
 
     // After enabling discount:
-    // "A ₱112 order with the discount shows: VAT exempt ₱0, discount ₱20, total ₱80."
+    // Twice the #116 example: ₱200 VAT-exempt, ₱40 off, ₱160 due.
     expect(screen.getByText("VAT exempt")).toBeInTheDocument();
     expect(screen.getByText("₱0")).toBeInTheDocument();
     expect(screen.getByText("Discount")).toBeInTheDocument();
-    expect(screen.getByText("₱20")).toBeInTheDocument();
-    expect(screen.getByText("₱80")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Place order · ₱80/ })).toBeInTheDocument();
+    expect(screen.getByText("₱40")).toBeInTheDocument();
+    expect(screen.getByText("₱160")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Place order · ₱160/ })).toBeInTheDocument();
   });
 
   it("refuses a photo over 2MB with a clear message", () => {
@@ -192,7 +193,7 @@ describe("Senior Citizen / PWD discount at checkout (#116 ticket 03)", () => {
     fireEvent.change(fileInput, { target: { files: [validFile] } });
 
     // Place order
-    const placeOrderBtn = screen.getByRole("button", { name: /Place order · ₱80/ });
+    const placeOrderBtn = screen.getByRole("button", { name: /Place order · ₱160/ });
     fireEvent.click(placeOrderBtn);
 
     await waitFor(() => {

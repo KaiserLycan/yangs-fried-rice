@@ -36,6 +36,7 @@ type RefundRow = {
   transaction_id: string;
   order_id: string | null;
   total_paid: number | null;
+  tip_amount: number | null;
   subtotal: number | null;
   provider_reference_id: string | null;
   provider_payment_id: string | null;
@@ -66,7 +67,7 @@ Deno.serve(async (req: Request) => {
   const { data: rows, error } = await supabase
     .from("transaction")
     .select(
-      "transaction_id, order_id, total_paid, subtotal, provider_reference_id, provider_payment_id",
+      "transaction_id, order_id, total_paid, subtotal, tip_amount, provider_reference_id, provider_payment_id",
     )
     .eq("payment_status", "refund_pending")
     .order("transaction_date", { ascending: true })
@@ -132,7 +133,9 @@ type Outcome =
 async function refundOne(row: RefundRow, auth: string): Promise<Outcome> {
   // PayMongo amounts are centavos. total_paid is what the webhook recorded
   // from PayMongo; subtotal is the fallback for rows paid before that.
-  const pesos = Number(row.total_paid) > 0 ? Number(row.total_paid) : Number(row.subtotal);
+  // total_paid is the sale; the staff tip was charged on top (F19) and goes back too.
+  const pesos =
+    (Number(row.total_paid) > 0 ? Number(row.total_paid) : Number(row.subtotal)) + Number(row.tip_amount ?? 0);
   const amount = Math.round(pesos * 100);
   if (!Number.isFinite(amount) || amount < 100) {
     return { ok: false, error: `Amount ₱${pesos} is below PayMongo's ₱1 minimum.`, paymentId: null };

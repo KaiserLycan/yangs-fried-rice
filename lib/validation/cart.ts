@@ -149,6 +149,14 @@ export const submitCartSchema = z
      * customer's own, and repeats every rule below.
      */
     discount: seniorPwdDiscountSchema.nullable().optional(),
+    /** A peso tip for the staff (F19). Kept apart from the sale. */
+    tip: z
+      .number()
+      .min(0, { message: "A tip can't be negative." })
+      .max(5000, { message: "A tip can be up to ₱5,000." })
+      .default(0),
+    /** Pay in store: the note the customer will pay with, so there is change (L8). */
+    cash_tendered: z.number().positive().max(100000).nullable().optional(),
   });
 
 export const cancelOrderSchema = z.object({

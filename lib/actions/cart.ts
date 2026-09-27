@@ -930,6 +930,10 @@ export async function submitCart(
     // The prices the customer was shown; the function refuses with
     // PRICE_CHANGED, naming the dishes, if the menu has moved since.
     p_expected_prices: parsed.data.expected_prices,
+    p_tip: parsed.data.tip,
+    // Only meaningful for pay in store; the function refuses it otherwise.
+    p_cash_tendered:
+      parsed.data.payment_method === "pay-in-store" ? (parsed.data.cash_tendered ?? undefined) : undefined,
   });
 
   if (error || !data) {

@@ -171,6 +171,27 @@ describe("C3. the signing key is never a public value", () => {
     }
   });
 
+  // Security review S11: in production the service-role key is not a
+  // stand-in for the session secret.
+  it("will not sign sessions with the service-role key in production", async () => {
+    const saved = {
+      secret: process.env.EMPLOYEE_SESSION_SECRET,
+      service: process.env.SUPABASE_SERVICE_ROLE_KEY,
+      env: process.env.NODE_ENV,
+    };
+    delete process.env.EMPLOYEE_SESSION_SECRET;
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "s".repeat(64);
+    (process.env as Record<string, string>).NODE_ENV = "production";
+    try {
+      await expect(encrypt({ employee_id: "emp-1", role: "MANAGER" })).rejects.toThrow(/EMPLOYEE_SESSION_SECRET/);
+    } finally {
+      (process.env as Record<string, string | undefined>).NODE_ENV = saved.env;
+      if (saved.secret) process.env.EMPLOYEE_SESSION_SECRET = saved.secret;
+      if (saved.service) process.env.SUPABASE_SERVICE_ROLE_KEY = saved.service;
+      else delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    }
+  });
+
   it("refuses a secret that is too short to be meaningful", async () => {
     const saved = process.env.EMPLOYEE_SESSION_SECRET;
     process.env.EMPLOYEE_SESSION_SECRET = "short";

@@ -22,7 +22,7 @@ export function isForceOpenByEnv(): boolean {
  * a database.
  */
 export function withEnvOverride(status: StoreStatus, forceOpen: boolean): StoreStatus {
-  return forceOpen ? { ...status, isOpen: true } : status;
+  return forceOpen ? { ...status, isOpen: true, isAccepting: true } : status;
 }
 
 /**

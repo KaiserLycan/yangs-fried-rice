@@ -1,7 +1,15 @@
 // supabase/functions/payment-webhook/index.ts
 //
 // Deno Edge Function (AC2). Public endpoint PayMongo POSTs to directly.
-// Authenticated via Paymongo-Signature header (HMAC-SHA256).
+// Authenticated via Paymongo-Signature header (HMAC-SHA256), and refused when
+// the signature's timestamp is more than five minutes old, so a captured
+// request can't be replayed later (security review S10).
+
+/** How old a signed request may be before it is treated as a replay. */
+const MAX_SIGNATURE_AGE_SECONDS = 5 * 60;
+
+/** Wallets PayMongo reports in a payment's source; saved as payment_method. */
+const WALLETS = new Set(["gcash", "paymaya"]);
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -63,6 +71,8 @@ Deno.serve(async (req: Request) => {
   let paymentIntentId: string | undefined;
   let orderId: string | undefined;
   let amountPaid: number | undefined;
+  // gcash or paymaya, from the payment's source — so reports can tell them apart (Finding 13).
+  let wallet: string | undefined;
 
   if (paymongoSecretKey && resourceId && !resourceId.startsWith("evt_")) {
     try {
@@ -83,6 +93,10 @@ Deno.serve(async (req: Request) => {
         amountPaid = attributes?.amount;
         paymentIntentId = attributes?.payment_intent_id ?? responseData?.data?.id;
         orderId = attributes?.metadata?.order_id;
+        // A payment carries its own source; an intent carries its payments.
+        const sourceType: unknown =
+          attributes?.source?.type ?? attributes?.payments?.[0]?.attributes?.source?.type;
+        if (typeof sourceType === "string" && WALLETS.has(sourceType)) wallet = sourceType;
       }
     } catch (err) {
       console.log("PayMongo API fetch skipped or failed for test ID:", err);
@@ -97,31 +111,48 @@ Deno.serve(async (req: Request) => {
 
   const newStatus = eventType === "payment.paid" ? "paid" : "failed";
 
-  let query = supabase
+  let pendingQuery = supabase
     .from("transaction")
-    .update({
-      payment_status: newStatus,
-      ...(newStatus === "paid" && typeof amountPaid === "number"
-        ? { total_paid: amountPaid / 100 }
-        : {}),
-      // The payment (pay_…), which PayMongo's Refunds API needs; the row
-      // already holds the intent (pi_…). Issue #115, column added in
-      // 20260928000004.
-      ...(newStatus === "paid" && resourceId?.startsWith("pay_")
-        ? { provider_payment_id: resourceId }
-        : {}),
-    })
+    .select("transaction_id, order_id, tip_amount")
     .eq("payment_status", "pending");
 
   if (paymentIntentId) {
-    query = query.eq("provider_reference_id", paymentIntentId);
+    pendingQuery = pendingQuery.eq("provider_reference_id", paymentIntentId);
   } else if (orderId) {
-    query = query.eq("order_id", orderId);
+    pendingQuery = pendingQuery.eq("order_id", orderId);
   } else if (resourceId && !resourceId.startsWith("evt_")) {
-    query = query.eq("provider_reference_id", resourceId);
+    pendingQuery = pendingQuery.eq("provider_reference_id", resourceId);
+  } else {
+    return new Response("ok", { status: 200 });
   }
 
-  const { data: updatedRows, error } = await query.select();
+  const { data: pendingRows, error: readError } = await pendingQuery;
+  const updatedRows: { order_id: string | null }[] = [];
+  let error = readError;
+
+  for (const row of pendingRows ?? []) {
+    const { data: updated, error: updateError } = await supabase
+      .from("transaction")
+      .update({
+        payment_status: newStatus,
+        // The sale: what was charged, less the staff tip (F19).
+        ...(newStatus === "paid" && typeof amountPaid === "number"
+          ? { total_paid: Math.max(0, amountPaid / 100 - Number(row.tip_amount ?? 0)) }
+          : {}),
+        ...(newStatus === "paid" && wallet ? { payment_method: wallet } : {}),
+        // The payment (pay_…), which PayMongo's Refunds API needs; the row
+        // already holds the intent (pi_…). Issue #115.
+        ...(newStatus === "paid" && resourceId?.startsWith("pay_")
+          ? { provider_payment_id: resourceId }
+          : {}),
+      })
+      .eq("transaction_id", row.transaction_id)
+      // Only once: a late duplicate delivery finds nothing still pending.
+      .eq("payment_status", "pending")
+      .select("order_id");
+    if (updateError) error = updateError;
+    updatedRows.push(...(updated ?? []));
+  }
 
   console.log("Database Update Result - Matched Rows:", updatedRows, "Error:", error);
 
@@ -209,9 +240,16 @@ async function verifyPaymongoSignature(
   );
 
   const timestamp = parts.t;
-  const testSignature = parts.te;
+  const testSignature = parts.li || parts.te;
 
   if (!timestamp || !testSignature) return false;
+
+  // Replay window: PayMongo signs with the send time, in seconds.
+  const sentAt = Number(timestamp);
+  if (!Number.isFinite(sentAt) || Math.abs(Date.now() / 1000 - sentAt) > MAX_SIGNATURE_AGE_SECONDS) {
+    console.error("payment-webhook: signature timestamp outside the replay window.");
+    return false;
+  }
 
   const signedPayload = `${timestamp}.${rawBody}`;
 

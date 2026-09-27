@@ -8,6 +8,7 @@ import { useStoreStatus } from "@/lib/hooks/use-store-status";
 import { storeBlockFor } from "@/lib/store/store-status";
 import { BIG_ORDER_MESSAGE, BULK_ORDER_NOTE, isOverOrderCap } from "@/lib/cart/limits";
 import { BULK_ORDER_CONTACT_HREF } from "@/lib/site/site-info";
+import { MIN_ORDER, amountToMinimum } from "@/lib/checkout/order-rules";
 
 /**
  * Subtotal, delivery fee, Total, and the call to action — `133:990` desktop
@@ -57,7 +58,9 @@ export function CartTotalsSummary({
   // possible for a cart filled before the limits or in another tab — the
   // menu and the steppers stop at 30 — so it gets a disabled button, not a
   // second warning next to the toast that already explained it (issue #115).
-  const canCheckout = block === null && !tooLarge;
+  // The minimum is on the food (L6); the database refuses below it too.
+  const shortOfMinimum = amountToMinimum(totals.subtotal);
+  const canCheckout = block === null && !tooLarge && shortOfMinimum === 0;
 
   return (
     <>
@@ -95,7 +98,9 @@ export function CartTotalsSummary({
               ? block.message
               : tooLarge
                 ? BIG_ORDER_MESSAGE
-                : "Review your order and pay"
+                : shortOfMinimum > 0
+                  ? `The minimum order is ₱${MIN_ORDER}.`
+                  : "Review your order and pay"
           }
           aria-disabled={!canCheckout || isClicked || undefined}
           href={!canCheckout || isClicked ? "#" : `/checkout?fulfilment=${fulfilment}`}
@@ -118,8 +123,15 @@ export function CartTotalsSummary({
               ? "Very Busy — Try Again Soon"
               : tooLarge
                 ? "Too Many Items"
-                : ctaLabel}
+                : shortOfMinimum > 0
+                  ? `Add ${formatPeso(shortOfMinimum)} more`
+                  : ctaLabel}
         </Link>
+        {!block && !tooLarge && shortOfMinimum > 0 ? (
+          <p className="text-center text-sm text-muted-foreground">
+            The minimum order is ₱{MIN_ORDER}. Add {formatPeso(shortOfMinimum)} more to check out.
+          </p>
+        ) : null}
         {block ? (
           <p className="text-center text-sm text-muted-foreground">
             Your cart is saved — check out when we open.

@@ -4,7 +4,10 @@ import * as React from "react";
 import Link from "next/link";
 import { SiteNavBar } from "@/components/nav/site-nav-bar";
 import { OrderSummaryCard } from "@/components/checkout/order-summary-card";
+import { CashTenderedField } from "@/components/checkout/cash-tendered-field";
 import { PaymentMethodPicker } from "@/components/checkout/payment-method-picker";
+import { TipPicker } from "@/components/checkout/tip-picker";
+import { payInStoreBlock } from "@/lib/checkout/order-rules";
 import { PickupByPicker, type PickupBy } from "@/components/checkout/pickup-by-picker";
 import {
   SeniorPwdDiscountPicker,
@@ -46,6 +49,7 @@ export function CheckoutScreen({
   distanceKm = null,
   placedAtLabel,
   arrivalEstimate,
+  cashHistory = { completedCashOrders: 1, noShows: 0 },
 }: {
   profile: CustomerProfile;
   /** The active cart's id — what `submitCart` turns into an order. `null`
@@ -59,6 +63,11 @@ export function CheckoutScreen({
   /** Quoted from the live kitchen queue and this order's distance — see
    *  `lib/checkout/arrival-estimate.ts`. */
   arrivalEstimate: string;
+  /**
+   * This customer's pay-in-store record, for the cash caps and the
+   * no-show rule (FINALE L6, L18, F14). The database checks again.
+   */
+  cashHistory?: { completedCashOrders: number; noShows: number };
 }) {
   // Seeded from the fulfilment rather than from the global default, which is
   // cash on delivery — not an option when the customer is collecting.
@@ -79,7 +88,17 @@ export function CheckoutScreen({
       photoError: null,
     });
 
+  const [tip, setTip] = React.useState(0);
+  const [cashTendered, setCashTendered] = React.useState<number | null>(null);
+
   const totals = computeCartTotals({ lines, fulfilment, distanceKm });
+  const cashBlock = payInStoreBlock({ total: totals.total + tip, ...cashHistory });
+
+  // A rule that rules out paying in store moves the choice to the wallet
+  // rather than leaving a selected option that checkout will refuse.
+  React.useEffect(() => {
+    if (cashBlock && paymentMethod === "pay-in-store") setPaymentMethod("wallet");
+  }, [cashBlock, paymentMethod]);
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -145,7 +164,18 @@ export function CheckoutScreen({
                   wallet={wallet}
                   onWalletChange={setWallet}
                   fulfilment={fulfilment}
+                  disabledReasons={cashBlock ? { "pay-in-store": cashBlock } : {}}
                 />
+                {paymentMethod === "pay-in-store" && (
+                  <CashTenderedField total={totals.total + tip} value={cashTendered} onChange={setCashTendered} />
+                )}
+              </section>
+
+              <section className="flex flex-col gap-[12px] md:rounded-lg md:border md:border-rule md:bg-card md:p-[20px]">
+                <h2 className="text-sm font-bold uppercase tracking-[1.44px] text-muted-foreground md:text-sm md:tracking-[1.54px]">
+                  Tip the staff
+                </h2>
+                <TipPicker value={tip} onChange={setTip} />
               </section>
 
               <SeniorPwdDiscountPicker
@@ -167,6 +197,8 @@ export function CheckoutScreen({
                 arrivalEstimate={arrivalEstimate}
                 pickupBy={pickupBy}
                 seniorDiscount={seniorDiscount}
+                tip={tip}
+                cashTendered={paymentMethod === "pay-in-store" ? cashTendered : null}
               />
             </div>
           </div>

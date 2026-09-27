@@ -37,6 +37,11 @@ describe("parseStoreStatus", () => {
 
     expect(parsed).toEqual({
       isOpen: true,
+      // An older database with no cut-off: accepting follows open, and the
+      // last order is at closing time.
+      isAccepting: true,
+      lastOrderTime: "21:45",
+      lastOrderMinutes: 0,
       isPaused: true,
       pausedUntil: "2026-09-28T05:00:00+00:00",
       isBusy: false,

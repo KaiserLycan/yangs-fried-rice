@@ -143,10 +143,8 @@ describe("Checkout order summary", () => {
   it("presents the arrival time as an estimate, not a promise", () => {
     renderCheckout();
 
-    expect(countOf(/Estimated arrival/)).toBeGreaterThan(0);
-    expect(
-      countOf(/based on\s+current kitchen queue and delivery distance/),
-    ).toBeGreaterThan(0);
+    expect(countOf(/Ready for pickup in/)).toBeGreaterThan(0);
+    expect(countOf(/based on the\s+kitchen queue right now/)).toBeGreaterThan(0);
   });
 
   it("says nothing to check out when the cart is empty", () => {
@@ -205,6 +203,7 @@ describe("Checkout payment method", () => {
     const checked = screen
       .getAllByRole("radio")
       .filter((option) => !option.closest('[aria-label="Who is picking up"]'))
+      .filter((option) => !option.closest('[aria-label="Tip for the staff"]'))
       .filter((option) => option.getAttribute("aria-checked") === "true");
 
     // One per breakpoint copy of the picker, all naming the same selected wallet provider.
@@ -277,6 +276,9 @@ describe("Checkout place order", () => {
         // (issue #115).
         expected_prices: { "1": 180, "2": 90 },
         wallet: "gcash",
+        // No tip chosen, and no "I'll pay with" note: exact amount.
+        tip: 0,
+        cash_tendered: null,
       }),
     );
     await waitFor(() =>
