@@ -411,6 +411,54 @@ Expected: only C2's orders.
 Expected: no Customers link in the sidebar; the URL redirects or refuses access.
 - [ ] Pass - [ ] Fail — notes: ______
 
+**TC-03-07 "Top 10 customers by spending this month"** · M · setup: C1 and C2 each have at least one completed order this month; one of them also has a completed order from an earlier month (use helper **B5** to move one)
+1. `/manage/customers` → **Filter** → **This month** → Apply. Page size 10. Click **Spent** until it sorts descending.
+
+Expected: the line under the header reads "Orders and Spent: completed orders from <1st of month> to <today>." Each row's Orders / Spent count only this month (the moved order no longer counts). The top spender this month is first. Filter button shows **1**.
+2. Filter → **All time** → Apply.
+
+Expected: back to lifetime totals ("Orders and Spent: lifetime totals." disappears when no filter is on).
+- [ ] Pass - [ ] Fail — notes: ______
+
+**TC-03-08 Minimums**
+1. Filter → Min. orders `2` → Apply.
+
+Expected: only customers with 2+ completed orders (lifetime, since no period).
+2. Add Min. spent `500`.
+
+Expected: only customers meeting both. Badge **2**.
+3. Type `abc` or `-1` in a minimum.
+
+Expected: "Minimums must be numbers of 0 or more." and Apply is disabled.
+- [ ] Pass - [ ] Fail — notes: ______
+
+**TC-03-09 Activity (win-back list)**
+1. Filter → **Last month** → Activity **No orders in this period** → Apply.
+
+Expected: only customers with no completed order last month (including customers who have never ordered); their Orders / Spent show 0.
+2. Activity **Ordered in this period**.
+
+Expected: the opposite set; everyone listed has Orders ≥ 1.
+3. Clear the period.
+
+Expected: the activity options read **Has ordered** / **Never ordered**.
+- [ ] Pass - [ ] Fail — notes: ______
+
+**TC-03-10 Joined range**
+1. Filter → Joined From = the day C2's account was made (or today, if C1/C2 were created today) → Apply.
+
+Expected: only customers whose account was created on or after that day ("Since" column).
+2. Set Joined To before Joined From.
+
+Expected: "The joined range can't end before it starts." and Apply is disabled.
+- [ ] Pass - [ ] Fail — notes: ______
+
+**TC-03-11 Filters + search + sort + paging together**
+1. This month + Min. orders `1` + search `Tester` + sort Orders descending, page size 10.
+
+Expected: only this month's active testers; the "N customers match" count equals the rows across all pages; page 2 (if any) continues the sort. Clear → everything returns.
+- [ ] Pass - [ ] Fail — notes: ______
+
 ---
 
 ### AC-04 — Report breakdowns + CSV download
