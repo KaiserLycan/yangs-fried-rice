@@ -212,3 +212,33 @@ describe("submitCartSchema payment method", () => {
     if (res.success) expect(res.data.payment_method).toBe("pay-in-store");
   });
 });
+
+describe("submitCartSchema discount (issue #116)", () => {
+  const cart_id = "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d";
+  const discount = {
+    type: "senior_citizen",
+    id_number: " OSCA-123 ",
+    name_on_id: "Liza Reyes",
+    photo_path: `${cart_id}/id.jpg`,
+  };
+
+  it("accepts an order with no discount", () => {
+    expect(submitCartSchema.safeParse({ cart_id }).success).toBe(true);
+  });
+
+  it("accepts a full discount and trims the ID number", () => {
+    const res = submitCartSchema.safeParse({ cart_id, discount });
+    expect(res.success && res.data.discount?.id_number).toBe("OSCA-123");
+  });
+
+  it("refuses a discount with a blank field", () => {
+    for (const blank of [
+      { id_number: "  " },
+      { name_on_id: "" },
+      { photo_path: "" },
+      { type: "student" },
+    ]) {
+      expect(submitCartSchema.safeParse({ cart_id, discount: { ...discount, ...blank } }).success).toBe(false);
+    }
+  });
+});

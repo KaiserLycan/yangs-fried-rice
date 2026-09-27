@@ -866,7 +866,9 @@ export type Database = {
         Row: {
           discount_amount: number | null
           discount_id_number: string | null
+          discount_id_photo_path: string | null
           discount_type: string | null
+          name_on_id: string | null
           order_id: string | null
           payment_method: string | null
           payment_status: string | null
@@ -881,7 +883,9 @@ export type Database = {
         Insert: {
           discount_amount?: number | null
           discount_id_number?: string | null
+          discount_id_photo_path?: string | null
           discount_type?: string | null
+          name_on_id?: string | null
           order_id?: string | null
           payment_method?: string | null
           payment_status?: string | null
@@ -896,7 +900,9 @@ export type Database = {
         Update: {
           discount_amount?: number | null
           discount_id_number?: string | null
+          discount_id_photo_path?: string | null
           discount_type?: string | null
+          name_on_id?: string | null
           order_id?: string | null
           payment_method?: string | null
           payment_status?: string | null
@@ -943,6 +949,8 @@ export type Database = {
       submit_cart_to_order: {
         Args: {
           p_cart_id: string
+          p_discount?: Json
+          p_expected_prices?: Json
           p_order_type?: string
           p_payment_method?: string
           p_special_instructions?: string

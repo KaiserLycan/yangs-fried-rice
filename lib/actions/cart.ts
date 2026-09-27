@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { SENIOR_PWD_ID_BUCKET, isSeniorPwdIdPath } from "@/lib/storage/senior-pwd-ids";
 import {
   addCartItemSchema,
   updateCartItemSchema,
@@ -792,9 +793,27 @@ export async function submitCart(
       parsed.data.payment_method === "wallet"
         ? parsed.data.wallet
         : "pay-in-store",
+    // Senior Citizen / PWD (issue #116). The function re-checks all of it,
+    // including that the photo is in this customer's own folder.
+    p_discount: parsed.data.discount ?? undefined,
   });
 
   if (error || !data) {
+    // No order was made, so the ID photo uploaded for it is not needed.
+    // The customer can't delete from the bucket (staff-only), so the
+    // service role does — only inside this customer's own folder.
+    const photoPath = parsed.data.discount?.photo_path;
+    if (
+      photoPath &&
+      isSeniorPwdIdPath(photoPath) &&
+      photoPath.startsWith(`${auth.data.customer_id}/`)
+    ) {
+      await createAdminClient()
+        .storage.from(SENIOR_PWD_ID_BUCKET)
+        .remove([photoPath])
+        .catch(() => undefined);
+    }
+
     // The function raises with a customer-facing message and a stable code
     // in `hint` (CART_LOCKED, ITEM_UNAVAILABLE, ACCOUNT_DISABLED, …). Anything
     // without a hint is unexpected, so its raw text is logged, not shown.
