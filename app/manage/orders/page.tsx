@@ -66,6 +66,19 @@ function ManageOrdersInner() {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [advancedFilters, setAdvancedFilters] = useState<OrderFilterState>({});
+
+  // `?order=1042` — a link from elsewhere (the dashboard's ratings, FINALE
+  // 9.3) searches for that order and opens it once it has loaded. Read from
+  // `window` rather than `useSearchParams`, which would need a Suspense
+  // boundary around this whole client page.
+  const [orderToOpen, setOrderToOpen] = useState<string | null>(null);
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get("order")?.trim();
+    if (!wanted) return;
+    setSearchInput(wanted);
+    setSearch(wanted);
+    setOrderToOpen(wanted.replace(/^#/, ""));
+  }, []);
   useEffect(() => {
     const timer = setTimeout(() => {
       setSearch(searchInput.trim());
@@ -125,6 +138,15 @@ function ManageOrdersInner() {
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
+  useEffect(() => {
+    if (!orderToOpen || isLoading) return;
+    const match = orders.find((order) => order.orderNumber === orderToOpen);
+    if (match) {
+      setSelectedOrder(match);
+      setOrderToOpen(null);
+    }
+  }, [orderToOpen, orders, isLoading]);
 
   // Execute Backend Mutations
   const handleConfirmAction = async () => {

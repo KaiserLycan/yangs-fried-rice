@@ -25,7 +25,10 @@ type Product = Tables<"product">;
 type ProductWithCategory = Product & {
   categories: { category_name: string } | null;
   add_on?: Tables<"add_on">[];
-  review?: (Tables<"review"> & { customer: { name: string; profileImage_URL: string | null } | null })[];
+  review?: (Pick<Tables<"review">, "review_id" | "rating" | "comment" | "created_at" | "order_id"> & {
+    customer: { name: string | null; phone_number: string | null } | null;
+    order: { order_number: number | null } | null;
+  })[];
 };
 
 // Standardised return type for every action.
@@ -67,7 +70,11 @@ export async function getMenuData(): Promise<
     // filter them out or "delete" looks broken.
     supabase
       .from("product")
-      .select("*, categories ( category_name ), add_on ( * )")
+      // Reviews were never read here, so the editor's average, its "Rating"
+      // sort and its review list all saw nothing (FINALE 9.3).
+      .select(
+        "*, categories ( category_name ), add_on ( * ), review ( review_id, rating, comment, created_at, order_id, customer:customer_id ( name, phone_number ), order:order_id ( order_number ) )",
+      )
       .is("archived_at", null)
       .order("product_name")
   ]);

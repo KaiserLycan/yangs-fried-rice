@@ -10,7 +10,8 @@ import { useDebounce } from "@/lib/hooks/use-debounce";
 import { MenuItemModal } from "@/components/manage/menu/menu-modals";
 import { MenuItemDetailModal } from "@/components/manage/menu/menu-item-detail-modal";
 import { useToast, ToastProvider } from "@/components/ui/toast";
-import type { MenuItem } from "@/types/menu";
+import type { MenuItem, MenuItemReview } from "@/types/menu";
+import { formatOrderNumber } from "@/lib/orders/order-number";
 
 // Import real backend Server Actions and Supabase client
 import {
@@ -97,13 +98,19 @@ function ManageMenuInner({ isManager }: { isManager?: boolean }) {
 
       // Map database schema to UI schema
       const mapped: MenuItem[] = res.data.products.map((p: any) => {
-        const mappedReviews = (p.review || []).map((r: any) => ({
-          id: r.review_id,
-          rating: r.rating || 0,
-          comment: r.comment || "",
-          customerName: r.customer?.name || "Unknown Customer",
-          createdAt: r.created_at || new Date().toISOString(),
-        }));
+        const mappedReviews: MenuItemReview[] = (p.review || [])
+          .map((r: any) => ({
+            id: r.review_id,
+            rating: r.rating || 0,
+            comment: r.comment || "",
+            customerName: r.customer?.name || "Deleted customer",
+            customerPhone: r.customer?.phone_number ?? null,
+            orderNumber: r.order_id
+              ? formatOrderNumber(r.order?.order_number, r.order_id)
+              : null,
+            createdAt: r.created_at || new Date().toISOString(),
+          }))
+          .sort((a: MenuItemReview, b: MenuItemReview) => b.createdAt.localeCompare(a.createdAt));
 
         const validRatings = mappedReviews.filter((r: any) => r.rating > 0);
         const avgRating = validRatings.length > 0

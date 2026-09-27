@@ -9,7 +9,8 @@ import { SHORTCUTS, useShortcut } from "@/lib/hooks/use-shortcut";
 import { DROPDOWN_FOCUS_RING, useDropdown } from "@/lib/hooks/use-dropdown";
 import { FIELD_LIMITS, lengthProps } from "@/lib/validation/fields";
 import { addOnFormSchema, menuItemFormSchema } from "@/components/manage/menu/menu-modals";
-import type { MenuItem, MenuCategory } from "@/types/menu";
+import type { MenuItem, MenuCategory, MenuItemReview } from "@/types/menu";
+import Link from "next/link";
 import { Dialog, DialogDismiss, DialogRoot } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Camera, ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
@@ -465,6 +466,8 @@ export function MenuItemDetailModal({
               ) : null}
             </div>
 
+            <DishReviews reviews={item.reviews ?? []} />
+
             {/* ──────────────────────────────────────── Action buttons */}
             <div className="flex gap-[10px] pt-[6px]">
               <DialogDismiss fallback={onClose}>
@@ -561,5 +564,60 @@ export function MenuItemDetailModal({
         }
       />
     </>
+  );
+}
+
+/** How many of a dish's reviews the editor lists before "and N more". */
+const REVIEWS_SHOWN = 5;
+
+/**
+ * What customers said about this dish, newest first, each with the order it
+ * came from and the customer's number (FINALE 9.3). Collapsed by default so
+ * it never pushes Save out of reach.
+ */
+function DishReviews({ reviews }: { reviews: MenuItemReview[] }) {
+  if (reviews.length === 0) {
+    return <p className="text-sm text-muted-foreground">No reviews for this dish yet.</p>;
+  }
+  const shown = reviews.slice(0, REVIEWS_SHOWN);
+  return (
+    <details className="rounded-md border border-rule bg-white">
+      <summary className="flex min-h-[44px] cursor-pointer items-center px-3 text-sm font-bold text-foreground">
+        Reviews ({reviews.length})
+      </summary>
+      <ul className="flex flex-col divide-y divide-rule border-t border-rule">
+        {shown.map((review) => (
+          <li key={review.id} className="flex flex-col gap-1 px-3 py-2 text-sm">
+            <span style={{ color: "hsl(var(--star))" }} aria-label={`${review.rating} out of 5`}>
+              {"★".repeat(review.rating) + "☆".repeat(5 - review.rating)}
+            </span>
+            {review.comment ? (
+              <p className="break-words italic text-muted-strong">&ldquo;{review.comment}&rdquo;</p>
+            ) : null}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="text-foreground">{review.customerName}</span>
+              {review.customerPhone ? (
+                <a href={`tel:${review.customerPhone}`} className="font-bold text-accent">
+                  {review.customerPhone}
+                </a>
+              ) : null}
+              {review.orderNumber ? (
+                <Link
+                  href={`/manage/orders?order=${encodeURIComponent(review.orderNumber)}`}
+                  className="font-bold text-accent"
+                >
+                  Order #{review.orderNumber}
+                </Link>
+              ) : null}
+            </div>
+          </li>
+        ))}
+      </ul>
+      {reviews.length > REVIEWS_SHOWN ? (
+        <p className="border-t border-rule px-3 py-2 text-sm text-muted-foreground">
+          and {reviews.length - REVIEWS_SHOWN} more
+        </p>
+      ) : null}
+    </details>
   );
 }

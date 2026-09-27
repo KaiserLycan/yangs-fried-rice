@@ -10,6 +10,7 @@ import {
 } from "@/lib/actions/dashboard";
 import { readStoreStatus } from "@/lib/store/read-store-status";
 import { getRefundQueue } from "@/lib/actions/refunds";
+import { getRecentReviews } from "@/lib/actions/recent-reviews";
 import { readOrderStatusCounts } from "@/lib/orders/status-counts";
 
 /**
@@ -51,13 +52,14 @@ export default async function DashboardPage() {
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
   const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString();
 
-  const [stats, weeklySales, topSellers, storeStatus, refunds, orderCounts] = await Promise.all([
+  const [stats, weeklySales, topSellers, storeStatus, refunds, orderCounts, reviews] = await Promise.all([
     getDashboardStats(),
     getWeeklySales(),
     getTopSellers(undefined, startOfDay, endOfDay),
     readStoreStatus(),
     getRefundQueue(),
     readOrderStatusCounts(supabase),
+    getRecentReviews(),
   ]);
 
   // Branch mock for now until multi-branch support
@@ -78,6 +80,7 @@ export default async function DashboardPage() {
       storeStatus={storeStatus}
       refunds={refunds}
       orderCounts={orderCounts}
+      reviews={reviews}
     />
   );
 }

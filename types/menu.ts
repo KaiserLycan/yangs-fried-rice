@@ -24,5 +24,17 @@ export interface MenuItem {
   /** Minutes the kitchen needs for one — `product.prep_minutes` (F18). */
   prepMinutes?: number;
   add_ons?: { addon_id: string; name: string; price: number }[];
-  reviews?: { id: string; rating: number; comment: string; customerName: string; createdAt: string }[];
+  reviews?: MenuItemReview[];
+}
+
+/** One customer's star for a dish, with what a follow-up needs (FINALE 9.3). */
+export type MenuItemReview = {
+  id: string;
+  rating: number;
+  comment: string;
+  customerName: string;
+  customerPhone: string | null;
+  /** The order it was rated on, for "Open order #…"; null for a direct review. */
+  orderNumber: string | null;
+  createdAt: string;
 }

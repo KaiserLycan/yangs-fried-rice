@@ -5,6 +5,8 @@ import { SalesChart } from "./sales-chart";
 import { ProductRanking } from "./product-ranking";
 import { StoreControlPanel } from "./store-control-panel";
 import { RefundsPanel } from "./refunds-panel";
+import { RecentReviewsPanel } from "./recent-reviews-panel";
+import type { RecentReview } from "@/lib/actions/recent-reviews";
 import type { RefundRow } from "@/lib/actions/refunds";
 import {
   EMPTY_STATUS_COUNTS,
@@ -25,6 +27,8 @@ export interface DashboardContentProps {
   refunds?: RefundRow[];
   /** Orders per stage for the store panel (issue #115 follow-up). */
   orderCounts?: OrderStatusCounts;
+  /** The latest order ratings (FINALE 9.3); the panel hides when empty. */
+  reviews?: RecentReview[];
 }
 
 /**
@@ -42,6 +46,9 @@ export interface DashboardContentProps {
  *     a card can be read on its own.
  *   - **Last 7 days** — the sales chart, which never was a today figure.
  *
+ * The latest ratings follow, outside both: they are the newest few, not a
+ * range.
+ *
  * Whoever changes the range a section reads must move its card to the other
  * section or the same confusion comes back.
  */
@@ -54,6 +61,7 @@ export function DashboardContent({
   storeStatus,
   refunds = [],
   orderCounts = EMPTY_STATUS_COUNTS,
+  reviews = [],
 }: DashboardContentProps) {
   return (
     <div className="flex flex-col gap-6">
@@ -114,6 +122,8 @@ export function DashboardContent({
           <SalesChart data={weeklySales} />
         </div>
       </section>
+
+      <RecentReviewsPanel reviews={reviews} />
     </div>
   );
 }
