@@ -98,7 +98,7 @@ function ManageCustomersInner() {
       setTotalCount(result.data.totalCount);
     }
     setIsLoading(false);
-  }, [currentPage, pageSize, debouncedSearchQuery, sortColumn, sortDirection, showToast]);
+  }, [currentPage, pageSize, debouncedSearchQuery, sortColumn, sortDirection, filters, showToast]);
 
   useEffect(() => {
     loadCustomers();
