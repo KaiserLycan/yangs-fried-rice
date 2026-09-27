@@ -123,6 +123,7 @@ export function mapStaffOrder(order: StaffOrderRow): OrderData {
         })
       : "Unknown time",
     status: uiStatusFor(order.order_status),
+    dbStatus: order.order_status,
     isDelivery: delivery,
     fulfillmentMethod: order.fulfillment_method || undefined,
     timer: `${prepMinutes}:00`,
