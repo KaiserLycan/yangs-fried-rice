@@ -308,11 +308,11 @@ Expected: detail modal shows C1's name and phone/email so staff can contact them
 Expected: O6 listed as UNPAID.
 - [ ] Pass - [ ] Fail — notes: ______
 
-**TC-02-04 Fresh unpaid order is not yet an issue**
-1. New order O7 → run B3 but change `interval '6 minutes'` to `interval '1 minute'`.
-2. Payment Issues tab.
+**TC-02-04 A fresh unpaid order shows at once, and its clock shows how long**
+1. As C1, place a **GCash / Maya** order and close the wallet page without paying (or: new order O7 → run B3 with `interval '1 minute'`).
+2. Payment Issues tab on `/manage/orders`, and **Payment Pending/Issues** on the KDS.
 
-Expected: O7 is **not** listed. Wait ~4 more minutes and refresh: now it is.
+Expected: O7 is listed straight away on both. On the KDS its chip says **Awaiting payment** (amber chip) and its clock counts from when it was placed: the header turns amber at 5 minutes and red at 15.
 - [ ] Pass - [ ] Fail — notes: ______
 
 **TC-02-05 Not on the All tab**
