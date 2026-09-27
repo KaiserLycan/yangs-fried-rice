@@ -17,7 +17,7 @@ function contentSecurityPolicy({ extraScript = "", extraStyle = "" } = {}) {
     "default-src 'self'",
     `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://vercel.live ${extraScript}`,
     `style-src 'self' 'unsafe-inline' ${extraStyle}`,
-    "img-src 'self' data: blob: https://*.supabase.co https://vercel.live https://vercel.com",
+    "img-src 'self' data: blob: https://*.supabase.co https://vercel.live https://vercel.com https://images.unsplash.com",
     "font-src 'self' data: https://vercel.live",
     "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.paymongo.com https://vercel.live wss://ws-us3.pusher.com",
     "frame-src https://vercel.live",
@@ -54,6 +54,10 @@ const nextConfig = {
         // Update this once the Supabase project is created —
         // used for menu item images stored in Supabase Storage.
         hostname: "*.supabase.co",
+      },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
       },
     ],
   },

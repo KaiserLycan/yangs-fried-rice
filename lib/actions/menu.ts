@@ -232,15 +232,17 @@ export async function getFeaturedProducts(): Promise<ActionResult<ProductWithCat
     return { data: data as ProductWithCategory[], error: null };
   }
 
-  // Fallback if no featured products
+  // Fallback if no featured products: get 5 random products
   const { data: fallback, error: fallbackError } = await supabase
     .from("product")
     .select("*, categories ( category_name ), add_on ( * )")
     .is("archived_at", null)
-    .limit(5); // In a real app we'd join with order_item for top 30 days.
+    .limit(50); // fetch up to 50 to shuffle in memory
 
   if (fallbackError) return { data: null, error: fallbackError.message };
-  return { data: fallback as ProductWithCategory[], error: null };
+  
+  const shuffled = (fallback || []).sort(() => 0.5 - Math.random());
+  return { data: shuffled.slice(0, 5) as ProductWithCategory[], error: null };
 }
 // Insert a new product.
 export async function createProduct(

@@ -1,3 +1,5 @@
+"use client";
+
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { Avatar } from "@/components/ui/avatar";
@@ -73,8 +75,8 @@ export function MobileMenuHeader({
 }: {
   profile?: CustomerProfile | null;
   profilePromise?: Promise<CustomerProfile | null>;
-  search: string;
-  onSearchChange: (value: string) => void;
+  search?: string;
+  onSearchChange?: (value: string) => void;
 }) {
   return (
     <div className="flex flex-col gap-[16px] bg-primary px-[20px] pb-[14px] pt-[16px] md:hidden">
@@ -93,7 +95,9 @@ export function MobileMenuHeader({
         <ResolvedMobileProfile profile={profile} />
       )}
 
-      <SearchField value={search} onChange={onSearchChange} variant="mobile" />
+      {search !== undefined && onSearchChange !== undefined && (
+        <SearchField value={search} onChange={onSearchChange} variant="mobile" />
+      )}
     </div>
   );
 }
