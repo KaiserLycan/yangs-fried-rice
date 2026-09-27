@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowDownWideNarrow, ArrowUpNarrowWide, Bell, BellOff, LayoutGrid, List } from "lucide-react";
 import { KdsOrderCard } from "@/components/manage/kds/kds-order-card";
 import { CancelReasonModal } from "@/components/manage/orders/cancel-reason-modal";
 import { PickupModal } from "@/components/manage/kds/pickup-modal";
@@ -10,10 +10,14 @@ import type { OrderData } from "@/types/staff-order";
 import { getDetailedOrders, updateOrderStatus, getPaymentIssuesForKds, type PaymentIssueOrder } from "@/lib/actions/orders";
 import { mapStaffOrder, type StaffOrderRow } from "@/lib/orders/map-staff-order";
 import { actionCopy, dbStatusFor, type StaffAction } from "@/lib/orders/staff-actions";
+import { useKdsSound } from "@/hooks/use-kds-sound";
+import { useKitchenOrderFeed } from "@/hooks/use-kitchen-order-feed";
 import { useToast, ToastProvider } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 
 type KdsTab = "active" | "payment_issues" | "for_pickup" | "failed_pickup" | "cancelled";
+type SortOrder = "oldest" | "newest";
+type ViewMode = "grid" | "list";
 
 const TAB_LABELS: Record<KdsTab, string> = {
   active: "Active",
@@ -22,6 +26,30 @@ const TAB_LABELS: Record<KdsTab, string> = {
   failed_pickup: "Failed Pick-up",
   cancelled: "Cancelled (Today)"
 };
+
+const CASH_METHODS = ["pay_in_store", "pay-in-store", "cash"];
+
+/** Per-browser preferences. Storage can be missing or blocked; that only loses the preference. */
+function readPref<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
+  try {
+    const value = window.localStorage.getItem(key);
+    return allowed.includes(value as T) ? (value as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+function writePref(key: string, value: string) {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Not worth telling the cook about.
+  }
+}
+
+function startOfToday(): string {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+}
 
 export default function KdsPage() {
   return (
@@ -41,44 +69,51 @@ function KdsInner() {
   const [pickupOrder, setPickupOrder] = useState<OrderData | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Oldest first by default: the order that has waited longest is the next
+  // one to cook.
+  const [sortOrder, setSortOrder] = useState<SortOrder>("oldest");
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  useEffect(() => {
+    setSortOrder(readPref("kds-sort", ["oldest", "newest"] as const, "oldest"));
+    setViewMode(readPref("kds-view", ["grid", "list"] as const, "grid"));
+  }, []);
+
+  const { soundEnabled, enableSound, disableSound, playChime } = useKdsSound();
+
+  // Show the skeleton only when the view changes, not on every refresh.
+  const hasLoadedTab = useRef<KdsTab | null>(null);
+
   const fetchOrders = useCallback(async () => {
-    setIsLoading(true);
+    const silent = hasLoadedTab.current === activeTab;
+    if (!silent) setIsLoading(true);
 
     if (activeTab === "active" || activeTab === "for_pickup" || activeTab === "cancelled") {
-      let statusFilter: string[] = [];
-      if (activeTab === "active") statusFilter = ["pending", "preparing"];
-      else if (activeTab === "for_pickup") statusFilter = ["ready"];
-      else if (activeTab === "cancelled") statusFilter = ["cancelled"];
-
-      const result = await getDetailedOrders({
-        status: statusFilter as any,
-        limit: 100,
-        offset: 0,
-      });
+      const result = await getDetailedOrders(
+        activeTab === "active"
+          ? { status: ["pending", "preparing"], limit: 100, offset: 0 }
+          : activeTab === "for_pickup"
+          ? // Take-out (and legacy "pickup") orders waiting at the counter.
+            { status: ["ready"], order_type: "take_out", limit: 100, offset: 0 }
+          : { status: ["cancelled"], cancelled_from: startOfToday(), limit: 100, offset: 0 },
+      );
 
       if (result.error !== null) {
-        showToast(`Failed to load orders: ${result.error}`, "error");
+        if (!silent) showToast(`Failed to load orders: ${result.error}`, "error");
       } else {
         const rows = (result.data.data ?? []) as unknown as StaffOrderRow[];
-        let mapped = rows.map(mapStaffOrder);
-        
-        // For Pick-up only shows take_out
-        if (activeTab === "for_pickup") {
-          mapped = mapped.filter(o => o.orderInfo.type === "take_out" || o.orderInfo.type === "pickup");
-        }
-        
-        setOrders(mapped);
+        setOrders(rows.map(mapStaffOrder));
       }
     } else {
       // Payment Issues or Failed Pick-up
       const result = await getPaymentIssuesForKds();
       if (result.error) {
-        showToast(`Failed to load issues: ${result.error}`, "error");
+        if (!silent) showToast(`Failed to load issues: ${result.error}`, "error");
       } else {
         setIssues(result.data || []);
       }
     }
 
+    hasLoadedTab.current = activeTab;
     setIsLoading(false);
   }, [activeTab, showToast]);
 
@@ -86,11 +121,39 @@ function KdsInner() {
     fetchOrders();
   }, [fetchOrders]);
 
-  // Auto-refresh every 30 seconds
+  // Realtime is the fast path; this poll is the safety net for a dropped
+  // connection and for the pick-up clocks that change with time alone.
   useEffect(() => {
     const interval = setInterval(fetchOrders, 30000);
     return () => clearInterval(interval);
   }, [fetchOrders]);
+
+  // Chime when an order reaches the kitchen, whichever tab is open.
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { markSeen } = useKitchenOrderFeed({
+    onNewOrder: () => playChime(),
+    onAnyChange: () => {
+      // A burst of updates (a whole order moving through) → one refresh.
+      if (refreshTimer.current) clearTimeout(refreshTimer.current);
+      refreshTimer.current = setTimeout(fetchOrders, 400);
+    },
+  });
+  useEffect(() => () => {
+    if (refreshTimer.current) clearTimeout(refreshTimer.current);
+  }, []);
+  // Orders already queued when the board opened are not "new".
+  useEffect(() => {
+    if (activeTab === "active") markSeen(orders.filter((o) => o.status === "QUEUE").map((o) => o.id));
+  }, [activeTab, orders, markSeen]);
+
+  const handleToggleSound = async () => {
+    if (soundEnabled) {
+      disableSound();
+      return;
+    }
+    const ok = await enableSound();
+    if (!ok) showToast("This browser wouldn't play sound. Check it isn't muted for this site.", "error");
+  };
 
   const handleAction = async (type: StaffAction, order: OrderData) => {
     if (type === "Cancel") {
@@ -115,7 +178,7 @@ function KdsInner() {
   const handleCancelConfirm = async (reason: string) => {
     if (!cancelOrder) return;
     setIsProcessing(true);
-    
+
     const result = await updateOrderStatus(
       cancelOrder.id,
       "cancelled",
@@ -146,18 +209,40 @@ function KdsInner() {
     setIsProcessing(false);
   };
 
+  const isPickupTab = activeTab === "for_pickup" || activeTab === "failed_pickup";
+
+  const displayOrders = useMemo(() => {
+    let list: OrderData[];
+    if (activeTab === "payment_issues") {
+      list = issues.filter((i) => i.type === "payment_failed").map((i) => mapStaffOrder(i.order as unknown as StaffOrderRow));
+    } else if (activeTab === "failed_pickup") {
+      list = issues.filter((i) => i.type === "pickup_overdue").map((i) => mapStaffOrder(i.order as unknown as StaffOrderRow));
+    } else {
+      list = orders;
+    }
+
+    // Pick-up tabs sort by how long the food has been waiting; the rest by
+    // how long the customer has.
+    const timeOf = (o: OrderData) => {
+      const raw = isPickupTab ? o.rawReadyAt ?? o.rawCreatedAt : o.rawCreatedAt;
+      return raw ? new Date(raw).getTime() : 0;
+    };
+    const direction = sortOrder === "oldest" ? 1 : -1;
+    return [...list].sort((a, b) => (timeOf(a) - timeOf(b)) * direction);
+  }, [activeTab, issues, orders, sortOrder, isPickupTab]);
+
   const inQueue = activeTab === "active" ? orders.filter((o) => o.status === "QUEUE").length : 0;
   const inPrep = activeTab === "active" ? orders.filter((o) => o.status === "PREP").length : 0;
 
-  // Determine what to render based on tab
-  let displayOrders: any[] = [];
-  if (activeTab === "payment_issues") {
-    displayOrders = issues.filter(i => i.type === "payment_failed").map(i => mapStaffOrder(i.order as any));
-  } else if (activeTab === "failed_pickup") {
-    displayOrders = issues.filter(i => i.type === "pickup_overdue").map(i => mapStaffOrder(i.order as any));
-  } else {
-    displayOrders = orders;
-  }
+  const layoutClass =
+    viewMode === "grid"
+      ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-[10px] items-start content-start"
+      : "flex flex-col gap-[10px]";
+
+  const toggleBase =
+    "flex items-center gap-1.5 px-3 h-9 text-xs font-bold uppercase tracking-wider transition-colors";
+  const toggleOn = "bg-[#b8352a] text-[#fbf6ec]";
+  const toggleOff = "bg-[#fbf6ec] text-[#5c4d44] hover:bg-white";
 
   return (
     <div className="flex flex-col h-full w-full bg-[#efe6d8]">
@@ -180,7 +265,7 @@ function KdsInner() {
         </div>
 
         {/* Tabs */}
-        <div className="flex-1 flex items-center justify-center gap-2 overflow-x-auto scrollbar-hide py-1">
+        <div className="order-last md:order-none w-full md:w-auto flex-1 flex items-center md:justify-center gap-2 overflow-x-auto scrollbar-hide py-1">
           {(Object.keys(TAB_LABELS) as KdsTab[]).map(tab => (
             <button
               key={tab}
@@ -214,14 +299,69 @@ function KdsInner() {
         </div>
       </div>
 
-      {/* Grid */}
+      {/* Toolbar: sort, view, sound */}
+      <div className="flex flex-wrap items-center gap-2 px-[10px] pt-[10px] shrink-0">
+        <div className="flex rounded-lg overflow-hidden border border-[#ddcdb8]" role="group" aria-label="Sort orders">
+          <button
+            onClick={() => { setSortOrder("oldest"); writePref("kds-sort", "oldest"); }}
+            aria-pressed={sortOrder === "oldest"}
+            className={cn(toggleBase, sortOrder === "oldest" ? toggleOn : toggleOff)}
+          >
+            <ArrowUpNarrowWide className="h-4 w-4" aria-hidden /> Oldest
+          </button>
+          <button
+            onClick={() => { setSortOrder("newest"); writePref("kds-sort", "newest"); }}
+            aria-pressed={sortOrder === "newest"}
+            className={cn(toggleBase, "border-l border-[#ddcdb8]", sortOrder === "newest" ? toggleOn : toggleOff)}
+          >
+            <ArrowDownWideNarrow className="h-4 w-4" aria-hidden /> Newest
+          </button>
+        </div>
+
+        <div className="flex rounded-lg overflow-hidden border border-[#ddcdb8]" role="group" aria-label="Layout">
+          <button
+            onClick={() => { setViewMode("grid"); writePref("kds-view", "grid"); }}
+            aria-pressed={viewMode === "grid"}
+            className={cn(toggleBase, viewMode === "grid" ? toggleOn : toggleOff)}
+          >
+            <LayoutGrid className="h-4 w-4" aria-hidden /> Grid
+          </button>
+          <button
+            onClick={() => { setViewMode("list"); writePref("kds-view", "list"); }}
+            aria-pressed={viewMode === "list"}
+            className={cn(toggleBase, "border-l border-[#ddcdb8]", viewMode === "list" ? toggleOn : toggleOff)}
+          >
+            <List className="h-4 w-4" aria-hidden /> List
+          </button>
+        </div>
+
+        <button
+          onClick={handleToggleSound}
+          aria-pressed={soundEnabled}
+          className={cn(
+            toggleBase,
+            "ml-auto rounded-lg border",
+            soundEnabled
+              ? "bg-[#4c9a5e] text-white border-[#3d7d4c]"
+              : "bg-[#fbf6ec] text-[#b8352a] border-[#b8352a] animate-pulse",
+          )}
+        >
+          {soundEnabled ? <Bell className="h-4 w-4" aria-hidden /> : <BellOff className="h-4 w-4" aria-hidden />}
+          {soundEnabled ? "Sound on" : "Enable sound"}
+        </button>
+      </div>
+
+      {/* Orders */}
       <div className="flex-1 overflow-y-auto p-[10px] w-full">
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-[10px] items-start content-start">
+          <div className={layoutClass}>
             {Array.from({ length: 8 }).map((_, i) => (
               <div
                 key={i}
-                className="bg-[#fbf6ec] border border-[#3a2e2c] flex flex-col overflow-hidden rounded-[14px] w-full min-h-[320px] shadow-sm"
+                className={cn(
+                  "bg-[#fbf6ec] border border-[#3a2e2c] flex flex-col overflow-hidden rounded-[14px] w-full shadow-sm",
+                  viewMode === "grid" ? "min-h-[320px]" : "min-h-[120px]",
+                )}
               >
                 <div className="bg-[#efe6d8] p-[12px] flex justify-between">
                   <div className="flex flex-col gap-2">
@@ -242,34 +382,29 @@ function KdsInner() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-[10px] items-start content-start">
+          <div className={layoutClass}>
             {displayOrders.map((order) => {
-              
-              // Pay in store badge
-              const isCash = ["pay_in_store", "pay-in-store", "cash"].includes(order.paymentMethod || "");
-              
+              const isCash = CASH_METHODS.includes(order.paymentMethod || "");
+
               // Handle clicking cards for pickup
               const handleCardClick = () => {
-                if (activeTab === "for_pickup" || activeTab === "failed_pickup") {
-                  setPickupOrder(order);
-                }
+                if (isPickupTab) setPickupOrder(order);
               };
-              
+
               return (
-                <div key={order.id} onClick={handleCardClick} className={(activeTab === "for_pickup" || activeTab === "failed_pickup") ? "cursor-pointer" : ""}>
-                  <KdsOrderCard 
-                    order={order} 
+                <div key={order.id} onClick={handleCardClick} className={isPickupTab ? "cursor-pointer" : ""}>
+                  <KdsOrderCard
+                    order={order}
                     onAction={handleAction}
-                    timerTimestamp={
-                      (activeTab === "for_pickup" || activeTab === "failed_pickup") ? order.rawReadyAt : order.rawCreatedAt
-                    }
+                    layout={viewMode}
+                    timerTimestamp={isPickupTab ? order.rawReadyAt : order.rawCreatedAt}
                     amberMins={activeTab === "active" ? 15 : 999}
                     redMins={activeTab === "active" ? 25 : 90}
                     hideTimer={activeTab === "payment_issues" || activeTab === "cancelled"}
                     fixedBadge={
-                      activeTab === "payment_issues" 
-                        ? { text: "Payment Issue", bgClass: "bg-red-200", textClass: "text-red-900" } 
-                        : (activeTab === "for_pickup" || activeTab === "failed_pickup") && isCash
+                      activeTab === "payment_issues"
+                        ? { text: "Payment Issue", bgClass: "bg-red-200", textClass: "text-red-900" }
+                        : isPickupTab && isCash
                         ? { text: "Pay In-store", bgClass: "bg-blue-100", textClass: "text-blue-700" }
                         : undefined
                     }
@@ -281,15 +416,15 @@ function KdsInner() {
         )}
       </div>
 
-      <CancelReasonModal 
+      <CancelReasonModal
         isOpen={cancelOrder !== null}
         order={cancelOrder}
         isProcessing={isProcessing}
         onClose={() => setCancelOrder(null)}
         onConfirm={handleCancelConfirm}
       />
-      
-      <PickupModal 
+
+      <PickupModal
         isOpen={pickupOrder !== null}
         order={pickupOrder}
         isProcessing={isProcessing}
