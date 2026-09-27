@@ -20,6 +20,8 @@ import {
   ACCOUNT_DISABLED_CODE,
   ACCOUNT_DISABLED_MESSAGE,
 } from "@/lib/auth/account-status";
+import { readStoreStatus } from "@/lib/store/read-store-status";
+import { storeBlockFor } from "@/lib/store/store-status";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -667,6 +669,12 @@ export async function clearCart(): Promise<
  *
  * The browser's `delivery_fee` and `delivery_address` are not sent on: the
  * shop is pickup-only, and the function charges no fee.
+ *
+ * Closed, paused or busy (issue #115) is checked here first, so the
+ * customer gets the same wording the menu banner uses without a trip to the
+ * database, and `FORCE_STORE_OPEN` applies. The function checks again from
+ * `store_setting` — the env flag cannot reach it — so this is the friendly
+ * first line, not the only one.
  */
 export async function submitCart(
   rawInput: SubmitCartInput
@@ -684,6 +692,11 @@ export async function submitCart(
   const parsed = submitCartSchema.safeParse(rawInput);
   if (!parsed.success) {
     return { data: null, error: parsed.error.issues[0]?.message ?? "Invalid submit input." };
+  }
+
+  const block = storeBlockFor(await readStoreStatus());
+  if (block) {
+    return { data: null, error: block.message, code: block.code };
   }
 
   const supabase = createClient();

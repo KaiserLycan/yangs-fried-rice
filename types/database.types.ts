@@ -822,6 +822,7 @@ export type Database = {
       submit_cart_to_order: {
         Args: {
           p_cart_id: string
+          p_expected_prices?: Json
           p_order_type?: string
           p_payment_method?: string
           p_special_instructions?: string
