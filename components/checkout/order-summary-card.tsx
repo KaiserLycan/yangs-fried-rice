@@ -180,6 +180,7 @@ export function OrderSummaryCard({
             // so the kitchen never sees a payment that was abandoned or
             // refused.
             payment_method: chosenMethod,
+            wallet,
           });
           // No order, so nothing to pay: don't leave an empty tab behind.
           if (result.error !== null) walletTab?.close();

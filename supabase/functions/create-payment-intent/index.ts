@@ -50,6 +50,10 @@ Deno.serve(async (req: Request) => {
 
     const body = await req.json().catch(() => null);
     const orderId = body?.order_id;
+    // Which wallet the customer picked. Saved on the transaction so reports
+    // can tell GCash from Maya; anything else leaves the stored value alone.
+    const wallet =
+      body?.wallet === "gcash" || body?.wallet === "paymaya" ? body.wallet : null;
     if (!orderId || typeof orderId !== "string") {
       return json({ error: "order_id is required." }, 400);
     }
@@ -159,7 +163,7 @@ Deno.serve(async (req: Request) => {
     const transactionPayload = {
       order_id: orderId,
       payment_status: "pending",
-      payment_method: "paymongo",
+      ...(wallet ? { payment_method: wallet } : {}),
       subtotal: totalPesos,
       provider_reference_id: paymentIntentId,
       transaction_type: "payment",
@@ -178,7 +182,7 @@ Deno.serve(async (req: Request) => {
     } else {
       const { error } = await supabaseAdmin
         .from("transaction")
-        .insert(transactionPayload);
+        .insert({ payment_method: "paymongo", ...transactionPayload });
       
       transactionError = error;
     }

@@ -85,6 +85,12 @@ export const submitCartSchema = z
         }),
       })
       .default("pay-in-store"),
+    /** Which wallet, when `payment_method` is `wallet`. Saved on the transaction. */
+    wallet: z
+      .enum(["gcash", "paymaya"], {
+        errorMap: () => ({ message: "wallet must be gcash or paymaya" }),
+      })
+      .default("gcash"),
   });
 
 export const cancelOrderSchema = z.object({

@@ -198,6 +198,14 @@ describe("submitCartSchema payment method", () => {
     expect(parse({ payment_method: "pay-in-store" }).success).toBe(true);
   });
 
+  it("takes the wallet, defaulting to GCash", () => {
+    const maya = parse({ payment_method: "wallet", wallet: "paymaya" });
+    expect(maya.success && maya.data.wallet).toBe("paymaya");
+    const none = parse({ payment_method: "wallet" });
+    expect(none.success && none.data.wallet).toBe("gcash");
+    expect(parse({ payment_method: "wallet", wallet: "paymongo" }).success).toBe(false);
+  });
+
   it("defaults to paying in store when no method is given", () => {
     const res = parse({ order_type: "take_out" });
     expect(res.success).toBe(true);

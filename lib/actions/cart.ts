@@ -692,7 +692,11 @@ export async function submitCart(
     p_cart_id: parsed.data.cart_id,
     p_order_type: parsed.data.order_type,
     p_special_instructions: parsed.data.special_instructions ?? undefined,
-    p_payment_method: parsed.data.payment_method,
+    // The wallet itself (gcash / paymaya) is what gets recorded.
+    p_payment_method:
+      parsed.data.payment_method === "wallet"
+        ? parsed.data.wallet
+        : "pay-in-store",
   });
 
   if (error || !data) {
@@ -768,7 +772,7 @@ export async function switchOrderToCashOnDelivery(
     return {
       data: null,
       error:
-        "This order isn't waiting on a payment, so it can't be switched to cash on delivery.",
+        "This order isn't waiting on a payment, so it can't be switched to pay in store.",
     };
   }
 
@@ -798,13 +802,13 @@ export async function switchOrderToCashOnDelivery(
   // `markDelivered` scopes its own.
   const admin = createAdminClient();
 
-  // Point the payment at cash. Clearing the provider reference means a late
+  // Point the payment at the counter. Clearing the provider reference means a late
   // webhook for the abandoned wallet intent no longer matches this row and
   // cannot mark a cash order as failed.
   const { error: paymentError } = await admin
     .from("transaction")
     .update({
-      payment_method: "cash_on_delivery",
+      payment_method: "pay_in_store",
       payment_status: "pending",
       provider_reference_id: null,
     })
@@ -814,7 +818,7 @@ export async function switchOrderToCashOnDelivery(
   if (paymentError) {
     return {
       data: null,
-      error: "Couldn't switch this order to cash on delivery.",
+      error: "Couldn't switch this order to pay in store.",
     };
   }
 
@@ -831,7 +835,7 @@ export async function switchOrderToCashOnDelivery(
   if (updateError || !updated) {
     return {
       data: null,
-      error: "Couldn't switch this order to cash on delivery.",
+      error: "Couldn't switch this order to pay in store.",
     };
   }
 

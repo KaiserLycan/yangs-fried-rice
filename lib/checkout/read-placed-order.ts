@@ -137,17 +137,16 @@ function fulfilmentFromOrderType(orderType: string | null): Fulfilment {
  * "Payment method not recorded" when the customer definitely chose one would
  * be worse than echoing an unfamiliar string.
  *
- * `create-payment-intent` writes the gateway's name, "paymongo", rather than
- * which wallet was used — the intent allows any of them. It is shown as the
- * option the customer picked.
- *
- * `submitCart` now records the method the customer actually picked, so cash
- * on delivery and pay in store label themselves. Rows written before that
- * change may still read "Not recorded".
+ * New rows name the wallet ("gcash" / "paymaya") or "pay_in_store" — the
+ * CHECK on the column allows nothing else (#116). "paymongo" is an older
+ * wallet row where the wallet was not recorded.
  */
 function paymentLabelFor(stored: string | null | undefined): string {
   if (!stored) return "Not recorded";
-  if (stored.trim().toLowerCase() === "paymongo") return "GCash / Maya wallet";
+  const lower = stored.trim().toLowerCase();
+  if (lower === "paymongo") return "GCash / Maya wallet";
+  if (lower === "gcash") return "GCash";
+  if (lower === "paymaya") return "Maya";
   const folded = stored
     .trim()
     .toLowerCase()
