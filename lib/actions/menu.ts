@@ -237,6 +237,11 @@ export async function createProduct(
     return { data: null, error: parsed.error.errors[0].message };
   }
 
+  // A new product comes with a price, so adding one is a manager's call.
+  if (!(await callerIsManager())) {
+    return { data: null, error: PRICE_MANAGER_ONLY };
+  }
+
   const supabase = createClient();
 
   const row: TablesInsert<"product"> = {
