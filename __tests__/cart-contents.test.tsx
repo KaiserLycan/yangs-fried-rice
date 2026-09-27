@@ -276,18 +276,62 @@ describe("CartLineRow lower bound", () => {
   });
 
   // Issue #115: MAX_ITEMS_PER_ORDER. The server refuses the same cart.
-  it("blocks checkout with the big-order message above 30 items", () => {
+  it("blocks checkout above 30 items with a disabled button and no second warning", () => {
     const big: CartLine[] = [
       { id: "1", name: "Yangzhou Special", unitPrice: 180, quantity: 20, specialInstructions: null },
       { id: "2", name: "Lumpia (5pc)", unitPrice: 90, quantity: 11, specialInstructions: null },
     ];
     renderCart(<CartContents lines={big} ctaLabel="Checkout" arrivalEstimate={null} />);
 
+    // One notification only: the toast that refused the add. The cart shows
+    // no inline "That's a big order!" of its own (issue #115).
+    expect(screen.queryByText(/That's a big order!/)).not.toBeInTheDocument();
+    const cta = screen.getByRole("link", { name: "Too Many Items" });
+    expect(cta).toHaveAttribute("href", "#");
+    expect(cta).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("always shows the bulk-order contact link above the totals", () => {
+    renderCart(<CartContents lines={lines} ctaLabel="Checkout" arrivalEstimate={null} />);
+
+    const note = screen.getByRole("link", {
+      name: "Please contact us for a bulk order or catering.",
+    });
+    expect(note).toHaveAttribute("href", "/");
+    // Above the line: it comes before "Subtotal" in the document.
     expect(
-      screen.getByText("That's a big order! Please contact us for a bulk order or catering."),
-    ).toBeInTheDocument();
-    const cta = screen.getByRole("link", { name: /Too big\? Contact Us/i });
-    expect(cta).toHaveAttribute("href", "/contact");
+      note.compareDocumentPosition(screen.getByText("Subtotal")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("stops a line's + where the order would pass 30", () => {
+    const nearlyFull: CartLine[] = [
+      { id: "1", name: "Yangzhou Special", unitPrice: 180, quantity: 20, specialInstructions: null },
+      { id: "2", name: "Lumpia (5pc)", unitPrice: 90, quantity: 10, specialInstructions: null },
+    ];
+    renderCart(<CartContents lines={nearlyFull} ctaLabel="Checkout" arrivalEstimate={null} />);
+
+    // 30 items: no + can add more, but − still works.
+    for (const plus of screen.getAllByRole("button", { name: "Increase quantity" })) {
+      expect(plus).toBeDisabled();
+    }
+    for (const minus of screen.getAllByRole("button", { name: "Decrease quantity" })) {
+      expect(minus).toBeEnabled();
+    }
+  });
+
+  it("stops a line's + where the dish would pass 20 across its lines", () => {
+    const product = { id: "p-halo", name: "Yang's Halo-Halo" } as never;
+    const twoLines: CartLine[] = [
+      { id: "1", name: "Yang's Halo-Halo", unitPrice: 120, quantity: 13, specialInstructions: null, product },
+      { id: "2", name: "Yang's Halo-Halo", unitPrice: 120, quantity: 7, specialInstructions: "less ice", product },
+    ];
+    renderCart(<CartContents lines={twoLines} ctaLabel="Checkout" arrivalEstimate={null} />);
+
+    for (const plus of screen.getAllByRole("button", { name: "Increase quantity" })) {
+      expect(plus).toBeDisabled();
+    }
   });
 
   it("allows checkout at exactly 30 items", () => {

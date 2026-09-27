@@ -35,7 +35,7 @@ export const PAYMENT_WINDOW_MS = 30 * 60 * 1000;
 /**
  * What the customer is told when they look at the cancelled order later.
  * Word for word the reason `expire_abandoned_orders()` writes
- * (20260926000002), so an order cancelled by the pg_cron sweep and one
+ * (20260926000003), so an order cancelled by the pg_cron sweep and one
  * cancelled here read the same, and `cancellationNoticeFor` recognises both.
  */
 export const ABANDONED_REASON = ABANDONED_PAYMENT_REASON;

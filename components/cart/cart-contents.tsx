@@ -6,6 +6,7 @@ import { CartLineRow } from "@/components/cart/cart-line-row";
 import { CartTotalsSummary } from "@/components/cart/cart-totals-summary";
 import {
   cartItemCount,
+  dishQuantityInCart,
   computeCartTotals,
   type CartLine,
   type Fulfilment,
@@ -63,6 +64,8 @@ export function CartContents({
           <CartLineRow 
             key={line.id} 
             line={line} 
+            cartTotalItems={cartItemCount(localLines)}
+            dishItems={dishQuantityInCart(localLines, line.product ?? { id: "", name: line.name })}
             onUpdate={(quantity) => {
               setLocalLines((prev) => prev.map((l) => (l.id === line.id ? { ...l, quantity } : l)));
             }}

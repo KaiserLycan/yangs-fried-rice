@@ -162,3 +162,18 @@ export function lineTotal(line: CartLine): number {
 export function cartItemCount(lines: CartLine[]): number {
   return lines.reduce((total, line) => total + line.quantity, 0);
 }
+
+/**
+ * How many of one dish the cart holds, across every line — a line with a
+ * note or different add-ons is still the same dish (issue #115: 20 per
+ * dish). Matched by product id; an optimistic line the menu draws before the
+ * server answers has no product yet, so it is matched by name.
+ */
+export function dishQuantityInCart(
+  lines: CartLine[],
+  dish: { id: string; name: string },
+): number {
+  return lines
+    .filter((line) => (line.product ? line.product.id === dish.id : line.name === dish.name))
+    .reduce((total, line) => total + line.quantity, 0);
+}

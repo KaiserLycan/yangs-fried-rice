@@ -66,6 +66,18 @@ export function PastOrderCard({ order }: { order: PastOrder }) {
     });
   };
 
+  const reorderButton = (
+    <Button variant="unstyled"
+      type="button"
+      onClick={handleReorder}
+      disabled={isPending}
+      className="flex min-h-[44px] shrink-0 items-center text-sm font-bold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50"
+    >
+      {isPending ? "Reordering..." : "Reorder"}
+      <span className="sr-only"> order #{order.orderNumber}</span>
+    </Button>
+  );
+
   // `md:h-full` makes a card fill the grid row its neighbours set, and the
   // total row below carries `md:mt-auto` so it sits on the bottom edge rather
   // than floating in the middle. Without both, a card with one item or no
@@ -144,20 +156,17 @@ export function PastOrderCard({ order }: { order: PastOrder }) {
             Track order
           </Link>
         ) : action === "rate" ? (
-          <RateOrderButton
-            orderId={order.orderId}
-            orderNumber={order.orderNumber}
-          />
+          // Not rated yet: both, so rating is never in the way of ordering
+          // the same thing again (issue #115). Once rated, only Reorder.
+          <div className="flex shrink-0 items-center gap-[14px]">
+            <RateOrderButton
+              orderId={order.orderId}
+              orderNumber={order.orderNumber}
+            />
+            {reorderButton}
+          </div>
         ) : (
-          <Button variant="unstyled"
-            type="button"
-            onClick={handleReorder}
-            disabled={isPending}
-            className="flex min-h-[44px] shrink-0 items-center text-sm font-bold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50"
-          >
-            {isPending ? "Reordering..." : "Reorder"}
-            <span className="sr-only"> order #{order.orderNumber}</span>
-          </Button>
+          reorderButton
         )}
       </div>
     </article>

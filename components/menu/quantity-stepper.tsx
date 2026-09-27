@@ -23,11 +23,19 @@ export function QuantityStepper({
   value,
   onChange,
   size = "desktop",
+  max = MAX_QUANTITY,
 }: {
   value: number;
   onChange: (value: number) => void;
   size?: "desktop" | "mobile";
+  /**
+   * The most this stepper may reach when it is less than `MAX_QUANTITY` —
+   * how many still fit in the order, or of this dish (issue #115). Never
+   * below 1: when nothing fits, the dialog disables adding instead.
+   */
+  max?: number;
 }) {
+  const ceiling = quantityCeiling(max);
   // 44px at both sizes: the minimum touch target (issue #118). The frames'
   // 40px desktop button was below it.
   const buttonSize = "size-[44px]";
@@ -44,6 +52,7 @@ export function QuantityStepper({
       <QuantityInput
         value={value}
         onChange={onChange}
+        max={ceiling}
         className={cn(
           "h-[44px] w-[56px] rounded-md border border-field-border bg-card text-center font-display text-foreground",
           size === "mobile" ? "text-2xl" : "text-lg",
@@ -53,8 +62,8 @@ export function QuantityStepper({
         label="Increase quantity"
         glyph="+"
         size={buttonSize}
-        disabled={value >= MAX_QUANTITY}
-        onClick={() => onChange(clampQuantity(value + 1))}
+        disabled={value >= ceiling}
+        onClick={() => onChange(Math.min(ceiling, clampQuantity(value + 1)))}
       />
     </div>
   );
@@ -79,13 +88,17 @@ export function QuantityInput({
   className,
   disabled,
   label = "Quantity",
+  max = MAX_QUANTITY,
 }: {
   value: number;
   onChange: (value: number) => void;
   className?: string;
   disabled?: boolean;
   label?: string;
+  /** Typed numbers above this snap down to it (see `QuantityStepper`). */
+  max?: number;
 }) {
+  const ceiling = quantityCeiling(max);
   const [draft, setDraft] = React.useState(String(value));
 
   React.useEffect(() => {
@@ -98,7 +111,7 @@ export function QuantityInput({
       setDraft("");
       return;
     }
-    const next = clampQuantity(Number.parseInt(digits, 10));
+    const next = Math.min(ceiling, clampQuantity(Number.parseInt(digits, 10)));
     setDraft(String(next));
     if (next !== value) onChange(next);
   }
@@ -110,7 +123,7 @@ export function QuantityInput({
       pattern="[0-9]*"
       autoComplete="off"
       aria-label={label}
-      title={`${MIN_QUANTITY} to ${MAX_QUANTITY}`}
+      title={`${MIN_QUANTITY} to ${ceiling}`}
       value={draft}
       disabled={disabled}
       onChange={(event) => handleChange(event.target.value)}
@@ -153,4 +166,9 @@ function StepButton({
       {glyph}
     </Button>
   );
+}
+
+/** `max` kept inside [MIN_QUANTITY, MAX_QUANTITY]. */
+function quantityCeiling(max: number): number {
+  return Math.max(MIN_QUANTITY, Math.min(MAX_QUANTITY, max));
 }

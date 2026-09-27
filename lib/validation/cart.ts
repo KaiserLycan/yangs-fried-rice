@@ -4,7 +4,7 @@ import { MAX_QUANTITY } from "@/lib/menu/quantity";
 /**
  * One dish is capped at the stepper's MAX_QUANTITY (20), not the 99 the
  * server used to allow (issue #115). `cart_item_quantity_range` in the
- * database says the same (20260928000003_tighten_quantity_cap.sql).
+ * database says the same (20260928000007_tighten_quantity_cap.sql).
  */
 const QUANTITY_CAP_MESSAGE = `quantity cannot exceed ${MAX_QUANTITY} per item`;
 

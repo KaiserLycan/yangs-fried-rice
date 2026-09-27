@@ -1,14 +1,14 @@
 -- Issue #115 follow-up: store hours to the minute (6:30 AM, 7:31 PM), not
 -- whole hours.
 --
--- open_hour / close_hour (smallint, 20260928000001) become open_time /
+-- open_hour / close_hour (smallint, 20260928000003) become open_time /
 -- close_time (time of day, Manila). Existing hours carry over: 8 → 08:00,
 -- 18 → 18:00, and a close of 24 becomes 24:00 (Postgres `time` allows it,
 -- meaning end of day).
 --
 -- get_store_status() now compares the Manila time of day against them and
 -- returns them as "HH:MM". It still returns open_hour too, the whole hour of
--- open_time, because submit_cart_to_order (20260928000004) builds its "We
+-- open_time, because submit_cart_to_order (20260928000006) builds its "We
 -- open at 8:00 AM" message from it; the checkout rebuild that follows this
 -- migration switches that message to open_time and this key can then go.
 --

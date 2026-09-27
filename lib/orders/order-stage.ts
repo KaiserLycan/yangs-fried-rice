@@ -411,7 +411,7 @@ export function cancellationNoticeFor(reason: string | null): {
  * entered the kitchen queue (a wallet order only gets there once paid).
  *
  * The 20 is enforced by `expire_unaccepted_orders()` in the database
- * (20260928000005, run by pg_cron every 5 minutes); change both together.
+ * (20260928000009, run by pg_cron every 5 minutes); change both together.
  */
 export const PENDING_FLASH_MINUTES = 5;
 export const PENDING_WARN_MINUTES = 10;

@@ -142,7 +142,8 @@ export function canRate(order: PastOrder): boolean {
 }
 
 /**
- * The single action the card offers.
+ * The action the card leads with. "rate" also shows Reorder beside it
+ * (issue #115): an unrated order can be reordered without rating it first.
  *
  * The frames draw three different actions across three cards and nothing in
  * the data tells them apart — card 1 (rated, delivery) says Reorder and card

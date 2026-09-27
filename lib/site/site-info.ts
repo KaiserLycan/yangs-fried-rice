@@ -56,3 +56,11 @@ export function copyrightYears(now: Date = new Date()): string {
     ? String(SITE_FOUNDED_YEAR)
     : `${SITE_FOUNDED_YEAR}–${current}`;
 }
+
+/**
+ * Where "Please contact us for a bulk order or catering" leads (issue #115).
+ * The landing page with the store's contact details is still to be built;
+ * until then this is the home page. Point it at the contact section here
+ * when that page lands — nothing else needs changing.
+ */
+export const BULK_ORDER_CONTACT_HREF = "/";

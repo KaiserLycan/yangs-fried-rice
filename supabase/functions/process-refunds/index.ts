@@ -6,12 +6,12 @@
 // A transaction reaches `refund_pending` two ways, both in the database:
 //   * trg_flag_refund_on_cancel — a paid order was cancelled by the
 //     customer, by staff, or by expire_unaccepted_orders() (20 minutes
-//     unaccepted), 20260928000002 / 20260928000005;
+//     unaccepted), 20260928000004 / 20260928000009;
 //   * payment-webhook — PayMongo confirmed a payment for an order that was
 //     already cancelled.
 //
 // pg_cron calls this every 5 minutes through pg_net
-// (20260928000006_schedule_cron_jobs.sql). It is not a public endpoint in
+// (20260928000010_schedule_cron_jobs.sql). It is not a public endpoint in
 // any useful sense: without the shared secret in `x-cron-secret` it does
 // nothing. Deploy with --no-verify-jwt (pg_cron sends no Supabase JWT).
 //

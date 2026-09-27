@@ -7,6 +7,7 @@ import { removeCartItem, updateCartItem } from "@/lib/actions/cart";
 import { useCartAction } from "@/lib/cart/use-cart-action";
 import { formatPeso } from "@/lib/menu/product-listing";
 import { lineTotal, type CartLine } from "@/lib/menu/cart-totals";
+import { quantityRoom } from "@/lib/cart/limits";
 import { MAX_QUANTITY, MIN_QUANTITY, clampQuantity } from "@/lib/menu/quantity";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -40,10 +41,19 @@ export function CartLineRow({
   line,
   onUpdate,
   onRemove,
+  cartTotalItems = line.quantity,
+  dishItems = line.quantity,
 }: { 
   line: CartLine;
   onUpdate?: (quantity: number) => void;
   onRemove?: () => void;
+  /**
+   * Items in the whole cart, and of this line's dish across all its lines
+   * (issue #115). `+` stops where the order would pass 30 or the dish 20, so
+   * the server never has to refuse and no second message appears.
+   */
+  cartTotalItems?: number;
+  dishItems?: number;
 }) {
   const { run, pending } = useCartAction();
 
@@ -51,6 +61,12 @@ export function CartLineRow({
   const isPending = pending || isOptimistic;
 
   const [localQuantity, setLocalQuantity] = React.useState(line.quantity);
+
+  // The most this line may reach: its own quantity plus whatever still fits
+  // in the order and of this dish. A cart already over (filled before the
+  // limits) can keep what it has and go down, never up.
+  const { room } = quantityRoom({ cartTotalItems, dishItems, baseline: line.quantity });
+  const lineMax = Math.max(MIN_QUANTITY, room, Math.min(localQuantity, MAX_QUANTITY));
   const [editing, setEditing] = React.useState(false);
   const debounceTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
@@ -71,6 +87,7 @@ export function CartLineRow({
 
   const setQuantity = (quantity: number) => {
     if (quantity > MAX_QUANTITY) return;
+    if (quantity > localQuantity && quantity > room) return;
 
     // Stepping below one removes the line, and does it now rather than in
     // 600ms. The write used to be the only thing that checked the lower
@@ -160,13 +177,14 @@ export function CartLineRow({
           value={localQuantity}
           onChange={setQuantity}
           disabled={isPending}
+          max={lineMax}
           label={`Quantity of ${line.name}`}
           className="h-[44px] w-[48px] rounded-sm border border-field-border bg-background text-center text-base font-bold text-foreground"
         />
         <StepButton
           glyph="+"
           label="Increase quantity"
-          disabled={isPending || localQuantity >= MAX_QUANTITY}
+          disabled={isPending || localQuantity >= MAX_QUANTITY || localQuantity >= room}
           onClick={() => setQuantity(localQuantity + 1)}
         />
 
@@ -196,6 +214,10 @@ export function CartLineRow({
         <ItemDetailModal
           product={editing ? line.product : null}
           onClose={() => setEditing(false)}
+          // Totals as the dialog will see them: this line at its on-screen
+          // quantity, which can be ahead of the saved one mid-debounce.
+          cartTotalItems={cartTotalItems - line.quantity + localQuantity}
+          cartProductItems={dishItems - line.quantity + localQuantity}
           editing={{
             cartItemId: line.id,
             quantity: localQuantity,

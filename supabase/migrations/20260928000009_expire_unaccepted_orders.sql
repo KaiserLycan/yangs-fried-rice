@@ -4,14 +4,14 @@
 -- saw it, or nobody is coming to cook it. Leaving it there is the worst of
 -- both: the customer waits for food that isn't being made, and can still
 -- turn up to collect it. So it is cancelled, with a reason that says what
--- happened, and — through trg_flag_refund_on_cancel (20260928000002) — a
+-- happened, and — through trg_flag_refund_on_cancel (20260928000004) — a
 -- paid wallet order is marked for refund in the same statement.
 --
 -- Counted from pending_at, when the order reached the kitchen queue, not
 -- created_at: a GCash / Maya order reaches `pending` only when paid.
 --
 -- APPLYING THIS CHANGES NOTHING ON ITS OWN. It creates a function; the
--- pg_cron job in 20260928000006 calls it every 5 minutes.
+-- pg_cron job in 20260928000010 calls it every 5 minutes.
 --
 -- The tracking page offers "cancel for free" after 10 minutes and the Orders
 -- page / KDS flash an order pending for 5 (lib/orders/order-stage.ts,

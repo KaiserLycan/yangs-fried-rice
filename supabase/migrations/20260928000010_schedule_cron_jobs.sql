@@ -1,11 +1,11 @@
 -- Issue #115: switch on the three timed jobs, every 5 minutes.
 --
 --   expire-abandoned-orders   unpaid GCash / Maya orders older than 30
---                             minutes → cancelled (20260926000002)
+--                             minutes → cancelled (20260926000003)
 --   expire-unaccepted-orders  orders pending (not accepted by staff) for 20
 --                             minutes → cancelled "Store didn't confirm in
 --                             time"; paid ones flagged for refund
---                             (20260928000005, 20260928000002)
+--                             (20260928000009, 20260928000004)
 --   process-refunds           calls the process-refunds edge function,
 --                             which sends PayMongo refunds for everything
 --                             flagged refund_pending
