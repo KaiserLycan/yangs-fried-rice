@@ -54,17 +54,25 @@ export type StaffOrderRow = {
   }[];
   order_add_on?: { price: number | null }[] | null;
   /** The payment row: how it was paid, and any Senior Citizen / PWD discount. */
-  transaction?: One<{
-    payment_method?: string | null;
-    subtotal?: number | null;
-    discount_amount?: number | null;
-    discount_type?: string | null;
-    discount_id_number?: string | null;
-    name_on_id?: string | null;
-    discount_id_photo_path?: string | null;
-    tip_amount?: number | null;
-  }>;
+  transaction?: One<StaffTransactionRow>;
 };
+
+type StaffTransactionRow = {
+  payment_method?: string | null;
+  subtotal?: number | null;
+  discount_amount?: number | null;
+  discount_type?: string | null;
+  discount_id_number?: string | null;
+  name_on_id?: string | null;
+  discount_id_photo_path?: string | null;
+  tip_amount?: number | null;
+  payment_status?: string | null;
+  total_paid?: number | null;
+  refund_error?: string | null;
+  provider_payment_id?: string | null;
+};
+
+const REFUND_STATUSES = new Set(["refund_pending", "refund_failed", "refunded"]);
 
 const first = <T,>(value: One<T> | undefined): T | null =>
   Array.isArray(value) ? (value[0] ?? null) : (value ?? null);
@@ -149,6 +157,7 @@ export function mapStaffOrder(order: StaffOrderRow): OrderData {
     rawCompletedAt: order.completed_at ?? null,
     cashTendered: order.cash_tendered ?? null,
     tip: Number(first(order.transaction)?.tip_amount ?? 0),
+    refund: refundOf(payments),
     paymentMethod: first(order.transaction)?.payment_method ?? null,
     // Only a still-unaccepted order can be "waiting too long" (issue #115).
     // Falls back to created_at for an order from before pending_at existed.
@@ -198,4 +207,18 @@ export function mapStaffOrder(order: StaffOrderRow): OrderData {
         }
       : undefined,
   } as OrderData;
+}
+
+/** The refund on a cancelled paid order, if there is one (FINALE 9.4). */
+function refundOf(
+  payments: StaffTransactionRow[],
+): OrderData["refund"] {
+  const row = payments.find((payment) => REFUND_STATUSES.has(payment.payment_status ?? ""));
+  if (!row) return undefined;
+  return {
+    status: row.payment_status as NonNullable<OrderData["refund"]>["status"],
+    error: row.refund_error ?? null,
+    paymentId: row.provider_payment_id ?? null,
+    amount: Number(row.total_paid ?? 0),
+  };
 }

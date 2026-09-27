@@ -27,6 +27,8 @@ export type RefundRow = {
   amount: number;
   status: "refund_pending" | "refund_failed" | "refunded";
   error: string | null;
+  /** PayMongo's `pay_…` id, for "Open in PayMongo" (FINALE 9.4). */
+  paymentId: string | null;
   /** When it was refunded, for the recent ones. */
   refundedAt: string | null;
   cancelledAt: string | null;
@@ -37,10 +39,13 @@ const RECENT_REFUNDS_DAYS = 7;
 
 export async function getRefundQueue(): Promise<RefundRow[]> {
   const supabase = createClient();
+  // A server action is its own endpoint; the dashboard's redirect does not
+  // cover a direct call.
+  if (await requireManager(supabase)) return [];
   const since = new Date(Date.now() - RECENT_REFUNDS_DAYS * 86_400_000).toISOString();
 
   const columns =
-    "transaction_id, order_id, total_paid, subtotal, payment_status, refund_error, refunded_at, order:order_id ( cancelled_at )";
+    "transaction_id, order_id, total_paid, subtotal, payment_status, refund_error, refunded_at, provider_payment_id, order:order_id ( cancelled_at, order_number )";
 
   // Two plain queries rather than one `.or()` string: no filter here is
   // assembled from text (see __tests__/security/injection.test.ts, B4).
@@ -75,7 +80,15 @@ export async function getRefundQueue(): Promise<RefundRow[]> {
       return {
         transactionId: row.transaction_id,
         orderId: row.order_id,
-        orderNumber: row.order_id ? formatOrderNumber(row.order_id) : "—",
+        // Was formatOrderNumber(row.order_id): the id where the number goes,
+        // so the panel printed a whole UUID.
+        orderNumber: row.order_id
+          ? formatOrderNumber(
+              (order as { order_number: number | null } | null)?.order_number,
+              row.order_id,
+            )
+          : "—",
+        paymentId: row.provider_payment_id ?? null,
         amount: Number(row.total_paid) > 0 ? Number(row.total_paid) : Number(row.subtotal ?? 0),
         status: row.payment_status as RefundRow["status"],
         error: row.refund_error,

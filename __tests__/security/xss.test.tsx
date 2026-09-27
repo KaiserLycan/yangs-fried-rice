@@ -206,6 +206,10 @@ describe("E5. no unsafe rendering escape hatch exists", () => {
       // the `tel:` scheme and keeps only digits and a leading "+".
       ["components/manage/dashboard/recent-reviews-panel.tsx", "href={telHref(review.customerPhone)} — tel: plus digits only"],
       ["components/manage/menu/menu-item-detail-modal.tsx", "href={telHref(review.customerPhone)} — tel: plus digits only"],
+      // FINALE 9.4: paymongoPaymentUrl() only returns PayMongo's payments
+      // page, with a `pay_…` id appended when it matches that pattern.
+      ["components/manage/orders/order-detail-modal.tsx", "href={paymongoPaymentUrl(refund.paymentId)} — dashboard.paymongo.com only"],
+      ["components/manage/dashboard/refunds-panel.tsx", "href={paymongoPaymentUrl(refund.paymentId)} — dashboard.paymongo.com only"],
     ]);
 
     const offenders: string[] = [];

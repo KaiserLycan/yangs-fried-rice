@@ -82,4 +82,15 @@ export type OrderData = {
     /** False once the photo is deleted (order completed or cancelled). */
     hasPhoto: boolean;
   };
+  /**
+   * A cancelled paid wallet order's refund (FINALE 9.4). Sent automatically
+   * every 5 minutes; a failed one is refunded by hand in PayMongo.
+   */
+  refund?: {
+    status: "refund_pending" | "refund_failed" | "refunded";
+    error: string | null;
+    /** PayMongo's `pay_…` id, for a link straight to the payment. */
+    paymentId: string | null;
+    amount: number;
+  };
 };

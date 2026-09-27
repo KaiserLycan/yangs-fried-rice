@@ -9,6 +9,7 @@ import { getSeniorPwdIdPhotoUrl } from "@/lib/actions/orders";
 import { Button } from "@/components/ui/button";
 import { PickupFollowup } from "@/components/manage/orders/pickup-followup";
 import { changeDue } from "@/lib/checkout/order-rules";
+import { paymongoPaymentUrl } from "@/lib/checkout/paymongo-dashboard";
 
 interface OrderDetailModalProps {
   order: OrderData | null;
@@ -119,6 +120,8 @@ export function OrderDetailModal({ order, isOpen, onClose, onAction, onChanged }
 
         {/* Scrollable Body */}
         <div className="p-5 flex-1 overflow-y-auto max-h-[60vh]">
+          {order.refund ? <RefundNotice refund={order.refund} /> : null}
+
           {/* Senior Citizen / PWD Verification */}
           {order.seniorPwd && (
             <div className="mb-6 rounded-md border border-warning/60 bg-warning-surface/80 p-4">
@@ -336,5 +339,50 @@ export function OrderDetailModal({ order, isOpen, onClose, onAction, onChanged }
         </div>
       </div>
     </DialogRoot>
+  );
+}
+
+/**
+ * The refund on a cancelled paid order, on the order itself (FINALE 9.4):
+ * staff no longer have to remember a second step in PayMongo. A failed one
+ * links straight to the payment there.
+ */
+function RefundNotice({ refund }: { refund: NonNullable<OrderData["refund"]> }) {
+  const amount = `₱${refund.amount.toLocaleString("en-PH", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+
+  if (refund.status === "refunded") {
+    return (
+      <p className="mb-6 rounded-md bg-success/10 p-4 text-sm font-bold text-success">
+        Refunded {amount} to the customer.
+      </p>
+    );
+  }
+  if (refund.status === "refund_pending") {
+    return (
+      <p className="mb-6 rounded-md bg-warning-surface p-4 text-sm text-warning-text">
+        <strong>Refund of {amount} is on its way.</strong> It is sent to PayMongo
+        automatically within 5 minutes — nothing to do here.
+      </p>
+    );
+  }
+  return (
+    <div role="alert" className="mb-6 flex flex-col gap-2 rounded-md border border-destructive bg-destructive/10 p-4 text-sm text-foreground">
+      <p>
+        <strong className="text-destructive">Refund failed — {amount} still owed.</strong>{" "}
+        {refund.error ? `PayMongo said: ${refund.error}. ` : ""}
+        Refund it by hand in PayMongo, then mark it refunded on the dashboard.
+      </p>
+      <a
+        href={paymongoPaymentUrl(refund.paymentId)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="self-start rounded-md bg-destructive px-3 py-2 text-sm font-bold text-white"
+      >
+        Open in PayMongo
+      </a>
+    </div>
   );
 }

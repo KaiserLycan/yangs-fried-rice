@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { markRefundedByHand, type RefundRow } from "@/lib/actions/refunds";
+import { paymongoPaymentUrl } from "@/lib/checkout/paymongo-dashboard";
 
 /**
  * Refunds for cancelled paid orders (issue #115). The `process-refunds` job
@@ -69,6 +70,16 @@ export function RefundsPanel({ refunds }: { refunds: RefundRow[] }) {
 
             <div className="flex items-center gap-2">
               <StatusBadge status={refund.status} />
+              {refund.status === "refund_failed" ? (
+                <a
+                  href={paymongoPaymentUrl(refund.paymentId)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-md border border-destructive px-3 py-1 text-xs font-bold text-destructive"
+                >
+                  Open in PayMongo
+                </a>
+              ) : null}
               {refund.status === "refund_failed" ? (
                 <Button variant="unstyled"
                   type="button"
