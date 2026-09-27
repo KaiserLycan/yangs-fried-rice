@@ -28,6 +28,7 @@ export function quoteArrivalWindow({
   activeOrdersAhead,
   distanceKm = null,
   extraPrepMinutes = 0,
+  currentCartItemCount = 1,
 }: {
   fulfilment: "delivery" | "pickup";
   /** How many orders the kitchen is already working through. */
