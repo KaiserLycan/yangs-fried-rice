@@ -35,10 +35,10 @@ BEGIN
   -- Clearing who filed it (the customer deleted their account) or the photo
   -- (erased with it) is allowed; setting either to anything else is not.
   IF NEW.customer_id IS NULL THEN
-    v_ignored := v_ignored || 'customer_id';
+    v_ignored := v_ignored || 'customer_id'::text;
   END IF;
   IF NEW.photo_path IS NULL THEN
-    v_ignored := v_ignored || 'photo_path';
+    v_ignored := v_ignored || 'photo_path'::text;
   END IF;
 
   IF (to_jsonb(NEW) - v_ignored) IS DISTINCT FROM (to_jsonb(OLD) - v_ignored) THEN

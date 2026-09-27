@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import {
   canReportIssue,
   isOrderIssuePhotoPath,
@@ -71,5 +72,25 @@ describe("photo rules", () => {
     expect(isOrderIssuePhotoPath("../7c9e6679-7425-40de-944b-e07fc1f90ae7/abc.webp")).toBe(false);
     expect(isOrderIssuePhotoPath("7c9e6679-7425-40de-944b-e07fc1f90ae7/..")).toBe(false);
     expect(isOrderIssuePhotoPath("someone/abc.webp")).toBe(false);
+  });
+});
+
+describe("guard_order_issue_update (20260928000001)", () => {
+  const sql = readFileSync(
+    "supabase/migrations/20260928000001_order_issue_erasure_and_indexes.sql",
+    "utf8",
+  );
+
+  // `text[] || 'photo_path'` is read as array || array-literal and raises
+  // "malformed array literal" — which broke resolving any report without a
+  // photo on live until the elements were cast.
+  it("appends column names as text, not as array literals", () => {
+    expect(sql).toMatch(/v_ignored := v_ignored \|\| 'customer_id'::text;/);
+    expect(sql).toMatch(/v_ignored := v_ignored \|\| 'photo_path'::text;/);
+  });
+
+  it("lets erasure through only by clearing, never by setting", () => {
+    expect(sql).toMatch(/IF NEW\.customer_id IS NULL THEN/);
+    expect(sql).toMatch(/IF NEW\.photo_path IS NULL THEN/);
   });
 });
