@@ -970,20 +970,29 @@ export async function getCustomersPaginated({
   search = "",
   sortColumn = "name",
   sortDirection = "asc",
+  filters = {},
 }: {
   page?: number;
   pageSize?: number;
   search?: string;
   sortColumn?: string;
   sortDirection?: "asc" | "desc";
+  /** Period, minimums, joined range, activity — see `customerFiltersSchema`. */
+  filters?: CustomerFilters;
 }): Promise<ActionResult<{ customers: CustomerStats[]; totalCount: number }>> {
   const auth = await requireRole("MANAGER");
   if (!auth.data) return { data: null, error: auth.error };
 
+  const parsedFilters = customerFiltersSchema.safeParse(filters);
+  if (!parsedFilters.success) {
+    return { data: null, error: parsedFilters.error.errors[0].message };
+  }
+  const f = parsedFilters.data;
+
   const supabase = createClient();
-  // The search is a function argument, matched in SQL as a plain value
-  // (20260928000011) — never pasted into a PostgREST filter expression. The
-  // generated database types predate the parameter.
+  // Search and filters are function arguments, applied in SQL as plain values
+  // (20260929000001) — never pasted into a PostgREST filter expression. The
+  // generated database types predate the parameters.
   const rpc = supabase.rpc.bind(supabase) as unknown as (
     fn: "get_customer_stats",
     args: Record<string, unknown>,
@@ -991,7 +1000,16 @@ export async function getCustomersPaginated({
   ) => ReturnType<typeof supabase.rpc<"get_customer_stats">>;
   let query = rpc(
     "get_customer_stats",
-    { p_search: search.trim() || null },
+    {
+      p_search: search.trim() || null,
+      p_from: f.from ?? null,
+      p_to: f.to ?? null,
+      p_min_orders: f.minOrders ?? null,
+      p_min_spent: f.minSpent ?? null,
+      p_joined_from: f.joinedFrom ?? null,
+      p_joined_to: f.joinedTo ?? null,
+      p_activity: f.activity ?? "any",
+    },
     { count: "exact" },
   );
 
