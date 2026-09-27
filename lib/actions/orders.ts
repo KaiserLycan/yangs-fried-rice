@@ -297,12 +297,18 @@ export async function getDetailedOrders(
     .order("created_at", { ascending: false })
     .range(filters.offset, filters.offset + filters.limit - 1);
 
-  if (filters.status) {
-    if (Array.isArray(filters.status) && filters.status.includes("payment_failed") && filters.status.includes("awaiting_payment")) {
-      // Special case: Payment Issues tab
-      const tenMinsAgo = new Date(Date.now() - 10 * 60000).toISOString();
-      query = query.or(`order_status.eq.payment_failed,and(order_status.eq.awaiting_payment,created_at.lte.${tenMinsAgo})`);
-    } else if (Array.isArray(filters.status)) {
+  if (filters.payment_issues) {
+    // Manager-only Payment Issues tab: refused payments, and online payments
+    // that have sat unpaid long enough that the customer is probably stuck.
+    if (auth.data.role !== "MANAGER") {
+      return { data: null, error: "Only managers can view payment issues." };
+    }
+    const stuckSince = new Date(Date.now() - STUCK_PAYMENT_MINUTES * 60000).toISOString();
+    query = query.or(
+      `order_status.eq.payment_failed,and(order_status.eq.awaiting_payment,created_at.lte.${stuckSince})`,
+    );
+  } else if (filters.status) {
+    if (Array.isArray(filters.status)) {
       query = query.in("order_status", filters.status);
     } else {
       query = query.eq("order_status", filters.status);
