@@ -50,7 +50,7 @@ export function OrderCard({ order, onClick, onAction }: OrderCardProps) {
   let headerBg = config.headerBg;
   if ((order.status === "QUEUE" || order.status === "PREP") && timerColor === "red") {
     headerBg = "bg-red-700 animate-pulse";
-  } else if (order.status === "PREP" && timerColor === "amber") {
+  } else if ((order.status === "QUEUE" || order.status === "PREP") && timerColor === "amber") {
     headerBg = "bg-amber-600";
   }
 
