@@ -5,7 +5,7 @@ import { isWalletMethod, paymentLabelFor } from "@/lib/orders/payment";
 import { foldPaymentStatus } from "@/lib/checkout/payment-status";
 import { orderItemName, orderItemUnitPrice } from "@/lib/orders/item-name";
 import { formatOrderTime } from "@/lib/checkout/order-time";
-import { seniorPwdBreakdown, type Fulfilment } from "@/lib/menu/cart-totals";
+import type { Fulfilment } from "@/lib/menu/cart-totals";
 
 /**
  * One order the customer has just placed, read back for its confirmation.
@@ -86,14 +86,18 @@ export async function readPlacedOrder(
     latestTxn?.discount_type === "senior_citizen" ||
     latestTxn?.discount_type === "pwd";
 
-  const menuTotal = lines.reduce(
-    (acc, l) => acc + l.unitPrice * l.quantity,
-    0,
-  );
+  // Read back what checkout saved rather than re-deriving it from the lines:
+  // the lines leave out order-level add-ons, and the saved figures are what
+  // the customer is actually charged (subtotal - discount_amount).
   const discount = isSeniorPwd
     ? {
         type: latestTxn.discount_type as "senior_citizen" | "pwd",
-        ...seniorPwdBreakdown(menuTotal),
+        vatExemptSales: Number(latestTxn.subtotal ?? 0),
+        discount: Number(latestTxn.discount_amount ?? 0),
+        total:
+          Math.round(
+            (Number(latestTxn.subtotal ?? 0) - Number(latestTxn.discount_amount ?? 0)) * 100,
+          ) / 100,
       }
     : null;
 
