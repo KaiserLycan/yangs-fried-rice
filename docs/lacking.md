@@ -4,11 +4,11 @@ Research date: September 2026. Compared against Jollibee, McDelivery PH, Mang In
 GrabFood and foodpanda (help centers, app store listings and news), plus Philippine laws that apply
 to online food ordering.
 
-**Short verdict:** the core flow matches what the big apps do. Menu, cart, add-ons, pickup or delivery,
-GCash/Maya, live tracking, rider queue, proof of delivery, KDS, reports and ratings are all in place,
-which is more than most school projects have. What's missing is mostly **legal compliance
-(Senior/PWD discount)**, **server-side rules for real-world edge cases**, and **marketing extras**
-(vouchers, rewards, scheduling).
+**Short verdict:** the core flow matches what the big apps do. Menu, cart, add-ons, pickup,
+GCash/Maya, live tracking, KDS, reports and ratings are all in place, and since the final run
+(29 Sep 2026) so are the Senior/PWD discount, the server-side ordering rules, refunds, tips and no-show
+handling. What's still missing is **marketing extras** (vouchers, rewards, scheduling) and features that
+need outside services or money (SMS, CAPTCHA keys, push notifications, BIR accreditation).
 
 The gaps that fit in 1.5 days have been **moved to [`limitations.md`](limitations.md)**. Everything below
 is too large for that time or needs outside services, accounts or money. List it as a known limitation or future work.
@@ -38,11 +38,11 @@ is too large for that time or needs outside services, accounts or money. List it
 | **Scheduled / advance orders** | foodpanda (up to 7 days ahead), Jollibee (up to 24 hours ahead) | Touches store hours, the ETA engine, KDS ordering, and payment timing. Around 1–2 days by itself. |
 | **Vouchers / promo codes** | Mang Inasal, Chowking, McDo, foodpanda | Needs a promo table, rules (expiry, usage limit, minimum spend, per-user limit), manager screens and abuse checks. |
 | **Loyalty points / birthday treats** | Chowking (free Halo-Halo on birthday), Jollibee rewards | Needs a points ledger, earning and redeeming rules, and fraud rules. |
-| **Staff tipping** | foodpanda (card/e-wallet) | Changes the PayMongo amount and reports. |
+| ~~**Staff tipping**~~ | foodpanda (card/e-wallet) | ✅ **Done (final run):** preset tips at checkout, recorded on the payment and in reports. |
 | **In-app chat (customer ↔ support)** | McDelivery live chat, foodpanda help chat | Needs realtime messages, moderation and staff inbox. |
 | **Card payments** | McDo, Chowking, Jollibee | PayMongo supports cards, but they need 3-D Secure handling and a separate test flow. |
-| **Automatic refunds** | All apps with online payment | When staff cancel a GCash/Maya order that was already paid, nothing returns the money. PayMongo has a Refunds API, but it needs a refund table, partial refunds and reporting. For now, list it as a manual process. |
-| **Failed pickup flow** (customer no-show) | Grab, foodpanda | Needs a new status, and rules on charging. |
+| ~~**Automatic refunds**~~ | All apps with online payment | ✅ **Done (final run):** `process-refunds` refunds cancelled wallet orders through PayMongo every 5 minutes; a refused one shows on the order and the dashboard with a link to the payment. Partial refunds are still manual. |
+| ~~**Failed pickup flow** (customer no-show)~~ | Grab, foodpanda | ✅ **Done (final run):** no-show reasons, strikes, a cash block after 2, and a manager prompt. |
 | **Live rider GPS** | Grab, foodpanda | N/A - pickup only. |
 | **Multiple branches / store picker** | Jollibee, McDo, Mang Inasal | Every table needs a `branch_id`. Too large a schema change. |
 | **Send to several addresses in one order** | McDelivery | N/A - pickup only. |
@@ -69,7 +69,7 @@ is too large for that time or needs outside services, accounts or money. List it
 | **Two-factor login for managers** | Supabase supports TOTP, but employee login uses its own signed cookie (`jose`), so 2FA would need wiring in two places. |
 | **CAPTCHA on sign-up and login** (Cloudflare Turnstile / hCaptcha) | Small (about 1–2 h), but needs a third-party account and keys. Do it next if time is left. The existing rate limit covers the main risk. |
 | ~~**Full audit log for manager actions**~~ | ✅ **Done (27 Sep 2026):** `audit_log` covers every employee action, append-only, at `/manage/audit-log`. Left: a retention period and CSV export. |
-| **Data retention / automatic deletion** (Data Privacy Act) | Deciding how long to keep orders, addresses and ID photos, then building jobs to purge them. |
+| ~~**Data retention / automatic deletion**~~ | ✅ **Done (final run):** `purge-expired-personal-data` runs nightly; ID photos go when the order ends. |
 | **Penetration test / dependency scanning in CI** | Needs a CI pipeline. The Phase 4 security report covers manual testing. |
 | **Concurrency tests for business logic** (OWASP WSTG 4.10: two checkouts at once, negative/huge numbers, skipping steps) | The fix for the double-order race is in `limitations.md`. A proper test suite that fires parallel requests against a real database is extra work. |
 
@@ -95,13 +95,13 @@ reports of viral posts (GMA News, Esquire PH, Inquirer, 8List), app-store review
 
 | Complaint | Where it was seen | Yang's today |
 |---|---|---|
-| Waited up to an hour with no confirmation | Mang Inasal app reviews | ◐ But an unaccepted order still waits forever (**L22**) |
+| Waited up to an hour with no confirmation | Mang Inasal app reviews | ✅ **Done.** Staff screens flash after 5 minutes and an order nobody accepts is cancelled automatically (L22) |
 | App said the order was successful but it had failed; card charged twice | Jollibee app reviews (Google Play, 2025) | ✅ **Better.** Wallet orders stay `awaiting_payment` until PayMongo's signed webhook confirms, and failures show a retry or switch-to-cash option |
-| Refund not received after a cancelled online payment, or given only as store credit | Mang Inasal reviews, foodpanda complaints | ❌ No refund flow (see Features table above) |
-| Missing, wrong or damaged items with nowhere to report them | foodpanda complaints, PissedConsumer, DoorDash/Uber Eats help flows | ❌ No report flow (**L24**) |
-| App's ready time didn't match the store's text message | Jollibee app reviews | ◐ The ETA updates live, but the first promise isn't saved (see `user-simulation.md`, persona 12) |
+| Refund not received after a cancelled online payment, or given only as store credit | Mang Inasal reviews, foodpanda complaints | ✅ **Done.** Automatic PayMongo refunds, with a manual fallback shown on the order |
+| Missing, wrong or damaged items with nowhere to report them | foodpanda complaints, PissedConsumer, DoorDash/Uber Eats help flows | ✅ **Done.** "Report a problem" for 24 hours after pickup, with a photo (L24) |
+| App's ready time didn't match the store's text message | Jollibee app reviews | ✅ **Done.** The first promise is saved (`promised_at`) and reports show how often it was kept |
 | Fees that only appear at the last step | Consumer Reports, US FTC settlements with Grubhub (2024) and Instacart (2025), UX case studies | ✅ **Good.** The cart shows the delivery fee, calculated from distance, before checkout |
-| Fake cash orders (₱1,700–₱15,000) | GMA News, Esquire PH | ◐ Cash cap and no-show guard planned (**L6**, **L18**, first-order cap added to L18) |
+| Fake cash orders (₱1,700–₱15,000) | GMA News, Esquire PH | ✅ **Done.** ₱2,000 cash cap, ₱1,000 on a first cash order, cash blocked after 2 no-shows |
 | Can't cancel once the restaurant has accepted | foodpanda terms | ✅ **Same rule.** Customers can cancel only while `pending` |
 
 ### UX findings from articles and case studies

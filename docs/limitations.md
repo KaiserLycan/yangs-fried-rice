@@ -8,36 +8,36 @@ Priority: **P1** = do first (legal, security or a real bug). **P2** = do if time
 
 | # | Gap | Priority | Estimate |
 |---|---|---|---|
-| 1 | Store hours are only checked in the browser | P1 | 0.5 h |
-| 2 | Cart is not re-checked at checkout (sold-out items, price changes) | P1 | 1 h |
-| 3 | Unpaid GCash/Maya orders never expire | P1 | 1 h |
-| 4 | No Senior Citizen / PWD discount | P1 | 3–4 h |
-| 5 | No security headers | P1 | 1 h |
-| 6 | No minimum order amount | P1 | 0.5 h |
+| 1 | ~~Store hours are only checked in the browser~~ | ✅ **Done (final run)** | — |
+| 2 | ~~Cart is not re-checked at checkout (sold-out items, price changes)~~ | ✅ **Done (final run)** | — |
+| 3 | ~~Unpaid GCash/Maya orders never expire~~ | ✅ **Done (final run)** | — |
+| 4 | ~~No Senior Citizen / PWD discount~~ | ✅ **Done (final run)** | — |
+| 5 | ~~No security headers~~ | ✅ **Done (final run)** | — |
+| 6 | ~~No minimum order amount~~ | ✅ **Done (final run)** | — |
 | 26 | ~~Live database is missing 5 migrations; RLS is off on `employee`~~ | ✅ **Done in #114** | — |
-| 27 | Pay-in-store sales never marked paid; payment values in 5 spellings | P1 | 1 h |
+| 27 | ~~Pay-in-store sales never marked paid; payment values in 5 spellings~~ | ✅ **Done (final run)** | — |
 | 28 | ~~Disabled accounts stay signed in; senior/PWD ID photos are public~~ | ✅ **Done in #114** | — |
-| 29 | Terms promise card payments and refunds that don't exist; map credits hidden | P1 | 1 h |
-| 30 | Orders page can't filter by date, customer, payment or type | P2 (high) | 2 h |
-| 31 | Customer list has no order totals or order history; loads every customer | P2 | 2 h |
-| 32 | Reports have no breakdowns and no CSV | P2 | 2.5 h |
+| 29 | ~~Terms promise card payments and refunds that don't exist; map credits hidden~~ | ✅ **Done (final run)** | — |
+| 30 | ~~Orders page can't filter by date, customer, payment or type~~ | ✅ **Done in #117** | — |
+| 31 | ~~Customer list has no order totals or order history; loads every customer~~ | ✅ **Done in #117** | — |
+| 32 | ~~Reports have no breakdowns and no CSV~~ | ✅ **Done in #117** | — |
 | 33 | ~~No error pages; `received` status is unreachable; real types live in "mock" files~~ | ✅ **Done in #118** | — |
 | 21 | ~~Customers can write orders straight into the database~~ | ✅ **Done in #114** | — |
 | 15 | ~~Placing an order is not atomic (double orders, half-saved orders)~~ | ✅ **Done in #114** | — |
-| 16 | A customer can delete their account before picking up | P1 | 0.5 h |
-| 7 | No "pause store" / busy mode | P2 | 1.5 h |
-| 8 | No "change for ₱___" on cash payments | P2 | 1 h |
-| 9 | No order status history (who changed what, when) | P2 | 1.5 h |
+| 16 | ~~A customer can delete their account before picking up~~ | ✅ **Done (final run)** | — |
+| 7 | ~~No "pause store" / busy mode~~ | ✅ **Done (final run)** | — |
+| 8 | ~~No "change for ₱___" on cash payments~~ | ✅ **Done (final run)** | — |
+| 9 | ~~No order status history (who changed what, when)~~ | ✅ **Done (final run)** | — |
 | 10 | ~~Notifications table exists but nothing writes to it~~ | ✅ **Done in #118** | — |
 | 11 | (Removed - Delivery disabled) | | |
 | 12 | ~~No printable receipt~~ | ✅ **Done in #118** | — |
-| 13 | No separate privacy notice or business details | **P1** (raised: the Internet Transactions Act has been enforced since June 2025) | 0.5 h |
-| 14 | No "Best seller" labels on the menu | P2 | 1 h |
-| 17 | KDS has no late-order warning or new-order sound | P2 | 1 h |
-| 18 | Nothing stops repeat pickup no-shows | P2 | 1 h |
-| 19 | No end-of-day cash summary at the counter | P2 | 1.5 h |
+| 13 | ~~No separate privacy notice or business details~~ | ✅ **Done (final run)** | — |
+| 14 | ~~No "Best seller" labels on the menu~~ | ✅ **Done (final run)** | — |
+| 17 | ~~KDS has no late-order warning or new-order sound~~ | ✅ **Done (final run)** | — |
+| 18 | ~~Nothing stops repeat pickup no-shows~~ | ✅ **Done (final run)** | — |
+| 19 | ~~No end-of-day cash summary at the counter~~ | ✅ **Done (final run)** | — |
 | 20 | ~~No "Order again" row on the menu~~ | ✅ **Done in #118** | — |
-| 22 | Nothing happens when staff don't accept an order | P2 (do first in P2) | 1 h |
+| 22 | ~~Nothing happens when staff don't accept an order~~ | ✅ **Done (final run)** | — |
 | 23 | ~~Add-ons can't be changed from the cart~~ | ✅ **Done in #118** | — |
 | 24 | ~~No way to report a missing or wrong item~~ | ✅ **Done in #118** | — |
 | 25 | ~~No accessibility check has been done~~ | ✅ **Done in #118** | — |
@@ -74,6 +74,8 @@ Philippine news and social media reports); see [`lacking.md`](lacking.md#round-3
 - **Pay-in-store fix (27):** `mark_pay_in_store_paid()` trigger (`20260928000005`, `20260928000011`). Payment spelling CHECK constraints need verification.
 - **Readable order number:** `order_no` sequence and column (`20260928000012`). UI usage needs verification.
 - **VAT on transactions:** `checkout_wallet_vat_promise` migration (`20260928000008`) adds VAT calculation. Checkout UI showing "VATable sales / VAT (12%) / Total" not yet verified.
+
+**Final run (29 Sep 2026):** every numbered item and panel point above is closed except F13 (CAPTCHA), which waits on Cloudflare Turnstile keys. Item by item, with the evidence, in [`FINALE.md`](../FINALE.md#final-status-29-sep-2026) and [`persona-review-final.md`](persona-review-final.md). The "partially addressed" notes above describe the state before that run.
 
 Remaining items are tracked in [`FINALE.md`](../FINALE.md). Items 30, 31, 32 and the KDS/cancel-reason enhancements were fully resolved and merged via PR #129 (Issue #117).
 
@@ -395,20 +397,20 @@ The panel's 25 points were checked against the code. The ones not already covere
 | F7 | ~~Type the quantity in the stepper~~ | ✅ **Done in #118** | — |
 | F12 | ~~Grey out photos of unavailable items~~ | ✅ **Done in #118** | — |
 | F16 | ~~Password strength on sign-up; remove birthday (add an age checkbox)~~ | ✅ **Done in #118** | — |
-| F17 | Show VAT at checkout and save `tax_amount` | **P1 (panel)** | 0.5 h |
-| F21 | 3RD PARTY COURIER / SELF PICKUP badge on KDS and order cards | **P1 (panel)** | 0.25 h |
-| F22 | Cancel button disabled until a reason is given; preset reasons | **P1 (panel)** | 0.25 h |
-| F6, F9 | Minimum item count and max items per delivery (with L6) | **P1 (panel)** | 0.25 h |
-| F11, F15 | Timed pause with countdown, automatic busy mode, pickup-only when riders are full (extends L7) | **P1 (repeated by Ma'am)** | 3 h |
-| F14 | "Customer no-show" status; strikes lead to cash block, then manager review | P2 | 2 h |
-| F24 | KDS sort toggle, list view, cancelled tab | P2 | 1.5 h |
-| F25 | Separate food and service ratings; per-item ratings with "rate all the same" | P2 | 2 h |
+| F17 | ~~Show VAT at checkout and save `tax_amount`~~ | ✅ **Done (final run)** | — |
+| F21 | ~~3RD PARTY COURIER / SELF PICKUP badge on KDS and order cards~~ | ✅ **Done (final run)** | — |
+| F22 | ~~Cancel button disabled until a reason is given; preset reasons~~ | ✅ **Done (final run)** | — |
+| F6, F9 | ~~Minimum item count and max items per delivery (with L6)~~ | ✅ **Done (final run)** | — |
+| F11, F15 | ~~Timed pause with countdown, automatic busy mode, pickup-only when riders are full (extends L7)~~ | ✅ **Done (final run)** | — |
+| F14 | ~~"Customer no-show" status; strikes lead to cash block, then manager review~~ | ✅ **Done (final run)** | — |
+| F24 | ~~KDS sort toggle, list view, cancelled tab~~ | ✅ **Done (final run)** | — |
+| F25 | ~~Separate food and service ratings; per-item ratings with "rate all the same"~~ | ✅ **Done (final run)** | — |
 | F23 | ~~Email on cancellation (with refund note for paid orders)~~ | ✅ **Done in #118** | — |
-| F4 | "Find a store" page | P2 | 1 h |
-| F18 | Per-item prep time in the ETA; keep the promised time | P2 | 2 h |
-| F1 | Promo banner managed by the manager | P2 | 2.5 h |
+| F4 | ~~"Find a store" page~~ | ✅ **Done (final run)** | — |
+| F18 | ~~Per-item prep time in the ETA; keep the promised time~~ | ✅ **Done (final run)** | — |
+| F1 | ~~Promo banner managed by the manager~~ | ✅ **Done (final run)** | — |
 | F13 | CAPTCHA on sign-up and login (moved from `lacking.md`) | P2 | 1.5 h |
-| F19 | Staff tips with preset amounts (moved from `lacking.md`) | P2 | 2 h |
+| F19 | ~~Staff tips with preset amounts (moved from `lacking.md`)~~ | ✅ **Done (final run)** | — |
 | F20 | ~~Record who created and cancelled each order~~ | ✅ **Done — employee audit log** (`/manage/audit-log`) | — |
 
 Panel P1 items add about 6 hours. Future work for the paper: group orders (F2), bulk and advance orders (F10), vouchers and games (F1).

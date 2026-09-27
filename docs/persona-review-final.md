@@ -70,6 +70,6 @@ applicable (the shop is pickup-only, so rider, delivery-fee and COD items no lon
 
 ## Left for the owner
 
-1. **Leaked-password protection** — Supabase dashboard → Authentication → Password security.
+1. **Leaked-password protection** — Supabase dashboard → Authentication → Password security (needs the Pro plan).
 2. **DTI/SEC registration number** for the footer and `/store` (Internet Transactions Act).
 3. **CAPTCHA (F13)** — needs Cloudflare Turnstile keys; not started by request.

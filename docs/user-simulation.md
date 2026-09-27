@@ -1,5 +1,7 @@
 # User simulation — 17 personas + hard questions through the UI
 
+> **Status, 29 Sep 2026:** this is a record of the build as it was then. The findings it raised are closed; see the final status table in [`FINALE.md`](../FINALE.md#final-status-29-sep-2026) and the re-walk in [`persona-review-final.md`](persona-review-final.md).
+
 Each persona "walks through" the system as it is on branch `more-things-to-update-yr`.
 This is a **code walkthrough, not a live test**: every difficulty below was traced to real code, and the file is
 named so you can check it. Items already planned in [`limitations.md`](limitations.md) or [`lacking.md`](lacking.md)

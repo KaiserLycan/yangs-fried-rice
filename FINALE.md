@@ -8,6 +8,63 @@
 
 ---
 
+## Final status (29 Sep 2026)
+
+Every item below, checked against the code and the live database at the end of the final run.
+The sections that follow are the original brief, kept as written.
+
+| # | Item | Status |
+|---|---|---|
+| 1.1 | Store hours on the server | ✅ `store_setting` + `submit_cart_to_order`; last-orders cut-off |
+| 1.2 | Senior Citizen / PWD discount | ✅ ID number, name, photo; 20% off VAT-exclusive; photo deleted after the order |
+| 1.3 | Minimum order, cash cap | ✅ ₱150 minimum, ₱2,000 cash cap, ₱1,000 first cash order |
+| 1.4 | VAT at checkout | ✅ VATable sales / VAT / Total; `tax_amount` saved |
+| 1.5 | Deleting an account before pickup | ✅ refused while an order is open |
+| 1.6 | Privacy notice, business details | ✅ `/privacy`, `/store`, footer — DTI/SEC number still to be supplied by the owner |
+| 1.7 | Terms accurate | ✅ |
+| 1.8 | Pay-in-store marked paid | ✅ `mark_pay_in_store_paid` on pickup |
+| 2.1 | Pause, auto-reopen, busy mode | ✅ dashboard store controls |
+| 2.2 | No-show status and strikes | ✅ reasons, strikes, cash block, manager prompt |
+| 2.3 | Food / service / per-dish ratings | ✅ rating dialog, `submit_order_ratings`, service rating in reports |
+| 2.4 | "Find a store" page | ✅ `/store` |
+| 2.5 | Prep time in the ETA; keep the promise | ✅ `prep_minutes`, `promised_at` frozen |
+| 2.6 | Promo banner managed by the manager | ✅ `/manage/promotions` and the landing carousel |
+| 2.7 | CAPTCHA | ❌ not started, by the owner's decision — needs Cloudflare Turnstile keys |
+| 2.8 | Tips | ✅ preset amounts at checkout |
+| 3.1 | Unpaid wallet orders expire | ✅ `expire-abandoned-orders`, every 5 min |
+| 3.2 | "Change for ₱___" | ✅ |
+| 3.3 | Order status history | ✅ `order_status_log`; tracking timeline and staff "History" |
+| 3.4 | Best-seller labels | ✅ |
+| 3.5 | Repeat no-shows | ✅ see 2.2 |
+| 3.6 | Unaccepted orders | ✅ staff flash at 5 min, auto-cancel (`expire-unaccepted-orders`) |
+| 4.1 | GCash vs Maya | ✅ recorded separately (older rows stay `paymongo`) |
+| 4.2 | Manila-time reports | ✅ |
+| 4.3 | ETA accuracy | ✅ "Ready on time" rate on the performance report and PDF |
+| 4.4 | Webhook replay window | ✅ 5 minutes |
+| 4.5 | Session secret fallback | ✅ none in production |
+| 5.1–5.3 | Colours, type scale, radii, `<Button>` | ✅ enforced by `__tests__/design-scale.test.ts` |
+| 5.4 | Copy glossary | ✅ `docs/copy-glossary.md` |
+| 5.5 | Readable order number | ✅ `order_number` |
+| 6.1 | Minors | ✅ 18+ / parent's permission checkbox |
+| 6.2 | Data retention | ✅ `purge-expired-personal-data`, nightly |
+| 6.3 | Account deletion erases free text | ✅ |
+| 7.1 | Payment CHECK constraints | ✅ method and status |
+| 7.2 | Order status CHECK | ✅ `order_status_check` (migration `20260929140000`) + transition trigger |
+| 7.3 | `received` status | ✅ removed from the database and the app |
+| 9.1 | Out-of-stock trap | ✅ checkout highlights the sold-out line; "Remove sold-out items" |
+| 9.2 | Ghost wallet | ✅ receipt watches the payment settle; store phone on `/store` and the footer |
+| 9.3 | Review follow-up | ✅ ratings link to the order and the customer's phone (dashboard, menu editor) |
+| 9.4 | Refund maze | ✅ automatic refunds; a failed one shows on the order with "Open in PayMongo" |
+| 9.5 | Top customers | ✅ sortable customer list with totals (#117) |
+| 9.6 | Disappearing ticket | ✅ KDS cancelled tab (#117) |
+| 9.7 | Who cancelled | ✅ audit search by order, and "History" on the order |
+| 9.8 | Lost favourite | ✅ My Orders search and "show older" |
+| 9.9 | Irreversible click | ✅ undo "Picked up" within 10 minutes |
+| 9.10 | Silent price hike | ✅ old → new price on the line; "Accept new prices" |
+| 9.11 | Disabled dead end | ✅ told at password reset and login |
+
+---
+
 ## Status Legend
 
 | Symbol | Meaning |

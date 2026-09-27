@@ -1,5 +1,7 @@
 # Unimplemented Issues and Tasks
 
+> **Status, 29 Sep 2026:** this is a record of the build as it was then. Everything it lists is closed except leaked-password protection (a Supabase Pro-plan setting); see the final status table in [`FINALE.md`](../FINALE.md#final-status-29-sep-2026) and the re-walk in [`persona-review-final.md`](persona-review-final.md).
+
 This document tracks all the pending/unimplemented acceptance criteria from open issues regarding the backend, frontend, and API. It has been updated to reflect the current state of the codebase.
 
 ## Issue #114: Part 1: Security, Database & Privacy Enhancements

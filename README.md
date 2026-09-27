@@ -10,14 +10,16 @@ The shop is **pickup-only** (issue #114). There is no delivery or rider role; a 
 **Customers**
 - Browse the menu, add to cart, and check out for pickup.
 - Pay in store, or with GCash or Maya (through PayMongo).
-- Track the order live, cancel while it is still pending, rate the order and reorder.
-- Manage their profile, photo, addresses and password. Forgot-password works by email.
+- Track the order live (also from a share link, without signing in), cancel while it is still pending, report a missing or wrong item, rate the food, the service and each dish, and reorder.
+- Senior Citizen / PWD discount with an ID photo, a tip for the staff, and "I'll pay with ₱___" for cash.
+- If a dish sells out or a price changes before the order goes through, checkout points at the line and offers to remove it or accept the new price.
+- Manage their profile, photo and password. Forgot-password and "Resend confirmation email" work by email.
 
 **Staff and Managers** (`/manage`)
-- Orders page with status tabs, search by order number, and a detail view.
-- Kitchen Display System (KDS) for the cooking queue.
-- Menu, categories and add-ons, with archiving instead of deleting.
-- Manager only: dashboard, sales reports with PDF export, customer and employee management, and the **audit log** (`/manage/audit-log`) — every action staff and managers take, who took it and when, with before/after values.
+- Orders page with status tabs, search by number, name or phone, filters, and a detail view with the order's status history and its refund.
+- Kitchen Display System (KDS) for the cooking queue: late-order colours, new-order chime, sort and view toggles, a cancelled tab, and a **Sold out** switch.
+- Menu, categories and add-ons, with archiving instead of deleting; each dish's reviews link to the order and the customer's phone.
+- Manager only: dashboard (store pause/busy controls, refunds, latest ratings), reports with PDF and CSV (payment, hour, weekday and cancellation breakdowns, food/service ratings, ready-on-time rate), customer and employee management, promotions, and the **audit log** (`/manage/audit-log`).
 
 ### User roles
 
@@ -60,32 +62,34 @@ A **disabled** account (`is_account_disabled`) is refused by every server guard 
 ## Business rules
 
 **Orders**
-- Order status flow: `pending` → `preparing` → `ready` → `completed` ("Picked up"). It can be `cancelled` along the way. Nothing new can move to `out_for_delivery`; legacy orders already there can still be completed by staff.
-- Every order is `take_out` or `dine_in`, with no delivery fee or address. The database refuses anything else.
+- Order status flow: `pending` → `preparing` → `ready` → `completed` ("Picked up"). It can be `cancelled` along the way, and "Picked up" can be undone within 10 minutes. The database enforces this with a CHECK on `order_status` and the `guard_order_status` trigger, which mirror `VALID_TRANSITIONS` in `lib/validation/orders.ts`. `out_for_delivery` is kept only so legacy orders can be finished.
+- New orders are `take_out`, with no delivery fee or address. `delivery` survives on orders from before issue #114; a CHECK refuses anything else.
 - Orders are placed only through the `submit_cart_to_order` database function (see below). Customers cannot insert into the order tables directly.
 - GCash and Maya orders start as `awaiting_payment`. They only reach the kitchen (`pending`) once PayMongo confirms the money. A refused payment becomes `payment_failed`, and the customer can retry. Unpaid orders are hidden from staff.
 - Pay-in-store orders are `pending` straight away.
 - A customer can cancel only while the order is `pending`, and the cancel can change nothing but the status and the cancellation fields.
 - Staff must give a reason when cancelling. The customer sees it on the tracking page.
-- The order number is the first 8 characters of the order id, e.g. `#69403b15`. Search matches from the start of it.
+- Orders have a readable number (`order.order_number`, e.g. `#1042`). Search takes the number, or the start of the order id for old links.
 - Each order line saves the item's name and price at the time of ordering. Products are archived, not deleted, so old orders never show "Unknown item".
 - Order lists show newest first. The KDS is the exception: it stays oldest first so the kitchen cooks in order.
-- A customer rates the whole order once: 1–5 stars and an optional comment.
+- A customer rates an order once: food (required) and service (optional), 1–5 stars, an optional comment, and optionally each dish ("Rate all the same" copies the food score). Written by `submit_order_ratings`.
+- Minimum order ₱150. Pay in store is capped at ₱2,000, at ₱1,000 for a first cash order, and blocked after 2 no-shows (`lib/checkout/order-rules.ts`; the database checks again).
 
 **Pickup**
 - The ready-time estimate comes from the kitchen queue size (`lib/eta/engine.ts`).
-- Cart quantities are 1–99 per line, enforced by the forms and by a database CHECK.
+- The ready-by time promised at checkout is saved as `promised_at` and never changed; reports compare it with `ready_at`.
+- Up to 20 of one dish per line and 30 items per order, enforced by the forms and by the database.
 
 **Accounts**
-- Customers must be at least 13. Employees must be at least 18.
+- Sign-up asks customers to confirm they are at least 18 or have a parent's permission.
 - New passwords need at least 8 characters, with a lowercase letter, an uppercase letter, a number and a symbol. This matches the Supabase Auth password settings; the forms check it first (`newPasswordSchema` in `lib/validation/fields.ts`). Sign-in only checks length, so older passwords still work.
 - Phone numbers use one format: `+63 9XX XXX XXXX`.
 - Photos (profile, employee, menu) must be under 5MB. Senior Citizen / PWD ID photos must be under 2MB.
 - Sign-in is locked for 15 minutes after 5 wrong passwords on one email, or 30 from one IP address.
-- Names and addresses are stored in parts (`first_name`/`last_name`; `building_no`/`street`/`barangay`/`city`/`zip_code`). The database builds `name` and `address_details` from them. Write the parts, never the combined column. Length limits live in `lib/validation/fields.ts`.
+- Names are stored in parts (`first_name`/`last_name`); the database builds `name` from them. Write the parts, never `name`. Length limits live in `lib/validation/fields.ts`.
 
 **Store hours**
-- Open 8:00 AM to 5:59 PM, Manila time (`lib/store-hours.ts`).
+- Opening hours, the last-orders cut-off, pause and busy limits live in `store_setting` and are changed from the dashboard (defaults 08:00–18:00, Manila time; `lib/store-hours.ts`). `submit_cart_to_order` checks them, so the browser cannot order outside hours.
 
 ---
 
@@ -107,7 +111,10 @@ A **disabled** account (`is_account_disabled`) is refused by every server guard 
 - `submit_cart_to_order` — the only way to place an order. In one transaction it locks the cart (`SELECT … FOR UPDATE`), stops if the cart is already final, refuses unavailable items, prices every line from `product` / `add_on`, writes the order, lines, add-ons and payment row, and marks the cart final. A unique index on `order.cart_id` means one cart can never make two orders. Errors carry a code in `hint` (`CART_LOCKED`, `ITEM_UNAVAILABLE`, `ACCOUNT_DISABLED`, …) that `submitCart` passes to the UI. Signed-in users only.
 - `current_employee_role` — the caller's role, or null for a customer or a **disabled** employee. Staff policies go through it.
 - `get_customer_order_history` — the customer's My Orders list, newest first.
-- `submit_order_review` — saves an order's rating.
+- `submit_order_ratings` — saves an order's food and service scores, comment and per-dish ratings (`submit_order_review` is the older single-score version, still used by the REST route).
+- `get_store_status` — open/closed, paused, busy, and the hours, for the menu and checkout.
+- `get_public_order_tracking` — the tracking page behind a share link (`/track/<id>?t=<token>`), for someone not signed in.
+- Report functions (`get_payment_method_breakdown`, `get_sales_by_hour`, `get_sales_by_weekday`, `get_cancellation_reason_breakdown`, `get_cash_remitted_daily`, `get_customer_stats`) — each refuses anyone but a manager.
 - `record_employee_action` — adds an `audit_log` entry for what the trigger can't see: service-role writes (creating, editing, deleting employees; photos), password changes and resets (never the password), sign-in and sign-out, and report exports. The actor comes from the session, never a parameter; each action is checked (employee management and exports need a manager; session events, own photo and own account deletion must be about the caller). A customer calling it gets nothing written. Call it through `lib/audit/record-employee-action.ts`, which never throws.
 
 Every `SECURITY DEFINER` function has `search_path = public` pinned.
@@ -125,7 +132,7 @@ Every `SECURITY DEFINER` function has `search_path = public` pinned.
 Every public table has RLS on. An `employee` row is readable by that employee and by staff, and writable by that employee or a manager. Creating and deleting employees goes through the service role after a manager check (`lib/actions/admin.ts`).
 
 ### Realtime
-Screens update live from these tables: `order`, `transaction`, `product`, `categories`.
+Screens update live from the tables in the `supabase_realtime` publication: `order`, `order_status_log` and `notification` (tracking, the KDS, the orders page and the notification bell).
 
 ### Storage buckets
 | Bucket | Public? | Holds |
@@ -134,17 +141,27 @@ Screens update live from these tables: `order`, `transaction`, `product`, `categ
 | `avatars` | Yes | Customer profile photos |
 | `emp-pfp` | Yes | Employee profile photos |
 | `senior-pwd-ids` | **No** | Senior Citizen / PWD ID photos, under `<customer id>/…`. A customer sees only their own folder; staff can read and delete. Show a photo with a signed URL (5 minutes at most) from `lib/storage/senior-pwd-ids.ts`, and store the path, never a URL. |
-| `proof-of-delivery` | **No** | Old rider photos from before pickup-only. Nothing writes to it. |
+| `order-issue-photos` | **No** | Photos attached to "Report a problem", under `<customer id>/…`. Staff read them through signed URLs. |
+| `promotion-images` | Yes | Landing-page promo banners |
 
 ### Edge functions
 - `create-payment-intent` — starts a PayMongo payment.
-- `payment-webhook` — receives PayMongo's result and moves the order out of `awaiting_payment`.
+- `payment-webhook` — receives PayMongo's result (signature and 5-minute replay window checked) and moves the order out of `awaiting_payment`.
+- `process-refunds` — every 5 minutes, refunds cancelled paid wallet orders through PayMongo. One PayMongo refuses becomes `refund_failed`; the order and the dashboard link straight to the payment in PayMongo so a manager can refund it by hand.
 
 These need Supabase Function secrets: `PAYMONGO_SECRET_KEY`, `PAYMONGO_WEBHOOK_SECRET`.
 
+### Scheduled jobs (pg_cron)
+- `expire-abandoned-orders` — cancels unpaid wallet orders after 30 minutes.
+- `expire-unaccepted-orders` — cancels orders staff never accepted.
+- `process-refunds` — calls the edge function above.
+- `purge-expired-personal-data` — nightly retention clean-up (Data Privacy Act).
+
 ### Other tables worth knowing
 - `login_attempt` — failed sign-ins for rate limiting. Service role only. Emails are stored hashed.
-- `archive.rider`, `archive.delivery` — copies of the dropped rider and delivery tables, kept in case of disputes. The `archive` schema is not exposed through the API.
+- `order_status_log` — every status change, who made it and why. Feeds the tracking timeline and the staff "History".
+- `product_price_log` — every menu price change and who made it.
+- `order_issue` — "Report a problem" submissions.
 
 ---
 
@@ -171,7 +188,7 @@ These need Supabase Function secrets: `PAYMONGO_SECRET_KEY`, `PAYMONGO_WEBHOOK_S
 
 3. **Database**
 
-   `supabase/migrations/` holds two files: `20260929100000_baseline.sql` (the whole public schema, dumped from the live project) and `20260929100001_platform_setup.sql` (storage buckets and policies, `auth.users` triggers, the pg_cron schedule). Apply them with `npx supabase db push`, or `npx supabase db reset` locally (which also runs `supabase/seed.sql`). The 57 incremental migrations they replace are in git history at commit `a9af4d1`. The `process-refunds` cron job reads two Vault secrets, `project_url` and `refund_cron_secret`; create them on a new project.
+   `supabase/migrations/` starts with `20260929100000_baseline.sql` (the whole public schema, dumped from the live project) and `20260929100001_platform_setup.sql` (storage buckets and policies, `auth.users` triggers, the pg_cron schedule); the files after them are the final run's changes. Apply them with `npx supabase db push`, or `npx supabase db reset` locally (which also runs `supabase/seed.sql`). The 57 incremental migrations the baseline replaces are in git history at commit `a9af4d1`. The `process-refunds` cron job reads two Vault secrets, `project_url` and `refund_cron_secret`; create them on a new project.
 
    Prefer `db push` to pasting SQL into the dashboard or applying it through an MCP tool. Those record the migration under a new timestamp, and the next `db push` then reports that the history does not match. If that happens, run `npx supabase migration repair`: mark the timestamp versions `reverted` and the real file versions `applied`, but only for migrations that really ran.
 
@@ -179,9 +196,9 @@ These need Supabase Function secrets: `PAYMONGO_SECRET_KEY`, `PAYMONGO_WEBHOOK_S
 
    **Clean up and add demo data** (needs `SUPABASE_SERVICE_ROLE_KEY`):
    ```bash
-   npm run db:cleanse                  # dry run: lists rows it would remove or repair
-   npm run db:cleanse -- --apply       # does it (add --wipe-orders for an empty order history)
-   npm run db:seed                     # menu, staff, NCR customers, 30 days of pickup orders
+   npm run db:cleanse                  # dry run: lists test accounts and broken rows it would fix
+   npm run db:cleanse -- --apply       # does it
+   npm run db:seed                     # menu, staff, customers, 30 days of pickup orders
    npm run db:seed -- --reset          # replace the demo data
    ```
 
@@ -243,7 +260,7 @@ lib/
 supabase/
   migrations/      # Database changes, applied in filename order
   functions/       # PayMongo edge functions
-scripts/           # db-cleanse, db-seed
+scripts/           # db-cleanse, db-seed, simulate-paymongo-webhook
 __tests__/         # Component and security tests (unit tests sit next to their files in lib/)
 docs/              # Audits, handoffs, screenshots
 ```
@@ -253,11 +270,13 @@ docs/              # Audits, handoffs, screenshots
 - [`docs/unimplemented_issues.md`](docs/unimplemented_issues.md) — what is still open.
 - [`docs/issue-106-followups.md`](docs/issue-106-followups.md) — QA follow-ups from issue #106.
 - [`docs/phase4-security-testing-report.md`](docs/phase4-security-testing-report.md) — security testing results.
-- [`docs/limitations.md`](docs/limitations.md) — known gaps and their status. Issues #114 and #118 closed many items; migrations `20260928000003`–`20260928000015` partially address several more.
+- [`docs/HANDOFF.md`](docs/HANDOFF.md) — what the final run did and what is left. Start here.
+- [`docs/persona-review-final.md`](docs/persona-review-final.md) — the 15 persona checklists walked against the final build.
+- [`docs/limitations.md`](docs/limitations.md) — the gaps found during development and their status.
+- [`docs/validation-testing-plan.md`](docs/validation-testing-plan.md) — manual test steps by role.
 - [`docs/lacking.md`](docs/lacking.md) — features too large for the development window. Compared against Jollibee, McDelivery PH, Mang Inasal, Chowking, GrabFood, foodpanda and Philippine law.
 - [`docs/feedback-verification.md`](docs/feedback-verification.md) — panel feedback points verified against the code. 25 points checked.
 - [`docs/user-simulation.md`](docs/user-simulation.md) — 17 persona walkthroughs plus 12 hard UI questions. The personas used to verify changes live in `.agents/skills/`.
 - [`docs/copy-glossary.md`](docs/copy-glossary.md) — one name per status, one spelling, one order-type word.
 - [`docs/comparison.md`](docs/comparison.md) — feature comparison with similar ordering systems.
-- [`docs/reference/`](docs/reference/) — business case, storage draft, handoffs.
-- [`FINALE.md`](FINALE.md) — comprehensive list of all remaining unimplemented features for one final implementation run. Excludes issue #117 items.
+- [`FINALE.md`](FINALE.md) — the final run's task list, with each item's status.
