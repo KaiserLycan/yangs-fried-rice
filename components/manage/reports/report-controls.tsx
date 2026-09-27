@@ -229,7 +229,8 @@ export function ReportDateFilters({
         <span>{isExporting ? "Generating..." : "Export to PDF"}</span>
       </button>
 
-      {reportType === SALES_REPORT && isManager && (
+      {/* Both report views export; the server checks for a manager too. */}
+      {isManager && (
         <button
           onClick={handleExportCSV}
           disabled={isExportingCSV || isExporting || !startDate || !endDate || endDate < startDate}
