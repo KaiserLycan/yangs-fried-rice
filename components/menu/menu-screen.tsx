@@ -89,7 +89,10 @@ export function MenuScreen({
   const [isGuest, setIsGuest] = React.useState(false);
   React.useEffect(() => {
     let active = true;
-    profilePromise
+    // A promise passed from a Server Component arrives as React's Flight
+    // chunk, whose `.then()` returns undefined — chaining `.catch` on it
+    // throws. Promise.resolve adopts it into a real promise first.
+    Promise.resolve(profilePromise)
       .then((profile) => {
         if (active) setIsGuest(profile === null);
       })

@@ -33,7 +33,9 @@ export function OrderAgainRow({ ordersPromise }: { ordersPromise: Promise<Recent
 
   React.useEffect(() => {
     let active = true;
-    ordersPromise
+    // From a Server Component this is React's Flight chunk, whose `.then()`
+    // returns undefined; Promise.resolve makes it chainable.
+    Promise.resolve(ordersPromise)
       .then((next) => {
         if (active) setOrders(next);
       })
