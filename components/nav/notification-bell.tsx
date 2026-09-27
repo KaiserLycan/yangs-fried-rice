@@ -16,6 +16,7 @@ import {
   type NotificationRow,
 } from "@/lib/notifications/notifications";
 import { cn } from "@/lib/utils";
+import { uniqueChannelName } from "@/lib/supabase/channel-name";
 
 /**
  * The bell in the nav bar (limitations #10, issue #118): an unread count
@@ -85,7 +86,7 @@ export function NotificationBell({ className }: { className?: string }) {
   React.useEffect(() => {
     if (!supabase || !userId) return;
     const channel = supabase
-      .channel(`notifications-${userId}`)
+      .channel(uniqueChannelName(`notifications-${userId}`))
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "notification", filter: `customer_id=eq.${userId}` },

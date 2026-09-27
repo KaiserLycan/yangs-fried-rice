@@ -31,6 +31,7 @@ import type { CustomerProfile } from "@/lib/profile/customer-profile";
 import type { CartRead } from "@/lib/cart/read-cart";
 import type { RecentOrder } from "@/lib/orders/read-recent-orders";
 import { createClient } from "@/lib/supabase/client";
+import { uniqueChannelName } from "@/lib/supabase/channel-name";
 
 /** Debounce for the search field, so every keystroke doesn't fire a request. */
 const SEARCH_DEBOUNCE_MS = 250;
@@ -160,7 +161,7 @@ export function MenuScreen({
   React.useEffect(() => {
     const supabase = createClient();
     const channel = supabase
-      .channel("menu-changes")
+      .channel(uniqueChannelName("menu-changes"))
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "product" },

@@ -14,6 +14,7 @@ import {
   type PaymentStatus,
 } from "@/lib/checkout/payment-status";
 import { createClient } from "@/lib/supabase/client";
+import { uniqueChannelName } from "@/lib/supabase/channel-name";
 
 /**
  * The payment block on the receipt, and the one part of that screen that
@@ -88,7 +89,7 @@ export function PaymentStatusCard({
   React.useEffect(() => {
     const supabase = createClient();
     const channel = supabase
-      .channel(`order-payment-${orderId}`)
+      .channel(uniqueChannelName(`order-payment-${orderId}`))
       .on(
         "postgres_changes",
         {

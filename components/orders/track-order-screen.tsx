@@ -29,6 +29,7 @@ import {
   OrderRatingDisplay,
   RateOrderButton,
 } from "@/components/orders/order-rating";
+import { uniqueChannelName } from "@/lib/supabase/channel-name";
 
 /**
  * The tracking screen. Desktop (`133:1164`) is two columns — header, timeline
@@ -141,7 +142,7 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
     // Pickup-only (issue #114): every stage comes from `order` now, so one
     // subscription is the whole journey.
     const channel = supabase
-      .channel(`order-tracking-${orderId}`)
+      .channel(uniqueChannelName(`order-tracking-${orderId}`))
       .on(
         "postgres_changes",
         {
