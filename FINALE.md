@@ -1,8 +1,10 @@
 # FINALE — Unimplemented Features for One Final Run
 
-> **Purpose:** Every gap found across the docs (`feedback-verification.md`, `lacking.md`, `limitations.md`, `user-simulation.md`), the persona skills review, and the current codebase — **excluding items that belong to issue #117** (manager/staff workflows & reports: order filtering, customer list pagination/totals, report breakdowns/CSV, payment-issues tab, cash-remitted table, price-change restriction/log, KDS amber/red/chime/sort/grid/cancelled-tab, cancel-reason presets, courier badge, KDS sidebar link).
+> **Purpose:** Every gap found across the docs (`feedback-verification.md`, `lacking.md`, `limitations.md`, `user-simulation.md`), the persona skills review, and the current codebase.
 >
-> Each item is verified against the code as of 27 Sep 2026.
+> **Note:** PR #129 (Issue #117) has now been merged into `development`, which resolved all manager/staff workflows (KDS tabs, report CSVs, payment-issues, customer server-side pagination, cancel reasons, etc.) and laid the database foundations for many items below.
+> 
+> Each item below is verified against the code as of 28 Sep 2026.
 
 ---
 
@@ -271,9 +273,9 @@ These are explicitly **too large** for the remaining time. List them in the pape
 
 ---
 
-## Cross-Reference: What Issue #117 Covers (Excluded from This List)
+## Cross-Reference: Issue #117 (MERGED via PR #129)
 
-For reference, these items are assigned to issue #117 and are **not** in this document:
+For reference, these items were assigned to issue #117 and are **now fully merged** into `development`:
 
 - Order page: date-range filter, customer name/phone search, payment-method filter, order-type filter (L30)
 - Manager-only "Payment issues" tab for `awaiting_payment`/`payment_failed` orders
@@ -347,3 +349,9 @@ To ensure we understand *why* these features matter, we simulated the most frust
 - **Scenario:** A customer's account gets disabled by the manager after 3 unpaid no-shows. A month later, the customer requests a password reset. Supabase Auth happily sends the reset email, and they successfully set a new password. But when they try to log in, `is_account_disabled` silently kicks them out without a specific "Your account is banned" message. They get stuck in a frustrating reset loop.
 - **Persona Review (Mark — Regular Customer):** *"If you let me reset my password but won't let me log in, just tell me my account is banned! Don't let me go through the whole email reset process for nothing."*
 - **Ties to:** L18 (Nothing stops repeat no-shows gracefully) and generic Auth error handling.
+
+
+# More things:
+- Easy statistics analysis for the manager. On menu management and ordermanagemnt a quicks stats overview like total order completed, cancelled, failed, etc. 
+- Add advance searching, filtering and sorting on customers, order managemnt, menu managemnt, employee management, and and audit logs.
+- if the user is not logged in, the should still be able to receive updates about their order status.

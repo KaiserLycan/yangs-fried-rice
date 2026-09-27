@@ -75,7 +75,7 @@ Philippine news and social media reports); see [`lacking.md`](lacking.md#round-3
 - **Readable order number:** `order_no` sequence and column (`20260928000012`). UI usage needs verification.
 - **VAT on transactions:** `checkout_wallet_vat_promise` migration (`20260928000008`) adds VAT calculation. Checkout UI showing "VATable sales / VAT (12%) / Total" not yet verified.
 
-Remaining items are tracked in [`FINALE.md`](../FINALE.md). Items 30, 31, 32 and the KDS/cancel-reason enhancements are assigned to issue #117.
+Remaining items are tracked in [`FINALE.md`](../FINALE.md). Items 30, 31, 32 and the KDS/cancel-reason enhancements were fully resolved and merged via PR #129 (Issue #117).
 
 ---
 

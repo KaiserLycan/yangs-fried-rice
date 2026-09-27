@@ -885,6 +885,7 @@ export type Database = {
           product_id: string | null
           rating: number | null
           review_id: string
+          service_rating: number | null
         }
         Insert: {
           comment?: string | null
@@ -894,6 +895,7 @@ export type Database = {
           product_id?: string | null
           rating?: number | null
           review_id?: string
+          service_rating?: number | null
         }
         Update: {
           comment?: string | null
@@ -903,6 +905,7 @@ export type Database = {
           product_id?: string | null
           rating?: number | null
           review_id?: string
+          service_rating?: number | null
         }
         Relationships: [
           {
@@ -1168,6 +1171,16 @@ export type Database = {
       }
       submit_direct_product_review: {
         Args: { p_comment?: string; p_product_id: string; p_rating: number }
+        Returns: Json
+      }
+      submit_order_ratings: {
+        Args: {
+          p_comment?: string
+          p_food: number
+          p_items?: Json
+          p_order_id: string
+          p_service?: number
+        }
         Returns: Json
       }
       submit_order_review: {
