@@ -49,6 +49,7 @@ import {
 } from "@/lib/storage/stored-image";
 import { removeStoredImage } from "@/lib/storage/remove-stored-image";
 import { recordEmployeeAction } from "@/lib/audit/record-employee-action";
+import { customerFiltersSchema, type CustomerFilters } from "@/lib/validation/customer-filters";
 
 /**
  * `{ column: { from, to } }` for the columns `updates` actually changes, the
