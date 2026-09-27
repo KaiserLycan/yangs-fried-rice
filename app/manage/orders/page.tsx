@@ -10,6 +10,7 @@ import { OrderDetailModal } from "@/components/manage/orders/order-detail-modal"
 import { CancelReasonModal } from "@/components/manage/orders/cancel-reason-modal";
 import { OpenIssuesPanel } from "@/components/manage/orders/open-issues-panel";
 import { ManagePagination } from "@/components/manage/manage-pagination";
+import { OrderFilterPopover, type OrderFilterState } from "@/components/manage/orders/order-filter-popover";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast, ToastProvider } from "@/components/ui/toast";
@@ -57,6 +58,7 @@ function ManageOrdersInner() {
   // until typing pauses so each keystroke is not a round trip.
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  const [advancedFilters, setAdvancedFilters] = useState<OrderFilterState>({});
   useEffect(() => {
     const timer = setTimeout(() => {
       setSearch(searchInput.trim());
@@ -110,7 +112,7 @@ function ManageOrdersInner() {
       setOrders(mappedOrders);
     }
     setIsLoading(false);
-  }, [activeStatus, currentPage, pageSize, search, showToast]);
+  }, [activeStatus, currentPage, pageSize, search, advancedFilters, showToast]);
 
   useEffect(() => {
     fetchOrders();

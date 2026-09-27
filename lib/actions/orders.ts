@@ -6,6 +6,7 @@ import {
   EMPLOYEE_ACCOUNT_DISABLED_MESSAGE,
 } from "@/lib/auth/account-status";
 import { resolveEmployeeRole, canAccessManage, type EmployeeRole } from "@/lib/auth/roles";
+import { requireRole } from "@/lib/actions/admin";
 import {
   orderStatusSchema,
   isValidTransition,
@@ -644,7 +645,7 @@ async function _fetchPaymentIssuesBase(supabase: ReturnType<typeof createClient>
         continue;
       }
       if (order.order_status === "awaiting_payment") {
-        const elapsedMins = (now - new Date(order.created_at).getTime()) / 60000;
+        const elapsedMins = (now - new Date(order.created_at as string).getTime()) / 60000;
         if (elapsedMins >= 5) {
           issues.push({ type: "payment_failed", order });
           continue;
@@ -655,7 +656,7 @@ async function _fetchPaymentIssuesBase(supabase: ReturnType<typeof createClient>
     // 2. pickup_overdue
     const isCash = ["pay_in_store", "pay-in-store", "cash"].includes(paymentMethod);
     if (order.order_status === "ready" && (order.order_type === "take_out" || order.order_type === "pickup") && isCash && order.ready_at) {
-      const elapsedMins = (now - new Date(order.ready_at!).getTime()) / 60000;
+      const elapsedMins = (now - new Date(order.ready_at as string).getTime()) / 60000;
       if (elapsedMins >= 90) {
         issues.push({ type: "pickup_overdue", order });
       }
@@ -670,12 +671,12 @@ export async function getPaymentIssuesForKds(): Promise<ActionResult<PaymentIssu
   const auth = await requireManageAccess();
   if (!auth.data) return { data: null, error: auth.error };
   const supabase = createClient();
-  return _fetchPaymentIssuesBase(supabase);
+  return _fetchPaymentIssuesBase(supabase, true);
 }
 
 export async function getPaymentIssuesForAdmin(): Promise<ActionResult<PaymentIssueOrder[]>> {
   const auth = await requireRole("MANAGER");
   if (!auth.data) return { data: null, error: auth.error };
   const supabase = createClient();
-  return _fetchPaymentIssuesBase(supabase);
+  return _fetchPaymentIssuesBase(supabase, false);
 }

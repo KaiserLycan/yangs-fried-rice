@@ -108,6 +108,7 @@ export const orderFilterSchema = z.object({
   /** Start of an order id, as printed on the card — "#6940" (P52). */
   search: z.string().max(40).optional(),
   customer_name: z.string().optional(),
+  customer_id: z.string().optional(),
   customer_phone: z.string().optional(),
   payment_method: z.string().optional(),
   include_unpaid: z.boolean().optional(),
