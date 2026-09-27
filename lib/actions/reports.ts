@@ -28,6 +28,7 @@ import {
   ensureSpace,
   type ChartBar,
 } from "@/lib/reports/pdf-charts";
+import { addDays, manilaDayEnd, manilaDayStart } from "@/lib/time/manila";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -187,8 +188,8 @@ async function fetchDailyTransactionData(
   const { data: transactions, error } = await supabase
     .from("transaction")
     .select("total_paid, transaction_date, order_id")
-    .gte("transaction_date", start_date)
-    .lte("transaction_date", end_date + "T23:59:59.999Z");
+    .gte("transaction_date", manilaDayStart(start_date))
+    .lte("transaction_date", manilaDayEnd(end_date));
 
   if (error) return { data: null, error: error.message };
 
@@ -361,8 +362,8 @@ export async function getPlatformPerformance(
   const { data: transactions, error: txError } = await supabase
     .from("transaction")
     .select("total_paid")
-    .gte("transaction_date", start_date)
-    .lte("transaction_date", end_date + "T23:59:59.999Z");
+    .gte("transaction_date", manilaDayStart(start_date))
+    .lte("transaction_date", manilaDayEnd(end_date));
 
   if (txError) return { data: null, error: txError.message };
 
@@ -376,8 +377,8 @@ export async function getPlatformPerformance(
   const { data: orders, error: orderError } = await supabase
     .from("order")
     .select("order_id, order_status")
-    .gte("created_at", start_date)
-    .lte("created_at", end_date + "T23:59:59.999Z");
+    .gte("created_at", manilaDayStart(start_date))
+    .lte("created_at", manilaDayEnd(end_date));
 
   if (orderError) return { data: null, error: orderError.message };
 
@@ -458,17 +459,18 @@ export async function getPlatformPerformance(
   }
 
   // --- 5. Revenue trend — compare to previous period of equal length ---
-  const startMs = new Date(start_date).getTime();
-  const endMs = new Date(end_date).getTime();
-  const rangeLengthMs = endMs - startMs + 86400000; // inclusive day count * ms per day
-  const prevEndDate = new Date(startMs - 86400000).toISOString().split("T")[0]; // day before start
-  const prevStartDate = new Date(startMs - rangeLengthMs).toISOString().split("T")[0];
+  // In Manila calendar days (Finding 14): the same number of days, ending
+  // the day before this period starts.
+  const dayCount =
+    Math.round((Date.parse(`${end_date}T00:00:00Z`) - Date.parse(`${start_date}T00:00:00Z`)) / 86400000) + 1;
+  const prevEndDate = addDays(start_date, -1);
+  const prevStartDate = addDays(start_date, -dayCount);
 
   const { data: prevTransactions, error: prevTxError } = await supabase
     .from("transaction")
     .select("total_paid")
-    .gte("transaction_date", prevStartDate)
-    .lte("transaction_date", prevEndDate + "T23:59:59.999Z");
+    .gte("transaction_date", manilaDayStart(prevStartDate))
+    .lte("transaction_date", manilaDayEnd(prevEndDate));
 
   if (prevTxError) return { data: null, error: prevTxError.message };
 
@@ -492,8 +494,8 @@ export async function getPlatformPerformance(
   const { data: reviewRows } = await supabase
     .from("review")
     .select("rating")
-    .gte("created_at", start_date)
-    .lte("created_at", end_date + "T23:59:59.999Z");
+    .gte("created_at", manilaDayStart(start_date))
+    .lte("created_at", manilaDayEnd(end_date));
 
   const ratings = (reviewRows ?? [])
     .map((row) => row.rating)

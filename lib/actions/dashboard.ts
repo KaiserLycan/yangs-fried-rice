@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { addDays, manilaDateKey, manilaDayBounds, manilaDayEnd, manilaDayStart } from "@/lib/time/manila";
 export interface DailySales {
   day: string;
   amount: number;
@@ -23,17 +24,12 @@ export interface DashboardStats {
 /** How the sales trend line should read — up, down, or nothing to compare. */
 export type TrendTone = "green" | "red" | "muted";
 
-/** Local midnight-to-midnight bounds for the day `offsetDays` before today. */
+/**
+ * Manila midnight-to-midnight bounds for the day `offsetDays` before today.
+ * The server runs on UTC; the shop's day doesn't (Finding 14).
+ */
 function dayBounds(offsetDays: number): { start: string; end: string } {
-  const now = new Date();
-  const day = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate() - offsetDays,
-  );
-  const end = new Date(day);
-  end.setHours(23, 59, 59, 999);
-  return { start: day.toISOString(), end: end.toISOString() };
+  return manilaDayBounds(offsetDays);
 }
 
 /**
@@ -131,6 +127,7 @@ export async function getDashboardStats(branchId?: string): Promise<DashboardSta
   const { start: startOfDay, end: endOfDay } = dayBounds(0);
   const weekdayLabel = new Date().toLocaleDateString("en-US", {
     weekday: "short",
+    timeZone: "Asia/Manila",
   });
 
   // 1. Get today's orders
@@ -209,21 +206,16 @@ export async function getDashboardStats(branchId?: string): Promise<DashboardSta
  */
 export async function getWeeklySales(branchId?: string): Promise<DailySales[]> {
   const supabase = createClient();
-  const now = new Date();
-
-  const sevenDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
-  sevenDaysAgo.setHours(0, 0, 0, 0);
-
-  const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  endOfToday.setHours(23, 59, 59, 999);
+  const today = manilaDateKey();
+  const firstDay = addDays(today, -6);
 
   const { data: orders } = await supabase
     .from("order")
     .select("order_id, created_at, delivery_fee")
-    .gte("created_at", sevenDaysAgo.toISOString())
+    .gte("created_at", manilaDayStart(firstDay))
     // Bounded at both ends. Without an upper bound a row dated ahead of the
     // clock lands in the week's takings.
-    .lte("created_at", endOfToday.toISOString())
+    .lte("created_at", manilaDayEnd(today))
     .neq("order_status", "cancelled");
 
   const results: DailySales[] = [];
@@ -234,8 +226,7 @@ export async function getWeeklySales(branchId?: string): Promise<DailySales[]> {
   // silently collect two Mondays into one bar.
   const salesMap = new Map<string, number>();
 
-  const dateKey = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const dateKey = (d: Date) => manilaDateKey(d);
 
   if (orders && orders.length > 0) {
     const orderIds = orders.map(o => o.order_id);
@@ -268,12 +259,12 @@ export async function getWeeklySales(branchId?: string): Promise<DailySales[]> {
 
   // Populate last 7 days in order
   for (let i = 0; i < 7; i++) {
-    const d = new Date(sevenDaysAgo);
-    d.setDate(d.getDate() + i);
-    const dayName = dayNames[d.getDay()];
-    const isWeekend = d.getDay() === 0 || d.getDay() === 5 || d.getDay() === 6;
+    const key = addDays(firstDay, i);
+    const weekday = new Date(`${key}T00:00:00Z`).getUTCDay();
+    const dayName = dayNames[weekday];
+    const isWeekend = weekday === 0 || weekday === 5 || weekday === 6;
 
-    const amount = salesMap.get(dateKey(d)) || 0;
+    const amount = salesMap.get(key) || 0;
 
     results.push({
       day: dayName,
@@ -298,9 +289,7 @@ export async function getTopSellers(
   let end = endDate;
 
   if (!start) {
-    const sevenDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
-    sevenDaysAgo.setHours(0, 0, 0, 0);
-    start = sevenDaysAgo.toISOString();
+    start = manilaDayStart(addDays(manilaDateKey(now), -6));
   }
 
   let query = supabase

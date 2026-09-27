@@ -14,7 +14,7 @@ export const metadata: Metadata = {
  * Draft text (issue #116) — the PM reviews it in the pull request. Change
  * `LAST_UPDATED` whenever the text changes.
  */
-const LAST_UPDATED = "27 September 2026";
+const LAST_UPDATED = "29 September 2026";
 
 export default function PrivacyPage() {
   return (
@@ -22,7 +22,9 @@ export default function PrivacyPage() {
       <LegalSection title="1. Who we are">
         <p>
           This notice explains how we handle your personal data under the Data
-          Privacy Act of 2012 (RA 10173). We decide how your data is used.
+          Privacy Act of 2012 (RA 10173). Yang&apos;s Fried Rice is the
+          personal information controller: we decide how your data is used,
+          and we answer for it.
         </p>
         <SellerContact />
       </LegalSection>
@@ -38,7 +40,9 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Orders:</strong> the items, special instructions, totals,
-            payment method, and the status and times of each order.
+            payment method, any tip, the bill you said you would pay with (so
+            we have change), the status and times of each order, and whether
+            a ready order was never picked up.
           </li>
           <li>
             <strong>Payments:</strong> the payment reference and whether it went
@@ -68,17 +72,28 @@ export default function PrivacyPage() {
         </ul>
       </LegalSection>
 
-      <LegalSection title="3. Why we use it">
+      <LegalSection title="3. Why we use it, and on what basis">
         <ul className="list-disc space-y-1 pl-5">
-          <li>To create your account and sign you in.</li>
           <li>
-            To prepare your order and tell you about it in the app and by email.
+            To create your account, sign you in, prepare your order, take
+            payment, give refunds and deal with a problem you report —{" "}
+            <em>to carry out our contract with you</em>.
           </li>
-          <li>To deal with a problem you report.</li>
-          <li>To take payment and give refunds.</li>
-          <li>To check that a discount is allowed, as the law requires.</li>
-          <li>To keep sales records required by tax law.</li>
-          <li>To stop fraud and repeated failed sign-ins.</li>
+          <li>
+            To check that a Senior Citizen or PWD discount is allowed and to
+            keep sales records — <em>because the law requires it</em> (RA 9994,
+            RA 10754, the Tax Code).
+          </li>
+          <li>
+            To stop fraud, repeated failed sign-ins and orders that are never
+            collected — <em>our legitimate interest</em> in keeping the shop
+            running. Two pay-in-store orders not picked up switch pay in store
+            off for that account.
+          </li>
+          <li>
+            To tell you about your order in the app and by email —{" "}
+            <em>to carry out our contract with you</em>.
+          </li>
         </ul>
       </LegalSection>
 
@@ -96,9 +111,14 @@ export default function PrivacyPage() {
             ID number and name on the ID stay with the sales record.
           </li>
           <li>
-            Problem-report photos: deleted when you delete your account.
+            Problem reports: the photo is deleted when you delete your
+            account; the note is cleared 180 days after the report is resolved.
           </li>
-          <li>Security logs: no longer than needed to stop abuse.</li>
+          <li>Failed sign-in records: 30 days.</li>
+          <li>
+            Notifications: 90 days once read, 180 days at most.
+          </li>
+          <li>A cart you never checked out: 30 days after you last changed it.</li>
         </ul>
       </LegalSection>
 
@@ -138,7 +158,7 @@ export default function PrivacyPage() {
           <li>see a copy of your data;</li>
           <li>correct data that is wrong;</li>
           <li>object to its use, or ask us to delete or block it;</li>
-          <li>get your data in a format you can take elsewhere;</li>
+          <li>get your data in a format you can take elsewhere (data portability);</li>
           <li>be compensated for damage caused by misuse of your data;</li>
           <li>complain to the National Privacy Commission (privacy.gov.ph).</li>
         </ul>
@@ -150,7 +170,10 @@ export default function PrivacyPage() {
           >
             profile page
           </Link>
-          . For anything else, contact us:
+          , and delete your account there too. Deleting it removes your
+          profile, photos, notes, review comments and notifications. Your past
+          orders stay as unnamed sales records, which tax law requires us to
+          keep. For anything else, contact us:
         </p>
         <SellerContact />
       </LegalSection>

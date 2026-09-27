@@ -15,7 +15,7 @@ export const metadata: Metadata = {
  * Draft text (issue #116) — the PM reviews it in the pull request. Change
  * `LAST_UPDATED` whenever the text changes.
  */
-const LAST_UPDATED = "27 September 2026";
+const LAST_UPDATED = "29 September 2026";
 
 export default function TermsPage() {
   return (
@@ -37,12 +37,15 @@ export default function TermsPage() {
 
       <LegalSection title="2. Orders and prices">
         <p>
-          All orders are for pickup at the store. We do not deliver. We take
-          orders from 8:00 AM to 6:00 PM, Manila time.
+          All orders are for pickup at the store. We do not deliver, but you
+          may send a courier. We take orders during the opening hours shown on
+          the app, and stop taking new ones shortly before closing (the app
+          shows the last-order time) so the kitchen can finish.
         </p>
         <p>
           Prices are in Philippine peso and already include 12% VAT. The price
-          you see at checkout is the price you pay.
+          you see at checkout is the price you pay. The minimum order is ₱150
+          of food.
         </p>
         <p>
           Your order is accepted once our staff confirm it. The ready time we
@@ -59,6 +62,16 @@ export default function TermsPage() {
           You can pay in store when you pick up, or online with GCash or Maya.
           Online payments are handled by PayMongo. We never see or store your
           wallet login. We do not take card payments.
+        </p>
+        <p>
+          Paying in store is for orders up to ₱2,000, and up to ₱1,000 on your
+          first pay-in-store order. If two of your pay-in-store orders are not
+          picked up, you will need to pay online for future orders, and we may
+          disable an account after repeated missed pick-ups.
+        </p>
+        <p>
+          A tip for the staff is optional. It is added to what you pay, goes to
+          the staff on shift, and is refunded with the order if we cancel it.
         </p>
       </LegalSection>
 

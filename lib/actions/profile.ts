@@ -291,7 +291,19 @@ export async function deleteMyAccount(): Promise<RouterResult<undefined>> {
       .from(ORDER_ISSUE_PHOTO_BUCKET)
       .remove(issuePhotos.map((file) => `${userId}/${file.name}`));
   }
-  await admin.from("order_issue").update({ photo_path: null }).eq("customer_id", userId);
+  await admin.from("order_issue").update({ photo_path: null, note: null }).eq("customer_id", userId);
+
+  // Free text they wrote can name them or others (legal review J5): cleared
+  // before the rows are detached. The orders, amounts and any Senior/PWD
+  // ID number stay — they are the sales record tax law requires, and the
+  // privacy notice says so.
+  const { data: ownOrders } = await admin.from("order").select("order_id").eq("customer_id", userId);
+  const orderIds = (ownOrders ?? []).map((row) => row.order_id);
+  if (orderIds.length > 0) {
+    await admin.from("order").update({ special_instructions: null }).in("order_id", orderIds);
+    await admin.from("order_item").update({ special_instructions: null }).in("order_id", orderIds);
+  }
+  await admin.from("review").update({ comment: null }).eq("customer_id", userId);
 
   await supabase.from("order").update({ customer_id: null }).eq("customer_id", userId);
   await supabase.from("review").update({ customer_id: null }).eq("customer_id", userId);
