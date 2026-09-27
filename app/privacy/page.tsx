@@ -31,8 +31,10 @@ export default function PrivacyPage() {
         <ul className="list-disc space-y-1 pl-5">
           <li>
             <strong>Account:</strong> first and last name, email, mobile number,
-            date of birth, password (stored scrambled, never readable) and an
-            optional profile photo.
+            the address you give at sign-up and any others you save, that you
+            confirmed you are 18 or have a parent&apos;s permission, password
+            (stored scrambled, never readable) and an optional profile photo.
+            Accounts made before September 2026 may also hold a date of birth.
           </li>
           <li>
             <strong>Orders:</strong> the items, special instructions, totals,
@@ -82,7 +84,10 @@ export default function PrivacyPage() {
 
       <LegalSection title="4. How long we keep it">
         <ul className="list-disc space-y-1 pl-5">
-          <li>Account details: until you ask us to delete your account.</li>
+          <li>
+            Account details and saved addresses: until you ask us to delete
+            your account.
+          </li>
           <li>
             Orders and payment records: five years, because tax law requires us
             to keep sales records.

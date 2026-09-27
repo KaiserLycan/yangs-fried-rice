@@ -32,6 +32,15 @@ describe("privacy page", () => {
     expect(text).toMatch(/your rights/i);
   });
 
+  // Sign-up asks for an address and an 18+ confirmation, so the notice has
+  // to say so (Data Privacy Act: tell people what is collected).
+  it("discloses the address and age confirmation that sign-up collects", () => {
+    const { container } = render(<PrivacyPage />);
+    const text = container.textContent ?? "";
+    expect(text).toMatch(/address you give at sign-up/i);
+    expect(text).toMatch(/18 or have a parent/i);
+  });
+
   it("names the services that receive customer data", () => {
     render(<PrivacyPage />);
     expect(screen.getAllByText(/Supabase/).length).toBeGreaterThan(0);
