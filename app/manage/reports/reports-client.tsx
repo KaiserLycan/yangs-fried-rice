@@ -8,7 +8,8 @@ import {
 } from "@/components/manage/reports/report-controls";
 import { ReportsSummary } from "@/components/manage/reports/reports-summary";
 import { ReportsCharts } from "@/components/manage/reports/reports-charts";
-import { normalizeReportType } from "@/lib/reports/report-types";
+import { CashRemittedTable } from "@/components/manage/reports/cash-remitted-table";
+import { normalizeReportType, SALES_REPORT } from "@/lib/reports/report-types";
 import { Alert } from "@/components/ui/alert";
 
 function getToday() {
