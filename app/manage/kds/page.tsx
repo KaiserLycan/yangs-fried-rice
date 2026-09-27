@@ -64,7 +64,7 @@ function KdsInner() {
         
         // For Pick-up only shows take_out
         if (activeTab === "for_pickup") {
-          mapped = mapped.filter(o => o.orderInfo.type === "take_out");
+          mapped = mapped.filter(o => o.orderInfo.type === "take_out" || o.orderInfo.type === "pickup");
         }
         
         setOrders(mapped);

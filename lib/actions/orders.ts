@@ -648,7 +648,7 @@ async function _fetchPaymentIssuesBase(supabase: ReturnType<typeof createClient>
 
     // 2. pickup_overdue
     const isCash = ["pay_in_store", "pay-in-store", "cash"].includes(paymentMethod);
-    if (order.order_status === "ready" && order.order_type === "take_out" && isCash && order.ready_at) {
+    if (order.order_status === "ready" && (order.order_type === "take_out" || order.order_type === "pickup") && isCash && order.ready_at) {
       const elapsedMins = (now - new Date(order.ready_at!).getTime()) / 60000;
       if (elapsedMins >= 90) {
         issues.push({ type: "pickup_overdue", order });
