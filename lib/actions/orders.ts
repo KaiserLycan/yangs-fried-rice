@@ -17,6 +17,7 @@ import {
 import { isPickupOrder } from "@/lib/orders/format";
 import { orderIdRangeFor } from "@/lib/orders/order-number";
 import { notifyOrderCancelled } from "@/lib/email/notify-order-cancelled";
+import { discardSeniorPwdIdPhoto } from "@/lib/storage/senior-pwd-ids";
 import type { Tables, TablesUpdate } from "@/types/database.types";
 
 // ---------------------------------------------------------------------------
@@ -468,6 +469,12 @@ export async function updateOrderStatus(
     .single();
 
   if (updateError) return { data: null, error: updateError.message };
+
+  // Senior Citizen / PWD (issue #116): the ID photo was only for checking at
+  // release. Once the order is done it goes, in this same action.
+  if (validatedNewStatus === "completed" || validatedNewStatus === "cancelled") {
+    await discardSeniorPwdIdPhoto(supabase, orderId);
+  }
 
   // The in-app notification is written by a database trigger on this same
   // update; the email goes from here (F23). It never fails the cancel.

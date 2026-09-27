@@ -2,7 +2,11 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { SENIOR_PWD_ID_BUCKET, isSeniorPwdIdPath } from "@/lib/storage/senior-pwd-ids";
+import {
+  SENIOR_PWD_ID_BUCKET,
+  discardSeniorPwdIdPhoto,
+  isSeniorPwdIdPath,
+} from "@/lib/storage/senior-pwd-ids";
 import {
   addCartItemSchema,
   updateCartItemSchema,
@@ -1052,6 +1056,9 @@ export async function cancelCustomerOrder(
 
   if (!rpcError && rpcData) {
     await notifyOrderCancelled(supabase, orderId, "customer");
+    // The RPC only cancels the customer's own order. They can't delete from
+    // the ID bucket (staff-only), so the service role does (issue #116).
+    await discardSeniorPwdIdPhoto(createAdminClient(), orderId);
     return {
       data: rpcData as {
         order_id: string;
@@ -1113,6 +1120,8 @@ export async function cancelCustomerOrder(
 
   // A confirmation, and for a paid order what happens to the money (F23).
   await notifyOrderCancelled(supabase, orderId, "customer");
+  // Ownership was checked above (issue #116).
+  await discardSeniorPwdIdPhoto(createAdminClient(), orderId);
 
   return {
     data: {
