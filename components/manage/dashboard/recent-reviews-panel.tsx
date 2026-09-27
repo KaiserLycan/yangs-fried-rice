@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Phone } from "lucide-react";
 import type { RecentReview } from "@/lib/actions/recent-reviews";
 import { formatPlacedAt } from "@/lib/orders/past-order";
+import { telHref } from "@/lib/contact/tel-href";
 
 /**
  * The latest order ratings (FINALE 9.3). A low one is marked, and each row
@@ -68,7 +69,7 @@ export function RecentReviewsPanel({ reviews }: { reviews: RecentReview[] }) {
                 <span className="text-foreground">{review.customerName}</span>
                 {review.customerPhone ? (
                   <a
-                    href={`tel:${review.customerPhone}`}
+                    href={telHref(review.customerPhone)}
                     className="flex min-h-[32px] items-center gap-1 font-bold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                   >
                     <Phone aria-hidden="true" className="size-4" />

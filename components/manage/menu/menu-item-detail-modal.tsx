@@ -11,6 +11,7 @@ import { FIELD_LIMITS, lengthProps } from "@/lib/validation/fields";
 import { addOnFormSchema, menuItemFormSchema } from "@/components/manage/menu/menu-modals";
 import type { MenuItem, MenuCategory, MenuItemReview } from "@/types/menu";
 import Link from "next/link";
+import { telHref } from "@/lib/contact/tel-href";
 import { Dialog, DialogDismiss, DialogRoot } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Camera, ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
@@ -597,7 +598,7 @@ function DishReviews({ reviews }: { reviews: MenuItemReview[] }) {
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <span className="text-foreground">{review.customerName}</span>
               {review.customerPhone ? (
-                <a href={`tel:${review.customerPhone}`} className="font-bold text-accent">
+                <a href={telHref(review.customerPhone)} className="font-bold text-accent">
                   {review.customerPhone}
                 </a>
               ) : null}

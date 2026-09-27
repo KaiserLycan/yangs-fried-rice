@@ -202,6 +202,10 @@ describe("E5. no unsafe rendering escape hatch exists", () => {
       ["components/menu/item-detail-modal.tsx", "href={signInToOrderHref(product?.id)} — /login?next=/menu?item=<encoded id>; href={BULK_ORDER_CONTACT_HREF} — a constant from lib/site/site-info.ts"],
       // Issue #115: the bulk-order / catering contact link, a constant.
       ["components/cart/cart-totals-summary.tsx", "href={BULK_ORDER_CONTACT_HREF} — a constant from lib/site/site-info.ts"],
+      // FINALE 9.3: the customer's phone beside a review. telHref() fixes
+      // the `tel:` scheme and keeps only digits and a leading "+".
+      ["components/manage/dashboard/recent-reviews-panel.tsx", "href={telHref(review.customerPhone)} — tel: plus digits only"],
+      ["components/manage/menu/menu-item-detail-modal.tsx", "href={telHref(review.customerPhone)} — tel: plus digits only"],
     ]);
 
     const offenders: string[] = [];
