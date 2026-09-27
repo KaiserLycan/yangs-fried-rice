@@ -141,13 +141,13 @@ describe("Checkout order summary", () => {
     renderCheckout();
 
     expect(countOf("₱50")).toBeGreaterThan(0);
-    expect(countOf("₱500")).toBeGreaterThan(0);
+    expect(countOf("₱500.00")).toBeGreaterThan(0);
   });
 
   it("drops the delivery fee for pickup and follows it through to the total", () => {
     renderCheckout({ fulfilment: "pickup" });
 
-    expect(countOf("₱450")).toBeGreaterThan(0);
+    expect(countOf("₱450.00")).toBeGreaterThan(0);
     expect(countOf("Pickup")).toBeGreaterThan(0);
     // No "Delivery fee ₱0" row on an order nobody is delivering.
     expect(countOf("Delivery fee")).toBe(0);
@@ -314,6 +314,7 @@ describe("Checkout place order", () => {
         // It used to send cash on delivery here — on an order nobody was
         // delivering (issue #106).
         payment_method: "pay-in-store",
+        wallet: "gcash",
       }),
     );
     await waitFor(() =>

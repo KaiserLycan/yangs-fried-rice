@@ -1,4 +1,4 @@
-import { formatPeso } from "@/lib/menu/product-listing";
+import { formatPeso, formatPesoCentavos } from "@/lib/menu/product-listing";
 import {
   lineTotal,
   type CartLine,
@@ -74,7 +74,11 @@ export function OrderSummaryRows({
       {fulfilment === "delivery" ? (
         <SummaryRow label="Delivery fee" value={formatPeso(totals.deliveryFee)} />
       ) : null}
-      <SummaryRow label="Amount payable" value={formatPeso(totals.total)} />
+      {/* Prices include VAT, so these split the total rather than add to
+          it (#116). Centavos, so the three visibly add up. */}
+      <SummaryRow label="VATable sales" value={formatPesoCentavos(totals.vatableSales)} />
+      <SummaryRow label="VAT (12%)" value={formatPesoCentavos(totals.vat)} />
+      <SummaryRow label="Total" value={formatPesoCentavos(totals.total)} />
     </>
   );
 }

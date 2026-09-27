@@ -41,7 +41,7 @@ vi.mock("@/lib/checkout/paymongo", () => ({
   startWalletPayment: vi.fn(),
 }));
 
-// An unpaid wallet order draws "Switch to Cash on Delivery", which refreshes
+// An unpaid wallet order draws "Switch to Pay in Store", which refreshes
 // the route on success. There is no app router in this environment.
 const refresh = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -184,13 +184,22 @@ describe("OrderPlacedScreen", () => {
     expect(screen.queryByText("21 Mabini St, Malate, Manila")).toBeNull();
   });
 
-  it("shows every line, the delivery fee and the amount payable", () => {
+  it("shows every line, the delivery fee and the total", () => {
     renderScreen();
     expect(screen.getByText("2× Yangzhou Special")).toBeInTheDocument();
     expect(screen.getByText("1× Lumpia (5pc)")).toBeInTheDocument();
     expect(screen.getByText("Delivery fee")).toBeInTheDocument();
-    expect(screen.getByText("Amount payable")).toBeInTheDocument();
-    expect(screen.getByText("₱500")).toBeInTheDocument();
+    expect(screen.getByText("Total")).toBeInTheDocument();
+    expect(screen.getByText("₱500.00")).toBeInTheDocument();
+  });
+
+  // Prices include VAT: ₱500 splits into ₱446.43 + ₱53.57, not ₱500 + VAT.
+  it("splits the VAT out of the total", () => {
+    renderScreen();
+    expect(screen.getByText("VATable sales")).toBeInTheDocument();
+    expect(screen.getByText("₱446.43")).toBeInTheDocument();
+    expect(screen.getByText("VAT (12%)")).toBeInTheDocument();
+    expect(screen.getByText("₱53.57")).toBeInTheDocument();
   });
 
   it("shows the chosen payment method without claiming money was taken", () => {
@@ -483,7 +492,7 @@ describe("OrderPlacedScreen tracking gate", () => {
   it("offers the way out that the issue asks for, alongside paying again", () => {
     renderScreen(walletOrder("failed"), "paymaya");
     expect(
-      screen.getByRole("button", { name: /switch to cash on delivery/i }),
+      screen.getByRole("button", { name: /switch to pay in store/i }),
     ).toBeInTheDocument();
     // "Try again with Maya" — the other half of the choice.
     expect(
@@ -496,7 +505,7 @@ describe("OrderPlacedScreen tracking gate", () => {
     expect(trackLink()).toHaveAttribute("href", "/orders/example-1042");
     expect(screen.queryByTestId("tracking-blocked")).toBeNull();
     expect(
-      screen.queryByRole("button", { name: /switch to cash on delivery/i }),
+      screen.queryByRole("button", { name: /switch to pay in store/i }),
     ).toBeNull();
   });
 
@@ -507,7 +516,7 @@ describe("OrderPlacedScreen tracking gate", () => {
     renderScreen(order({ paymentStatus: "pending" }));
     expect(trackLink()).toHaveAttribute("href", "/orders/example-1042");
     expect(
-      screen.queryByRole("button", { name: /switch to cash on delivery/i }),
+      screen.queryByRole("button", { name: /switch to pay in store/i }),
     ).toBeNull();
   });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeCartTotals, type CartLine } from "./cart-totals";
+import { computeCartTotals, vatBreakdown, type CartLine } from "./cart-totals";
 
 const line = (overrides: Partial<CartLine> = {}): CartLine => ({
   id: "1",
@@ -44,7 +44,7 @@ describe("computeCartTotals", () => {
 
   it("totals an empty cart to zero", () => {
     const totals = computeCartTotals({ lines: [], fulfilment: "delivery" });
-    expect(totals).toEqual({ subtotal: 0, deliveryFee: 0, total: 0 });
+    expect(totals).toEqual({ subtotal: 0, deliveryFee: 0, total: 0, vatableSales: 0, vat: 0 });
   });
 
   // The rule the ticket asks to state outright: money is handled so repeated
@@ -61,5 +61,29 @@ describe("computeCartTotals", () => {
       fulfilment: "pickup",
     });
     expect(totals.subtotal).toBe(30.6);
+  });
+});
+
+describe("vatBreakdown", () => {
+  it("takes the 12% VAT out of the total rather than adding it", () => {
+    expect(vatBreakdown(112)).toEqual({ vatableSales: 100, vat: 12 });
+  });
+
+  it("always adds back to the total, to the centavo", () => {
+    for (const total of [0.14, 1, 99.99, 180, 459, 1234.56]) {
+      const { vatableSales, vat } = vatBreakdown(total);
+      expect(Math.round((vatableSales + vat) * 100)).toBe(Math.round(total * 100));
+    }
+  });
+
+  // Same rounding as round(total * 12 / 112, 2) in submit_cart_to_order.
+  it("rounds VAT to the nearest centavo, half up", () => {
+    expect(vatBreakdown(0.14).vat).toBe(0.02); // 1.5 centavos
+    expect(vatBreakdown(459).vat).toBe(49.18); // 49.178…
+  });
+
+  it("is carried on the cart totals", () => {
+    const totals = computeCartTotals({ lines: [line({ unitPrice: 56, quantity: 2 })], fulfilment: "pickup" });
+    expect(totals).toMatchObject({ total: 112, vatableSales: 100, vat: 12 });
   });
 });
