@@ -49,17 +49,20 @@ export function CartTotalsSummary({
   return (
     <div className="flex flex-col gap-[8px] border-t border-field-border pt-[14px]">
       <Row label="Subtotal" value={formatPeso(totals.subtotal)} />
-      <Row label="Delivery fee" value={formatPeso(totals.deliveryFee)} />
+      {/* Pickup has no fee; printing "Delivery fee ₱0" on it read as a leftover. */}
+      {fulfilment === "delivery" ? (
+        <Row label="Delivery fee" value={formatPeso(totals.deliveryFee)} />
+      ) : null}
 
       <div className="flex items-baseline justify-between">
-        <span className="text-[13px] font-bold text-foreground">Total</span>
+        <span className="text-[14px] font-bold text-foreground">Total</span>
         <span className="font-display text-[23px] text-primary">
           {formatPeso(totals.total)}
         </span>
       </div>
 
       {arrivalEstimate ? (
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-[14px] text-muted-foreground">
           Estimated {arrivalEstimate}
         </p>
       ) : null}
@@ -89,8 +92,8 @@ export function CartTotalsSummary({
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-[13px] text-muted-foreground">{label}</span>
-      <span className="text-[13px] text-muted-foreground">{value}</span>
+      <span className="text-[14px] text-muted-foreground">{label}</span>
+      <span className="text-[14px] text-muted-foreground">{value}</span>
     </div>
   );
 }

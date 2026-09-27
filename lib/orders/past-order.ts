@@ -184,7 +184,7 @@ export function isUnpaid(order: PastOrder): boolean {
  * The multiplication sign is U+00D7, not the letter x, because that is what
  * the frames draw.
  */
-export function summariseItems(items: PastOrderItem[]): string {
+export function summariseItems<T extends Pick<PastOrderItem, "name" | "quantity">>(items: T[]): string {
   if (items.length === 0) return "No items recorded";
   return items.map((item) => `${item.quantity}× ${item.name}`).join(", ");
 }

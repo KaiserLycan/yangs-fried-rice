@@ -38,13 +38,25 @@ describe("sign-up form copy", () => {
     expect(screen.queryByText(/e\.g\. \+63 917 123 4567/)).toBeNull();
   });
 
-  it("puts the date-of-birth rule on the label rather than under the field", () => {
+  // Panel F16: no birthday at sign-up. It was the only age check, so an
+  // explicit confirmation replaces it.
+  it("asks for an age confirmation instead of a date of birth", () => {
     render(<CustomerSignupForm />);
 
-    expect(screen.getByLabelText(/date of birth \(optional, 13\+\)/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/date of birth/i)).toBeNull();
     expect(
-      screen.queryByText(/Must be a past date — you need to be 13 or older/),
-    ).toBeNull();
+      screen.getByRole("checkbox", { name: /i am at least 18, or have a parent's permission/i }),
+    ).toBeRequired();
+  });
+
+  it("shows the password strength meter once a password is typed", () => {
+    render(<CustomerSignupForm />);
+    expect(screen.queryByText(/password strength/i)).toBeNull();
+
+    const password = screen.getByLabelText(/^password/i);
+    fireEvent.input(password, { target: { value: "Yangs!Pass2026" } });
+
+    expect(screen.getByText(/password strength/i).parentElement).toHaveTextContent("Strong");
   });
 
   /**
@@ -53,7 +65,7 @@ describe("sign-up form copy", () => {
    */
   it("shows the instructions at phone width, not only on desktop", () => {
     render(<CustomerSignupForm />);
-    const intro = screen.getByText(/Fill in your details and the address we deliver to/);
+    const intro = screen.getByText(/Fill in your details and your address/);
 
     expect(intro).toBeInTheDocument();
     expect(intro.className).not.toMatch(/\bhidden\b/);

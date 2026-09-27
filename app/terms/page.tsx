@@ -5,6 +5,7 @@ import {
   LegalSection,
   SellerContact,
 } from "@/components/legal/legal-page";
+import { PICKUP_COUNTER } from "@/lib/site/site-info";
 
 export const metadata: Metadata = {
   title: "Terms and Policy - Yang's Fried Rice",
@@ -47,13 +48,17 @@ export default function TermsPage() {
           Your order is accepted once our staff confirm it. The ready time we
           show is an estimate based on how many orders are in the kitchen.
         </p>
+        <p>
+          We will tell you in the app when your order is ready. Collect it at{" "}
+          {PICKUP_COUNTER} and say your order number.
+        </p>
       </LegalSection>
 
       <LegalSection title="3. Payment">
         <p>
           You can pay in store when you pick up, or online with GCash or Maya.
           Online payments are handled by PayMongo. We never see or store your
-          wallet login.
+          wallet login. We do not take card payments.
         </p>
       </LegalSection>
 
@@ -68,8 +73,8 @@ export default function TermsPage() {
       <LegalSection title="5. When we cancel your order">
         <p>
           We may cancel an order if an item runs out, the store has to close, or
-          an online payment does not go through. We will show the reason on your
-          order page.
+          an online payment does not go through. We will tell you why by email
+          and in the app.
         </p>
       </LegalSection>
 
@@ -82,16 +87,23 @@ export default function TermsPage() {
         </p>
         <p>
           If you cancel before confirmation, the same applies. Pay-in-store
-          orders are not charged until pickup, so there is nothing to refund.
+          orders are not charged until pickup, so there is usually nothing to
+          refund. If you did pay at the counter, we refund you at{" "}
+          {PICKUP_COUNTER}.
         </p>
+        <p>We will let you know once your refund has been sent.</p>
       </LegalSection>
 
-      <LegalSection title="7. Missing or wrong items">
+      <LegalSection title="7. Missing, wrong or damaged items">
         <p>
-          Please check your order at the counter. If something is missing or
-          wrong, tell our staff before you leave, or contact us within 24 hours
-          with your order number. We will give you the right item or refund that
-          item.
+          Please check your order at the counter and tell our staff before you
+          leave if something is wrong.
+        </p>
+        <p>
+          After you leave, report it from your order page within 24 hours of
+          pickup. Mark the affected items and add a photo if you like. Our
+          staff will review the report and contact you. One report per order;
+          after 24 hours, please contact the store directly.
         </p>
       </LegalSection>
 

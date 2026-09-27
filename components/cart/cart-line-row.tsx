@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { ItemDetailModal } from "@/components/menu/item-detail-modal";
+import { QuantityInput } from "@/components/menu/quantity-stepper";
 import { removeCartItem, updateCartItem } from "@/lib/actions/cart";
 import { useCartAction } from "@/lib/cart/use-cart-action";
 import { formatPeso } from "@/lib/menu/product-listing";
@@ -23,6 +25,15 @@ import { cn } from "@/lib/utils";
  * a customer pressing − on a single item means "take it out". The top is
  * `MAX_QUANTITY`, the same cap the item modal's stepper uses, so the two
  * screens agree on how many of one dish a customer can order.
+ *
+ * The count can be typed (panel F7), through the same `QuantityInput` the
+ * item dialog uses. Typing never removes the line — it clamps to 1–20 — so
+ * clearing the field to type a new number can't delete the dish; − and
+ * Remove do that.
+ *
+ * "Edit" reopens the dish's own dialog with this line's quantity, note and
+ * add-ons ticked (limitations #23), and saves over the line rather than
+ * making the customer remove it and start again.
  */
 export function CartLineRow({ 
   line,
@@ -39,6 +50,7 @@ export function CartLineRow({
   const isPending = pending || isOptimistic;
 
   const [localQuantity, setLocalQuantity] = React.useState(line.quantity);
+  const [editing, setEditing] = React.useState(false);
   const debounceTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
   React.useEffect(() => {
@@ -86,6 +98,16 @@ export function CartLineRow({
     }, 600);
   };
 
+  const openEditor = () => {
+    // The dialog saves the quantity too, so a pending typed change would
+    // only race it.
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+    setEditing(true);
+  };
+
   if (isOptimistic) {
     return (
       <div className="flex flex-col gap-[7px] rounded-[13px] border border-field-border bg-card p-[11px]">
@@ -104,16 +126,16 @@ export function CartLineRow({
   return (
     <div className="flex flex-col gap-[7px] rounded-[13px] border border-field-border bg-card p-[11px]">
       <div className="flex items-start justify-between gap-[8px]">
-        <span className="text-[13px] font-bold text-foreground">
+        <span className="text-[14px] font-bold text-foreground">
           {line.name}
         </span>
-        <span className="text-[13px] font-bold text-primary">
+        <span className="text-[14px] font-bold text-primary">
           {formatPeso(localLineTotal)}
         </span>
       </div>
 
       {line.addOns && line.addOns.length > 0 ? (
-        <ul className="flex flex-col gap-0.5 -mt-1 text-[11px] text-muted-foreground pl-0">
+        <ul className="-mt-1 flex flex-col gap-0.5 pl-0 text-[14px] text-muted-foreground">
           {line.addOns.map((addon) => (
             <li key={addon.addon_id}>+ {addon.name}</li>
           ))}
@@ -121,7 +143,7 @@ export function CartLineRow({
       ) : null}
 
       {line.specialInstructions ? (
-        <p className="text-[11px] italic text-muted-foreground">
+        <p className="text-[14px] italic text-muted-foreground">
           Note: {line.specialInstructions}
         </p>
       ) : null}
@@ -133,9 +155,13 @@ export function CartLineRow({
           disabled={isPending}
           onClick={() => setQuantity(localQuantity - 1)}
         />
-        <span className="min-w-[14px] px-[3px] text-center text-[13px] font-bold text-foreground">
-          {localQuantity}
-        </span>
+        <QuantityInput
+          value={localQuantity}
+          onChange={setQuantity}
+          disabled={isPending}
+          label={`Quantity of ${line.name}`}
+          className="h-[44px] w-[48px] rounded-[7px] border border-field-border bg-background text-center text-[15px] font-bold text-foreground"
+        />
         <StepButton
           glyph="+"
           label="Increase quantity"
@@ -143,15 +169,40 @@ export function CartLineRow({
           onClick={() => setQuantity(localQuantity + 1)}
         />
 
-        <button
-          type="button"
-          onClick={remove}
-          disabled={isPending}
-          className="ml-auto text-[11px] font-bold text-primary underline disabled:opacity-60"
-        >
-          Remove
-        </button>
+        <div className="ml-auto flex items-center gap-[4px]">
+          {line.product ? (
+            <button
+              type="button"
+              onClick={openEditor}
+              disabled={isPending}
+              className="min-h-[44px] px-[6px] text-[14px] font-bold text-foreground underline disabled:opacity-60"
+            >
+              Edit
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={remove}
+            disabled={isPending}
+            className="min-h-[44px] px-[6px] text-[14px] font-bold text-primary underline disabled:opacity-60"
+          >
+            Remove
+          </button>
+        </div>
       </div>
+
+      {line.product ? (
+        <ItemDetailModal
+          product={editing ? line.product : null}
+          onClose={() => setEditing(false)}
+          editing={{
+            cartItemId: line.id,
+            quantity: localQuantity,
+            specialInstructions: line.specialInstructions,
+            addOnIds: (line.addOns ?? []).map((addOn) => addOn.addon_id),
+          }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -173,7 +224,7 @@ function StepButton({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="flex size-[27px] items-center justify-center rounded-[7px] border border-field-border bg-background text-[13px] font-bold text-foreground disabled:opacity-60"
+      className="flex size-[44px] items-center justify-center rounded-[7px] border border-field-border bg-background text-[16px] font-bold text-foreground disabled:opacity-60"
     >
       {glyph}
     </button>

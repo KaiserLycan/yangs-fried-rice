@@ -3,6 +3,7 @@
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createSession, deleteSession } from "@/lib/auth/session";
+import { recordEmployeeAction } from "@/lib/audit/record-employee-action";
 import {
   checkLoginAllowed,
   clearLoginFailures,
@@ -79,7 +80,7 @@ export async function registerCustomer(
       fieldErrors: fieldErrorsFromIssues(parsed.error.issues),
     };
   }
-  const { firstName, lastName, email, phone, dateOfBirth, password, buildingNo, street, barangay, city, zip } = parsed.data;
+  const { firstName, lastName, email, phone, password, buildingNo, street, barangay, city, zip } = parsed.data;
 
   // Kept in the auth user's metadata as a display fallback only; the
   // customer row stores the two parts.
@@ -98,7 +99,10 @@ export async function registerCustomer(
     email,
     password,
     options: {
-      data: { name },
+      // When they confirmed the age box (F16): the record that it was asked
+      // and answered, now that no birthday is taken at sign-up. The schema
+      // has already refused a sign-up without it.
+      data: { name, age_confirmed_at: new Date().toISOString() },
       ...(origin && { emailRedirectTo: `${origin}/login` }),
     },
   });
@@ -156,7 +160,6 @@ export async function registerCustomer(
     last_name: lastName,
     email,
     phone_number: toInternationalMobile(phone),
-    date_of_birth: dateOfBirth ? dateOfBirth : null,
   });
   if (customerError) {
     // Without a customer row the account can't sign in to the customer
@@ -375,6 +378,16 @@ export async function resetPassword(
   // password works straight away instead of after the window expires.
   if (user.email) await clearLoginFailures(user.email);
 
+  // A reset through an emailed link is exactly what a manager needs to see if
+  // an inbox was compromised. Recorded before the session ends; for a
+  // customer this is a no-op in the database.
+  await recordEmployeeAction(supabase, {
+    action: "session.password_change",
+    entityType: "session",
+    entityId: user.id,
+    summary: "Reset their password from an emailed link",
+  });
+
   // The recovery session is a way in that was mailed to an inbox. Once the
   // password is set, end it so the new one has to be typed — and so a shared
   // or forwarded email does not leave someone signed in.
@@ -391,6 +404,15 @@ export async function resetPassword(
  */
 export async function logout(): Promise<ActionResult> {
   const supabase = createClient();
+
+  // Recorded before the session ends — afterwards there is no one to
+  // attribute it to. A customer signing out is a no-op in the database.
+  await recordEmployeeAction(supabase, {
+    action: "session.sign_out",
+    entityType: "session",
+    summary: "Signed out",
+  });
+
   const { error } = await supabase.auth.signOut();
 
   if (error) {
@@ -491,6 +513,15 @@ export async function loginEmployee(
 
   // Create the fast local session cookie for middleware
   await createSession(authData.user.id, role);
+
+  // The client now carries the employee's own session, so the log records
+  // them as the actor (audit log, 20260927000004).
+  await recordEmployeeAction(supabase, {
+    action: "session.sign_in",
+    entityType: "session",
+    entityId: authData.user.id,
+    summary: "Signed in to the back office",
+  });
 
   return { success: true, redirectTo };
 }

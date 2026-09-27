@@ -55,7 +55,7 @@ export function SearchField({
         placeholder="Search menu items"
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="w-full bg-transparent text-[13px] text-foreground placeholder:text-muted-foreground focus-visible:outline-none"
+        className="w-full bg-transparent text-[14px] text-foreground placeholder:text-muted-foreground focus-visible:outline-none"
       />
       {variant === "nav" && !value ? (
         <Kbd className="border-field-border bg-transparent text-muted-foreground">/</Kbd>

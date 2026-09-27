@@ -58,7 +58,7 @@ describe("terms page", () => {
     expect(text).toMatch(/refund/i);
     expect(text).toMatch(/cancelling your order/i);
     expect(text).toMatch(/when we cancel/i);
-    expect(text).toMatch(/missing or wrong items/i);
+    expect(text).toMatch(/missing, wrong or damaged items/i);
     expect(text).toMatch(/governing law/i);
     expect(text).toMatch(/complaints/i);
   });

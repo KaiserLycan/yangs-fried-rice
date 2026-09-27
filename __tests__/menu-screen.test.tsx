@@ -188,3 +188,47 @@ describe("MenuScreen realtime subscription", () => {
     expect(channelsRemoved).toBe(0);
   });
 });
+
+describe("MenuScreen with promises from a Server Component", () => {
+  // A promise handed from a Server Component to a Client Component arrives as
+  // React's Flight chunk: `then(resolve)` calls back but returns undefined,
+  // so `.then(...).catch(...)` on it threw "Cannot read properties of
+  // undefined (reading 'catch')" and took /menu down.
+  function flightChunk<T>(value: T): Promise<T> {
+    return {
+      then(resolve: (v: T) => void) {
+        resolve(value);
+      },
+    } as unknown as Promise<T>;
+  }
+
+  it("resolves a guest profile and the Order again row without throwing", async () => {
+    vi.mocked(fetchProducts).mockResolvedValue(MOCK_PRODUCTS);
+    render(
+      <ToastProvider>
+        <MenuScreen
+          profilePromise={flightChunk(null)}
+          productsPromise={Promise.resolve(MOCK_PRODUCTS)}
+          categoriesPromise={Promise.resolve(MOCK_CATEGORIES)}
+          cartPromise={Promise.resolve({ cartId: null, lines: [] })}
+          arrivalEstimatePromise={Promise.resolve("30–40 min")}
+          recentOrdersPromise={flightChunk([
+            {
+              orderId: "38206dc0-b033-4453-864c-b7c487862c7c",
+              orderNumber: "38206dc0",
+              completedAt: "2026-09-26T10:00:00.000Z",
+              items: [{ name: "Yang's Chow Fan", quantity: 2 }],
+              total: 300,
+            },
+          ])}
+        />
+      </ToastProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText("Sign in to order").length).toBeGreaterThan(0);
+    });
+    expect(screen.getByRole("heading", { name: "Order again" })).toBeTruthy();
+    expect(screen.getByText("2× Yang's Chow Fan")).toBeTruthy();
+  });
+});

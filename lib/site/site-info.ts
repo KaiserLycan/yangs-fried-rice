@@ -26,6 +26,14 @@ export const SITE_BRANCH = "Malate Branch, Manila";
 export const SELLER_NAME = SITE_NAME;
 export const SELLER_ADDRESS = SITE_BRANCH;
 
+/**
+ * Where a customer collects their order. The "ready for pickup" notification
+ * is written by a database trigger
+ * (`20260928000000_notifications_order_issues_and_realtime.sql`) and spells
+ * the same counter out; change both together.
+ */
+export const PICKUP_COUNTER = "Counter 1";
+
 /** The year the copyright line starts from. */
 export const SITE_FOUNDED_YEAR = 2025;
 

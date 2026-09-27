@@ -21,7 +21,7 @@ export function CategorySidebar({
 }) {
   return (
     <aside className="hidden w-[208px] shrink-0 flex-col md:flex">
-      <h2 className="px-[18px] pt-[24px] text-[13px] font-bold uppercase tracking-[0.5px] text-foreground">
+      <h2 className="px-[18px] pt-[24px] text-[14px] font-bold uppercase tracking-[0.5px] text-foreground">
         Categories
       </h2>
 
@@ -60,7 +60,7 @@ function CategoryButton({
       aria-pressed={isSelected}
       onClick={onClick}
       className={cn(
-        "rounded-md px-[12px] py-[10px] text-left text-[13.5px]",
+        "min-h-[44px] rounded-md px-[12px] py-[10px] text-left text-[14px]",
         isSelected
           ? "bg-primary text-primary-foreground"
           : "text-foreground hover:bg-secondary/40",

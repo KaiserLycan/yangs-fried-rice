@@ -20,6 +20,7 @@ import {
   ACCOUNT_DISABLED_CODE,
   ACCOUNT_DISABLED_MESSAGE,
 } from "@/lib/auth/account-status";
+import { notifyOrderCancelled } from "@/lib/email/notify-order-cancelled";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -99,6 +100,74 @@ async function requireCustomer(): Promise<
   }
 
   return { data: { customer_id: user.id }, error: null };
+}
+
+/**
+ * Why these add-ons can't go on this dish, or null when they can. Add-ons
+ * are per product (`add_on.product_id`); nothing used to stop a direct call
+ * attaching another dish's add-on to a line. Order-level extras (rice,
+ * drinks) are `cart_add_on`, not this.
+ */
+async function addOnProblem(
+  supabase: ReturnType<typeof createClient>,
+  productId: string | null,
+  addOnIds: string[],
+): Promise<string | null> {
+  if (addOnIds.length === 0) return null;
+  const { data, error } = await supabase
+    .from("add_on")
+    .select("addon_id, product_id")
+    .in("addon_id", addOnIds);
+  if (error) return "Couldn't check the selected add-ons. Please try again.";
+  const valid = new Set(
+    (data ?? []).filter((row) => row.product_id === productId).map((row) => row.addon_id),
+  );
+  return addOnIds.every((id) => valid.has(id))
+    ? null
+    : "One of the selected add-ons isn't available for this dish. Please choose again.";
+}
+
+/**
+ * Makes a cart line's add-ons exactly `addOnIds` (limitations #23). Only the
+ * difference is written, and the new rows go in before the old ones come
+ * out, so a failure part-way never leaves a line missing an add-on the
+ * customer still wanted — at worst it keeps one they removed, which the
+ * refreshed cart then shows.
+ */
+async function replaceLineAddOns(
+  supabase: ReturnType<typeof createClient>,
+  cartItemId: string,
+  addOnIds: string[],
+): Promise<string | null> {
+  const failed = "Couldn't update the add-ons. Please try again.";
+  const { data: existing, error } = await supabase
+    .from("cart_item_add_on")
+    .select("addon_id")
+    .eq("cart_item_id", cartItemId);
+  if (error) return failed;
+
+  const current = new Set(
+    (existing ?? []).map((row) => row.addon_id).filter((id): id is string => Boolean(id)),
+  );
+  const wanted = new Set(addOnIds);
+  const toAdd = addOnIds.filter((id) => !current.has(id));
+  const toRemove = Array.from(current).filter((id) => !wanted.has(id));
+
+  if (toAdd.length > 0) {
+    const { error: insertError } = await supabase
+      .from("cart_item_add_on")
+      .insert(toAdd.map((addonId) => ({ cart_item_id: cartItemId, addon_id: addonId })));
+    if (insertError) return failed;
+  }
+  if (toRemove.length > 0) {
+    const { error: deleteError } = await supabase
+      .from("cart_item_add_on")
+      .delete()
+      .eq("cart_item_id", cartItemId)
+      .in("addon_id", toRemove);
+    if (deleteError) return failed;
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -277,6 +346,9 @@ export async function addCartItem(
 
   const notes = parsed.data.special_instructions?.trim() || null;
   const addOnIds = Array.from(new Set(parsed.data.add_on_ids ?? [])).sort();
+
+  const addOnError = await addOnProblem(supabase, product.product_id, addOnIds);
+  if (addOnError) return { data: null, error: addOnError };
 
   // Adding a dish that is already in the cart raises its quantity instead of
   // creating a second identical line — unless the customer attached special
@@ -471,16 +543,39 @@ export async function updateCartItem(
     updatePayload.quantity = parsed.data.quantity;
   }
   if (parsed.data.special_instructions !== undefined) {
-    updatePayload.special_instructions = parsed.data.special_instructions;
+    // Blank means "no note", stored as null like addCartItem does.
+    updatePayload.special_instructions = parsed.data.special_instructions?.trim() || null;
   }
 
+  // The "Edit" dialog sends the line's whole add-on set (limitations #23).
+  if (parsed.data.add_on_ids !== undefined) {
+    const addOnIds = Array.from(new Set(parsed.data.add_on_ids)).sort();
+    const addOnError =
+      (await addOnProblem(supabase, item.product_id, addOnIds)) ??
+      (await replaceLineAddOns(supabase, cartItemId, addOnIds));
+    if (addOnError) return { data: null, error: addOnError };
+  }
+
+  // Only add-ons changed: the line row itself has nothing to write.
+  const hasLineChange = Object.keys(updatePayload).length > 0;
+
   const [updateResult] = await Promise.all([
-    supabase
-      .from("cart_item")
-      .update(updatePayload)
-      .eq("cart_item_id", cartItemId)
-      .select()
-      .single(),
+    hasLineChange
+      ? supabase
+          .from("cart_item")
+          .update(updatePayload)
+          .eq("cart_item_id", cartItemId)
+          .select()
+          .single()
+      : Promise.resolve({
+          data: {
+            cart_item_id: item.cart_item_id,
+            product_id: item.product_id,
+            quantity: item.quantity,
+            special_instructions: item.special_instructions,
+          },
+          error: null,
+        }),
     supabase
       .from("cart")
       .update({ updated_at: new Date().toISOString() })
@@ -772,7 +867,7 @@ export async function switchOrderToCashOnDelivery(
     return {
       data: null,
       error:
-        "This order isn't waiting on a payment, so it can't be switched to pay in store.",
+        "This order isn't waiting on a payment, so it can't be switched to paying at the counter.",
     };
   }
 
@@ -808,6 +903,8 @@ export async function switchOrderToCashOnDelivery(
   const { error: paymentError } = await admin
     .from("transaction")
     .update({
+      // Pickup-only (issue #114): the fallback is paying at the counter, the
+      // same spelling submit_cart_to_order writes for it.
       payment_method: "pay_in_store",
       payment_status: "pending",
       provider_reference_id: null,
@@ -818,7 +915,7 @@ export async function switchOrderToCashOnDelivery(
   if (paymentError) {
     return {
       data: null,
-      error: "Couldn't switch this order to pay in store.",
+      error: "Couldn't switch this order to paying at the counter.",
     };
   }
 
@@ -835,7 +932,7 @@ export async function switchOrderToCashOnDelivery(
   if (updateError || !updated) {
     return {
       data: null,
-      error: "Couldn't switch this order to pay in store.",
+      error: "Couldn't switch this order to paying at the counter.",
     };
   }
 
@@ -890,11 +987,6 @@ function getCancellationErrorMessage(status: string | null): { message: string; 
         message: "Cannot cancel order: the kitchen has already started preparing your food.",
         code: "ORDER_PREPARING",
       };
-    case "received":
-      return {
-        message: "Cannot cancel order: restaurant staff has already received and accepted your order.",
-        code: "ORDER_RECEIVED",
-      };
     case "confirmed":
       return {
         message: "Cannot cancel order: your order has already been confirmed by restaurant staff.",
@@ -940,6 +1032,7 @@ export async function cancelCustomerOrder(
   );
 
   if (!rpcError && rpcData) {
+    await notifyOrderCancelled(supabase, orderId, "customer");
     return {
       data: rpcData as {
         order_id: string;
@@ -999,6 +1092,9 @@ export async function cancelCustomerOrder(
     };
   }
 
+  // A confirmation, and for a paid order what happens to the money (F23).
+  await notifyOrderCancelled(supabase, orderId, "customer");
+
   return {
     data: {
       order_id: updatedOrder.order_id,
@@ -1013,6 +1109,14 @@ export async function cancelCustomerOrder(
 // ---------------------------------------------------------------------------
 // 7. Reorder Past Order
 // ---------------------------------------------------------------------------
+
+/**
+ * Puts a past order's dishes back in the cart — My orders' "Reorder" and the
+ * menu's "Order again" row (issue #118). Each line comes back with the same
+ * quantity, note and add-ons; a dish that is sold out or off the menu, and an
+ * add-on that no longer exists for it, are left out and counted, so the
+ * caller can say so.
+ */
 
 export async function reorderPastOrder(
   orderId: string
@@ -1042,8 +1146,10 @@ export async function reorderPastOrder(
       special_instructions,
       product!inner (
         product_id,
-        is_available
-      )
+        is_available,
+        archived_at
+      ),
+      order_item_add_on ( addon_id )
     `)
     .eq("order_id", orderId);
 
@@ -1052,9 +1158,10 @@ export async function reorderPastOrder(
   }
 
   // 3. Filter available products
+  // Archived dishes are off the menu even if their flag still says available.
   const availableItems = items.filter((item) => {
-    const p = (Array.isArray(item.product) ? item.product[0] : item.product) as unknown as { is_available: boolean; product_id: string } | null;
-    return p?.is_available === true;
+    const p = (Array.isArray(item.product) ? item.product[0] : item.product) as unknown as { is_available: boolean; product_id: string; archived_at: string | null } | null;
+    return p?.is_available === true && !p.archived_at;
   });
 
   const addedCount = availableItems.length;
@@ -1095,15 +1202,44 @@ export async function reorderPastOrder(
     };
   }
 
-  // 5. Insert available items into cart
+  // 5. Insert available items into cart. Ids are chosen here so each line's
+  // add-ons can be attached to it below.
   const cartItemsToInsert = availableItems.map((item) => {
     const p = (Array.isArray(item.product) ? item.product[0] : item.product) as unknown as { product_id: string };
     return {
+      cart_item_id: crypto.randomUUID(),
       cart_id: cart!.cart_id,
       product_id: p.product_id,
       quantity: item.quantity,
       special_instructions: item.special_instructions,
     };
+  });
+
+  // Add-ons still offered for each dish. One that was deleted since, or
+  // that belongs to another dish, is dropped rather than failing the reorder.
+  const wantedAddOnIds = Array.from(
+    new Set(
+      availableItems.flatMap((item) =>
+        (item.order_item_add_on ?? [])
+          .map((row: { addon_id: string | null }) => row.addon_id)
+          .filter((id: string | null): id is string => Boolean(id)),
+      ),
+    ),
+  );
+  const { data: liveAddOns } = wantedAddOnIds.length
+    ? await supabase.from("add_on").select("addon_id, product_id").in("addon_id", wantedAddOnIds)
+    : { data: [] as { addon_id: string; product_id: string | null }[] };
+  const addOnProduct = new Map((liveAddOns ?? []).map((row) => [row.addon_id, row.product_id] as const));
+
+  const addOnsToInsert = availableItems.flatMap((item, index) => {
+    const line = cartItemsToInsert[index];
+    return (item.order_item_add_on ?? [])
+      .map((row: { addon_id: string | null }) => row.addon_id)
+      .filter(
+        (id: string | null): id is string =>
+          Boolean(id) && addOnProduct.get(id as string) === line.product_id,
+      )
+      .map((addonId: string) => ({ cart_item_id: line.cart_item_id, addon_id: addonId }));
   });
 
   const [insertResult] = await Promise.all([
@@ -1116,6 +1252,19 @@ export async function reorderPastOrder(
 
   if (insertResult.error) {
     return { data: null, error: insertResult.error.message ?? "Failed to add items to cart." };
+  }
+
+  if (addOnsToInsert.length > 0) {
+    const { error: addOnError } = await supabase.from("cart_item_add_on").insert(addOnsToInsert);
+    if (addOnError) {
+      // A dish without the add-ons the customer had is not the order they
+      // asked to repeat; take the lines back out rather than leave it half-done.
+      await supabase
+        .from("cart_item")
+        .delete()
+        .in("cart_item_id", cartItemsToInsert.map((line) => line.cart_item_id));
+      return { data: null, error: "Couldn't add the add-ons from that order. Please try again." };
+    }
   }
 
   const { revalidatePath } = await import("next/cache");

@@ -23,6 +23,7 @@ const ROLES: (EmployeeRole | null)[] = ["MANAGER", "STAFF", null];
 
 describe("D1. page access by role", () => {
   const MANAGER_ONLY = [
+    "/manage/audit-log",
     "/manage/dashboard",
     "/manage/reports",
     "/manage/customers",
@@ -153,6 +154,7 @@ describe("D4. no API route is left unguarded", () => {
     "profile",
     "employee-profile",
     "reports",
+    "audit",
   ];
 
   const GUARD_CALLS =

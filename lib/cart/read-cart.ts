@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { CartLine } from "@/lib/menu/cart-totals";
+import { mapProductRow, type RawProductRow } from "@/lib/menu/product-listing";
 
 export type CartRead = {
   /** `null` when the customer has never had a cart, or is signed out. */
@@ -52,7 +53,8 @@ export async function readCart(): Promise<CartRead> {
   const { data: items } = await supabase
     .from("cart_item")
     .select(
-      `cart_item_id, quantity, special_instructions, product:product(product_id, product_name, product_price),
+      `cart_item_id, quantity, special_instructions,
+       product:product(product_id, product_name, product_price, product_details, is_available, image_url, categories(category_name), add_on(addon_id, name, price)),
        cart_item_add_on ( addon_id, add_on ( name, price ) )`
     )
     .eq("cart_id", cart.cart_id);
@@ -77,6 +79,7 @@ export async function readCart(): Promise<CartRead> {
         quantity: item.quantity,
         specialInstructions: item.special_instructions,
         addOns,
+        product: mapProductRow(item.product as unknown as RawProductRow),
       };
     });
 

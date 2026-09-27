@@ -41,7 +41,7 @@ vi.mock("@/lib/checkout/paymongo", () => ({
   startWalletPayment: vi.fn(),
 }));
 
-// An unpaid wallet order draws "Switch to Pay in Store", which refreshes
+// An unpaid wallet order draws "Pay at the counter instead", which refreshes
 // the route on success. There is no app router in this environment.
 const refresh = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -492,7 +492,7 @@ describe("OrderPlacedScreen tracking gate", () => {
   it("offers the way out that the issue asks for, alongside paying again", () => {
     renderScreen(walletOrder("failed"), "paymaya");
     expect(
-      screen.getByRole("button", { name: /switch to pay in store/i }),
+      screen.getByRole("button", { name: /pay at the counter instead/i }),
     ).toBeInTheDocument();
     // "Try again with Maya" — the other half of the choice.
     expect(
@@ -505,7 +505,7 @@ describe("OrderPlacedScreen tracking gate", () => {
     expect(trackLink()).toHaveAttribute("href", "/orders/example-1042");
     expect(screen.queryByTestId("tracking-blocked")).toBeNull();
     expect(
-      screen.queryByRole("button", { name: /switch to pay in store/i }),
+      screen.queryByRole("button", { name: /pay at the counter instead/i }),
     ).toBeNull();
   });
 
@@ -516,7 +516,7 @@ describe("OrderPlacedScreen tracking gate", () => {
     renderScreen(order({ paymentStatus: "pending" }));
     expect(trackLink()).toHaveAttribute("href", "/orders/example-1042");
     expect(
-      screen.queryByRole("button", { name: /switch to pay in store/i }),
+      screen.queryByRole("button", { name: /pay at the counter instead/i }),
     ).toBeNull();
   });
 

@@ -73,12 +73,12 @@ export function PastOrderCard({ order }: { order: PastOrder }) {
   return (
     <article className="flex flex-col gap-[8px] rounded-lg border border-field-border bg-white p-[14px] md:h-full md:gap-[9px] md:p-[18px]">
       <div className="order-1 flex items-start justify-between gap-[12px]">
-        <span className="text-[12px] font-bold text-muted-foreground">
+        <span className="text-[14px] font-bold text-muted-foreground">
           {formatPlacedAt(order.placedAt)}
         </span>
         <span
           className={cn(
-            "shrink-0 text-[11px] font-bold",
+            "shrink-0 text-[14px] font-bold",
             outcome.tone === "success" ? "text-success" : "text-muted-foreground",
           )}
         >
@@ -130,7 +130,7 @@ export function PastOrderCard({ order }: { order: PastOrder }) {
         {action === "pay" ? (
           <Link
             href={`/checkout/confirmation?order=${order.orderId}`}
-            className="shrink-0 text-[13px] font-bold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="flex min-h-[44px] shrink-0 items-center text-[14px] font-bold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           >
             Complete payment
             <span className="sr-only"> for order #{order.orderNumber}</span>
@@ -138,7 +138,7 @@ export function PastOrderCard({ order }: { order: PastOrder }) {
         ) : action === "track" ? (
           <Link
             href={`/orders/${order.orderId}`}
-            className="shrink-0 text-[13px] font-bold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="flex min-h-[44px] shrink-0 items-center text-[14px] font-bold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           >
             Track order
           </Link>
@@ -152,7 +152,7 @@ export function PastOrderCard({ order }: { order: PastOrder }) {
             type="button"
             onClick={handleReorder}
             disabled={isPending}
-            className="shrink-0 text-[13px] font-bold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50"
+            className="flex min-h-[44px] shrink-0 items-center text-[14px] font-bold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50"
           >
             {isPending ? "Reordering..." : "Reorder"}
             <span className="sr-only"> order #{order.orderNumber}</span>

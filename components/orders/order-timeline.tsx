@@ -69,7 +69,7 @@ export function OrderTimeline({ stages }: { stages: TimelineStage[] }) {
               >
                 {stage.label}
               </span>
-              <span className="text-[12px] text-timeline-meta">
+              <span className="text-[14px] text-timeline-meta">
                 {stageMeta(stage)}
                 {/* The em dash carries no meaning to a screen reader, and
                     "Done"/"Now" alone do not say what they refer to. */}

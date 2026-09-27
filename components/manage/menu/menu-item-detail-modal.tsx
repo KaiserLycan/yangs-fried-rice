@@ -9,7 +9,7 @@ import { SHORTCUTS, useShortcut } from "@/lib/hooks/use-shortcut";
 import { DROPDOWN_FOCUS_RING, useDropdown } from "@/lib/hooks/use-dropdown";
 import { FIELD_LIMITS, lengthProps } from "@/lib/validation/fields";
 import { addOnFormSchema, menuItemFormSchema } from "@/components/manage/menu/menu-modals";
-import { MenuItem, MenuCategory, MOCK_CATEGORIES } from "@/components/manage/menu/mock-menu";
+import type { MenuItem, MenuCategory } from "@/types/menu";
 import { Dialog, DialogDismiss, DialogRoot } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Camera, ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
@@ -56,7 +56,7 @@ export function MenuItemDetailModal({
   const [isProcessingAddOn, setIsProcessingAddOn] = useState(false);
   const showToast = useToast();
 
-  const selectableCategories = (categories ?? MOCK_CATEGORIES).filter(
+  const selectableCategories = (categories ?? []).filter(
     (c) => c !== "All"
   );
 

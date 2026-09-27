@@ -8,7 +8,7 @@ import { PastOrderCard } from "@/components/orders/past-order-card";
 import { ToastProvider } from "@/components/ui/toast";
 import { reviewSubmissionSchema } from "@/lib/validation/reviews";
 import { addCartItemSchema } from "@/lib/validation/cart";
-import type { OrderData } from "@/lib/mock-orders";
+import type { OrderData } from "@/types/staff-order";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn(), replace: vi.fn() }),
@@ -183,6 +183,13 @@ describe("E5. no unsafe rendering escape hatch exists", () => {
       // external ones are prefixed with a fixed `mailto:` / `tel:` scheme
       // that a value cannot change.
       ["components/layout/site-footer.tsx", "href={href} and mailto:/tel: — from lib/site/site-info.ts"],
+      // Issue #118. Both callers (app/error.tsx, app/manage/error.tsx) pass a
+      // literal route.
+      ["components/error-screen.tsx", "href={homeHref} — a literal route from the two error pages"],
+      // A signed Storage link minted on the server by createSignedUrl for a
+      // path that isOrderIssuePhotoPath() validated; always https on the
+      // Supabase host, never text a customer typed.
+      ["components/manage/orders/open-issues-panel.tsx", "href={issue.photoUrl} — a server-signed Storage URL"],
     ]);
 
     const offenders: string[] = [];

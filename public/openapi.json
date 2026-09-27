@@ -1365,7 +1365,7 @@
             "schema": {
               "type": "string",
               "enum": [
-                "received",
+                "pending",
                 "preparing",
                 "out_for_delivery",
                 "completed",
@@ -1463,7 +1463,7 @@
           "Orders & Real-Time ETA"
         ],
         "summary": "Get order status statistics",
-        "description": "Returns order counts grouped by status (received, preparing, out_for_delivery, completed, cancelled, total). Requires admin, manager, or staff.",
+        "description": "Returns order counts grouped by status (pending, preparing, out_for_delivery, completed, cancelled, total). Requires admin, manager, or staff.",
         "operationId": "getOrderStats",
         "responses": {
           "200": {
@@ -1579,7 +1579,7 @@
           "Orders & Real-Time ETA"
         ],
         "summary": "Update order status",
-        "description": "Updates order status through stages: received -> preparing -> out_for_delivery -> completed (or cancelled from any non-completed stage). Requires admin, manager, or staff.",
+        "description": "Updates order status through stages: pending -> preparing -> ready -> completed (or cancelled from any non-completed stage). Requires admin, manager, or staff.",
         "operationId": "updateOrderStatus",
         "parameters": [
           {
@@ -4902,13 +4902,13 @@
           "order_status": {
             "type": "string",
             "enum": [
-              "received",
+              "pending",
               "preparing",
               "out_for_delivery",
               "completed",
               "cancelled"
             ],
-            "example": "received"
+            "example": "pending"
           },
           "created_at": {
             "type": "string",
@@ -4943,7 +4943,7 @@
           "new_status": {
             "type": "string",
             "enum": [
-              "received",
+              "ready",
               "preparing",
               "out_for_delivery",
               "completed",
@@ -4956,7 +4956,7 @@
       "OrderStats": {
         "type": "object",
         "required": [
-          "received",
+          "pending",
           "preparing",
           "out_for_delivery",
           "completed",
@@ -4964,7 +4964,7 @@
           "total"
         ],
         "properties": {
-          "received": {
+          "pending": {
             "type": "integer",
             "example": 4
           },

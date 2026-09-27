@@ -20,7 +20,7 @@ const dmSans = DM_Sans({
 
 export const metadata: Metadata = {
   title: "Yang's Fried Rice",
-  description: "Order online for pickup or delivery from Yang's Fried Rice.",
+  description: "Order online for pickup from Yang's Fried Rice.",
 };
 
 import { ToastProvider } from "@/components/ui/toast";

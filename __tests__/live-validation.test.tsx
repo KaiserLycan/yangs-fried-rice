@@ -84,7 +84,8 @@ describe("sign-up", () => {
     set(/^barangay/i, "Malate");
     set(/^city/i, "Manila");
     set(/zip code/i, "1004");
-    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("checkbox", { name: /i am at least 18/i }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /terms & policy/i }));
   }
 
   it("has separate first name, last name and five address inputs", () => {
@@ -114,7 +115,17 @@ describe("sign-up", () => {
     const button = screen.getByRole("button", { name: /create account/i });
     await waitFor(() => expect(button).toBeEnabled());
 
-    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByRole("checkbox", { name: /terms & policy/i }));
+    await waitFor(() => expect(button).toBeDisabled());
+  });
+
+  it("stays disabled until the age box is ticked (F16)", async () => {
+    render(<CustomerSignupForm />);
+    fillValidSignup();
+    const button = screen.getByRole("button", { name: /create account/i });
+    await waitFor(() => expect(button).toBeEnabled());
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /i am at least 18/i }));
     await waitFor(() => expect(button).toBeDisabled());
   });
 

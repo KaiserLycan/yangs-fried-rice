@@ -10,6 +10,7 @@ import { DesktopCartRail } from "@/components/cart/desktop-cart-rail";
 import { ItemDetailModal } from "@/components/menu/item-detail-modal";
 import { MenuEmptyState } from "@/components/menu/menu-empty-state";
 import { MobileMenuHeader } from "@/components/menu/mobile-menu-header";
+import { OrderAgainRow } from "@/components/menu/order-again-row";
 import { ProductCard } from "@/components/menu/product-card";
 import { ProductRow } from "@/components/menu/product-row";
 import { SearchField } from "@/components/menu/search-field";
@@ -28,7 +29,9 @@ import {
 import type { ProductListing } from "@/lib/menu/product-listing";
 import type { CustomerProfile } from "@/lib/profile/customer-profile";
 import type { CartRead } from "@/lib/cart/read-cart";
+import type { RecentOrder } from "@/lib/orders/read-recent-orders";
 import { createClient } from "@/lib/supabase/client";
+import { uniqueChannelName } from "@/lib/supabase/channel-name";
 
 /** Debounce for the search field, so every keystroke doesn't fire a request. */
 const SEARCH_DEBOUNCE_MS = 250;
@@ -49,6 +52,7 @@ export function MenuScreen({
   cartPromise,
   arrivalEstimatePromise,
   initialFulfilment,
+  recentOrdersPromise,
 }: {
   profilePromise: Promise<CustomerProfile | null>;
   productsPromise: Promise<ProductListing[]>;
@@ -61,6 +65,8 @@ export function MenuScreen({
    */
   arrivalEstimatePromise: Promise<string | null>;
   initialFulfilment?: Fulfilment;
+  /** The "Order again" row (issue #118). Resolves empty for a guest. */
+  recentOrdersPromise?: Promise<RecentOrder[]>;
 }) {
   const [search, setSearch] = React.useState("");
   const [selectedCategory, setSelectedCategory] = React.useState<string | null>(
@@ -77,6 +83,25 @@ export function MenuScreen({
   const [isPending, setIsPending] = React.useState(false);
 
   const showToast = useToast();
+
+  // Guests see "Sign in to order" in place of Add (panel F3). Until the
+  // profile has resolved nobody is treated as a guest, so a signed-in
+  // customer never sees the guest button flash first.
+  const [isGuest, setIsGuest] = React.useState(false);
+  React.useEffect(() => {
+    let active = true;
+    // A promise passed from a Server Component arrives as React's Flight
+    // chunk, whose `.then()` returns undefined — chaining `.catch` on it
+    // throws. Promise.resolve adopts it into a real promise first.
+    Promise.resolve(profilePromise)
+      .then((profile) => {
+        if (active) setIsGuest(profile === null);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [profilePromise]);
 
   const filtersRef = React.useRef({ search, selectedCategory });
   React.useEffect(() => {
@@ -136,7 +161,7 @@ export function MenuScreen({
   React.useEffect(() => {
     const supabase = createClient();
     const channel = supabase
-      .channel("menu-changes")
+      .channel(uniqueChannelName("menu-changes"))
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "product" },
@@ -225,7 +250,7 @@ export function MenuScreen({
         ) : (
           <Suspense fallback={
             <aside className="hidden w-[208px] shrink-0 flex-col md:flex">
-              <h2 className="px-[18px] pt-[24px] text-[13px] font-bold uppercase tracking-[0.5px] text-foreground">
+              <h2 className="px-[18px] pt-[24px] text-[14px] font-bold uppercase tracking-[0.5px] text-foreground">
                 Categories
               </h2>
               <nav className="mt-[15px] flex flex-col gap-[6px] px-[18px]">
@@ -244,6 +269,14 @@ export function MenuScreen({
         )}
 
         <main className="flex-1 md:px-[28px] md:py-[26px]">
+          {/* Only on the unfiltered menu: searching means they are after
+              something else. */}
+          {recentOrdersPromise && !hasFilter ? (
+            <div className="md:mb-[24px]">
+              <OrderAgainRow ordersPromise={recentOrdersPromise} />
+            </div>
+          ) : null}
+
           <div className="hidden items-baseline gap-[12px] px-[20px] pt-[16px] md:flex md:px-0 md:pt-0">
             <h1 className="font-display text-[32px] uppercase tracking-[0.32px] text-foreground">
               {selectedCategory ?? "THE WHOLE MENU"}
@@ -259,7 +292,7 @@ export function MenuScreen({
               <>
                 <div className="hidden gap-[16px] pt-[24px] md:grid md:grid-cols-3">
                   {products.map((product) => (
-                    <ProductCard key={product.id} product={product} onSelect={setSelectedProduct} />
+                    <ProductCard key={product.id} product={product} onSelect={setSelectedProduct} isGuest={isGuest} />
                   ))}
                 </div>
                 <div className="flex flex-col md:hidden">
@@ -274,6 +307,7 @@ export function MenuScreen({
               <ResolvedProductGrid 
                 productsPromise={productsPromise} 
                 onSelect={setSelectedProduct} 
+                isGuest={isGuest}
               />
             </Suspense>
           )}
@@ -313,7 +347,7 @@ export function MenuScreen({
           {[{ id: "menu", icon: "☰", label: "Menu" }, { id: "cart", icon: "▤", label: "Cart" }, { id: "orders", icon: "◉", label: "Orders" }, { id: "account", icon: "☺", label: "Me" }].map(({ id, icon, label }) => (
             <div key={id} className={`flex flex-col items-center gap-[4px] px-[8px] py-[4px] ${id === "menu" ? "text-primary" : "text-muted-foreground"}`}>
               <span className="text-[19px] leading-none" aria-hidden="true">{icon}</span>
-              <span className="text-[11px] font-medium">{label}</span>
+              <span className="text-[14px] font-medium">{label}</span>
             </div>
           ))}
         </nav>
@@ -326,6 +360,7 @@ export function MenuScreen({
 
       <ItemDetailModal
         product={selectedProduct}
+        isGuest={isGuest}
         onClose={() => setSelectedProduct(null)}
         onAdd={(quantity, instructions) => {
           if (!selectedProduct) return;
@@ -440,9 +475,11 @@ function ResolvedCategorySidebar({
 function ResolvedProductGrid({
   productsPromise,
   onSelect,
+  isGuest,
 }: {
   productsPromise: Promise<ProductListing[]>;
   onSelect: (product: ProductListing) => void;
+  isGuest: boolean;
 }) {
   const [products, setProducts] = useState<ProductListing[]>([]);
   useEffect(() => {
@@ -459,7 +496,7 @@ function ResolvedProductGrid({
     <>
       <div className="hidden gap-[16px] pt-[24px] md:grid md:grid-cols-3">
         {products.map((product) => (
-          <ProductCard key={product.id} product={product} onSelect={onSelect} />
+          <ProductCard key={product.id} product={product} onSelect={onSelect} isGuest={isGuest} />
         ))}
       </div>
       <div className="flex flex-col md:hidden">

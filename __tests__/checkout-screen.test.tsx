@@ -655,31 +655,6 @@ describe("Checkout online payment", () => {
   });
 });
 
-describe("Checkout delivery details", () => {
-  it("says so deliberately when the customer has no saved address", () => {
-    renderCheckout({
-      profile: { ...profile, deliverToAddress: null, addresses: [], activeAddressId: null },
-    });
-
-    expect(
-      screen.getByText(/no saved delivery address yet/i),
-    ).toBeInTheDocument();
-  });
-
-  // A pickup order has no address to confirm, and the "add one before
-  // choosing delivery" prompt would read as a blocker on an order that needs
-  // no address at all.
-  it("does not ask a pickup order for a delivery address", () => {
-    renderCheckout({
-      fulfilment: "pickup",
-      profile: { ...profile, deliverToAddress: null },
-    });
-
-    expect(countOf(/no saved delivery address yet/i)).toBe(0);
-    expect(countOf("Delivery details")).toBe(0);
-  });
-});
-
 describe("Checkout layout", () => {
   // The frames differ only in arrangement, so each card is written once and
   // placed by grid position. Rendering a mobile tree and a desktop tree and

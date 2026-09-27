@@ -83,11 +83,11 @@ describe("SiteNavBar", () => {
     );
   });
 
-  it("shows the short delivery address when the customer has one", () => {
+  it("no longer shows a delivery address (pickup-only)", () => {
     renderNavBar(<SiteNavBar profile={profile} currentSection="menu" />);
 
-    expect(screen.getByText("Deliver to")).toBeInTheDocument();
-    expect(screen.getByText(/Home/)).toBeInTheDocument();
+    // Issue #118: the shop is pickup-only, so the "Deliver to" picker is gone.
+    expect(screen.queryByText("Deliver to")).not.toBeInTheDocument();
   });
 
   it("hides the delivery address affordance when there is none saved", () => {

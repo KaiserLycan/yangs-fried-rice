@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ManagePagination } from "@/components/manage/manage-pagination";
 import { ProductPhotoPlaceholder } from "@/components/menu/product-photo-placeholder";
-import type { MenuItem } from "@/components/manage/menu/mock-menu";
+import type { MenuItem } from "@/types/menu";
 
 interface MenuGridProps {
   searchText: string;

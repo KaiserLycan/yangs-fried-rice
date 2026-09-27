@@ -99,7 +99,7 @@ export function RateOrderButton({
         type="button"
         onClick={() => setOpen(true)}
         className={cn(
-          "shrink-0 text-[13px] font-bold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+          "shrink-0 text-[14px] font-bold text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
           className,
         )}
       >
@@ -231,7 +231,7 @@ function RateOrderDialog({
               );
             })}
           </div>
-          <span className="text-[13px] font-bold text-muted-strong" aria-live="polite">
+          <span className="text-[14px] font-bold text-muted-strong" aria-live="polite">
             {shown ? SCORE_WORDS[shown] : "Tap a star"}
           </span>
         </div>
@@ -239,7 +239,7 @@ function RateOrderDialog({
         <div className="flex flex-col gap-[6px]">
           <label
             htmlFor={commentId}
-            className="text-[11px] font-bold uppercase tracking-[1.5px] text-muted-foreground"
+            className="text-[14px] font-bold uppercase tracking-[1.5px] text-muted-foreground"
           >
             Comment (optional)
           </label>

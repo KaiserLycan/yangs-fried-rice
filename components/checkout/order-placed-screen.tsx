@@ -104,7 +104,7 @@ export function OrderPlacedScreen({
               it is stored in, so that the string here is the one staff can
               paste into a search and the one the kitchen is looking at
               (issue #106). */}
-          <p className="text-[12px] uppercase tracking-[1.92px] text-muted-foreground">
+          <p className="text-[14px] uppercase tracking-[1.92px] text-muted-foreground">
             Order{" "}
             <span className="normal-case">#{order.orderNumber}</span>
           </p>
@@ -129,7 +129,7 @@ export function OrderPlacedScreen({
         </header>
 
         <section className="flex flex-col gap-[11px] rounded-lg border border-rule bg-card p-[20px]">
-          <h2 className="text-[11px] font-bold uppercase tracking-[1.54px] text-muted-foreground">
+          <h2 className="text-[14px] font-bold uppercase tracking-[1.54px] text-muted-foreground">
             Order summary
           </h2>
           <OrderSummaryRows
@@ -164,7 +164,7 @@ export function OrderPlacedScreen({
           <div className="flex flex-col gap-[10px]">
             <p
               data-testid="tracking-blocked"
-              className="text-center text-[13px] leading-[18px] text-muted-strong"
+              className="text-center text-[14px] leading-[18px] text-muted-strong"
             >
               Complete payment to track your order. Nothing has been taken yet,
               and the kitchen hasn’t started it.

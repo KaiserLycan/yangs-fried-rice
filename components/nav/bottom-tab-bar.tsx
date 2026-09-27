@@ -68,7 +68,7 @@ export function BottomTabBar({
             <span className="text-[19px] leading-none" aria-hidden="true">
               {icon}
             </span>
-            <span className="text-[11px] font-medium">{displayLabel}</span>
+            <span className="text-[14px] font-medium">{displayLabel}</span>
           </Link>
         );
       })}

@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { customerEmailSchema, customerNewPasswordSchema } from "./login";
-import { dateOfBirthSchema } from "./date-of-birth";
 import { phoneSchema } from "./phone";
 import {
   addressPartsSchema,
@@ -9,8 +8,13 @@ import {
 } from "./fields";
 
 /**
- * Customer sign-up (Cust1): first name, last name, email, phone, optional
- * date of birth, password, and the delivery address as five atomic parts.
+ * Customer sign-up (Cust1): first name, last name, email, phone, password,
+ * the address as five atomic parts, and an age confirmation.
+ *
+ * The date of birth used to be asked here (optional, 13+). The panel asked
+ * for it to go (F16); it was also the only age check, so a checkbox replaces
+ * it: "I am at least 18, or have a parent's permission". A birthday can
+ * still be added later from the profile.
  *
  * Every rule is imported rather than restated — names and address parts from
  * `fields.ts`, email and password from `login.ts` — so sign-up, the profile
@@ -45,9 +49,16 @@ export const signupSchema = z
     lastName: customerLastNameSchema,
     email: customerEmailSchema,
     phone: customerMobileSchema,
-    /** Optional. "" or an ISO date that is not in the future. */
-    dateOfBirth: dateOfBirthSchema.optional(),
     password: customerNewPasswordSchema,
+    /**
+     * Checked on the server too, not only by the form: an account must not
+     * exist without the confirmation, however the action was called.
+     */
+    ageConfirmed: z.literal(true, {
+      errorMap: () => ({
+        message: "Confirm you are at least 18, or have a parent's permission.",
+      }),
+    }),
   })
   .merge(addressPartsSchema);
 

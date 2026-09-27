@@ -114,6 +114,7 @@ describe("every role is held to the same rule", () => {
       barangay: "San Andres",
       city: "Manila",
       zip: "1000",
+      ageConfirmed: true,
     };
     expect(signupSchema.safeParse({ ...base, phone: bad }).success).toBe(false);
     expect(signupSchema.safeParse({ ...base, phone: good }).success).toBe(true);

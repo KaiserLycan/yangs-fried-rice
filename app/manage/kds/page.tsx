@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { KdsOrderCard } from "@/components/manage/kds/kds-order-card";
-import { OrderData } from "@/lib/mock-orders";
+import type { OrderData } from "@/types/staff-order";
 import { getDetailedOrders, updateOrderStatus } from "@/lib/actions/orders";
 import { mapStaffOrder, type StaffOrderRow } from "@/lib/orders/map-staff-order";
 import { actionCopy, dbStatusFor, type StaffAction } from "@/lib/orders/staff-actions";
@@ -26,9 +26,9 @@ function KdsInner() {
   const fetchOrders = useCallback(async () => {
     setIsLoading(true);
 
-    // KDS shows orders that are in queue (pending/received) or being prepared
+    // KDS shows orders that are in queue (pending) or being prepared
     const result = await getDetailedOrders({
-      status: ["pending", "received", "preparing"] as any,
+      status: ["pending", "preparing"] as any,
       limit: 50,
       offset: 0,
     });

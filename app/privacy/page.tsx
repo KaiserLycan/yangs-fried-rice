@@ -51,6 +51,11 @@ export default function PrivacyPage() {
             <strong>Reviews</strong> you leave on an order.
           </li>
           <li>
+            <strong>Problem reports:</strong> the items you mark as missing,
+            wrong or damaged, and a photo if you add one. Photos are private:
+            only you and our staff can see them.
+          </li>
+          <li>
             <strong>Security logs:</strong> failed sign-in attempts, with the IP
             address and a scrambled copy of the email used.
           </li>
@@ -64,7 +69,10 @@ export default function PrivacyPage() {
       <LegalSection title="3. Why we use it">
         <ul className="list-disc space-y-1 pl-5">
           <li>To create your account and sign you in.</li>
-          <li>To prepare your order and tell you when it is ready.</li>
+          <li>
+            To prepare your order and tell you about it in the app and by email.
+          </li>
+          <li>To deal with a problem you report.</li>
           <li>To take payment and give refunds.</li>
           <li>To check that a discount is allowed, as the law requires.</li>
           <li>To keep sales records required by tax law.</li>
@@ -83,6 +91,9 @@ export default function PrivacyPage() {
             Discount ID photo: deleted as soon as your order is completed. The
             ID number and name on the ID stay with the sales record.
           </li>
+          <li>
+            Problem-report photos: deleted when you delete your account.
+          </li>
           <li>Security logs: no longer than needed to stop abuse.</li>
         </ul>
       </LegalSection>
@@ -99,6 +110,9 @@ export default function PrivacyPage() {
           <li>
             <strong>Vercel</strong> — hosts this website.
           </li>
+          <li>
+            <strong>Resend</strong> — sends our order emails.
+          </li>
           <li>Our store staff, who need it to prepare your order.</li>
           <li>Government agencies, when the law requires it.</li>
         </ul>
@@ -106,7 +120,7 @@ export default function PrivacyPage() {
 
       <LegalSection title="6. Data stored outside the Philippines">
         <p>
-          Supabase and Vercel may store or process your data on servers outside
+          Supabase, Vercel and Resend may store or process your data on servers outside
           the Philippines. We only use providers that protect it with encryption
           and access controls, and we stay responsible for it under Philippine
           law.

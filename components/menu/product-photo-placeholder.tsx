@@ -12,7 +12,7 @@ export function ProductPhotoPlaceholder({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "flex items-center justify-center bg-secondary/40 text-[11px] font-bold uppercase tracking-[1.2px] text-muted-foreground",
+        "flex items-center justify-center bg-secondary/40 text-[14px] font-bold uppercase tracking-[1.2px] text-muted-foreground",
         className,
       )}
     >

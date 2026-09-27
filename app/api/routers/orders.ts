@@ -29,7 +29,7 @@ function errorToStatus(error: string): number {
 /**
  * GET /api/orders
  * List orders with optional filters:
- *  ?status=received
+ *  ?status=pending
  *  ?startDate=2026-09-01
  *  ?endDate=2026-09-10
  *  ?limit=20
@@ -111,7 +111,7 @@ export async function getOrderDetail(
 /**
  * PATCH /api/orders/[id]/status
  * Advance or update order status through distinct stages.
- * Body: { new_status: 'received' | 'preparing' | 'out_for_delivery' | 'completed' | 'cancelled', cancellation_reason?: string }
+ * Body: { new_status: 'preparing' | 'ready' | 'completed' | 'cancelled', cancellation_reason?: string }
  * Requires: admin, manager, or staff.
  */
 export async function updateOrderStatus(

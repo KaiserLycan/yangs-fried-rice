@@ -16,6 +16,7 @@ import {
   MIN_DELIVERY_FEE_PHP,
   PER_KM_RATE_PHP,
 } from "@/lib/eta/engine";
+import type { ProductListing } from "@/lib/menu/product-listing";
 
 export type Fulfilment = "delivery" | "pickup";
 
@@ -26,6 +27,12 @@ export type CartLine = {
   quantity: number;
   specialInstructions: string | null;
   addOns?: { addon_id: string; name: string; price: number }[];
+  /**
+   * The dish as the menu shows it, with its add-on choices — what the cart's
+   * "Edit" dialog opens pre-filled (limitations #23). Absent on an optimistic
+   * line the menu draws before the server has answered.
+   */
+  product?: ProductListing;
 };
 
 export type CartTotals = {

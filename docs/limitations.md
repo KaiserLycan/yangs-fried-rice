@@ -21,30 +21,41 @@ Priority: **P1** = do first (legal, security or a real bug). **P2** = do if time
 | 30 | Orders page can't filter by date, customer, payment or type | P2 (high) | 2 h |
 | 31 | Customer list has no order totals or order history; loads every customer | P2 | 2 h |
 | 32 | Reports have no breakdowns and no CSV | P2 | 2.5 h |
-| 33 | No error pages; `received` status is unreachable; real types live in "mock" files | P2 | 1 h |
+| 33 | ~~No error pages; `received` status is unreachable; real types live in "mock" files~~ | ✅ **Done in #118** | — |
 | 21 | ~~Customers can write orders straight into the database~~ | ✅ **Done in #114** | — |
 | 15 | ~~Placing an order is not atomic (double orders, half-saved orders)~~ | ✅ **Done in #114** | — |
 | 16 | A customer can delete their account before picking up | P1 | 0.5 h |
 | 7 | No "pause store" / busy mode | P2 | 1.5 h |
 | 8 | No "change for ₱___" on cash payments | P2 | 1 h |
 | 9 | No order status history (who changed what, when) | P2 | 1.5 h |
-| 10 | Notifications table exists but nothing writes to it | P2 | 2 h |
+| 10 | ~~Notifications table exists but nothing writes to it~~ | ✅ **Done in #118** | — |
 | 11 | (Removed - Delivery disabled) | | |
-| 12 | No printable receipt | P2 | 1 h |
+| 12 | ~~No printable receipt~~ | ✅ **Done in #118** | — |
 | 13 | No separate privacy notice or business details | **P1** (raised: the Internet Transactions Act has been enforced since June 2025) | 0.5 h |
 | 14 | No "Best seller" labels on the menu | P2 | 1 h |
 | 17 | KDS has no late-order warning or new-order sound | P2 | 1 h |
 | 18 | Nothing stops repeat pickup no-shows | P2 | 1 h |
 | 19 | No end-of-day cash summary at the counter | P2 | 1.5 h |
-| 20 | No "Order again" row on the menu | P2 | 1 h |
+| 20 | ~~No "Order again" row on the menu~~ | ✅ **Done in #118** | — |
 | 22 | Nothing happens when staff don't accept an order | P2 (do first in P2) | 1 h |
-| 23 | Add-ons can't be changed from the cart | P2 | 1.5 h |
-| 24 | No way to report a missing or wrong item | P2 | 2 h |
-| 25 | No accessibility check has been done | P2 | 1 h |
+| 23 | ~~Add-ons can't be changed from the cart~~ | ✅ **Done in #118** | — |
+| 24 | ~~No way to report a missing or wrong item~~ | ✅ **Done in #118** | — |
+| 25 | ~~No accessibility check has been done~~ | ✅ **Done in #118** | — |
 
 P0 + P1 total: about 15 h. P2 total: about 26 h. That is more than 1.5 days, so do all of P1, then pick P2 items in order.
 
 **Progress (27 Sep 2026):** issue #114 closed items 15, 21, 26 and 28, and made the shop pickup-only: the `rider` and `delivery` tables are dropped (archived in a private `archive` schema) and there is no rider role. Items still written in delivery terms below should be read as pickup.
+
+**Progress (28 Sep 2026):** issue #118 closed items 10, 12, 20, 23, 24, 25 and 33, and panel points F3, F7, F12, F16 and F23:
+
+- **Notifications (10):** trigger `trg_notify_customer_of_order_status` writes a row on every status change ("ready for pickup — Counter 1, say your order number"); a bell with a live unread count sits in the nav bar. `notification` and `order` were added to the `supabase_realtime` publication — it was empty on the live project, so the tracking screen's live updates never fired before.
+- **Receipt (12):** the order page has a receipt card and "Print / Save as PDF" with a print stylesheet; labelled "This is not an official receipt".
+- **Order again (20):** last 3 completed orders at the top of `/menu` (`GET /api/customer/orders/recent`); reordering now also restores each line's add-ons and skips archived dishes.
+- **Edit add-ons (23):** `updateCartItemSchema` takes `add_on_ids`; each cart line has "Edit". Add-ons are checked to belong to the dish (also on add).
+- **Report a problem (24):** `order_issue` table + private `order-issue-photos` bucket; the 24-hour window, item ownership and photo folder are enforced by RLS. Open reports show at the top of `/manage/orders`.
+- **Accessibility (25):** Lighthouse accessibility is 100 on menu, cart, checkout and tracking. Sub-14px text on those pages raised to 14px, touch targets to 44px, and the flame accent darkened to `#C64415` (was 3.6:1 with white).
+- **33:** `app/error.tsx`, `app/manage/error.tsx`, `app/global-error.tsx`; `received` removed from `ORDER_STATUSES`; `OrderData` → `types/staff-order.ts`, `MenuItem` → `types/menu.ts`; the delivery map, `DeliveryLocation` and Leaflet are gone. `/manage/staff` and `/manage/inventory` 404 in production.
+- **F23:** cancellation email through Resend (`RESEND_API_KEY`, `EMAIL_FROM`), with a refund note for paid orders. No key, no email; the in-app notification still goes.
 
 Items 15–20 came from the second round of research (GitHub projects, Baymard UX research, OWASP, Philippine news).
 Item 21 came from the persona walkthroughs in [`user-simulation.md`](user-simulation.md). Items 22–25, and the additions
@@ -365,10 +376,10 @@ The panel's 25 points were checked against the code. The ones not already covere
 
 | Ref | Point | Priority | Estimate |
 |---|---|---|---|
-| F3 | Guests see "Sign in to order" instead of "Add" | **P1 (panel)** | 0.5 h |
-| F7 | Type the quantity in the stepper | **P1 (panel)** | 0.5 h |
-| F12 | Grey out photos of unavailable items | **P1 (panel)** | 0.25 h |
-| F16 | Password strength on sign-up; remove birthday (add an age checkbox) | **P1 (panel)** | 0.5 h |
+| F3 | ~~Guests see "Sign in to order" instead of "Add"~~ | ✅ **Done in #118** | — |
+| F7 | ~~Type the quantity in the stepper~~ | ✅ **Done in #118** | — |
+| F12 | ~~Grey out photos of unavailable items~~ | ✅ **Done in #118** | — |
+| F16 | ~~Password strength on sign-up; remove birthday (add an age checkbox)~~ | ✅ **Done in #118** | — |
 | F17 | Show VAT at checkout and save `tax_amount` | **P1 (panel)** | 0.5 h |
 | F21 | 3RD PARTY COURIER / SELF PICKUP badge on KDS and order cards | **P1 (panel)** | 0.25 h |
 | F22 | Cancel button disabled until a reason is given; preset reasons | **P1 (panel)** | 0.25 h |
@@ -377,12 +388,12 @@ The panel's 25 points were checked against the code. The ones not already covere
 | F14 | "Customer no-show" status; strikes lead to cash block, then manager review | P2 | 2 h |
 | F24 | KDS sort toggle, list view, cancelled tab | P2 | 1.5 h |
 | F25 | Separate food and service ratings; per-item ratings with "rate all the same" | P2 | 2 h |
-| F23 | Email on cancellation (with refund note for paid orders) | P2 | 1.5 h |
+| F23 | ~~Email on cancellation (with refund note for paid orders)~~ | ✅ **Done in #118** | — |
 | F4 | "Find a store" page | P2 | 1 h |
 | F18 | Per-item prep time in the ETA; keep the promised time | P2 | 2 h |
 | F1 | Promo banner managed by the manager | P2 | 2.5 h |
 | F13 | CAPTCHA on sign-up and login (moved from `lacking.md`) | P2 | 1.5 h |
 | F19 | Staff tips with preset amounts (moved from `lacking.md`) | P2 | 2 h |
-| F20 | Record who created and cancelled each order (extends L9) | P2 | 0.5 h on top of L9 |
+| F20 | ~~Record who created and cancelled each order~~ | ✅ **Done — employee audit log** (`/manage/audit-log`) | — |
 
 Panel P1 items add about 6 hours. Future work for the paper: group orders (F2), bulk and advance orders (F10), vouchers and games (F1).

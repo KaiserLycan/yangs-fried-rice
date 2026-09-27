@@ -14,6 +14,7 @@ import {
   type PaymentStatus,
 } from "@/lib/checkout/payment-status";
 import { createClient } from "@/lib/supabase/client";
+import { uniqueChannelName } from "@/lib/supabase/channel-name";
 
 /**
  * The payment block on the receipt, and the one part of that screen that
@@ -88,7 +89,7 @@ export function PaymentStatusCard({
   React.useEffect(() => {
     const supabase = createClient();
     const channel = supabase
-      .channel(`order-payment-${orderId}`)
+      .channel(uniqueChannelName(`order-payment-${orderId}`))
       .on(
         "postgres_changes",
         {
@@ -249,7 +250,7 @@ export function PaymentStatusCard({
       data-status={status ?? "none"}
       className="flex flex-col gap-[4px] rounded-lg border border-rule bg-card p-[20px]"
     >
-      <h2 className="text-[11px] font-bold uppercase tracking-[1.54px] text-muted-foreground">
+      <h2 className="text-[14px] font-bold uppercase tracking-[1.54px] text-muted-foreground">
         Payment method
       </h2>
       <p className="text-[14px] font-bold text-foreground">
@@ -259,7 +260,7 @@ export function PaymentStatusCard({
       </p>
       <p
         role={status === "pending" ? "status" : undefined}
-        className="text-[12px] leading-[18px] text-muted-strong"
+        className="text-[14px] leading-[18px] text-muted-strong"
       >
         {note(status, isOnlineOrder, startFailed, stalePending)}
       </p>
