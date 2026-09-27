@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/toast";
 import { submitCart } from "@/lib/actions/cart";
 import { useCartAction } from "@/lib/cart/use-cart-action";
 import { orderTypeFor } from "@/lib/checkout/fulfilment-param";
+import type { PickupBy } from "@/components/checkout/pickup-by-picker";
 import {
   isOnlinePaymentConfigured,
   startWalletPayment,
