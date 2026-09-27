@@ -1,17 +1,17 @@
 # Graph Report - Yangs-fried-rice  (2026-09-28)
 
 ## Corpus Check
-- 603 files · ~822,717 words
+- 605 files · ~824,246 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 10 file(s) not represented in the graph (top: (none) 5, .patch 2, .example 1)
 
 ## Summary
-- 3145 nodes · 8253 edges · 199 communities (149 shown, 50 thin omitted)
-- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 142 edges (avg confidence: 0.92)
+- 3154 nodes · 8261 edges · 199 communities (149 shown, 50 thin omitted)
+- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 143 edges (avg confidence: 0.92)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `bc6de90a`
+- Built from commit: `fdc650d7`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -22,49 +22,49 @@
 - db-cleanse.mjs
 - actions/menu.ts
 - sidebar.tsx
-- audit-actions.ts
+- products.ts
 - toast.tsx
 - cn
-- resolveEmployeeRole
-- payment-status-card.tsx
-- track-order-screen.tsx
-- checkout-screen.tsx
+- routers/admin.ts
+- wallet-tab.ts
+- order-stage.ts
+- order-summary-card.tsx
 - actions/cart.ts
-- checkout-screen.test.tsx
+- store-status.ts
 - routers/reports.ts
 - past-order.ts
-- roles.ts
+- actions/admin.ts
 - Issue #106 — follow-up issues to file
 - package.json
 - dashboard-content.tsx
-- actions/admin.ts
+- phone.ts
 - fields.ts
 - brand-panel.tsx
 - (account)/profile/page.tsx
 - notification-bell.tsx
 - Review Checklist
-- report-problem.tsx
-- transaction.ts
-- phone-input.tsx
+- order-issues.ts
+- transactions.ts
+- report-controls.tsx
 - Dev Dependencies
 - The 12 questions
-- promo-carousel.tsx
-- audit-log/page.tsx
+- landing-page.test.tsx
+- employee-modal.tsx
 - engine.ts
 - TypeScript Configuration
-- order-detail-modal.tsx
+- kds/page.tsx
 - cart-totals.ts
 - routers/addons.ts
-- reports-client.tsx
+- reports-summary.tsx
 - (shop)/page.tsx
-- routers/employee-profile.ts
+- actions/employee-profile.ts
 - Details
 - Runtime Dependencies
 - customers/page.tsx
-- next
+- site-info.ts
 - Review Checklist
-- manage/orders/page.tsx
-- actions/audit.ts
+- payment-status-card.tsx
+- audit-log/page.tsx
 - cart.limits.test.ts
 - actions/orders.ts
 - menu-screen.tsx
@@ -77,7 +77,7 @@
 - Section 9 — Simulated Frustration Scenarios & Persona Reviews
 - routers/orders.ts
 - updateCartItem
-- vitest
+- delete-confirmation.test.ts
 - reports-utils.ts
 - Validation Testing Plan: Phases 1–9
 - customer-signup-form.tsx
@@ -87,21 +87,21 @@
 - @supabase/supabase-js
 - Phase 4 — Security & Testing Report
 - submitCart
-- actions.ts
+- legal-page.tsx
 - senior-pwd-ids.ts
-- order-summary-card.tsx
+- formatPeso
 - Dashboard Loading Skeletons
 - Placeholder Manage Pages
 - Accountant Persona
 - Review Checklist
 - order-receipt.tsx
-- avatar-button.tsx
+- promotions.ts
 - dashboard.ts
 - ESLint Configuration
 - next.config.mjs
 - postcss.config.mjs
 - Prettier Configuration
-- session.ts
+- resolveEmployeeRole
 - Tailwind Configuration
 - Vitest Test Setup
 - Legal Compliance Persona
@@ -114,39 +114,40 @@
 - Review Checklist
 - Market Research Findings
 - password-strength-meter.tsx
-- createClient
+- expire-abandoned-orders.ts
 - New Customer Persona
 - Senior Customer Persona
-- clearCart
-- react
+- requireCustomer
+- next
 - User simulation — 17 personas + hard questions through the UI
 - 16. UI/UX designer — "Mika, joins to polish the product before the defense"
-- cancel-order-control.tsx
+- cancel-order-control.test.tsx
 - map-staff-order.ts
-- order-rating.test.tsx
+- README.md
+- store-hours.ts
 - curl-test.js
 - Docs Rewrite Script
-- kds/page.tsx
+- Review Checklist
 - Unimplemented Issues and Tasks
 - Manager Persona
-- cart-totals-summary.tsx
-- customer-profile.ts
+- limits.ts
+- read-tracked-order.ts
 - employee/login/page.tsx
 - actions/reports.ts
-- public-tracking.ts
+- track-order-screen.tsx
 - Copy glossary
 - Competitor Comparison Analysis
 - Requirements Audit
 - Yang's Fried Rice — Ordering System
 - check-types.js
-- confirm/route.ts
-- CustomerData
+- createClient
+- actions.ts
 - Rider Queue Handoff
 - Vitest Configuration
 - NCR Address Geocoding
-- senior-pwd-discount.test.tsx
+- store-control-panel.test.tsx
 - make-migration.js
-- track-order-screen.test.tsx
+- ToastProvider
 - account-status.ts
 - read-placed-order.ts
 - get-staff.js
@@ -156,38 +157,38 @@
 - fix-item-modal.js
 - Graphify Rules
 - Graphify Workflow
-- Section 5 — Design & UX Gaps (from Persona Reviews)
+- readCustomerProfile
 - fix-tokens-3.js
 - patch-admin-orders-role.js
-- employee-modal.tsx
+- menu-item-detail-modal.tsx
 - check-ready-orders2.js
-- xss.test.tsx
+- vitest
 - resolve-conflicts.js
 - fix-addon-name.js
 - paymongo
 - fix-schema.js
 - order-number.ts
-- sales-chart.tsx
-- check-ready-orders.js
+- chart-colors.test.ts
+- promotions/page.tsx
 - schema.ts
-- customer-portal-access.test.ts
+- order-timeline.tsx
 - patch-db-types2.js
 - test-kds-query.js
 - profile.delete.test.ts
-- Section 6 — Legal & Compliance Gaps (from Persona 15 — Atty. Reyes)
+- pickup-followup.tsx
 - patch-kds-card.js
 - fix-ghost.js
-- switchOrderToCashOnDelivery
+- test-map.js
 - patch-sidebar-manager.js
 - Section 2 — Panel Feedback Items Still Open (Excluding Issue #117)
 - fix-tokens-2.js
 - FINALE — Unimplemented Features for One Final Run
-- fix-menu-screen.js
+- removeCartItem
 - patch-orders-filters.js
 - patch-kds-order-card.js
-- Supabase
+- fix-tokens.js
 - patch-db-types.js
-- patch-admin-orders.js
+- patch-addon.js
 - Section 3 — Limitations Still Open (from `limitations.md`)
 - patch-ts-errors-2.js
 - patch-for-pickup-filter.js
@@ -195,16 +196,16 @@
 - patch-for-pickup-filter2.js
 - patch-order-card-badge.js
 - patch-map-staff.js
-- patch-admin-orders-tab.js
+- patch-admin-card.js
 - patch-validation-customer-id.js
-- patch-fields.js
-- patch-order-card-timer.js
+- patch-admin-orders-render.js
+- patch-kds-sound.js
 - fix-radii.js
-- patch-orders-page.js
-- ToastProvider
-- patch-ts-errors.js
+- patch-order-with-details.js
+- account-actions.test.tsx
+- patch-orders.js
 - lib_profile_identity_formatdateofbirth
-- ShareTrackingLink
+- patch-orders-page-filter.js
 - patch-db-types3.js
 - patch-kds-modal.js
 - patch-orders-page-modal.js
@@ -223,16 +224,16 @@
 10. `submitCart()` - 38 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `Functional issues found earlier in the QA pass` --references--> `isRestaurantOpen()`  [INFERRED]
-  docs/phase4-security-testing-report.md → lib/store-hours.ts
 - `Audit log` --references--> `recordEmployeeAction()`  [INFERRED]
   README.md → lib/audit/record-employee-action.ts
+- `F. Image handling` --references--> `compressImage()`  [INFERRED]
+  docs/issue-106-followups.md → lib/image/compress.ts
 - `Order numbers` --references--> `formatOrderNumber()`  [INFERRED]
   docs/copy-glossary.md → lib/orders/order-number.ts
-- `Key Files to Check` --references--> `getDetailedOrders()`  [INFERRED]
-  .agents/skills/persona-manager/SKILL.md → lib/actions/orders.ts
-- `30. Orders page can't filter by date, customer, payment or type (P2, high)` --references--> `getDetailedOrders()`  [INFERRED]
-  docs/limitations.md → lib/actions/orders.ts
+- `Functional issues found earlier in the QA pass` --references--> `isRestaurantOpen()`  [INFERRED]
+  docs/phase4-security-testing-report.md → lib/store-hours.ts
+- `Issue #10: US-07: Real-Time Estimated Time of Arrival (ETA) (CLOSED)` --references--> `getOrderEtaAction()`  [INFERRED]
+  docs/unimplemented_issues.md → lib/actions/eta.ts
 
 ## Import Cycles
 - None detected.
@@ -240,80 +241,80 @@
 ## Communities (199 total, 50 thin omitted)
 
 ### Community 0 - "store-control-panel.tsx"
-Cohesion: 0.06
-Nodes (48): dynamic, GET(), formatCountdown(), formFrom(), SettingsForm, StoreControlPanel(), toInputTime(), open() (+40 more)
+Cohesion: 0.15
+Nodes (18): formatCountdown(), formFrom(), SettingsForm, StoreControlPanel(), toInputTime(), ActionResult, pauseStore(), resumeStore() (+10 more)
 
 ### Community 1 - "auth.ts"
-Cohesion: 0.12
-Nodes (26): POST, POST, POST, POST, GET, changeOwnPassword(), customerLogin(), employeeLogin() (+18 more)
+Cohesion: 0.07
+Nodes (39): POST, POST, POST, POST, GET, changeOwnPassword(), customerLogin(), employeeLogin() (+31 more)
 
 ### Community 2 - "database.types.ts"
-Cohesion: 0.06
-Nodes (44): DELETE, GET, PUT, GET, POST, DELETE, GET, PUT (+36 more)
+Cohesion: 0.10
+Nodes (23): DELETE, GET, PUT, GET, POST, createCategory(), deleteCategory(), getCategories() (+15 more)
 
 ### Community 3 - "db-cleanse.mjs"
 Cohesion: 0.06
 Nodes (43): addressProblem(), APPLY, customerIds, db, employeeIds, itemsByCart, keptByCustomer, managers (+35 more)
 
 ### Community 4 - "actions/menu.ts"
-Cohesion: 0.07
-Nodes (50): ManageMenuInner(), menuStats(), uploadMenuImage(), MenuAvailabilityFilter, MenuGrid(), MenuSort, QuickStat, QuickStats() (+42 more)
+Cohesion: 0.08
+Nodes (41): ManageMenuInner(), menuStats(), uploadMenuImage(), MenuAvailabilityFilter, MenuGrid(), MenuSort, QuickStat, QuickStats() (+33 more)
 
 ### Community 5 - "sidebar.tsx"
 Cohesion: 0.09
 Nodes (11): DEFAULT_SIDEBAR_USER, initialsFromName(), NAV_ITEMS, NavItem, TODO: BACKEND INTEGRATION, readCollapsedPreference(), saveCollapsedPreference(), Sidebar() (+3 more)
 
-### Community 6 - "audit-actions.ts"
-Cohesion: 0.16
-Nodes (11): ACTION_LABELS, APP_AUDIT_ACTIONS, AppAuditAction, AUDIT_CATEGORIES, AuditCategoryId, AuditChange, categoryOf(), ENTITY_LABELS (+3 more)
+### Community 6 - "products.ts"
+Cohesion: 0.11
+Nodes (20): DELETE, GET, PUT, GET, POST, createProduct(), deleteProduct(), getProductById() (+12 more)
 
 ### Community 7 - "toast.tsx"
 Cohesion: 0.12
-Nodes (31): revalidate, EmployeeContactDetailsCard(), EmployeePersonalDetailsCard(), EmployeeRoleDetailsCard(), reverseRoleMap, roleDetailsSchema, roleMap, ROLES (+23 more)
+Nodes (34): revalidate, MenuItemDetailModal(), EmployeeContactDetailsCard(), EmployeePersonalDetailsCard(), EmployeeRoleDetailsCard(), reverseRoleMap, roleDetailsSchema, roleMap (+26 more)
 
 ### Community 8 - "cn"
-Cohesion: 0.16
-Nodes (17): Tab(), TipPicker(), MenuSidebar(), BestSellerBadge(), BestSellerContext, useIsBestSeller(), ProductCard(), ProductPhotoPlaceholder() (+9 more)
+Cohesion: 0.11
+Nodes (25): OPTIONS, PickupByPicker(), TipPicker(), PromoCarousel(), MenuSidebar(), MenuSidebarProps, WHY: Allows the user to rename categories directly in the sidebar without a…, ORDER_TABS (+17 more)
 
-### Community 9 - "resolveEmployeeRole"
-Cohesion: 0.08
-Nodes (44): Authentication Bypass, S4: Disabled account lockout (🟠 High), DELETE, PATCH, GET, PATCH, PATCH, PATCH (+36 more)
-
-### Community 10 - "payment-status-card.tsx"
-Cohesion: 0.17
-Nodes (15): note(), PaymentStatusCard(), payWith(), WALLET_LABEL, WalletTabCloser(), foldPaymentStatus(), PaymentStatus, anotherTabIsWatching() (+7 more)
-
-### Community 11 - "track-order-screen.tsx"
+### Community 9 - "routers/admin.ts"
 Cohesion: 0.09
-Nodes (43): GuestTrackingScreen(), manilaTime(), OrderTimeline(), StageMarker(), stageMeta(), STATE_LABELS, PickupPointPanel(), TrackOrderScreen() (+35 more)
+Nodes (38): DELETE, PATCH, GET, PATCH, PATCH, PATCH, DELETE, GET (+30 more)
 
-### Community 12 - "checkout-screen.tsx"
-Cohesion: 0.13
-Nodes (18): CashTenderedField(), NOTES, CheckoutScreen(), PaymentMethodPicker(), OPTIONS, PickupBy, PickupByPicker(), payInStoreBlock() (+10 more)
+### Community 10 - "wallet-tab.ts"
+Cohesion: 0.33
+Nodes (7): WalletTabCloser(), anotherTabIsWatching(), answerAsWatcher(), hasLiveOpener(), openChannel(), Signal, WalletTab
+
+### Community 11 - "order-stage.ts"
+Cohesion: 0.10
+Nodes (21): CANCELLED_HEADLINE, DELIVERY_STATUS_STAGES, Fulfilment, furtherAlong(), minutesSince(), normaliseStatus(), ORDER_STAGES, ORDER_STATUS_STAGES (+13 more)
+
+### Community 12 - "order-summary-card.tsx"
+Cohesion: 0.10
+Nodes (32): CashTenderedField(), NOTES, formatSummaryMoney(), OrderSummaryCard(), handlePlaceOrder(), PaymentMethodPicker(), payWith(), PickupBy (+24 more)
 
 ### Community 13 - "actions/cart.ts"
-Cohesion: 0.17
-Nodes (16): ActionResult, ActiveCart, CartItemDetail, CartLineQuantity, TOO_LARGE, AddCartItemInput, addCartItemSchema, CancelOrderInput (+8 more)
+Cohesion: 0.15
+Nodes (18): POST(), RouteParams, ActionResult, ActiveCart, cancelCustomerOrder(), CartItemDetail, CartLineQuantity, getCancellationErrorMessage() (+10 more)
 
-### Community 14 - "checkout-screen.test.tsx"
-Cohesion: 0.09
-Nodes (19): OrderSummaryDiscount, WalletProvider, createPaymentIntent(), PaymentStart, startWalletPayment(), PlacedOrder, lines, profile (+11 more)
+### Community 14 - "store-status.ts"
+Cohesion: 0.17
+Nodes (16): dynamic, GET(), open(), readStoreStatus, rpc, isForceOpenByEnv(), readStoreStatus(), rpc (+8 more)
 
 ### Community 15 - "routers/reports.ts"
 Cohesion: 0.13
-Nodes (22): GET, GET, GET, GET, POST, GET, GET, GET (+14 more)
+Nodes (23): GET, GET, GET, GET, POST, GET, GET, GET (+15 more)
 
 ### Community 16 - "past-order.ts"
-Cohesion: 0.09
-Nodes (36): Cart & Checkout Speed, Key Files to Check, Notifications, Order History, Payment Recovery, Persona: Regular Customer — "Mark, orders lunch to the office 3× a week", Red Flags, Reorder Flow (+28 more)
-
-### Community 17 - "roles.ts"
 Cohesion: 0.16
-Nodes (21): canAccessAdminOnly(), canAccessManage(), canAccessManagePath(), canChangeRole(), canDisableEmployee(), canResetEmployeePassword(), EMPLOYEE_ROLES, EmployeeRole (+13 more)
+Nodes (21): OrderRatingDisplay(), PastOrderCard(), PastOrdersScreen(), isPickupOrder(), canRate(), formatPlacedAt(), formatTotal(), isPast() (+13 more)
+
+### Community 17 - "actions/admin.ts"
+Cohesion: 0.12
+Nodes (31): ActionResult, Customer, CustomerStats, Employee, EmployeeEditInput, SORTABLE_CUSTOMER_COLUMNS, canAccessAdminOnly(), canAccessManagePath() (+23 more)
 
 ### Community 18 - "Issue #106 — follow-up issues to file"
-Cohesion: 0.20
-Nodes (9): A. Customer signup and form copy cleanup, B. Cart and checkout correctness, C. Order identity and terminology, D. Manager reports and modal behaviour, E. Site-wide UX polish, F. Image handling, G. New features, H. Security and architecture (+1 more)
+Cohesion: 0.22
+Nodes (8): A. Customer signup and form copy cleanup, C. Order identity and terminology, D. Manager reports and modal behaviour, E. Site-wide UX polish, F. Image handling, G. New features, H. Security and architecture, Issue #106 — follow-up issues to file
 
 ### Community 19 - "package.json"
 Cohesion: 0.08
@@ -321,59 +322,59 @@ Nodes (25): prettier, name, private, version, autoprefixer, class-variance-autho
 
 ### Community 20 - "dashboard-content.tsx"
 Cohesion: 0.11
-Nodes (22): DashboardContent(), DashboardContentProps, ProductRanking(), ProductRankingProps, RefundsPanel(), StatCard(), StatCardProps, SUBTITLE_COLORS (+14 more)
+Nodes (22): DashboardContentProps, ProductRanking(), ProductRankingProps, RefundsPanel(), SalesChart(), SalesChartProps, ReportsChartsProps, DailySales (+14 more)
 
-### Community 21 - "actions/admin.ts"
-Cohesion: 0.17
-Nodes (16): ActionResult, Customer, CustomerStats, Employee, EmployeeEditInput, SORTABLE_CUSTOMER_COLUMNS, ChangePasswordInput, changePasswordSchema (+8 more)
+### Community 21 - "phone.ts"
+Cohesion: 0.19
+Nodes (16): PhoneInput(), handleChange(), handlePaste(), employeePersonalDetailsSchema, employeeProfileUpdateSchema, INVALID_MOBILE_MESSAGE, isValidPhMobile(), maskPhoneDigits() (+8 more)
 
 ### Community 22 - "fields.ts"
-Cohesion: 0.06
-Nodes (46): employeePersonalDetailsSchema, employeeProfileUpdateSchema, boundedText(), FIELD_LIMITS, firstNameSchema, lastNameSchema, LimitedField, newPasswordSchema (+38 more)
+Cohesion: 0.08
+Nodes (34): boundedText(), emailSchema, FIELD_LIMITS, firstNameSchema, LimitedField, newPasswordSchema, passwordSchema, PERSON_NAME_PATTERN (+26 more)
 
 ### Community 23 - "brand-panel.tsx"
-Cohesion: 0.19
-Nodes (3): AuthShell(), BrandPanel(), ErrorScreen()
+Cohesion: 0.18
+Nodes (4): AuthShell(), BrandPanel(), CustomerLoginForm(), ErrorScreen()
 
 ### Community 24 - "(account)/profile/page.tsx"
-Cohesion: 0.17
-Nodes (15): revalidate, MobileMenuHeader(), ResolvedMobileProfile(), ResolvedProfileActions(), ProfileHeader(), ProfileSummaryCard(), Avatar(), countActiveOrders() (+7 more)
+Cohesion: 0.09
+Nodes (32): ProfilePage(), revalidate, logout(), LogOutControl(), handleLogOut(), OrderPlacedScreen(), ResolvedMobileProfile(), NAV_LINKS (+24 more)
 
 ### Community 25 - "notification-bell.tsx"
-Cohesion: 0.17
-Nodes (17): NotificationBell(), subscribe(), OrderRow, useKitchenOrderFeed(), badgeLabel(), CustomerNotification, formatNotificationTime(), NOTIFICATION_COLUMNS (+9 more)
+Cohesion: 0.25
+Nodes (12): NotificationBell(), badgeLabel(), CustomerNotification, formatNotificationTime(), NOTIFICATION_COLUMNS, NOTIFICATION_LIST_LIMIT, NotificationRow, toNotification() (+4 more)
 
 ### Community 26 - "Review Checklist"
 Cohesion: 0.18
 Nodes (10): Customer Analytics, Data Exports, Data Quality, Date Boundaries, Key Files to Check, Persona: Data Analyst — "Carla, builds the weekly report for the owner", Red Flags, Report Dimensions (+2 more)
 
-### Community 27 - "report-problem.tsx"
-Cohesion: 0.10
-Nodes (34): OpenIssuesPanel(), resolve(), ReportProblem(), ReportProblemDialog(), pickPhoto(), submit(), ActionResult, first() (+26 more)
+### Community 27 - "order-issues.ts"
+Cohesion: 0.11
+Nodes (26): OpenIssuesPanel(), resolve(), ReportProblemDialog(), pickPhoto(), ActionResult, first(), getOpenOrderIssues(), OpenOrderIssue (+18 more)
 
-### Community 28 - "transaction.ts"
-Cohesion: 0.33
-Nodes (5): PAYMENT_STATUSES, TransactionInput, transactionSchema, TransactionUpdateInput, transactionUpdateSchema
+### Community 28 - "transactions.ts"
+Cohesion: 0.18
+Nodes (14): createTransaction(), getTransactionById(), getTransactions(), RouteParams, updateTransactionStatus(), GET(), PATCH(), GET() (+6 more)
 
-### Community 29 - "phone-input.tsx"
-Cohesion: 0.54
-Nodes (6): PhoneInput(), handleChange(), handlePaste(), maskPhoneDigits(), PH_MOBILE_MASKED_LENGTH, phoneDigitsOf()
+### Community 29 - "report-controls.tsx"
+Cohesion: 0.18
+Nodes (18): getDefaultStartDate(), getToday(), ReportsContent(), DateInput(), DateInputProps, ReportDateFilters(), ReportDateFiltersProps, ReportTypeSelect() (+10 more)
 
 ### Community 30 - "Dev Dependencies"
 Cohesion: 0.09
 Nodes (23): devDependencies, autoprefixer, eslint, eslint-config-next, eslint-config-prettier, jest, jest-environment-jsdom, jsdom (+15 more)
 
 ### Community 31 - "The 12 questions"
-Cohesion: 0.12
-Nodes (16): Part 2 — Hard questions answered through the UI, not SQL, Patterns, Q10. Owner: "Compare this September to last September.", Q11. Manager: "Show me every order over ₱2,000 paid with cash on delivery this month." (fraud check, L6/L18), Q12. Manager at 10,000 customers: "Find the customer with phone ending 4567.", Q1. Staff, on the phone: "I paid with GCash around 3 PM yesterday, but I don't see my order.", Q2. Manager: "How many GCash orders were cancelled last week, and why?", Q4. Accountant: "September totals split by cash on delivery, GCash/Maya and pay in store." (+8 more)
-
-### Community 32 - "promo-carousel.tsx"
-Cohesion: 0.26
-Nodes (8): MenuPage(), PromoCarousel(), PromoSlide, sameSiteHref(), Slide(), categoryParam(), itemParam(), signInToOrderHref()
-
-### Community 33 - "audit-log/page.tsx"
 Cohesion: 0.09
-Nodes (38): anton, dmSans, metadata, CATEGORY_OPTIONS, DEFAULT_SORT, ManageAuditLogInner(), Option, EmployeeData (+30 more)
+Nodes (22): CustomerData, 30. Orders page can't filter by date, customer, payment or type (P2, high), 31. Customer list has no order totals or history, and loads every customer (P2), 32. Reports have no breakdowns and no CSV (P2), Found by the "hard questions through the UI" walkthrough, Part 2 — Hard questions answered through the UI, not SQL, Patterns, Q10. Owner: "Compare this September to last September." (+14 more)
+
+### Community 32 - "landing-page.test.tsx"
+Cohesion: 0.42
+Nodes (4): MenuPage(), PromoSlide, categoryParam(), itemParam()
+
+### Community 33 - "employee-modal.tsx"
+Cohesion: 0.11
+Nodes (21): FilterDropdown(), EmployeeData, ROLES, employeeFormSchema(), EmployeeModal(), EmployeeModalProps, FormSnapshot, inputClass() (+13 more)
 
 ### Community 34 - "engine.ts"
 Cohesion: 0.15
@@ -383,85 +384,85 @@ Nodes (22): quoteArrivalWindow(), arrivalWindowBounds(), BASE_DELIVERY_FEE_PHP, 
 Cohesion: 0.09
 Nodes (21): compilerOptions, allowJs, baseUrl, esModuleInterop, ignoreDeprecations, incremental, isolatedModules, jsx (+13 more)
 
-### Community 36 - "order-detail-modal.tsx"
-Cohesion: 0.18
-Nodes (19): KdsOrderCard(), KdsOrderCardProps, FulfillmentBadge(), OrderCard(), OrderCardProps, statusConfig, OrderDetailModal(), OrderDetailModalProps (+11 more)
+### Community 36 - "kds/page.tsx"
+Cohesion: 0.09
+Nodes (44): CASH_METHODS, KdsInner(), KdsTab, readPref(), SortOrder, startOfToday(), TAB_LABELS, ViewMode (+36 more)
 
 ### Community 37 - "cart-totals.ts"
-Cohesion: 0.19
-Nodes (16): CartContents(), CartEmptyState(), calculateDeliveryFee(), CartLine, computeCartTotals(), dishQuantityInCart(), Fulfilment, lineTotal() (+8 more)
+Cohesion: 0.13
+Nodes (22): CartPage(), CartContents(), CartEmptyState(), DesktopCartRail(), OrderSummaryDiscount, fulfilmentFromParam(), OrderType, calculateDeliveryFee() (+14 more)
 
 ### Community 38 - "routers/addons.ts"
 Cohesion: 0.16
 Nodes (16): DELETE(), GET(), PUT(), GET(), POST(), createProductAddon(), deleteAddon(), getAddonById() (+8 more)
 
-### Community 39 - "reports-client.tsx"
-Cohesion: 0.11
-Nodes (28): getDefaultStartDate(), getToday(), ReportsContent(), CashRemittedTable(), CashRemittedTableProps, formatDay(), formatPeso(), ReportDateFilters() (+20 more)
+### Community 39 - "reports-summary.tsx"
+Cohesion: 0.14
+Nodes (19): StatCard(), StatCardProps, SUBTITLE_COLORS, CashRemittedTable(), CashRemittedTableProps, formatDay(), formatPeso(), ReportsCharts() (+11 more)
 
 ### Community 40 - "(shop)/page.tsx"
-Cohesion: 0.12
-Nodes (24): CartPage(), OrdersPage(), ProfilePage(), HomePage(), STEPS, StoreStrip(), StorePage(), DesktopCartRail() (+16 more)
+Cohesion: 0.18
+Nodes (13): HomePage(), STEPS, StoreStrip(), StorePage(), getActivePromotions(), CategoryTile, LandingProduct, ProductRow (+5 more)
 
-### Community 41 - "routers/employee-profile.ts"
-Cohesion: 0.21
-Nodes (13): PATCH, DELETE, GET, PATCH, deactivateMyEmployeeAccount(), deleteMyEmployeeAccount(), errorToStatus(), getMyEmployeeProfile() (+5 more)
+### Community 41 - "actions/employee-profile.ts"
+Cohesion: 0.15
+Nodes (20): PATCH, DELETE, GET, PATCH, deactivateMyEmployeeAccount(), deleteMyEmployeeAccount(), errorToStatus(), getMyEmployeeProfile() (+12 more)
 
 ### Community 42 - "Details"
-Cohesion: 0.07
-Nodes (27): Details, F10. Bulk orders page, 1–2 days in advance — ❌, F11. High demand: pause, auto-reopen, smart restriction — ❌ (repeated by Ma'am, so treat as high priority), F12. Unavailable items: grey picture — ◐, F13. Fake accounts: CAPTCHA — ❌, F14. Food not delivered — ❌, F15. All riders busy → pickup only — ❌, F16. Sign-up: redirect, password strength, remove birthday — ◐ (+19 more)
+Cohesion: 0.08
+Nodes (24): Details, F10. Bulk orders page, 1–2 days in advance — ❌, F11. High demand: pause, auto-reopen, smart restriction — ❌ (repeated by Ma'am, so treat as high priority), F12. Unavailable items: grey picture — ◐, F13. Fake accounts: CAPTCHA — ❌, F14. Food not delivered — ❌, F15. All riders busy → pickup only — ❌, F16. Sign-up: redirect, password strength, remove birthday — ◐ (+16 more)
 
 ### Community 43 - "Runtime Dependencies"
 Cohesion: 0.12
 Nodes (16): dependencies, class-variance-authority, clsx, jose, jspdf, jspdf-autotable, lucide-react, next (+8 more)
 
 ### Community 44 - "customers/page.tsx"
-Cohesion: 0.18
-Nodes (14): EnhancedCustomerData, formatDay(), ManageCustomersInner(), CustomerFilterPopover(), CustomerFilterPopoverProps, isoDay(), periodPresets(), toNumber() (+6 more)
-
-### Community 45 - "next"
 Cohesion: 0.11
-Nodes (23): metadata, PrivacyPage(), metadata, metadata, TermsPage(), FOOTER_LINKS, SiteFooter(), LegalPage() (+15 more)
+Nodes (22): EnhancedCustomerData, formatDay(), ManageCustomersInner(), CustomerFilterPopover(), CustomerFilterPopoverProps, isoDay(), periodPresets(), toNumber() (+14 more)
+
+### Community 45 - "site-info.ts"
+Cohesion: 0.15
+Nodes (17): metadata, FOOTER_LINKS, SiteFooter(), MobileMenuHeader(), PickupPointPanel(), copyrightYears(), DIRECTIONS_HREF, PICKUP_COUNTER (+9 more)
 
 ### Community 46 - "Review Checklist"
 Cohesion: 0.17
 Nodes (11): Code Consistency, Key Files to Check, Persona: Developer — "Kai, joins the team next sprint", Red Flags, Review Checklist, Security Rules Audit, Setup & Onboarding, Testing (+3 more)
 
-### Community 47 - "manage/orders/page.tsx"
-Cohesion: 0.18
-Nodes (11): CancelReasonModal(), CancelReasonModalProps, PRESET_REASONS, OrderFilterState, dbStatusForTab(), ORDER_TABS, OrderSidebar(), OrderSidebarProps (+3 more)
+### Community 47 - "payment-status-card.tsx"
+Cohesion: 0.21
+Nodes (12): note(), PaymentStatusCard(), WALLET_LABEL, submit(), subscribe(), OrderRow, useKitchenOrderFeed(), foldPaymentStatus() (+4 more)
 
-### Community 48 - "actions/audit.ts"
-Cohesion: 0.17
-Nodes (18): GET, errorToStatus(), getAuditLog(), ActionResult, auditEntitiesForOrder(), getAuditActors(), getAuditLog(), requireAuditAccess() (+10 more)
+### Community 48 - "audit-log/page.tsx"
+Cohesion: 0.08
+Nodes (46): GET, errorToStatus(), getAuditLog(), CATEGORY_OPTIONS, DEFAULT_SORT, ManageAuditLogInner(), ManageAuditLogPage(), Option (+38 more)
 
 ### Community 49 - "cart.limits.test.ts"
 Cohesion: 0.18
 Nodes (6): builder(), b, inserted, TableData, tables, writes
 
 ### Community 50 - "actions/orders.ts"
-Cohesion: 0.15
-Nodes (20): OrderTodayStats(), ActionResult, attachOrderAddOns(), CASH_PAYMENT_METHODS, _fetchPaymentIssuesBase(), getEmployeeAccess(), getOrderDetail(), getPaymentIssuesForAdmin() (+12 more)
+Cohesion: 0.11
+Nodes (21): OrderTodayStats(), ActionResult, attachOrderAddOns(), CASH_PAYMENT_METHODS, _fetchPaymentIssuesBase(), getPaymentIssuesForAdmin(), getPaymentIssuesForKds(), getTodayOrderStats() (+13 more)
 
 ### Community 51 - "menu-screen.tsx"
-Cohesion: 0.07
-Nodes (27): BestSellerProvider(), CategoryChips(), ChipButton(), CategoryButton(), CategorySidebar(), MenuEmptyState(), MenuPageBody(), MenuScreen() (+19 more)
+Cohesion: 0.09
+Nodes (19): BestSellerProvider(), CategoryChips(), CategorySidebar(), MenuEmptyState(), MenuScreen(), ResolvedBottomTabBar(), CartRead, EMPTY (+11 more)
 
 ### Community 52 - "validation/orders.ts"
-Cohesion: 0.18
-Nodes (15): isValidTransition(), ORDER_STATUSES, OrderFilters, orderFilterSchema, OrderStatus, orderStatusSchema, PerformanceReportQuery, performanceReportQuerySchema (+7 more)
+Cohesion: 0.12
+Nodes (22): addCartItemSchema, isValidTransition(), ORDER_STATUSES, orderFilterSchema, orderStatusSchema, PerformanceReportQuery, performanceReportQuerySchema, REPORT_FREQUENCIES (+14 more)
 
 ### Community 53 - "item-detail-modal.tsx"
-Cohesion: 0.20
-Nodes (14): CartLineRow(), AddOnsSection(), CartLineEdit, ItemSummary(), quantityCeiling(), QuantityInput(), handleChange(), QuantityStepper() (+6 more)
+Cohesion: 0.19
+Nodes (12): CartLineRow(), CartLineEdit, QuantityInput(), handleChange(), F7. Stepper: type the quantity — ❌, B. Cart and checkout correctness, quantityRoom(), useCartAction() (+4 more)
 
 ### Community 54 - "P2 — if time allows"
 Cohesion: 0.12
 Nodes (17): 10. Notifications table exists but nothing writes to it, 11. (Removed), 12. No printable receipt, 13. No separate privacy notice or business details, 14. No "Best seller" labels on the menu, 17. KDS has no late-order warning or new-order sound, 18. Nothing stops repeat pickup no-shows, 19. No end-of-day cash summary at the counter (+9 more)
 
 ### Community 55 - "ref_fs"
-Cohesion: 0.07
-Nodes (18): fs, ref_fs, c, fs, c, fs, c, fs (+10 more)
+Cohesion: 0.08
+Nodes (17): content, fs, ref_fs, c, fs, c, fs, c (+9 more)
 
 ### Community 56 - "Section 1 — P1 Items Still Open"
 Cohesion: 0.22
@@ -477,35 +478,31 @@ Nodes (12): 9.10 The "Silent Price Hike" (Customer Frustration: Confusion & Repe
 
 ### Community 59 - "routers/orders.ts"
 Cohesion: 0.18
-Nodes (13): GET, PATCH, GET, GET, errorToStatus(), getOrderDetail(), getOrders(), getOrderStats() (+5 more)
+Nodes (14): GET, PATCH, GET, GET, errorToStatus(), getOrderDetail(), getOrders(), getOrderStats() (+6 more)
 
 ### Community 60 - "updateCartItem"
-Cohesion: 0.16
-Nodes (19): DELETE(), PATCH(), RouteParams, ItemDetailModal(), capNotice(), handleAddToCart(), handleSaveEdit(), primaryAction() (+11 more)
-
-### Community 61 - "vitest"
-Cohesion: 0.15
-Nodes (10): ManageAuditLogPage(), CustomerLoginForm(), CustomerSignupForm(), DELETE_CONFIRMATION_WORD, isDeleteConfirmed(), @testing-library/react, vitest, getAuditActors (+2 more)
+Cohesion: 0.19
+Nodes (18): ItemDetailModal(), capNotice(), handleAddToCart(), handleSaveEdit(), primaryAction(), OrderAgainRow(), reorder(), addCartItem() (+10 more)
 
 ### Community 62 - "reports-utils.ts"
 Cohesion: 0.36
 Nodes (7): SAMPLE_DAILY_ROWS, dateToPeriod(), getISOWeek(), getISOWeekYear(), groupByFrequency(), SalesRow, ReportFrequency
 
 ### Community 63 - "Validation Testing Plan: Phases 1–9"
-Cohesion: 0.11
-Nodes (17): 🔒 Phase 1 & 2: Orders Filtering & Payment Issues Tab, 👥 Phase 3: Customer Lifetime Stats & History, 📈 Phase 4: Reports CSV + Cash Remitted, 🛡️ Phase 5: Menu Price RBAC & Audit Log, 🔔 Phase 6: KDS Enhancements (Timers, Colors, Sounds, & Notes), 📱 Phase 7: KDS Navigation & Viewing, 🏷️ Phase 8: Fulfillment Badges, 🛑 Phase 9: Cancel-Reason UX (+9 more)
+Cohesion: 0.12
+Nodes (15): 👥 Phase 3: Customer Lifetime Stats & History, 📈 Phase 4: Reports CSV + Cash Remitted, 🛡️ Phase 5: Menu Price RBAC & Audit Log, 🔔 Phase 6: KDS Enhancements (Timers, Colors, Sounds, & Notes), 📱 Phase 7: KDS Navigation & Viewing, 🏷️ Phase 8: Fulfillment Badges, 🛑 Phase 9: Cancel-Reason UX, Test Cases (+7 more)
 
 ### Community 64 - "customer-signup-form.tsx"
-Cohesion: 0.15
-Nodes (24): requestPasswordReset(), resetPassword(), AuthTabs(), LoginFormInner(), FIELD_LABELS, readSignupForm(), SignupFormInner(), EmployeeLoginFormInner() (+16 more)
+Cohesion: 0.17
+Nodes (18): requestPasswordReset(), AuthTabs(), Tab(), LoginFormInner(), FIELD_LABELS, readSignupForm(), SignupFormInner(), EmployeeLoginFormInner() (+10 more)
 
 ### Community 65 - "NPM Scripts"
 Cohesion: 0.17
 Nodes (12): scripts, build, db:cleanse, db:seed, dev, format, format:check, lint (+4 more)
 
 ### Community 66 - "actions/profile.ts"
-Cohesion: 0.13
-Nodes (30): PATCH, DELETE, GET, PATCH, changeMyPassword(), deleteMyAccount(), errorToStatus(), getMyProfile() (+22 more)
+Cohesion: 0.15
+Nodes (20): PATCH, DELETE, GET, PATCH, changeMyPassword(), deleteMyAccount(), errorToStatus(), getMyProfile() (+12 more)
 
 ### Community 67 - "Notifications API"
 Cohesion: 0.35
@@ -520,20 +517,20 @@ Cohesion: 0.05
 Nodes (39): A. Input Validation Test, Application-level checks after the migration, Authentication evidence, Authorization evidence, B. SQL Injection Test, C. Authentication Test, D1 — Page access by role, D2 — Management actions by role (+31 more)
 
 ### Community 70 - "submitCart"
-Cohesion: 0.15
-Nodes (17): POST(), F5. Minimum purchase total — ❌, 15. Placing an order is not atomic, 16. A customer can delete their account before picking up, 1. Store hours are only checked in the browser, 21. Customers can write orders straight into the database, 2. Cart is not re-checked at checkout, 33. No error pages; `received` status is unreachable; real types live in "mock" files (P2) (+9 more)
-
-### Community 71 - "actions.ts"
 Cohesion: 0.17
-Nodes (13): ActionResult, EmployeeLoginResult, RegisterResult, EMPLOYEE_SIGN_IN_FAILED, EmployeeLoginField, employeeLoginSchema, EmployeeLoginValues, emailSchema (+5 more)
+Nodes (15): POST(), F5. Minimum purchase total — ❌, 15. Placing an order is not atomic, 16. A customer can delete their account before picking up, 1. Store hours are only checked in the browser, 21. Customers can write orders straight into the database, 2. Cart is not re-checked at checkout, 3. Unpaid GCash/Maya orders never expire (+7 more)
+
+### Community 71 - "legal-page.tsx"
+Cohesion: 0.30
+Nodes (7): metadata, PrivacyPage(), metadata, TermsPage(), LegalPage(), LegalSection(), SellerContact()
 
 ### Community 72 - "senior-pwd-ids.ts"
-Cohesion: 0.22
-Nodes (11): SeniorPwdDiscountPicker(), SeniorPwdDiscountState, discardSeniorPwdIdPhoto(), EXTENSION_BY_TYPE, isSeniorPwdIdPath(), SENIOR_PWD_ID_BUCKET, SENIOR_PWD_ID_MAX_BYTES, SENIOR_PWD_ID_TYPES (+3 more)
+Cohesion: 0.24
+Nodes (9): getSeniorPwdIdPhotoUrl(), discardSeniorPwdIdPhoto(), EXTENSION_BY_TYPE, isSeniorPwdIdPath(), SENIOR_PWD_ID_BUCKET, SENIOR_PWD_ID_MAX_BYTES, SENIOR_PWD_ID_TYPES, SENIOR_PWD_ID_URL_TTL_SECONDS (+1 more)
 
-### Community 73 - "order-summary-card.tsx"
-Cohesion: 0.23
-Nodes (14): BestSellerCard(), formatSummaryMoney(), OrderSummaryCard(), handlePlaceOrder(), formatSummaryMoney(), OrderSummaryRows(), fulfilmentFromParam(), OrderType (+6 more)
+### Community 73 - "formatPeso"
+Cohesion: 0.19
+Nodes (12): BestSellerCard(), CartTotalsSummary(), formatSummaryMoney(), OrderSummaryRows(), AddOnsSection(), ItemSummary(), BIG_ORDER_MESSAGE, amountToMinimum() (+4 more)
 
 ### Community 76 - "Accountant Persona"
 Cohesion: 0.17
@@ -544,24 +541,24 @@ Cohesion: 0.07
 Nodes (26): Key Files to Check, Persona: Cybersecurity Analyst — "Dana, assesses the system before launch", Red Flags, Review Checklist, S10: Webhook security (🟡 Low), S11: Secret management (🟡 Low), S12: API exposure (🟢 Info), S1: RLS on employee and rider (🔴 Critical) (+18 more)
 
 ### Community 78 - "order-receipt.tsx"
-Cohesion: 0.13
-Nodes (22): NOT_OFFICIAL_RECEIPT, OrderReceipt(), RECEIPT_PRINT_ROOT_ID, ReceiptBody(), ReceiptOrder, first(), notifyOrderCancelled(), contactLine() (+14 more)
+Cohesion: 0.12
+Nodes (24): NOT_OFFICIAL_RECEIPT, OrderReceipt(), RECEIPT_PRINT_ROOT_ID, ReceiptBody(), ReceiptOrder, first(), notifyOrderCancelled(), contactLine() (+16 more)
 
-### Community 79 - "avatar-button.tsx"
-Cohesion: 0.16
-Nodes (18): ManagePromotionsPage(), AvatarButton(), ProfileAvatarCard(), uploadProfileImage(), createPromotion(), deletePromotion(), getAllPromotions(), Promotion (+10 more)
+### Community 79 - "promotions.ts"
+Cohesion: 0.18
+Nodes (19): ManagePromotionsPage(), setEmployeePhoto(), uploadProfileImage(), createPromotion(), deletePromotion(), getAllPromotions(), Promotion, PromotionRow (+11 more)
 
 ### Community 80 - "dashboard.ts"
-Cohesion: 0.30
-Nodes (15): DashboardPage(), metadata, dayBounds(), getDashboardStats(), getTopSellers(), getWeeklySales(), salesForDay(), salesTrend() (+7 more)
+Cohesion: 0.26
+Nodes (17): DashboardPage(), metadata, DashboardContent(), dayBounds(), getDashboardStats(), getTopSellers(), getWeeklySales(), salesForDay() (+9 more)
 
 ### Community 81 - "ESLint Configuration"
 Cohesion: 0.50
 Nodes (3): extends, prettier, next/core-web-vitals
 
-### Community 85 - "session.ts"
-Cohesion: 0.18
-Nodes (14): ManageLayout(), ManageMenuPage(), MenuPage(), ReportsPage(), ReportsPageClient(), ManageShell(), createSession(), decrypt() (+6 more)
+### Community 85 - "resolveEmployeeRole"
+Cohesion: 0.13
+Nodes (26): Authentication Bypass, S4: Disabled account lockout (🟠 High), ManageLayout(), ManageMenuPage(), MenuPage(), ReportsPage(), ReportsPageClient(), ManageShell() (+18 more)
 
 ### Community 91 - "Legal Compliance Persona"
 Cohesion: 0.12
@@ -603,9 +600,9 @@ Nodes (12): Business logic from ordering platforms, Features still lacking, Lack
 Cohesion: 0.48
 Nodes (4): PasswordStrengthMeter(), passwordStrength, PasswordStrengthLabel, scoreOf()
 
-### Community 101 - "createClient"
-Cohesion: 0.14
-Nodes (19): CheckoutPage(), getFeaturedProducts(), getProductsByCategory(), submitProductReview(), ABANDONED_REASON, expireAbandonedOrders(), PAYMENT_WINDOW_MS, mockAdmin() (+11 more)
+### Community 101 - "expire-abandoned-orders.ts"
+Cohesion: 0.24
+Nodes (8): ABANDONED_REASON, expireAbandonedOrders(), PAYMENT_WINDOW_MS, mockAdmin(), NOW, findAwaitingPaymentOrder(), ABANDONED_PAYMENT_REASON, UNPAID_ORDER_STATUSES
 
 ### Community 102 - "New Customer Persona"
 Cohesion: 0.18
@@ -615,13 +612,13 @@ Nodes (10): After Ordering, Browsing & Discovery, First Order, Guest Add-to-Cart
 Cohesion: 0.18
 Nodes (10): Cash Payment Flow, Contact & Help, Key Files to Check, Persona: Senior Customer — "Lolo Ben, 68, has a Senior Citizen ID", Readability & Accessibility, Red Flags, Review Checklist, Senior Citizen / PWD Discount (RA 9994, RA 10754) (+2 more)
 
-### Community 104 - "clearCart"
-Cohesion: 0.36
-Nodes (6): DELETE(), POST(), DELETE(), GET(), clearCart(), getActiveCart()
+### Community 104 - "requireCustomer"
+Cohesion: 0.24
+Nodes (10): DELETE(), POST(), DELETE(), GET(), SwitchToCodButton(), handleSwitch(), clearCart(), getActiveCart() (+2 more)
 
-### Community 105 - "react"
+### Community 105 - "next"
 Cohesion: 0.08
-Nodes (26): Window, app_globals, CustomerModal(), CustomerModalProps, Standing, getVisiblePages(), ManagePagination(), ManagePaginationProps (+18 more)
+Nodes (25): Window, sameSiteHref(), Slide(), CustomerModal(), CustomerModalProps, Standing, OrderFilterPopover(), OrderFilterPopoverProps (+17 more)
 
 ### Community 106 - "User simulation — 17 personas + hard questions through the UI"
 Cohesion: 0.12
@@ -631,25 +628,29 @@ Nodes (17): 10. Database admin — "Rica, keeps Supabase healthy", 11. Data anal
 Cohesion: 0.13
 Nodes (15): 16. UI/UX designer — "Mika, joins to polish the product before the defense", 17. System analyst — "Paolo, documents the system for the final paper", Business rules in more than one place, Context: actors and external systems, Copy and terminology, Flow review, Mobile and accessibility, Order lifecycle as built (`VALID_TRANSITIONS`, `lib/validation/orders.ts:75`) (+7 more)
 
-### Community 108 - "cancel-order-control.tsx"
-Cohesion: 0.16
-Nodes (14): POST(), RouteParams, CancelOrderControl(), withdrawnMessage(), cancelCustomerOrder(), getCancellationErrorMessage(), isCancellable(), OrderProgress (+6 more)
+### Community 108 - "cancel-order-control.test.tsx"
+Cohesion: 0.17
+Nodes (11): CancelOrderControl(), withdrawnMessage(), 🟡 Browsing and Ordering, isCancellable(), OrderProgress, ACCEPTED, confirmCancel(), openDialog() (+3 more)
 
 ### Community 109 - "map-staff-order.ts"
-Cohesion: 0.17
-Nodes (16): ManageOrdersInner(), CustomerOrderHistory(), loadHistory(), getDetailedOrders(), formatOrderType(), isDeliveryOrder(), ORDER_TYPE_LABELS, PICKUP_TYPES (+8 more)
-
-### Community 111 - "order-rating.test.tsx"
 Cohesion: 0.22
-Nodes (6): POST(), RouteParams, RateOrderButton(), RateOrderDialog(), submitReview(), refresh
+Nodes (12): formatOrderType(), isDeliveryOrder(), ORDER_TYPE_LABELS, PICKUP_TYPES, first(), mapStaffOrder(), One, StaffOrderRow (+4 more)
+
+### Community 110 - "README.md"
+Cohesion: 0.35
+Nodes (4): Panel feedback — verified against the code and docs, Recommended plan for the panel's points, Summary, More things:
+
+### Community 111 - "store-hours.ts"
+Cohesion: 0.35
+Nodes (9): closesAfterOpening(), DEFAULT_STORE_HOURS, formatTime(), isRestaurantOpen(), isValidTime(), manilaMinutes(), minutesOfDay(), StoreHours (+1 more)
 
 ### Community 112 - "curl-test.js"
 Cohesion: 0.15
 Nodes (11): ref_child_process, { createClient }, env, fs, run(), supabase, { createClient }, env (+3 more)
 
-### Community 114 - "kds/page.tsx"
-Cohesion: 0.17
-Nodes (13): CASH_METHODS, KdsInner(), KdsTab, readPref(), SortOrder, startOfToday(), TAB_LABELS, ViewMode (+5 more)
+### Community 114 - "Review Checklist"
+Cohesion: 0.18
+Nodes (10): Cart & Checkout Speed, Key Files to Check, Notifications, Order History, Payment Recovery, Persona: Regular Customer — "Mark, orders lunch to the office 3× a week", Red Flags, Reorder Flow (+2 more)
 
 ### Community 115 - "Unimplemented Issues and Tasks"
 Cohesion: 0.13
@@ -659,25 +660,25 @@ Nodes (14): Issue #10: US-07: Real-Time Estimated Time of Arrival (ETA) (CLOSED)
 Cohesion: 0.17
 Nodes (11): Customer Management, Key Files to Check, Navigation & Onboarding, Order Cancellation, Order Management, Persona: Newly Hired Manager — "Ms. Cruz, first week", Red Flags, Review Checklist (+3 more)
 
-### Community 117 - "cart-totals-summary.tsx"
-Cohesion: 0.21
-Nodes (12): CartTotalsSummary(), BIG_ORDER_MESSAGE, BULK_ORDER_NOTE, DISH_LIMIT_CODE, isOverOrderCap(), MAX_ITEMS_PER_ORDER, ORDER_TOO_LARGE_CODE, remainingItems() (+4 more)
+### Community 117 - "limits.ts"
+Cohesion: 0.33
+Nodes (7): BULK_ORDER_NOTE, DISH_LIMIT_CODE, isOverOrderCap(), MAX_ITEMS_PER_ORDER, ORDER_TOO_LARGE_CODE, remainingItems(), wouldExceedOrderCap()
 
-### Community 118 - "customer-profile.ts"
-Cohesion: 0.16
-Nodes (14): CheckoutConfirmationPage(), OrderDetailPage(), GET(), POST(), OrderPlacedScreen(), getOrderEtaAction(), GetOrderEtaResult, walletFromParam() (+6 more)
+### Community 118 - "read-tracked-order.ts"
+Cohesion: 0.13
+Nodes (18): CheckoutConfirmationPage(), OrderDetailPage(), GET(), POST(), getOrderEtaAction(), GetOrderEtaResult, walletFromParam(), EtaResult (+10 more)
 
 ### Community 119 - "employee/login/page.tsx"
 Cohesion: 0.32
 Nodes (3): EmployeeAuthShell(), EmployeeBrandPanel(), EmployeeLoginForm()
 
 ### Community 120 - "actions/reports.ts"
-Cohesion: 0.10
-Nodes (35): changeOwnPassword(), ActionResult, compactAmount(), csvCell(), CustomerSatisfaction, DailySalesRow, drawKeyValueGrid(), drawReportHeader() (+27 more)
+Cohesion: 0.11
+Nodes (28): ActionResult, compactAmount(), csvCell(), CustomerSatisfaction, DailySalesRow, drawKeyValueGrid(), drawReportHeader(), formatPeso() (+20 more)
 
-### Community 121 - "public-tracking.ts"
-Cohesion: 0.27
-Nodes (7): metadata, TrackPage(), idsSchema, PublicTrackedOrder, readPublicOrderTracking(), Row, rpc
+### Community 121 - "track-order-screen.tsx"
+Cohesion: 0.16
+Nodes (22): metadata, TrackPage(), GuestTrackingScreen(), manilaTime(), ReportProblem(), ShareTrackingLink(), TrackOrderScreen(), idsSchema (+14 more)
 
 ### Community 122 - "Copy glossary"
 Cohesion: 0.25
@@ -688,44 +689,44 @@ Cohesion: 0.20
 Nodes (10): 1. Summary, 2. Customer ordering, 3. Payment and pricing, 4. Tracking and communication, 5. Customer accounts and retention, 6. Back office — compared with open-source systems, 7. Security, 8. Where we stand (+2 more)
 
 ### Community 124 - "Requirements Audit"
-Cohesion: 0.18
-Nodes (10): 🟡 Browsing and Ordering, 🟡 Menu Management, 🟢 Order History and Feedback, 🟢 Order Tracking and Management, 🟡 Payment Processing, Requirements Audit, 🟢 Search, Filters, and Recommendations, 🟡 System Administration and Support (+2 more)
+Cohesion: 0.20
+Nodes (9): 🟡 Menu Management, 🟢 Order History and Feedback, 🟢 Order Tracking and Management, 🟡 Payment Processing, Requirements Audit, 🟢 Search, Filters, and Recommendations, 🟡 System Administration and Support, 🟢 Third-Party Integrations (+1 more)
 
 ### Community 125 - "Yang's Fried Rice — Ordering System"
-Cohesion: 0.20
-Nodes (10): Business rules, Commands, Docs, External services, Folder structure, Local development setup, Tech stack, User roles (+2 more)
+Cohesion: 0.11
+Nodes (19): Audit log, Business rules, Commands, Database functions (RPC), Docs, Edge functions, External services, Folder structure (+11 more)
 
 ### Community 126 - "check-types.js"
 Cohesion: 0.33
 Nodes (4): { createClient }, env, fs, supabase
 
-### Community 127 - "confirm/route.ts"
-Cohesion: 0.47
-Nodes (4): GET(), call(), exchangeCodeForSession, verifyOtp
+### Community 127 - "createClient"
+Cohesion: 0.14
+Nodes (22): CheckoutPage(), GET(), GET(), MenuPageBody(), changeOwnPassword(), getCategories(), getFeaturedProducts(), getProducts() (+14 more)
 
-### Community 128 - "CustomerData"
-Cohesion: 0.33
-Nodes (6): CustomerData, 30. Orders page can't filter by date, customer, payment or type (P2, high), 31. Customer list has no order totals or history, and loads every customer (P2), 32. Reports have no breakdowns and no CSV (P2), Found by the "hard questions through the UI" walkthrough, Q3. Owner: "Who are my top 10 customers by spending this month?"
+### Community 128 - "actions.ts"
+Cohesion: 0.11
+Nodes (17): ActionResult, EmployeeLoginResult, registerCustomer(), RegisterResult, CustomerSignupForm(), EMPLOYEE_SIGN_IN_FAILED, EmployeeLoginField, employeeLoginSchema (+9 more)
 
 ### Community 129 - "Rider Queue Handoff"
 Cohesion: 0.29
 Nodes (6): Also check (RLS), Done when, Handoff: put dispatched orders in the rider queue, The problem, What to build, Where
 
-### Community 132 - "senior-pwd-discount.test.tsx"
-Cohesion: 0.25
-Nodes (7): lines112, mockGetUser, mockUpload, profile, push, refresh, replace
+### Community 132 - "store-control-panel.test.tsx"
+Cohesion: 0.22
+Nodes (4): counts, refresh, status(), updateStoreSettings
 
 ### Community 133 - "make-migration.js"
 Cohesion: 0.33
 Nodes (5): content, endIndex, fs, func, startIndex
 
-### Community 134 - "track-order-screen.test.tsx"
-Cohesion: 0.17
-Nodes (7): TrackedOrder, getOrderEtaAction, Handler, handlers, renderScreen(), router, routerRefresh
+### Community 134 - "ToastProvider"
+Cohesion: 0.07
+Nodes (21): CheckoutScreen(), ToastProvider(), defaultPaymentMethodFor(), lines, profile, push, refresh, replace (+13 more)
 
 ### Community 135 - "account-status.ts"
-Cohesion: 0.38
-Nodes (5): ACCOUNT_DISABLED_CODE, ACCOUNT_DISABLED_LOGIN_ERROR, ACCOUNT_DISABLED_MESSAGE, EMPLOYEE_ACCOUNT_DISABLED_MESSAGE, ActionResult
+Cohesion: 0.47
+Nodes (4): ACCOUNT_DISABLED_CODE, ACCOUNT_DISABLED_LOGIN_ERROR, EMPLOYEE_ACCOUNT_DISABLED_MESSAGE, ActionResult
 
 ### Community 136 - "read-placed-order.ts"
 Cohesion: 0.27
@@ -736,12 +737,12 @@ Cohesion: 0.33
 Nodes (4): { createClient }, env, fs, supabase
 
 ### Community 138 - "customer-orders.ts"
-Cohesion: 0.18
-Nodes (12): GET(), RouteParams, GET(), ActionResult, getMyOrderDetail(), getMyOrders(), OrderDetail, OrderHistoryItem (+4 more)
+Cohesion: 0.09
+Nodes (23): POST(), RouteParams, GET(), RouteParams, GET(), RateOrderButton(), Done in this run, Future work (unchanged from FINALE §8) (+15 more)
 
 ### Community 139 - "order-rules.ts"
-Cohesion: 0.18
-Nodes (15): PickupModal(), PickupModalProps, PickupFollowup(), markOrderNoShow(), undoOrderPickedUp(), CASH_LIMIT, changeDue(), FIRST_CASH_LIMIT (+7 more)
+Cohesion: 0.27
+Nodes (10): CASH_LIMIT, FIRST_CASH_LIMIT, MAX_TIP, MIN_ORDER, NO_SHOW_CASH_BLOCK, NO_SHOW_DISABLE_PROMPT, NO_SHOW_REASONS, payInStoreBlock() (+2 more)
 
 ### Community 140 - "test-kds-query2.js"
 Cohesion: 0.40
@@ -751,9 +752,9 @@ Nodes (3): c_users_joseph_rey_downloads_projects_yangs_fried_rice_scratch_lib_ac
 Cohesion: 0.50
 Nodes (3): content, fs, isOverOrderCap
 
-### Community 144 - "Section 5 — Design & UX Gaps (from Persona Reviews)"
-Cohesion: 0.33
-Nodes (6): 5.1 🟡 697 hard-coded colours instead of tokens (Persona 16 — Mika, UI designer), 5.2 🟡 35 font sizes, 14 corner radii (Persona 16), 5.3 🟡 113 raw `<button>` vs 44 `<Button>` uses (Persona 16), 5.4 🟡 Copy glossary — inconsistent terminology (Persona 16), 5.5 🟡 Readable order number (Persona 6 — Lolo Ben), Section 5 — Design & UX Gaps (from Persona Reviews)
+### Community 144 - "readCustomerProfile"
+Cohesion: 0.46
+Nodes (6): OrdersPage(), HISTORY_PAGE, productNameOf(), readPastOrders(), readCustomerProfile(), isUnpaidStatus()
 
 ### Community 145 - "fix-tokens-3.js"
 Cohesion: 0.50
@@ -763,13 +764,17 @@ Nodes (3): content1, content2, fs
 Cohesion: 0.50
 Nodes (3): fs, ordersTs, pageTsx
 
-### Community 147 - "employee-modal.tsx"
-Cohesion: 0.07
-Nodes (40): FilterDropdown(), employeeFormSchema(), EmployeeModal(), EmployeeModalProps, FormSnapshot, inputClass(), ROLES, SHIFTS (+32 more)
+### Community 147 - "menu-item-detail-modal.tsx"
+Cohesion: 0.09
+Nodes (26): MenuGridProps, SORTERS, MenuItemDetailModalProps, WHY: To implement the Figma design (node 2102-5252) which requires full editing…, addOnFormSchema, ConfirmationModalProps, menuItemFormSchema, MenuItemModal() (+18 more)
 
 ### Community 149 - "check-ready-orders2.js"
 Cohesion: 0.33
 Nodes (4): { createClient }, env, fs, supabase
+
+### Community 150 - "vitest"
+Cohesion: 0.12
+Nodes (10): VALID, ref_node_path, vitest, FILES, walk(), ROOTS, SKIP_DIRS, sourceFiles() (+2 more)
 
 ### Community 153 - "paymongo"
 Cohesion: 0.13
@@ -779,21 +784,21 @@ Nodes (15): Payment Method Split, 26. Live database is missing 5 migrations — 
 Cohesion: 0.73
 Nodes (4): normalizeOrderSearch(), orderIdRangeFor(), orderMatchesSearch(), orderNumberSearch()
 
-### Community 156 - "sales-chart.tsx"
-Cohesion: 0.21
-Nodes (7): SalesChart(), SalesChartProps, DailySales, CHART_COLORS, CHART_TOKENS, css, recharts
+### Community 156 - "chart-colors.test.ts"
+Cohesion: 0.38
+Nodes (3): CHART_COLORS, CHART_TOKENS, css
 
-### Community 157 - "check-ready-orders.js"
-Cohesion: 0.33
-Nodes (4): { createClient }, env, fs, supabase
+### Community 157 - "promotions/page.tsx"
+Cohesion: 0.14
+Nodes (18): app_globals, anton, dmSans, metadata, PromotionModal(), SearchField(), ShortcutsHelp(), STAFF_AREAS (+10 more)
 
 ### Community 158 - "schema.ts"
-Cohesion: 0.16
-Nodes (13): ref_node_fs, ref_node_path, FILES, walk(), ROOTS, SKIP_DIRS, sourceFiles(), BASELINE (+5 more)
+Cohesion: 0.35
+Nodes (7): ref_node_fs, BASELINE, functionSql(), PLATFORM, policiesOn(), SCHEMA, tableSql()
 
-### Community 159 - "customer-portal-access.test.ts"
-Cohesion: 0.25
-Nodes (7): checkLoginAllowed, credentials, deleteSession, maybeSingle, recordLoginFailure, signInWithPassword, signOut
+### Community 159 - "order-timeline.tsx"
+Cohesion: 0.32
+Nodes (7): OrderTimeline(), StageMarker(), stageMeta(), STATE_LABELS, formatClockTime(), StageState, TimelineStage
 
 ### Community 161 - "test-kds-query.js"
 Cohesion: 0.33
@@ -803,13 +808,13 @@ Nodes (4): { createClient }, env, fs, supabase
 Cohesion: 0.20
 Nodes (6): builder(), b, deleteUser, expireAbandonedOrders, orderCount, writes
 
-### Community 163 - "Section 6 — Legal & Compliance Gaps (from Persona 15 — Atty. Reyes)"
-Cohesion: 0.50
-Nodes (4): 6.1 🟡 Minors: age minimum and parental consent (J6), 6.2 🟡 Data retention / automatic deletion (from lacking.md security), 6.3 🟡 Account deletion doesn't erase all personal data (J5), Section 6 — Legal & Compliance Gaps (from Persona 15 — Atty. Reyes)
+### Community 163 - "pickup-followup.tsx"
+Cohesion: 0.38
+Nodes (5): PickupFollowup(), markOrderNoShow(), undoOrderPickedUp(), NoShowReason, UNDO_PICKUP_MINUTES
 
-### Community 166 - "switchOrderToCashOnDelivery"
-Cohesion: 1.00
-Nodes (3): SwitchToCodButton(), handleSwitch(), switchOrderToCashOnDelivery()
+### Community 166 - "test-map.js"
+Cohesion: 0.33
+Nodes (4): { createClient }, env, fs, supabase
 
 ### Community 168 - "Section 2 — Panel Feedback Items Still Open (Excluding Issue #117)"
 Cohesion: 0.22
@@ -820,40 +825,36 @@ Cohesion: 0.50
 Nodes (3): content1, content2, fs
 
 ### Community 170 - "FINALE — Unimplemented Features for One Final Run"
-Cohesion: 0.22
-Nodes (9): 7.1 🟡 Payment method CHECK constraints, 7.2 🟡 Order status CHECK constraints in the database, 7.3 🟡 `received` is a dead status, Cross-Reference: What Issue #117 Covers (Excluded from This List), FINALE — Unimplemented Features for One Final Run, Section 7 — Database & Infrastructure (from Persona 10 — Rica, DBA), Section 8 — Future Work (Document as Limitations Only), Status Legend (+1 more)
+Cohesion: 0.11
+Nodes (19): 5.1 🟡 697 hard-coded colours instead of tokens (Persona 16 — Mika, UI designer), 5.2 🟡 35 font sizes, 14 corner radii (Persona 16), 5.3 🟡 113 raw `<button>` vs 44 `<Button>` uses (Persona 16), 5.4 🟡 Copy glossary — inconsistent terminology (Persona 16), 5.5 🟡 Readable order number (Persona 6 — Lolo Ben), 6.1 🟡 Minors: age minimum and parental consent (J6), 6.2 🟡 Data retention / automatic deletion (from lacking.md security), 6.3 🟡 Account deletion doesn't erase all personal data (J5) (+11 more)
 
-### Community 174 - "Supabase"
-Cohesion: 0.22
-Nodes (9): Audit log, Database functions (RPC), Edge functions, Other tables worth knowing, Realtime, Row Level Security, Storage buckets, Supabase (+1 more)
+### Community 171 - "removeCartItem"
+Cohesion: 0.50
+Nodes (4): DELETE(), PATCH(), RouteParams, removeCartItem()
 
 ### Community 177 - "Section 3 — Limitations Still Open (from `limitations.md`)"
 Cohesion: 0.29
 Nodes (7): 3.1 🟠 Unpaid GCash/Maya orders never expire (L3), 3.2 🟡 No "change for ₱___" on cash payments (L8), 3.3 🟡 No order status history (L9), 3.4 🟡 No "Best seller" labels on the menu (L14), 3.5 🟡 Nothing stops repeat pickup no-shows (L18), 3.6 🟡 Nothing happens when staff don't accept an order (L22), Section 3 — Limitations Still Open (from `limitations.md`)
 
-### Community 191 - "ToastProvider"
-Cohesion: 0.12
-Nodes (14): logout(), LogOutControl(), handleLogOut(), NAV_LINKS, NavSection, SiteNavBar(), AccountActions(), ToastProvider() (+6 more)
-
 ## Knowledge Gaps
-- **1053 isolated node(s):** `StoreHours`, `StoreBlockCode`, `ActionResult`, `EmployeeLoginResult`, `RegisterResult` (+1048 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1288 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **1058 isolated node(s):** `SettingsForm`, `ActionResult`, `StoreSettingUpdate`, `ActionResult`, `EmployeeLoginResult` (+1053 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1294 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **50 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `next` connect `next` to `store-control-panel.tsx`, `auth.ts`, `database.types.ts`, `actions/menu.ts`, `sidebar.tsx`, `toast.tsx`, `cn`, `resolveEmployeeRole`, `customer-orders.ts`, `payment-status-card.tsx`, `checkout-screen.tsx`, `track-order-screen.tsx`, `account-status.ts`, `routers/reports.ts`, `past-order.ts`, `roles.ts`, `employee-modal.tsx`, `dashboard-content.tsx`, `package.json`, `brand-panel.tsx`, `(account)/profile/page.tsx`, `notification-bell.tsx`, `report-problem.tsx`, `promo-carousel.tsx`, `audit-log/page.tsx`, `cart-totals.ts`, `routers/addons.ts`, `reports-client.tsx`, `(shop)/page.tsx`, `routers/employee-profile.ts`, `switchOrderToCashOnDelivery`, `manage/orders/page.tsx`, `actions/audit.ts`, `item-detail-modal.tsx`, `routers/orders.ts`, `updateCartItem`, `vitest`, `ToastProvider`, `customer-signup-form.tsx`, `actions/profile.ts`, `Notifications API`, `submitCart`, `actions.ts`, `order-summary-card.tsx`, `Placeholder Manage Pages`, `avatar-button.tsx`, `dashboard.ts`, `session.ts`, `createClient`, `clearCart`, `react`, `cancel-order-control.tsx`, `order-rating.test.tsx`, `kds/page.tsx`, `cart-totals-summary.tsx`, `customer-profile.ts`, `employee/login/page.tsx`, `public-tracking.ts`, `confirm/route.ts`?**
-  _High betweenness centrality (0.226) - this node is a cross-community bridge._
-- **Why does `createClient()` connect `createClient` to `store-control-panel.tsx`, `auth.ts`, `database.types.ts`, `actions/menu.ts`, `audit-actions.ts`, `read-placed-order.ts`, `resolveEmployeeRole`, `customer-orders.ts`, `order-rules.ts`, `actions/cart.ts`, `routers/reports.ts`, `past-order.ts`, `employee-modal.tsx`, `dashboard-content.tsx`, `actions/admin.ts`, `(account)/profile/page.tsx`, `report-problem.tsx`, `routers/addons.ts`, `switchOrderToCashOnDelivery`, `(shop)/page.tsx`, `routers/employee-profile.ts`, `reports-client.tsx`, `actions/audit.ts`, `actions/orders.ts`, `menu-screen.tsx`, `routers/orders.ts`, `updateCartItem`, `ToastProvider`, `customer-signup-form.tsx`, `actions/profile.ts`, `Notifications API`, `submitCart`, `actions.ts`, `order-receipt.tsx`, `avatar-button.tsx`, `dashboard.ts`, `clearCart`, `cancel-order-control.tsx`, `map-staff-order.ts`, `order-rating.test.tsx`, `customer-profile.ts`, `actions/reports.ts`, `public-tracking.ts`, `confirm/route.ts`?**
-  _High betweenness centrality (0.145) - this node is a cross-community bridge._
-- **Why does `submitCart()` connect `submitCart` to `store-control-panel.tsx`, `senior-pwd-discount.test.tsx`, `actions/cart.ts`, `checkout-screen.test.tsx`, `past-order.ts`, `Issue #106 — follow-up issues to file`, `paymongo`, `Details`, `next`, `Supabase`, `P2 — if time allows`, `Section 1 — P1 Items Still Open`, `updateCartItem`, `actions/profile.ts`, `senior-pwd-ids.ts`, `order-summary-card.tsx`, `Accountant Persona`, `Review Checklist`, `Review Checklist`, `createClient`, `New Customer Persona`, `Senior Customer Persona`, `User simulation — 17 personas + hard questions through the UI`, `16. UI/UX designer — "Mika, joins to polish the product before the defense"`, `cart-totals-summary.tsx`?**
-  _High betweenness centrality (0.123) - this node is a cross-community bridge._
-- **What connects `StoreHours`, `StoreBlockCode`, `ActionResult` to the rest of the system?**
-  _1053 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Why does `next` connect `next` to `actions.ts`, `auth.ts`, `database.types.ts`, `store-control-panel.tsx`, `actions/menu.ts`, `sidebar.tsx`, `products.ts`, `toast.tsx`, `cn`, `routers/admin.ts`, `customer-orders.ts`, `account-status.ts`, `order-summary-card.tsx`, `actions/cart.ts`, `store-status.ts`, `routers/reports.ts`, `readCustomerProfile`, `past-order.ts`, `menu-item-detail-modal.tsx`, `dashboard-content.tsx`, `package.json`, `brand-panel.tsx`, `(account)/profile/page.tsx`, `notification-bell.tsx`, `order-issues.ts`, `transactions.ts`, `promotions/page.tsx`, `report-controls.tsx`, `kds/page.tsx`, `cart-totals.ts`, `routers/addons.ts`, `(shop)/page.tsx`, `actions/employee-profile.ts`, `removeCartItem`, `site-info.ts`, `payment-status-card.tsx`, `audit-log/page.tsx`, `item-detail-modal.tsx`, `routers/orders.ts`, `updateCartItem`, `customer-signup-form.tsx`, `actions/profile.ts`, `Notifications API`, `submitCart`, `legal-page.tsx`, `formatPeso`, `Placeholder Manage Pages`, `dashboard.ts`, `resolveEmployeeRole`, `requireCustomer`, `read-tracked-order.ts`, `employee/login/page.tsx`, `track-order-screen.tsx`, `createClient`?**
+  _High betweenness centrality (0.194) - this node is a cross-community bridge._
+- **Why does `createClient()` connect `createClient` to `actions.ts`, `auth.ts`, `database.types.ts`, `store-control-panel.tsx`, `actions/menu.ts`, `products.ts`, `read-placed-order.ts`, `routers/admin.ts`, `customer-orders.ts`, `actions/cart.ts`, `store-status.ts`, `routers/reports.ts`, `readCustomerProfile`, `actions/admin.ts`, `dashboard-content.tsx`, `(account)/profile/page.tsx`, `order-issues.ts`, `transactions.ts`, `report-controls.tsx`, `pickup-followup.tsx`, `kds/page.tsx`, `routers/addons.ts`, `reports-summary.tsx`, `(shop)/page.tsx`, `actions/employee-profile.ts`, `removeCartItem`, `customers/page.tsx`, `audit-log/page.tsx`, `actions/orders.ts`, `menu-screen.tsx`, `routers/orders.ts`, `updateCartItem`, `customer-signup-form.tsx`, `actions/profile.ts`, `Notifications API`, `submitCart`, `senior-pwd-ids.ts`, `order-receipt.tsx`, `promotions.ts`, `dashboard.ts`, `resolveEmployeeRole`, `expire-abandoned-orders.ts`, `requireCustomer`, `read-tracked-order.ts`, `actions/reports.ts`, `track-order-screen.tsx`?**
+  _High betweenness centrality (0.133) - this node is a cross-community bridge._
+- **Why does `@supabase/supabase-js` connect `@supabase/supabase-js` to `test-kds-query.js`, `db-cleanse.mjs`, `expire-abandoned-orders.ts`, `test-map.js`, `senior-pwd-ids.ts`, `get-staff.js`, `order-summary-card.tsx`, `curl-test.js`, `package.json`, `check-ready-orders2.js`, `read-tracked-order.ts`, `fix-transactions.js`, `check-types.js`, `createClient`?**
+  _High betweenness centrality (0.133) - this node is a cross-community bridge._
+- **What connects `SettingsForm`, `ActionResult`, `StoreSettingUpdate` to the rest of the system?**
+  _1058 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `store-control-panel.tsx` be split into smaller, more focused modules?**
-  _Cohesion score 0.06169772256728778 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.1476923076923077 - nodes in this community are weakly interconnected._
 - **Should `auth.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.11932773109243698 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07239819004524888 - nodes in this community are weakly interconnected._
 - **Should `database.types.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.06038961038961039 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.10052910052910052 - nodes in this community are weakly interconnected._

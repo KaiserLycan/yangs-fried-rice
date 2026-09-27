@@ -1242,9 +1242,9 @@
     "semantic_hash": ""
   },
   "components/profile/contact-details-card.tsx": {
-    "mtime": 1790538358.7771473,
-    "seen": 1790538602.9187036,
-    "ast_hash": "b0afdb2971133f30bf2d234749fdd43d",
+    "mtime": 1790538868.4595091,
+    "seen": 1790539007.3333762,
+    "ast_hash": "d66c5d314e5e24cb97b09821e1a87d19",
     "semantic_hash": ""
   },
   "components/profile/password-card.tsx": {
@@ -2208,9 +2208,9 @@
     "semantic_hash": "5772dd7f2ec01df67006d1401e72ab6e"
   },
   "types/database.types.ts": {
-    "mtime": 1790537403.2915156,
-    "seen": 1790537663.7632375,
-    "ast_hash": "2a251fbdcec03688b5bfbbdad6b67eb4",
+    "mtime": 1790538676.4468095,
+    "seen": 1790538842.966239,
+    "ast_hash": "5e82ec5ca4bf3eb3f9fea8b35c45b9f2",
     "semantic_hash": ""
   },
   "vitest.config.mts": {
@@ -3915,6 +3915,18 @@
     "mtime": 1790537381.6750543,
     "seen": 1790538335.892115,
     "ast_hash": "aaf0320b38fae65d98847d008e3832b3",
+    "semantic_hash": ""
+  },
+  "docs/HANDOFF.md": {
+    "mtime": 1790538829.8801265,
+    "seen": 1790538842.9691422,
+    "ast_hash": "9d53e4af454b0d237b355e57fcc90340",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20260929130000_food_service_item_ratings.sql": {
+    "mtime": 1790538655.107762,
+    "seen": 1790539007.3336697,
+    "ast_hash": "fd2bc98e2b6fb27cc79a0d821324fe86",
     "semantic_hash": ""
   }
 }
