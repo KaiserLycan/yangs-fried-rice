@@ -120,6 +120,8 @@ export const orderFilterSchema = z.object({
   date_to: z.string().datetime({ offset: true }).optional(),
   /** Only orders cancelled at or after this moment (the KDS "Cancelled (today)" tab). */
   cancelled_from: z.string().datetime({ offset: true }).optional(),
+  /** Only orders marked ready at or after this moment (the KDS "For Pick-up" tab). */
+  ready_from: z.string().datetime({ offset: true }).optional(),
   /** Start of an order id, as printed on the card — "#6940" (P52). */
   search: z.string().max(40).optional(),
   customer_name: z.string().optional(),
