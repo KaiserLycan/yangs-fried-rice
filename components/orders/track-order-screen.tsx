@@ -34,6 +34,7 @@ import {
   RateOrderButton,
 } from "@/components/orders/order-rating";
 import { uniqueChannelName } from "@/lib/supabase/channel-name";
+import { ShareTrackingLink } from "@/components/orders/share-tracking-link";
 
 /**
  * The tracking screen. Desktop (`133:1164`) is two columns — header, timeline
@@ -420,6 +421,7 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
         {/* Below the timeline on mobile, under the pickup panel on desktop. */}
         <div className="border-t border-rule p-[20px] md:col-start-2 md:row-start-2 md:rounded-lg md:border md:bg-white">
           <OrderReceipt order={order} />
+          {order.trackingToken && <ShareTrackingLink orderId={order.orderId} token={order.trackingToken} />}
         </div>
       </div>
     </div>

@@ -420,6 +420,7 @@ export type Database = {
           promised_at: string | null
           ready_at: string | null
           special_instructions: string | null
+          tracking_token: string
         }
         Insert: {
           cancellation_reason?: string | null
@@ -440,6 +441,7 @@ export type Database = {
           promised_at?: string | null
           ready_at?: string | null
           special_instructions?: string | null
+          tracking_token?: string
         }
         Update: {
           cancellation_reason?: string | null
@@ -460,6 +462,7 @@ export type Database = {
           promised_at?: string | null
           ready_at?: string | null
           special_instructions?: string | null
+          tracking_token?: string
         }
         Relationships: [
           {
@@ -1114,6 +1117,10 @@ export type Database = {
           total_orders: number
           total_revenue: number
         }[]
+      }
+      get_public_order_tracking: {
+        Args: { p_order_id: string; p_token: string }
+        Returns: Json
       }
       get_sales_by_hour: {
         Args: { end_date: string; start_date: string }
