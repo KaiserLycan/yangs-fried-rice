@@ -52,7 +52,7 @@ export function ReportProblem({
 
   if (issue) {
     return (
-      <p className="text-[14px] text-muted-strong" role="status">
+      <p className="text-sm text-muted-strong" role="status">
         {issue.resolvedAt
           ? `Your report (${ORDER_ISSUE_LABELS[issue.issueType].toLowerCase()}) was resolved by the store.`
           : `You reported a problem (${ORDER_ISSUE_LABELS[issue.issueType].toLowerCase()}). The store will get back to you.`}
@@ -64,14 +64,14 @@ export function ReportProblem({
 
   return (
     <>
-      <button
+      <Button variant="unstyled"
         type="button"
         onClick={() => setOpen(true)}
-        className="min-h-[44px] text-[14px] font-bold text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+        className="min-h-[44px] text-sm font-bold text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
       >
         Report a problem
         <span className="sr-only"> with order #{orderNumber}</span>
-      </button>
+      </Button>
       <ReportProblemDialog
         open={open}
         onClose={() => setOpen(false)}
@@ -228,13 +228,13 @@ function ReportProblemDialog({
         {error ? <Alert>{error}</Alert> : null}
 
         <fieldset className="flex flex-col gap-[8px]">
-          <legend className="mb-[6px] text-[14px] font-bold text-foreground">
+          <legend className="mb-[6px] text-sm font-bold text-foreground">
             Which items? <span className="font-normal text-muted-strong">(tick all that apply)</span>
           </legend>
           {items.map((item) => (
             <label
               key={item.orderItemId}
-              className="flex min-h-[44px] cursor-pointer items-center gap-[10px] rounded-[12px] border border-field-border bg-card px-[12px] py-[8px] text-[15px] text-foreground"
+              className="flex min-h-[44px] cursor-pointer items-center gap-[10px] rounded-md border border-field-border bg-card px-[12px] py-[8px] text-base text-foreground"
             >
               <Checkbox
                 checked={selected.has(item.orderItemId)}
@@ -248,13 +248,13 @@ function ReportProblemDialog({
         </fieldset>
 
         <fieldset className="flex flex-col gap-[8px]">
-          <legend className="mb-[6px] text-[14px] font-bold text-foreground">What happened?</legend>
+          <legend className="mb-[6px] text-sm font-bold text-foreground">What happened?</legend>
           <div className="flex flex-wrap gap-[8px]">
             {ORDER_ISSUE_TYPES.map((type) => (
               <label
                 key={type}
                 className={cn(
-                  "flex min-h-[44px] cursor-pointer items-center rounded-pill border px-[16px] text-[15px] font-bold focus-within:ring-2 focus-within:ring-ring/40",
+                  "flex min-h-[44px] cursor-pointer items-center rounded-full border px-[16px] text-base font-bold focus-within:ring-2 focus-within:ring-ring/40",
                   issueType === type
                     ? "border-accent bg-accent text-white"
                     : "border-field-border bg-card text-foreground",
@@ -275,7 +275,7 @@ function ReportProblemDialog({
         </fieldset>
 
         <div className="flex flex-col gap-[6px]">
-          <label htmlFor="report-problem-photo" className="text-[14px] font-bold text-foreground">
+          <label htmlFor="report-problem-photo" className="text-sm font-bold text-foreground">
             Photo <span className="font-normal text-muted-strong">(optional)</span>
           </label>
           <input
@@ -284,12 +284,12 @@ function ReportProblemDialog({
             type="file"
             accept="image/jpeg,image/png,image/webp,image/heic"
             onChange={(event) => void pickPhoto(event.target.files?.[0])}
-            className="text-[14px] text-foreground file:mr-[10px] file:min-h-[44px] file:rounded-[10px] file:border file:border-field-border file:bg-card file:px-[14px] file:text-[14px] file:font-bold file:text-foreground"
+            className="text-sm text-foreground file:mr-[10px] file:min-h-[44px] file:rounded-md file:border file:border-field-border file:bg-card file:px-[14px] file:text-sm file:font-bold file:text-foreground"
           />
         </div>
 
         <div className="flex flex-col gap-[6px]">
-          <label htmlFor="report-problem-note" className="text-[14px] font-bold text-foreground">
+          <label htmlFor="report-problem-note" className="text-sm font-bold text-foreground">
             Anything else? <span className="font-normal text-muted-strong">(optional)</span>
           </label>
           <Textarea

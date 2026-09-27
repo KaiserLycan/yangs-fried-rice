@@ -18,6 +18,8 @@ type One<T> = T | T[] | null;
 
 export type StaffOrderRow = {
   order_id: string;
+  /** `#1042` — see lib/orders/order-number.ts. */
+  order_number?: number | null;
   created_at: string | null;
   /** When it entered the kitchen queue (issue #115). */
   pending_at?: string | null;
@@ -45,6 +47,15 @@ export type StaffOrderRow = {
     }[] | null;
   }[];
   order_add_on?: { price: number | null }[] | null;
+  /** The payment row — where a Senior Citizen / PWD discount lives. */
+  transaction?: {
+    subtotal?: number | null;
+    discount_amount?: number | null;
+    discount_type?: string | null;
+    discount_id_number?: string | null;
+    name_on_id?: string | null;
+    discount_id_photo_path?: string | null;
+  }[] | null;
 };
 
 const first = <T,>(value: One<T> | undefined): T | null =>
@@ -92,13 +103,26 @@ export function mapStaffOrder(order: StaffOrderRow): OrderData {
     };
   });
 
-  const total = computeOrderTotal({
+  const menuTotal = computeOrderTotal({
     itemSubtotals: order.order_item.map(
       (line) => line.subtotal ?? (first(line.product)?.product_price ?? 0) * line.quantity,
     ),
     orderAddOnPrices: (order.order_add_on ?? []).map((row) => row.price),
     deliveryFee: order.delivery_fee,
   });
+
+  // Senior Citizen / PWD (issue #116): the order is owed at
+  // subtotal - discount_amount, as checkout saved it, not at menu prices.
+  const discounted = (order.transaction ?? []).find(
+    (row) => row.discount_type === "senior_citizen" || row.discount_type === "pwd",
+  );
+  const total = discounted
+    ? Math.round(
+        ((discounted.subtotal ?? 0) - (discounted.discount_amount ?? 0)) * 100,
+      ) /
+        100 +
+      (order.delivery_fee ?? 0)
+    : menuTotal;
 
   return {
     id: order.order_id,
@@ -112,7 +136,7 @@ export function mapStaffOrder(order: StaffOrderRow): OrderData {
     // Was `substring(0, 4).toUpperCase()` while the customer was shown the
     // last four — the same order, two references, neither able to check the
     // other (issue #106).
-    orderNumber: formatOrderNumber(order.order_id),
+    orderNumber: formatOrderNumber(order.order_number, order.order_id),
     time: order.created_at
       ? new Date(order.created_at).toLocaleTimeString([], {
           hour: "2-digit",
@@ -142,5 +166,14 @@ export function mapStaffOrder(order: StaffOrderRow): OrderData {
     deliveryFee: order.delivery_fee ?? 0,
     total,
     items,
+    seniorPwd: discounted
+      ? {
+          type: discounted.discount_type as "senior_citizen" | "pwd",
+          idNumber: discounted.discount_id_number ?? "",
+          nameOnId: discounted.name_on_id ?? "",
+          discount: discounted.discount_amount ?? 0,
+          hasPhoto: Boolean(discounted.discount_id_photo_path),
+        }
+      : undefined,
   } as OrderData;
 }

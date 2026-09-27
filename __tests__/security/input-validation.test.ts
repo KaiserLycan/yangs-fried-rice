@@ -174,13 +174,21 @@ describe("A6. quantities, ratings and money", () => {
   it("rejects a negative amount on a transaction", () => {
     const base = {
       order_id: product,
-      payment_method: "cash",
+      payment_method: "pay_in_store",
       subtotal: 100,
       total_paid: 100,
     };
     expect(transactionSchema.safeParse({ ...base, subtotal: -1 }).success).toBe(false);
     expect(transactionSchema.safeParse({ ...base, total_paid: -1 }).success).toBe(false);
     expect(transactionSchema.safeParse(base).success).toBe(true);
+  });
+
+  // Same list as the CHECK on transaction.payment_method (#116).
+  it("rejects a payment method outside the allowed three", () => {
+    const base = { order_id: product, subtotal: 100, total_paid: 100 };
+    for (const method of ["cash", "GCash", "cash_on_delivery", "paymongo"]) {
+      expect(transactionSchema.safeParse({ ...base, payment_method: method }).success).toBe(false);
+    }
   });
 });
 

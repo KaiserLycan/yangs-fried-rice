@@ -1,6 +1,7 @@
 import { formatPeso, type ProductListing } from "@/lib/menu/product-listing";
 import { ProductPhotoPlaceholder } from "@/components/menu/product-photo-placeholder";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 /**
  * Mobile's full-width row (`132:122` and its siblings) — the same card
@@ -27,7 +28,7 @@ export function ProductRow({
   const unavailable = !product.isAvailable;
 
   return (
-    <button
+    <Button variant="unstyled"
       type="button"
       onClick={() => onSelect(product)}
       className="flex gap-[13px] border-b border-field-border px-[20px] py-[12px] text-left transition-opacity last:border-b-0 hover:opacity-90"
@@ -45,21 +46,21 @@ export function ProductRow({
       )}
 
       <span className="flex min-w-0 flex-1 flex-col gap-[6px]">
-        <span className="text-[15px] font-bold text-foreground">{product.name}</span>
-        <span className="line-clamp-2 text-[14px] text-muted-foreground">
+        <span className="text-base font-bold text-foreground">{product.name}</span>
+        <span className="line-clamp-2 text-sm text-muted-foreground">
           {product.description}
         </span>
         <span className="flex items-center gap-[8px]">
-          <span className="font-display text-[19px] text-foreground">
+          <span className="font-display text-lg text-foreground">
             {formatPeso(product.price)}
           </span>
           {unavailable && (
-            <span className="rounded-md bg-secondary/50 px-[6px] py-[3px] text-[14px] font-bold uppercase tracking-wider text-muted-foreground">
+            <span className="rounded-md bg-secondary/50 px-[6px] py-[3px] text-sm font-bold uppercase tracking-wider text-muted-foreground">
               Unavailable
             </span>
           )}
         </span>
       </span>
-    </button>
+    </Button>
   );
 }

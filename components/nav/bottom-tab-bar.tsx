@@ -23,7 +23,7 @@ const TABS: { id: BottomTab; href: string; icon: string; label: string }[] = [
   { id: "menu", href: "/menu", icon: "☰", label: "Menu" },
   { id: "cart", href: "/cart", icon: "▤", label: "Cart" },
   { id: "orders", href: "/orders", icon: "◉", label: "Orders" },
-  { id: "account", href: "/profile", icon: "☺", label: "Me" },
+  { id: "account", href: "/profile", icon: "☺", label: "Account" },
 ];
 
 export function BottomTabBar({
@@ -65,10 +65,10 @@ export function BottomTabBar({
               isCurrent ? "text-primary" : "text-muted-foreground",
             )}
           >
-            <span className="text-[19px] leading-none" aria-hidden="true">
+            <span className="text-lg leading-none" aria-hidden="true">
               {icon}
             </span>
-            <span className="text-[14px] font-medium">{displayLabel}</span>
+            <span className="text-sm font-medium">{displayLabel}</span>
           </Link>
         );
       })}

@@ -44,7 +44,7 @@ export async function readPastOrders(): Promise<PastOrder[]> {
   const { data: orders } = await supabase
     .from("order")
     .select(
-      "order_id, order_status, order_type, cancelled_at, created_at, delivery_fee",
+      "order_id, order_number, order_status, order_type, cancelled_at, created_at, delivery_fee",
     )
     .eq("customer_id", user.id)
     .order("created_at", { ascending: false })
@@ -137,7 +137,7 @@ export async function readPastOrders(): Promise<PastOrder[]> {
       const orderItems = itemsByOrder.get(row.order_id) ?? [];
       return {
         orderId: row.order_id,
-        orderNumber: formatOrderNumber(row.order_id),
+        orderNumber: formatOrderNumber(row.order_number, row.order_id),
         placedAt: row.created_at,
         orderStatus: row.order_status,
         cancelledAt: row.cancelled_at,

@@ -20,14 +20,14 @@ export function RoutePlaceholder({
 }) {
   return (
     <main className="container py-10">
-      <h1 className="text-2xl font-semibold">{title}</h1>
+      <h1 className="text-2xl leading-8 font-semibold">{title}</h1>
       <p className="text-muted-foreground mt-2 max-w-prose">{description}</p>
       {requirements?.length ? (
-        <p className="text-muted-foreground mt-4 text-sm">
+        <p className="text-muted-foreground mt-4 text-sm leading-5">
           Requirements: {requirements.join(", ")}
         </p>
       ) : null}
-      <p className="text-muted-foreground mt-6 text-xs">
+      <p className="text-muted-foreground mt-6 text-sm leading-4">
         Placeholder — not implemented.
       </p>
     </main>

@@ -4,10 +4,10 @@
  * Side navigation for the /manage area.
  *
  * Matches the Figma design exactly:
- *   - Deep red background (#b8352a) with cream/orange text
+ *   - Deep red background (backoffice token) with cream/orange text
  *   - "YANG'S ADMIN" wordmark (orange "YANG'S" + cream "ADMIN")
  *   - Collapse toggle: shrinks sidebar from 232px → 64px, shows icons only
- *   - Navigation items with active state highlight (#f0b27a background)
+ *   - Navigation items with active state highlight (on-brand-accent background)
  *   - User info footer with avatar initials circle + display name + logout
  *
  * Figma annotations:
@@ -49,6 +49,7 @@ import {
   resolveEmployeeRole,
   type EmployeeRole,
 } from "@/lib/auth/roles";
+import { Button } from "@/components/ui/button";
 
 function initialsFromName(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -260,10 +261,10 @@ function CollapseIcon() {
         width="16"
         height="16"
         rx="3.5"
-        stroke="#fbf6ec"
+        className="stroke-background"
         strokeWidth="1"
       />
-      <line x1="6" y1="4" x2="6" y2="13" stroke="#fbf6ec" strokeWidth="1" />
+      <line x1="6" y1="4" x2="6" y2="13" className="stroke-background" strokeWidth="1" />
     </svg>
   );
 }
@@ -284,10 +285,10 @@ function ExpandIcon() {
         width="16"
         height="16"
         rx="3.5"
-        stroke="#fbf6ec"
+        className="stroke-background"
         strokeWidth="1"
       />
-      <line x1="11" y1="4" x2="11" y2="13" stroke="#fbf6ec" strokeWidth="1" />
+      <line x1="11" y1="4" x2="11" y2="13" className="stroke-background" strokeWidth="1" />
     </svg>
   );
 }
@@ -303,21 +304,21 @@ function LogoutIcon() {
     >
       <path
         d="M7 17H3C2.46957 17 1.96086 16.7893 1.58579 16.4142C1.21071 16.0391 1 15.5304 1 15V3C1 2.46957 1.21071 1.96086 1.58579 1.58579C1.96086 1.21071 2.46957 1 3 1H7"
-        stroke="#fbf6ec"
+        className="stroke-background"
         strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <path
         d="M14 13L19 9L14 5"
-        stroke="#fbf6ec"
+        className="stroke-background"
         strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <path
         d="M19 9H7"
-        stroke="#fbf6ec"
+        className="stroke-background"
         strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -461,7 +462,7 @@ export function Sidebar({ role: roleProp = null }: { role?: EmployeeRole | null 
       }`}
     >
       <aside
-        className={`flex h-full w-full flex-col gap-[6px] border-r border-[#7a6a60] bg-[#b8352a] py-[22px] ${
+        className={`flex h-full w-full flex-col gap-[6px] border-r border-muted-foreground bg-backoffice py-[22px] ${
           isCollapsed ? "px-2" : "px-4"
         }`}
       >
@@ -474,22 +475,22 @@ export function Sidebar({ role: roleProp = null }: { role?: EmployeeRole | null 
             {/* Figma annotation: "When clicked returns to the admin dashboard." */}
             <Link
               href="/manage/dashboard"
-              className="font-display text-[18px]"
+              className="font-display text-lg"
             >
-              <span className="text-[#f0b27a]">YANG&apos;S</span>{" "}
-              <span className="text-[#fbf6ec]">ADMIN</span>
+              <span className="text-on-brand-accent">YANG&apos;S</span>{" "}
+              <span className="text-background">ADMIN</span>
             </Link>
             <div className="flex-1" />
           </>
         )}
-        <button
+        <Button variant="unstyled"
           type="button"
           onClick={toggleCollapse}
           className="opacity-80 transition-opacity hover:opacity-100"
           aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {isCollapsed ? <ExpandIcon /> : <CollapseIcon />}
-        </button>
+        </Button>
       </div>
 
       {/* Navigation items */}
@@ -501,10 +502,10 @@ export function Sidebar({ role: roleProp = null }: { role?: EmployeeRole | null 
             key={item.href}
             href={item.href}
             title={isCollapsed ? item.label : undefined}
-            className={`flex items-center gap-2.5 rounded-[10px] py-[11px] text-[13px] font-bold transition-colors ${isCollapsed ? "justify-center px-0" : "px-3"
+            className={`flex items-center gap-2.5 rounded-md py-[11px] text-sm font-bold transition-colors ${isCollapsed ? "justify-center px-0" : "px-3"
               } ${isActive
-                ? "bg-[#f0b27a] text-[#1b1615]"
-                : "text-[#fbf6ec] hover:bg-[#a02e24]"
+                ? "bg-on-brand-accent text-foreground"
+                : "text-background hover:bg-backoffice/90"
               }`}
           >
             <Icon className="shrink-0" />
@@ -521,7 +522,7 @@ export function Sidebar({ role: roleProp = null }: { role?: EmployeeRole | null 
           and the logout button. This should be in flex column where user first
           then logout." */}
       <div
-        className={`flex rounded-[10px] px-3 py-[11px] ${isCollapsed
+        className={`flex rounded-md px-3 py-[11px] ${isCollapsed
             ? "flex-col items-center gap-3"
             : "items-center gap-2.5"
           }`}
@@ -533,7 +534,7 @@ export function Sidebar({ role: roleProp = null }: { role?: EmployeeRole | null 
             }`}
         >
           {/* Avatar circle with initials or the employee's saved image */}
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#f0b27a] ring-1 ring-[#fbf6ec]/40">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-on-brand-accent ring-1 ring-background/40">
             {user.profileImageUrl ? (
               <img
                 src={user.profileImageUrl}
@@ -541,7 +542,7 @@ export function Sidebar({ role: roleProp = null }: { role?: EmployeeRole | null 
                 className="h-full w-full object-cover"
               />
             ) : (
-              <span className="text-[13px] font-bold text-[#3a2e2c]">
+              <span className="text-sm font-bold text-foreground">
                 {user.initials}
               </span>
             )}
@@ -549,7 +550,7 @@ export function Sidebar({ role: roleProp = null }: { role?: EmployeeRole | null 
 
           {/* Display name — hidden when collapsed */}
           {!isCollapsed && (
-            <span className="text-[13px] font-bold text-[#fbf6ec]">
+            <span className="text-sm font-bold text-background">
               {user.name}
             </span>
           )}
@@ -559,7 +560,7 @@ export function Sidebar({ role: roleProp = null }: { role?: EmployeeRole | null 
         {!isCollapsed && <div className="flex-1" />}
 
         {/* Logout button */}
-        <button
+        <Button variant="unstyled"
           type="button"
           onClick={handleLogout}
           disabled={isPending}
@@ -567,7 +568,7 @@ export function Sidebar({ role: roleProp = null }: { role?: EmployeeRole | null 
           aria-label="Sign out"
         >
           <LogoutIcon />
-        </button>
+        </Button>
       </div>
     </aside>
     </div>

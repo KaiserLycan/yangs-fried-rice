@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Script from "next/script";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 declare global {
   interface Window {
@@ -57,7 +58,7 @@ export default function ApiDocsPage() {
   }, [bundleLoaded, presetLoaded, initSwagger]);
 
   return (
-    <div className="min-h-screen bg-[#FBF6EC] text-[#1A1210]">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Swagger UI Stylesheet */}
       <link
         rel="stylesheet"
@@ -69,7 +70,7 @@ export default function ApiDocsPage() {
         /* Global typography & layout */
         .swagger-ui {
           font-family: inherit;
-          color: #1A1210;
+          color: hsl(var(--foreground));
         }
 
         /* Information container */
@@ -79,13 +80,13 @@ export default function ApiDocsPage() {
         .swagger-ui .info .title {
           font-size: 1.875rem;
           font-weight: 800;
-          color: #8C1C13;
+          color: hsl(var(--primary));
           letter-spacing: -0.025em;
         }
         .swagger-ui .info h1,
         .swagger-ui .info h2,
         .swagger-ui .info h3 {
-          color: #8C1C13;
+          color: hsl(var(--primary));
           font-weight: 700;
           margin-top: 1.25rem;
         }
@@ -94,23 +95,23 @@ export default function ApiDocsPage() {
           border-collapse: collapse;
           margin: 1rem 0;
           font-size: 0.875rem;
-          background: #ffffff;
+          background: hsl(var(--card));
           border-radius: 0.5rem;
           overflow: hidden;
           box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
         .swagger-ui .info table th {
-          background-color: #F5EBE1;
-          color: #8C1C13;
+          background-color: hsl(var(--highlight));
+          color: hsl(var(--primary));
           font-weight: 600;
           text-align: left;
           padding: 0.75rem 1rem;
-          border-bottom: 1px solid #E7D7C1;
+          border-bottom: 1px solid hsl(var(--secondary));
         }
         .swagger-ui .info table td {
           padding: 0.65rem 1rem;
-          border-bottom: 1px solid #F0E6D8;
-          color: #332B29;
+          border-bottom: 1px solid hsl(var(--track));
+          color: hsl(var(--foreground));
           vertical-align: top;
         }
         .swagger-ui .info table tr:last-child td {
@@ -125,14 +126,14 @@ export default function ApiDocsPage() {
         .swagger-ui .filter input {
           width: 100% !important;
           border-radius: 0.5rem !important;
-          border: 1.5px solid #E7D7C1 !important;
+          border: 1.5px solid hsl(var(--secondary)) !important;
           padding: 0.65rem 1rem !important;
           font-size: 0.875rem !important;
           box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
           transition: all 0.2s ease;
         }
         .swagger-ui .filter input:focus {
-          border-color: #8C1C13 !important;
+          border-color: hsl(var(--primary)) !important;
           outline: none !important;
           box-shadow: 0 0 0 3px rgba(140, 28, 19, 0.15) !important;
         }
@@ -144,17 +145,17 @@ export default function ApiDocsPage() {
         .swagger-ui .opblock-tag {
           font-size: 1.25rem;
           font-weight: 700;
-          color: #8C1C13;
-          border-bottom: 2px solid #E7D7C1;
+          color: hsl(var(--primary));
+          border-bottom: 2px solid hsl(var(--secondary));
           padding: 0.75rem 0;
           margin-bottom: 0.75rem;
           transition: color 0.15s ease;
         }
         .swagger-ui .opblock-tag:hover {
-          color: #A8382E;
+          color: hsl(var(--on-brand-rule));
         }
         .swagger-ui .opblock-tag small {
-          color: #7A6A60;
+          color: hsl(var(--muted-foreground));
           font-size: 0.8125rem;
           font-weight: 400;
           margin-left: 0.5rem;
@@ -183,29 +184,29 @@ export default function ApiDocsPage() {
           font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
           font-size: 0.875rem !important;
           font-weight: 600 !important;
-          color: #1A1210 !important;
+          color: hsl(var(--foreground)) !important;
         }
         .swagger-ui .opblock-summary-description {
           font-size: 0.8125rem !important;
-          color: #665851 !important;
+          color: hsl(var(--muted-strong)) !important;
         }
 
         /* Buttons */
         .swagger-ui .btn.execute {
-          background-color: #8C1C13 !important;
-          border-color: #8C1C13 !important;
-          color: #ffffff !important;
+          background-color: hsl(var(--primary)) !important;
+          border-color: hsl(var(--primary)) !important;
+          color: hsl(var(--card)) !important;
           border-radius: 0.375rem !important;
           font-weight: 600 !important;
           transition: background-color 0.15s ease;
         }
         .swagger-ui .btn.execute:hover {
-          background-color: #A8382E !important;
+          background-color: hsl(var(--on-brand-rule)) !important;
         }
         .swagger-ui .btn.try-out__btn {
           border-radius: 0.375rem !important;
-          border-color: #8C1C13 !important;
-          color: #8C1C13 !important;
+          border-color: hsl(var(--primary)) !important;
+          color: hsl(var(--primary)) !important;
         }
         .swagger-ui .btn.try-out__btn:hover {
           background-color: rgba(140, 28, 19, 0.08) !important;
@@ -240,31 +241,31 @@ export default function ApiDocsPage() {
       />
 
       {/* Brand Header */}
-      <header className="sticky top-0 z-30 border-b border-[#A8382E] bg-[#8C1C13] px-6 py-4 text-white shadow-md">
+      <header className="sticky top-0 z-30 border-b border-on-brand-rule bg-primary px-6 py-4 text-white shadow-md">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link
               href="/"
               className="flex items-center gap-2 hover:opacity-90 transition-opacity"
             >
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#FAF5EE] text-[#8C1C13] font-black text-lg shadow-sm">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-background text-primary font-black text-lg leading-7 shadow-sm">
                 楊
               </div>
               <div>
-                <h1 className="text-base sm:text-lg font-bold tracking-tight text-[#FAF5EE]">
+                <h1 className="text-base leading-6 sm:text-lg sm:leading-7 font-bold tracking-tight text-background">
                   Yang&apos;s Fried Rice
                 </h1>
-                <p className="text-[11px] font-medium tracking-wide uppercase text-[#E7C4BE]">
+                <p className="text-xs font-medium tracking-wide uppercase text-on-brand-muted">
                   REST API Interactive Documentation
                 </p>
               </div>
             </Link>
-            <span className="hidden sm:inline-block rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-semibold tracking-wider text-[#FAF5EE]">
+            <span className="hidden sm:inline-block rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold tracking-wider text-background">
               OpenAPI 3.0.3
             </span>
           </div>
 
-          <div className="flex items-center gap-3 text-xs">
+          <div className="flex items-center gap-3 text-xs leading-4">
             <Link
               href="/"
               className="rounded-md border border-white/20 bg-white/10 px-3 py-1.5 font-medium text-white hover:bg-white/20 transition-all"
@@ -284,12 +285,12 @@ export default function ApiDocsPage() {
       </header>
 
       {/* Metrics Summary Strip */}
-      <div className="border-b border-[#E7D7C1] bg-[#F5EBE1]/70 px-6 py-3">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 text-xs text-[#7A6A60]">
+      <div className="border-b border-secondary bg-highlight/70 px-6 py-3">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 text-xs leading-4 text-muted-foreground">
           <div className="flex flex-wrap items-center gap-2 sm:gap-4 font-medium">
             <span className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              <strong className="text-[#1A1210]">Live Development API</strong>
+              <strong className="text-foreground">Live Development API</strong>
             </span>
             <span>•</span>
             <span><strong>71</strong> Endpoints</span>
@@ -298,7 +299,7 @@ export default function ApiDocsPage() {
             <span>•</span>
             <span><strong>3</strong> External Geospatial Services</span>
           </div>
-          <div className="text-[11px] text-[#7A6A60]">
+          <div className="text-xs text-muted-foreground">
             Interactive testing enabled via <em>&quot;Try it out&quot;</em>
           </div>
         </div>
@@ -308,27 +309,27 @@ export default function ApiDocsPage() {
       <main className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
         {error && (
           <div className="my-8 rounded-lg border border-red-300 bg-red-50 p-5 text-red-800 shadow-sm">
-            <h2 className="font-semibold text-base">Unable to load API Documentation</h2>
-            <p className="mt-1 text-sm">{error}</p>
-            <button
+            <h2 className="font-semibold text-base leading-6">Unable to load API Documentation</h2>
+            <p className="mt-1 text-sm leading-5">{error}</p>
+            <Button variant="unstyled"
               onClick={() => window.location.reload()}
-              className="mt-3 rounded bg-red-600 px-4 py-2 text-xs font-semibold text-white hover:bg-red-700 shadow-sm transition-all"
+              className="mt-3 rounded-sm bg-red-600 px-4 py-2 text-xs leading-4 font-semibold text-white hover:bg-red-700 shadow-sm transition-all"
             >
               Retry
-            </button>
+            </Button>
           </div>
         )}
 
         {!initialized && !error && (
           <div className="flex flex-col items-center justify-center py-28 text-gray-500 space-y-4">
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-300 border-t-[#8C1C13]" />
-            <p className="font-medium text-sm text-[#7A6A60]">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-300 border-t-primary" />
+            <p className="font-medium text-sm leading-5 text-muted-foreground">
               Loading Swagger UI interactive console...
             </p>
           </div>
         )}
 
-        <div id="swagger-ui" className="bg-white rounded-xl p-4 sm:p-8 shadow-sm border border-[#E7D7C1]" />
+        <div id="swagger-ui" className="bg-white rounded-md p-4 sm:p-8 shadow-sm border border-secondary" />
       </main>
     </div>
   );

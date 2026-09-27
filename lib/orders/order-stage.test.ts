@@ -13,6 +13,7 @@ import {
   fulfilmentOf,
   isCancellable,
   resolveOrderProgress,
+  stageReachedAt,
   timelineStages,
   type OrderStageInput,
 } from "./order-stage";
@@ -276,15 +277,15 @@ describe("take-out orders", () => {
     expect(labels).toEqual([
       "Order received",
       "Preparing in kitchen",
-      "Ready for pick up",
+      "Ready for pickup",
       "Picked up",
     ]);
   });
 
-  it("headlines a ready take-out order 'READY FOR PICK UP' and a collected one 'PICKED UP'", () => {
+  it("headlines a ready take-out order 'READY FOR PICKUP' and a collected one 'PICKED UP'", () => {
     expect(
       headlineFor({ kind: "stage", stage: "out_for_delivery", orderStatus: "ready" }, "pickup"),
-    ).toBe("READY FOR PICK UP");
+    ).toBe("READY FOR PICKUP");
     expect(
       headlineFor({ kind: "stage", stage: "delivered", orderStatus: "completed" }, "pickup"),
     ).toBe("PICKED UP");
@@ -458,5 +459,52 @@ describe("paymentSummaryFrom (issue #115)", () => {
     expect(paymentSummaryFrom({ method: "paymongo", status: "pending", totalPaid: 0 })?.paidOnline).toBe(false);
     expect(paymentSummaryFrom({ method: "pay_in_store", status: "paid", totalPaid: 250 })?.paidOnline).toBe(false);
     expect(paymentSummaryFrom(null)).toBeNull();
+  });
+});
+
+describe("stageReachedAt", () => {
+  const log = [
+    { toStatus: "awaiting_payment", changedAt: "2026-09-27T07:00:00Z" },
+    { toStatus: "pending", changedAt: "2026-09-27T07:02:00Z" },
+    { toStatus: "preparing", changedAt: "2026-09-27T07:05:00Z" },
+    { toStatus: "ready", changedAt: "2026-09-27T07:20:00Z" },
+  ];
+
+  it("stamps each stage with when the order first reached it", () => {
+    expect(stageReachedAt(log, "take_out")).toEqual({
+      received: "2026-09-27T07:02:00Z",
+      preparing: "2026-09-27T07:05:00Z",
+      out_for_delivery: "2026-09-27T07:20:00Z",
+    });
+  });
+
+  it("skips unpaid and cancelled rows, which have no stage", () => {
+    const reached = stageReachedAt([
+      { toStatus: "awaiting_payment", changedAt: "2026-09-27T07:00:00Z" },
+      { toStatus: "cancelled", changedAt: "2026-09-27T07:01:00Z" },
+    ]);
+    expect(reached).toEqual({});
+  });
+
+  it("keeps the earliest time when a stage is reached twice", () => {
+    const reached = stageReachedAt([
+      { toStatus: "pending", changedAt: "2026-09-27T07:10:00Z" },
+      { toStatus: "received", changedAt: "2026-09-27T07:02:00Z" },
+    ]);
+    expect(reached.received).toBe("2026-09-27T07:02:00Z");
+  });
+
+  it("feeds timelineStages, which drops times on stages not reached yet", () => {
+    const stages = timelineStages(
+      { kind: "stage", stage: "preparing", orderStatus: "preparing" },
+      "pickup",
+      stageReachedAt(log, "take_out"),
+    );
+    expect(stages.map((s) => s.reachedAt)).toEqual([
+      "2026-09-27T07:02:00Z",
+      "2026-09-27T07:05:00Z",
+      null,
+      null,
+    ]);
   });
 });

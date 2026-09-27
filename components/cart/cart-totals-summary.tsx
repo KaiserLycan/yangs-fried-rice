@@ -64,14 +64,14 @@ export function CartTotalsSummary({
       ) : null}
 
       <div className="flex items-baseline justify-between">
-        <span className="text-[14px] font-bold text-foreground">Total</span>
-        <span className="font-display text-[23px] text-primary">
+        <span className="text-sm font-bold text-foreground">Total</span>
+        <span className="font-display text-2xl text-primary">
           {formatPeso(totals.total)}
         </span>
       </div>
 
       {arrivalEstimate ? (
-        <p className="text-[14px] text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Estimated {arrivalEstimate}
         </p>
       ) : null}
@@ -90,16 +90,18 @@ export function CartTotalsSummary({
               ? BIG_ORDER_MESSAGE
               : "Review your order and pay"
         }
-        href={!isOpen || isClicked ? "#" : `/checkout?fulfilment=${fulfilment}`}
+        href={!isOpen || isClicked ? (tooLarge ? "/contact" : "#") : `/checkout?fulfilment=${fulfilment}`}
         onClick={(e) => {
-          if (!isOpen || isClicked) {
+          if ((!isOpen && !tooLarge) || isClicked) {
             e.preventDefault();
             return;
           }
-          setIsClicked(true);
+          if (!tooLarge) {
+            setIsClicked(true);
+          }
         }}
-        className={`mt-[6px] flex items-center justify-center rounded-[12px] p-[15px] text-[14px] font-bold ${
-          !isOpen || isClicked
+        className={`mt-[6px] flex items-center justify-center rounded-md p-[15px] text-sm font-bold ${
+          (!isOpen && !tooLarge) || isClicked
             ? "bg-secondary text-muted-foreground cursor-not-allowed opacity-60 pointer-events-none"
             : "bg-foreground text-background"
         }`}
@@ -109,9 +111,14 @@ export function CartTotalsSummary({
           : block
             ? "Very Busy — Try Again Soon"
             : tooLarge
-              ? "Too Many Items"
+              ? "Too big? Contact Us"
               : ctaLabel}
       </Link>
+      {!isOpen ? (
+        <p className="text-center text-sm text-muted-foreground">
+          Your cart is saved — check out when we open.
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -119,8 +126,8 @@ export function CartTotalsSummary({
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-[14px] text-muted-foreground">{label}</span>
-      <span className="text-[14px] text-muted-foreground">{value}</span>
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className="text-sm text-muted-foreground">{value}</span>
     </div>
   );
 }

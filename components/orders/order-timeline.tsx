@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { formatClockTime } from "@/lib/checkout/order-time";
 import type { StageState, TimelineStage } from "@/lib/orders/order-stage";
 
 /**
@@ -6,12 +7,10 @@ import type { StageState, TimelineStage } from "@/lib/orders/order-stage";
  * its marker and rule sizes — 22px markers with a 34px rule on mobile
  * (`132:481`), 20px with 30px on desktop (`133:1164`).
  *
- * The timestamp slot below each label is the literal word the frames draw —
- * "Done", "Now" or an em dash — not a formatted time. Worth stating because
- * the ticket's prose says "timestamped", which reads like a clock value; the
- * frames are the authority and they draw these three words. That also means
- * the screen needs no per-stage timestamp columns, which is just as well
- * because `order` has none.
+ * The slot below each label is the time the stage was reached, from
+ * `order_status_log` (#116): "3:12 PM", or "Now · 3:12 PM" for the current
+ * stage. Without a time (orders older than the log) it falls back to the
+ * words the frames draw — "Done", "Now" or an em dash.
  */
 
 const STATE_LABELS: Record<StageState, string> = {
@@ -26,7 +25,7 @@ function StageMarker({ state }: { state: StageState }) {
     <div
       aria-hidden
       className={cn(
-        "shrink-0 rounded-pill border-2",
+        "shrink-0 rounded-full border-2",
         "size-[22px] md:size-[20px]",
         reached
           ? "border-primary bg-primary"
@@ -34,6 +33,12 @@ function StageMarker({ state }: { state: StageState }) {
       )}
     />
   );
+}
+
+function stageMeta(stage: TimelineStage): string {
+  if (!stage.reachedAt) return STATE_LABELS[stage.state];
+  const time = formatClockTime(new Date(stage.reachedAt));
+  return stage.state === "now" ? `Now · ${time}` : time;
 }
 
 export function OrderTimeline({ stages }: { stages: TimelineStage[] }) {
@@ -56,7 +61,7 @@ export function OrderTimeline({ stages }: { stages: TimelineStage[] }) {
             <div className="flex flex-col items-start pb-[12px] md:pb-[10px]">
               <span
                 className={cn(
-                  "text-[14px] font-bold",
+                  "text-sm font-bold",
                   stage.state === "pending"
                     ? "text-placeholder"
                     : "text-foreground",
@@ -64,8 +69,8 @@ export function OrderTimeline({ stages }: { stages: TimelineStage[] }) {
               >
                 {stage.label}
               </span>
-              <span className="text-[14px] text-timeline-meta">
-                {STATE_LABELS[stage.state]}
+              <span className="text-sm text-timeline-meta">
+                {stageMeta(stage)}
                 {/* The em dash carries no meaning to a screen reader, and
                     "Done"/"Now" alone do not say what they refer to. */}
                 <span className="sr-only"> — {stage.label}</span>

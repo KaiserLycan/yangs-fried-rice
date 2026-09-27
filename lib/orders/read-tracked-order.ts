@@ -2,6 +2,7 @@ import { orderItemName } from "@/lib/orders/item-name";
 import { createClient } from "@/lib/supabase/server";
 import { formatOrderNumber } from "@/lib/orders/order-number";
 import type { OrderIssueType } from "@/lib/validation/order-issue";
+import type { StatusChange } from "@/lib/orders/order-stage";
 
 /**
  * One customer's order, narrowed to what the tracking screen draws — the
@@ -70,6 +71,13 @@ export type TrackedOrder = {
    * `lib/orders/arrival-window.ts`.
    */
   arrivalWindow: string | null;
+  /**
+   * `order.promised_at` — the ready-by time quoted when the order was
+   * placed. Never changes, even when the ETA does. Null on older orders.
+   */
+  promisedAt: string | null;
+  /** `order_status_log`, oldest first. Stamps each timeline stage. */
+  statusLog: StatusChange[];
   items: TrackedOrderLine[];
   /** Order-level add-ons (rice, drinks …), priced when the order was placed. */
   orderAddOns: { name: string; price: number }[];
@@ -104,7 +112,7 @@ export async function readTrackedOrder(
   const { data: order } = await supabase
     .from("order")
     .select(
-      "order_id, order_status, order_type, cancelled_at, cancellation_reason, created_at, completed_at, delivery_fee, special_instructions, pending_at",
+      "order_id, order_number, order_status, order_type, cancelled_at, cancellation_reason, created_at, completed_at, delivery_fee, special_instructions, pending_at, promised_at"
     )
     .eq("order_id", orderId)
     .eq("customer_id", user.id)
@@ -112,7 +120,7 @@ export async function readTrackedOrder(
 
   if (!order) return null;
 
-  const [orderItems, orderAddOns, transaction, review, issue] = await Promise.all([
+  const [orderItems, orderAddOns, transaction, review, issue, statusLog] = await Promise.all([
     supabase
       .from("order_item")
       .select(
@@ -148,11 +156,17 @@ export async function readTrackedOrder(
       .eq("order_id", order.order_id)
       .maybeSingle()
       .then((res) => res.data),
+    supabase
+      .from("order_status_log")
+      .select("to_status, changed_at")
+      .eq("order_id", order.order_id)
+      .order("changed_at", { ascending: true })
+      .then((res) => res.data),
   ]);
 
   return {
     orderId: order.order_id,
-    orderNumber: formatOrderNumber(order.order_id),
+    orderNumber: formatOrderNumber(order.order_number, order.order_id),
     orderStatus: order.order_status,
     cancelledAt: order.cancelled_at,
     cancellationReason: order.cancellation_reason,
@@ -166,6 +180,11 @@ export async function readTrackedOrder(
     placedAt: order.created_at,
     completedAt: order.completed_at,
     arrivalWindow: null,
+    promisedAt: order.promised_at,
+    statusLog: (statusLog ?? []).map((row) => ({
+      toStatus: row.to_status,
+      changedAt: row.changed_at,
+    })),
     items: (orderItems ?? []).map((item) => {
       const addOns = (item.order_item_add_on ?? [])
         .map((row) => first(row.add_on))

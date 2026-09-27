@@ -286,8 +286,8 @@ describe("CartLineRow lower bound", () => {
     expect(
       screen.getByText("That's a big order! Please contact us for a bulk order or catering."),
     ).toBeInTheDocument();
-    const cta = screen.getByRole("link", { name: /too many items/i });
-    expect(cta).toHaveAttribute("href", "#");
+    const cta = screen.getByRole("link", { name: /Too big\? Contact Us/i });
+    expect(cta).toHaveAttribute("href", "/contact");
   });
 
   it("allows checkout at exactly 30 items", () => {

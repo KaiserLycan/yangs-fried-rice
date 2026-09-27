@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
  */
 export function AuthTabs({ active }: { active: "login" | "register" }) {
   return (
-    <div className="flex w-full gap-1 rounded-[11px] bg-track p-1 md:w-auto md:self-start md:rounded-md">
+    <div className="flex w-full gap-1 rounded-md bg-track p-1 md:w-auto md:self-start md:rounded-md">
       <Tab href="/login" active={active === "login"}>
         Log in
       </Tab>
@@ -36,7 +36,7 @@ function Tab({
       href={href}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex-1 rounded-[8px] px-[6px] py-[10px] text-center text-[13px] font-bold md:flex-none md:rounded-[9px] md:px-[18px] md:py-[9px]",
+        "flex-1 rounded-sm px-[6px] py-[10px] text-center text-sm font-bold md:flex-none md:rounded-sm md:px-[18px] md:py-[9px]",
         active
           ? "bg-accent text-white"
           : "text-muted-foreground hover:text-foreground",

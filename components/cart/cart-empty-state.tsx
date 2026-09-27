@@ -15,7 +15,7 @@ export function CartEmptyState() {
     <div className="flex flex-1 items-center justify-center px-[20px] py-[48px] text-center">
       <Link
         href="/menu"
-        className="text-[14px] text-muted-foreground underline"
+        className="text-sm text-muted-foreground underline"
       >
         Cart is empty. Back to the menu?
       </Link>

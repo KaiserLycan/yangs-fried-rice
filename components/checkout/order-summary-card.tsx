@@ -18,8 +18,21 @@ import type {
   PaymentMethodId,
   WalletProvider,
 } from "@/lib/checkout/payment-methods";
-import { formatPeso } from "@/lib/menu/product-listing";
-import type { CartLine, CartTotals, Fulfilment } from "@/lib/menu/cart-totals";
+import { formatPeso, formatPesoCentavos } from "@/lib/menu/product-listing";
+import {
+  seniorPwdBreakdown,
+  type CartLine,
+  type CartTotals,
+  type Fulfilment,
+} from "@/lib/menu/cart-totals";
+import { createClient } from "@/lib/supabase/client";
+import {
+  SENIOR_PWD_ID_BUCKET,
+  seniorPwdIdPath,
+  seniorPwdIdUploadProblem,
+} from "@/lib/storage/senior-pwd-ids";
+import type { SeniorPwdDiscountState } from "@/components/checkout/senior-pwd-discount-picker";
+import { Button } from "@/components/ui/button";
 
 /**
  * Order summary (`133:1124` desktop, `132:424` mobile) — issue #22's
@@ -49,6 +62,7 @@ export function OrderSummaryCard({
   paymentMethod,
   wallet,
   arrivalEstimate,
+  seniorDiscount,
 }: {
   customerName: string;
   placedAtLabel: string;
@@ -67,6 +81,7 @@ export function OrderSummaryCard({
    * "35–45 min"). Read on the server, because the queue is a database count.
    */
   arrivalEstimate: string;
+  seniorDiscount?: SeniorPwdDiscountState;
 }) {
   const router = useRouter();
   const showToast = useToast();
@@ -143,6 +158,11 @@ export function OrderSummaryCard({
     handlePlaceOrder();
   });
 
+  const isDiscountActive = Boolean(seniorDiscount?.enabled);
+  const discountTotals = isDiscountActive
+    ? seniorPwdBreakdown(totals.total)
+    : null;
+
   function handlePlaceOrder() {
     if (paymentMethod === "card") {
       showToast(CARD_NOT_YET);
@@ -151,6 +171,26 @@ export function OrderSummaryCard({
     if (paymentMethod === "wallet" && !isOnlinePaymentConfigured()) {
       showToast(WALLET_NOT_YET);
       return;
+    }
+
+    if (seniorDiscount?.enabled) {
+      if (!seniorDiscount.idNumber.trim()) {
+        showToast("Please enter the ID number on your Senior Citizen / PWD ID.");
+        return;
+      }
+      if (!seniorDiscount.nameOnId.trim()) {
+        showToast("Please enter the name on your Senior Citizen / PWD ID.");
+        return;
+      }
+      if (!seniorDiscount.photo) {
+        showToast("Please upload a photo of your Senior Citizen or PWD ID.");
+        return;
+      }
+      const problem = seniorPwdIdUploadProblem(seniorDiscount.photo);
+      if (problem) {
+        showToast(problem);
+        return;
+      }
     }
 
     // `card` is refused above. Pickup-only (issue #114): the action accepts
@@ -168,6 +208,40 @@ export function OrderSummaryCard({
     run(
       async () => {
         try {
+          let uploadedPhotoPath: string | null = null;
+          if (seniorDiscount?.enabled && seniorDiscount.photo) {
+            const supabase = createClient();
+            const {
+              data: { user },
+              error: userError,
+            } = await supabase.auth.getUser();
+
+            if (userError || !user) {
+              walletTab?.close();
+              return {
+                data: null,
+                error: "Your session expired. Please sign in again.",
+              };
+            }
+
+            const fileType = seniorDiscount.photo.type as any;
+            uploadedPhotoPath = seniorPwdIdPath(user.id, fileType);
+
+            const { error: uploadError } = await supabase.storage
+              .from(SENIOR_PWD_ID_BUCKET)
+              .upload(uploadedPhotoPath, seniorDiscount.photo, {
+                contentType: seniorDiscount.photo.type,
+              });
+
+            if (uploadError) {
+              walletTab?.close();
+              return {
+                data: null,
+                error: "The ID photo couldn't be uploaded. Please try again.",
+              };
+            }
+          }
+
           const result = await submitCart({
             cart_id: cartId,
             order_type: orderTypeFor(fulfilment),
@@ -187,6 +261,16 @@ export function OrderSummaryCard({
             expected_prices: Object.fromEntries(
               lines.map((line) => [line.id, line.unitPrice]),
             ),
+            wallet,
+            discount:
+              seniorDiscount?.enabled && uploadedPhotoPath
+                ? {
+                    type: seniorDiscount.type,
+                    id_number: seniorDiscount.idNumber.trim(),
+                    name_on_id: seniorDiscount.nameOnId.trim(),
+                    photo_path: uploadedPhotoPath,
+                  }
+                : undefined,
           });
           // No order, so nothing to pay: don't leave an empty tab behind.
           if (result.error !== null) walletTab?.close();
@@ -251,7 +335,7 @@ export function OrderSummaryCard({
 
   return (
     <section className="flex flex-col gap-[11px] rounded-lg border border-rule bg-card p-[20px]">
-      <h2 className="text-[14px] font-bold uppercase tracking-[1.54px] text-muted-foreground">
+      <h2 className="text-sm font-bold uppercase tracking-[1.54px] text-muted-foreground">
         Order summary
       </h2>
 
@@ -262,9 +346,19 @@ export function OrderSummaryCard({
         fulfilment={fulfilment}
         lines={lines}
         totals={totals}
+        discount={
+          isDiscountActive && discountTotals
+            ? {
+                type: seniorDiscount!.type,
+                vatExemptSales: discountTotals.vatExemptSales,
+                discount: discountTotals.discount,
+                total: discountTotals.total,
+              }
+            : null
+        }
       />
 
-      <p className="rounded-md bg-secondary/50 p-[12px] text-[14px] leading-[18px] text-muted-strong">
+      <p className="rounded-md bg-secondary/50 p-[12px] text-sm leading-[18px] text-muted-strong">
         {/* This sentence has always claimed the figure came from the queue
             and the distance. Since issue #106 it does. */}
         Estimated arrival <strong>{arrivalEstimate}</strong> — based on current
@@ -276,19 +370,25 @@ export function OrderSummaryCard({
         shortcut={pending || redirecting ? undefined : SHORTCUTS.placeOrder.combo}
         className="w-full"
       >
-        <button
+        <Button variant="unstyled"
           type="button"
           onClick={handlePlaceOrder}
           disabled={pending || redirecting}
-          className="w-full rounded-[13px] bg-accent p-[16px] text-[15px] font-bold text-accent-foreground disabled:opacity-60"
+          className="w-full rounded-md bg-accent p-[16px] text-base font-bold text-accent-foreground disabled:opacity-60"
         >
           {redirecting
             ? "Opening wallet…"
             : pending
               ? "Placing order…"
-              : `Place order · ${formatPeso(totals.total)}`}
-        </button>
+              : `Place order · ${formatSummaryMoney(
+                  discountTotals ? discountTotals.total : totals.total,
+                )}`}
+        </Button>
       </Tooltip>
     </section>
   );
+}
+
+function formatSummaryMoney(amount: number): string {
+  return Number.isInteger(amount) ? formatPeso(amount) : formatPesoCentavos(amount);
 }

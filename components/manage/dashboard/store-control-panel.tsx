@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 "use client";
 
 import * as React from "react";
@@ -172,18 +173,18 @@ export function StoreControlPanel({
         ? "Open"
         : "Closed";
   const stateTone =
-    isPaused || status.isBusy || !status.isOpen ? "text-[#8c1c13]" : "text-[#2f5e3c]";
+    isPaused || status.isBusy || !status.isOpen ? "text-destructive" : "text-success";
 
   return (
     <section
       aria-labelledby="store-control"
-      className="flex flex-col gap-4 rounded-[14px] border border-[#e3d6c3] bg-white p-4"
+      className="flex flex-col gap-4 rounded-lg border border-rule bg-white p-4"
     >
       <div className="flex flex-col gap-1 md:flex-row md:items-baseline md:justify-between">
-        <h2 id="store-control" className="font-display text-[20px] leading-normal text-[#1a1210]">
+        <h2 id="store-control" className="font-display text-2xl leading-normal text-foreground">
           Store status: <span className={stateTone}>{stateLabel}</span>
         </h2>
-        <span className="text-[12px] text-[#7a6a60]">
+        <span className="text-xs text-muted-strong">
           Hours {formatStoreHours(status)}
           {status.isForceOpen ? " · Forced open" : ""}
         </span>
@@ -199,9 +200,9 @@ export function StoreControlPanel({
           <CountTile label="Completed today" value={counts.completedToday} />
           <CountTile label="Cancelled today" value={counts.cancelledToday} />
         </dl>
-        <p className="text-[12px] text-[#7a6a60]">
+        <p className="text-xs text-muted-strong">
           Active orders (queue + prep):{" "}
-          <strong className={status.isBusy ? "text-[#8c1c13]" : "text-[#1a1210]"}>
+          <strong className={status.isBusy ? "text-destructive" : "text-foreground"}>
             {activeOrders} / {status.maxActiveOrders}
           </strong>{" "}
           busy limit. At the limit, new checkouts are refused with “We’re very busy right now”
@@ -210,7 +211,7 @@ export function StoreControlPanel({
       </div>
 
       {status.isBusy && !isPaused ? (
-        <p className="text-[12px] font-bold text-[#8c1c13]">
+        <p className="text-xs font-bold text-destructive">
           Auto-paused: active orders reached the busy limit.
         </p>
       ) : null}
@@ -219,33 +220,33 @@ export function StoreControlPanel({
       <div className="flex flex-col gap-2">
         {isPaused ? (
           <div className="flex flex-wrap items-center gap-3">
-            <span className="text-[13px] font-bold text-[#8c1c13]">
+            <span className="text-sm font-bold text-destructive">
               {msLeft !== null
                 ? `Paused — reopens in ${formatCountdown(msLeft)}`
                 : "Paused until you resume"}
             </span>
-            <button
+            <Button variant="unstyled"
               type="button"
               disabled={isPending}
               onClick={() => run(resumeStore, "Store resumed.")}
-              className="rounded-[10px] bg-[#2f5e3c] px-4 py-2 text-[13px] font-bold text-white disabled:opacity-60"
+              className="rounded-md bg-success px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
             >
               Resume Store
-            </button>
+            </Button>
           </div>
         ) : (
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[13px] font-bold text-[#1a1210]">Pause Store:</span>
+            <span className="text-sm font-bold text-foreground">Pause Store:</span>
             {PAUSE_PRESETS.map((m) => (
-              <button
+              <Button variant="unstyled"
                 key={m}
                 type="button"
                 disabled={isPending}
                 onClick={() => pauseFor(m)}
-                className="rounded-[10px] border border-[#b8352a] px-3 py-1.5 text-[13px] font-bold text-[#b8352a] disabled:opacity-60"
+                className="rounded-md border border-destructive px-3 py-1.5 text-sm font-bold text-destructive disabled:opacity-60"
               >
                 {m} min
-              </button>
+              </Button>
             ))}
             <input
               type="number"
@@ -256,24 +257,24 @@ export function StoreControlPanel({
               aria-label="Custom pause length in minutes"
               value={customMinutes}
               onChange={(e) => setCustomMinutes(e.target.value)}
-              className="w-[90px] rounded-[10px] border border-[#e3d6c3] px-2 py-1.5 text-[13px]"
+              className="w-[90px] rounded-md border border-rule px-2 py-1.5 text-sm"
             />
-            <button
+            <Button variant="unstyled"
               type="button"
               disabled={isPending || customMinutes === ""}
               onClick={onCustomPause}
-              className="rounded-[10px] border border-[#b8352a] px-3 py-1.5 text-[13px] font-bold text-[#b8352a] disabled:opacity-60"
+              className="rounded-md border border-destructive px-3 py-1.5 text-sm font-bold text-destructive disabled:opacity-60"
             >
               Pause
-            </button>
-            <button
+            </Button>
+            <Button variant="unstyled"
               type="button"
               disabled={isPending}
               onClick={() => pauseFor(null)}
-              className="rounded-[10px] bg-[#b8352a] px-3 py-1.5 text-[13px] font-bold text-white disabled:opacity-60"
+              className="rounded-md bg-destructive px-3 py-1.5 text-sm font-bold text-white disabled:opacity-60"
             >
               Until I resume
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -281,7 +282,7 @@ export function StoreControlPanel({
       {/* Settings — read-only until Edit. */}
       <form
         onSubmit={onSave}
-        className="flex flex-col gap-3 border-t border-[#e3d6c3] pt-3"
+        className="flex flex-col gap-3 border-t border-rule pt-3"
         aria-label="Store settings"
       >
         <fieldset disabled={!editing} className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -314,7 +315,7 @@ export function StoreControlPanel({
             max={500}
             onChange={(v) => setForm((f) => ({ ...f, max_active_orders: v }))}
           />
-          <label className="col-span-2 flex items-center gap-2 text-[13px] text-[#1a1210] md:col-span-4">
+          <label className="col-span-2 flex items-center gap-2 text-sm text-foreground md:col-span-4">
             <input
               type="checkbox"
               checked={form.is_force_open}
@@ -325,45 +326,45 @@ export function StoreControlPanel({
         </fieldset>
 
         {editing && !hoursValid ? (
-          <p id="close-time-error" role="alert" className="text-[12px] font-bold text-[#8c1c13]">
+          <p id="close-time-error" role="alert" className="text-xs font-bold text-destructive">
             {CLOSE_BEFORE_OPEN_MESSAGE}
           </p>
         ) : null}
 
         <div className="flex flex-wrap items-center gap-3">
-          <button
+          <Button variant="unstyled"
             type="button"
             disabled={editing || isPending}
             onClick={() => {
               setMessage(null);
               setEditing(true);
             }}
-            className="rounded-[10px] border border-[#1a1210] px-4 py-2 text-[13px] font-bold text-[#1a1210] disabled:cursor-not-allowed disabled:border-[#c9c1b8] disabled:text-[#a39a90]"
+            className="rounded-md border border-foreground px-4 py-2 text-sm font-bold text-foreground disabled:cursor-not-allowed disabled:border-input disabled:text-muted-foreground"
           >
             Edit
-          </button>
-          <button
+          </Button>
+          <Button variant="unstyled"
             type="submit"
             disabled={!canSave}
-            className="rounded-[10px] bg-[#1a1210] px-4 py-2 text-[13px] font-bold text-white disabled:cursor-not-allowed disabled:bg-[#c9c1b8]"
+            className="rounded-md bg-foreground px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-muted"
           >
             Save settings
-          </button>
+          </Button>
           {editing ? (
-            <button
+            <Button variant="unstyled"
               type="button"
               disabled={isPending}
               onClick={onCancelEdit}
-              className="px-2 py-2 text-[13px] font-bold text-[#7a6a60] underline disabled:opacity-60"
+              className="px-2 py-2 text-sm font-bold text-muted-strong underline disabled:opacity-60"
             >
               Cancel
-            </button>
+            </Button>
           ) : null}
           {message ? (
             <span
               role={message.tone === "error" ? "alert" : "status"}
-              className={`text-[12px] font-bold ${
-                message.tone === "error" ? "text-[#8c1c13]" : "text-[#2f5e3c]"
+              className={`text-xs font-bold ${
+                message.tone === "error" ? "text-destructive" : "text-success"
               }`}
             >
               {message.text}
@@ -377,17 +378,17 @@ export function StoreControlPanel({
 
 function CountTile({ label, value }: { label: string; value: number }) {
   return (
-    <div className="flex flex-col rounded-[10px] bg-[#faf7f0] px-3 py-2">
-      <dt className="text-[10px] font-bold uppercase tracking-[1px] text-[#7a6a60]">{label}</dt>
-      <dd className="font-display text-[22px] leading-tight text-[#1a1210]">{value}</dd>
+    <div className="flex flex-col rounded-md bg-card px-3 py-2">
+      <dt className="text-xs font-bold uppercase tracking-[1px] text-muted-strong">{label}</dt>
+      <dd className="font-display text-2xl leading-tight text-foreground">{value}</dd>
     </div>
   );
 }
 
 const FIELD_LABEL =
-  "flex flex-col gap-1 text-[11px] font-bold uppercase tracking-[1.1px] text-[#7a6a60]";
+  "flex flex-col gap-1 text-xs font-bold uppercase tracking-[1.1px] text-muted-strong";
 const FIELD_INPUT =
-  "rounded-[10px] border px-2 py-1.5 text-[13px] font-normal normal-case tracking-normal text-[#1a1210] disabled:cursor-not-allowed disabled:bg-[#f3efe8] disabled:text-[#7a6a60]";
+  "rounded-md border px-2 py-1.5 text-sm font-normal normal-case tracking-normal text-foreground disabled:cursor-not-allowed disabled:bg-background disabled:text-muted-strong";
 
 /**
  * A native time picker: the manager can type "06:30" or use the browser's
@@ -419,7 +420,7 @@ function TimeField({
         aria-invalid={invalid || undefined}
         aria-describedby={describedBy}
         onChange={(e) => onChange(e.target.value)}
-        className={`${FIELD_INPUT} ${invalid ? "border-[#8c1c13]" : "border-[#e3d6c3]"}`}
+        className={`${FIELD_INPUT} ${invalid ? "border-destructive" : "border-rule"}`}
       />
     </label>
   );
@@ -447,7 +448,7 @@ function NumberField({
         max={max}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className={`${FIELD_INPUT} border-[#e3d6c3]`}
+        className={`${FIELD_INPUT} border-rule`}
       />
     </label>
   );

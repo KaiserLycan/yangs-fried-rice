@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 /**
  * Confirmation dialog, from the profile screen's two frames (`2050:30`,
@@ -134,29 +135,29 @@ export function DialogRoot({
           aria-describedby="dialog-discard-description"
           className="absolute inset-0 z-50 flex items-center justify-center rounded-[inherit] bg-foreground/40 p-4"
         >
-          <div className="flex w-full max-w-[340px] flex-col gap-[12px] rounded-[20px] bg-background p-[22px] shadow-[0_30px_35px_rgba(26,18,16,0.26)]">
-            <h2 id="dialog-discard-title" className="font-display text-[22px] leading-normal text-foreground">
+          <div className="flex w-full max-w-[340px] flex-col gap-[12px] rounded-lg bg-background p-[22px] shadow-[0_30px_35px_rgba(26,18,16,0.26)]">
+            <h2 id="dialog-discard-title" className="font-display text-2xl leading-normal text-foreground">
               Discard changes?
             </h2>
-            <p id="dialog-discard-description" className="text-[13px] leading-[19.5px] text-muted-strong">
+            <p id="dialog-discard-description" className="text-sm leading-[19.5px] text-muted-strong">
               You have edits that haven&rsquo;t been saved. If you close now, they&rsquo;ll be lost.
             </p>
             <div className="flex gap-[10px] pt-[6px]">
-              <button
+              <Button variant="unstyled"
                 ref={keepEditingRef}
                 type="button"
                 onClick={() => setConfirmingDiscard(false)}
-                className="flex-1 rounded-[13px] border border-field-border py-[10px] text-[14px] font-bold text-muted-strong transition-colors hover:bg-black/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="flex-1 rounded-md border border-field-border py-[10px] text-sm font-bold text-muted-strong transition-colors hover:bg-black/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 Keep editing
-              </button>
-              <button
+              </Button>
+              <Button variant="unstyled"
                 type="button"
                 onClick={discard}
-                className="flex-1 rounded-[13px] bg-primary py-[10px] text-[14px] font-bold text-primary-foreground transition-colors hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="flex-1 rounded-md bg-primary py-[10px] text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 Discard
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -194,8 +195,8 @@ export function Dialog({
         className={cn(
           "flex flex-col gap-[12px] bg-background",
           sheet
-            ? "rounded-[22px] p-[22px] md:rounded-[20px] md:p-[26px]"
-            : "rounded-[20px] p-[26px]",
+            ? "rounded-lg p-[22px] md:rounded-lg md:p-[26px]"
+            : "rounded-lg p-[26px]",
           tone === "danger"
             ? "border border-primary shadow-[0_30px_35px_rgba(26,18,16,0.26)]"
             : "shadow-[0_30px_35px_rgba(26,18,16,0.26)]",
@@ -205,7 +206,7 @@ export function Dialog({
           id={titleId}
           className={cn(
             "font-display leading-normal",
-            sheet ? "text-[22px] md:text-[26px]" : "text-[26px]",
+            sheet ? "text-2xl md:text-2xl" : "text-2xl",
             tone === "danger" ? "text-primary" : "text-foreground",
           )}
         >
@@ -213,7 +214,7 @@ export function Dialog({
         </h2>
 
         {description ? (
-          <p className="text-[13px] leading-[19.5px] text-muted-strong">
+          <p className="text-sm leading-[19.5px] text-muted-strong">
             {description}
           </p>
         ) : null}

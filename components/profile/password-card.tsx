@@ -122,13 +122,13 @@ export function PasswordCard({ lastUpdated }: { lastUpdated?: string | null }) {
                 >
                   Update password
                 </SubmitButton>
-                <p className="text-[12.5px] text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   8 to 72 characters. You’ll stay logged in on this device.
                 </p>
               </div>
             </form>
           ) : (
-            <p className="text-[13px] text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               Change your password to keep your account secure.
             </p>
           )}
@@ -138,20 +138,20 @@ export function PasswordCard({ lastUpdated }: { lastUpdated?: string | null }) {
       {/* Mobile */}
       <div className="flex items-center justify-between gap-[12px] rounded-sm border border-rule bg-card px-[14px] py-[14px] md:hidden">
         <div className="flex flex-col gap-[2px]">
-          <h2 className="font-display text-[15px] tracking-[0.3px] text-foreground">
+          <h2 className="font-display text-base tracking-[0.3px] text-foreground">
             PASSWORD
           </h2>
-          <span className="text-[12px] text-muted-foreground">
+          <span className="text-sm text-muted-foreground">
             {formatLastUpdated(lastUpdated ?? null)}
           </span>
         </div>
-        <button
+        <Button variant="unstyled"
           type="button"
           onClick={mobile.edit}
-          className="shrink-0 rounded-sm border border-rule bg-card px-[15px] py-[11px] text-[13px] font-bold text-foreground hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          className="shrink-0 rounded-sm border border-rule bg-card px-[15px] py-[11px] text-sm font-bold text-foreground hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
         >
           Change
-        </button>
+        </Button>
       </div>
 
       <Dialog

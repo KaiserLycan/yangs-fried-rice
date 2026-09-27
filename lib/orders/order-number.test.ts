@@ -4,44 +4,53 @@ import {
   normalizeOrderSearch,
   orderIdRangeFor,
   orderMatchesSearch,
+  orderNumberSearch,
 } from "./order-number";
 
 const ID = "38206dc0-b033-4453-864c-b7c487862c7c";
 
 describe("formatOrderNumber", () => {
-  it("takes the UUID's leading group", () => {
-    expect(formatOrderNumber(ID)).toBe("38206dc0");
+  // The readable number (migration 20260928000007) is what people see and say.
+  it("prints the order number when there is one", () => {
+    expect(formatOrderNumber(1042, ID)).toBe("1042");
+    expect(formatOrderNumber("1042", ID)).toBe("1042");
   });
 
   /**
    * The point of issue #106's complaint: the customer's screen, the kitchen
-   * and the rider all have to say the same thing.
+   * and the receipt all have to say the same thing.
    */
   it("says the same thing however many times it is asked", () => {
-    expect(formatOrderNumber(ID)).toBe(formatOrderNumber(ID));
+    expect(formatOrderNumber(1042, ID)).toBe(formatOrderNumber(1042, ID));
   });
 
-  /**
-   * Four hex characters is 65,536 possibilities — a repeat is likelier than
-   * not by a few hundred orders, and both of the old helpers truncated to
-   * four while looking authoritative.
-   */
-  it("keeps enough of the id that two orders will not share a reference", () => {
-    const sibling = "38206dc1-b033-4453-864c-b7c487862c7c";
-    expect(formatOrderNumber(ID)).not.toBe(formatOrderNumber(sibling));
-    expect(formatOrderNumber(ID)).toHaveLength(8);
+  // A row read without the number (a realtime payload) still shows something
+  // the staff can search for: the id prefix, as before.
+  it("falls back to the id's leading group without a number", () => {
+    expect(formatOrderNumber(null, ID)).toBe("38206dc0");
+    expect(formatOrderNumber(undefined, "38206DC0-b033")).toBe("38206DC0");
   });
 
-  it("does not case-fold, so the reference can be pasted into a search", () => {
-    expect(formatOrderNumber("38206DC0-b033")).toBe("38206DC0");
-  });
-
-  it("has nothing to show for an order that has none", () => {
+  it("has nothing to show for an order that has neither", () => {
     expect(formatOrderNumber(null)).toBe("");
-    expect(formatOrderNumber(undefined)).toBe("");
-    expect(formatOrderNumber("  ")).toBe("");
+    expect(formatOrderNumber(undefined, null)).toBe("");
+    expect(formatOrderNumber("  ", "  ")).toBe("");
   });
 });
+
+describe("orderNumberSearch", () => {
+  it("reads the number as printed, with or without #", () => {
+    expect(orderNumberSearch("1042")).toBe(1042);
+    expect(orderNumberSearch(" #1042 ")).toBe(1042);
+  });
+
+  it("leaves anything with a letter to the id-prefix search", () => {
+    expect(orderNumberSearch("38206dc0")).toBeNull();
+    expect(orderNumberSearch("Liza")).toBeNull();
+    expect(orderNumberSearch("")).toBeNull();
+  });
+});
+
 const SEARCH_ID = "69403b15-bec1-43f1-a3ad-47a484655630";
 
 describe("normalizeOrderSearch", () => {

@@ -18,9 +18,9 @@ interface StatCardProps {
 }
 
 const SUBTITLE_COLORS = {
-  green: "text-[#2f5e3c]",
-  red: "text-[#8c1c13]",
-  muted: "text-[#7a6a60]",
+  green: "text-success",
+  red: "text-primary",
+  muted: "text-muted-foreground",
 } as const;
 
 export function StatCard({
@@ -30,20 +30,20 @@ export function StatCard({
   subtitleColor = "muted",
 }: StatCardProps) {
   return (
-    <div className="flex flex-1 flex-col rounded-[14px] border border-[#e3d6c3] bg-white p-4">
+    <div className="flex flex-1 flex-col rounded-md border border-rule bg-white p-4">
       {/* Label */}
-      <span className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
+      <span className="text-xs font-bold uppercase tracking-[1.32px] text-muted-foreground">
         {label}
       </span>
 
       {/* Value */}
-      <p className="mt-[6px] font-display text-[30px] leading-normal text-[#1a1210]">
+      <p className="mt-[6px] font-display text-3xl leading-normal text-foreground">
         {value}
       </p>
 
       {/* Subtitle */}
       <span
-        className={`text-[12px] font-bold leading-normal ${SUBTITLE_COLORS[subtitleColor]}`}
+        className={`text-xs font-bold leading-normal ${SUBTITLE_COLORS[subtitleColor]}`}
       >
         {subtitle}
       </span>

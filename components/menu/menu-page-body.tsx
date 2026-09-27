@@ -46,7 +46,14 @@ import { readRecentCompletedOrders } from "@/lib/orders/read-recent-orders";
  * read from `readCart()`, so the rail's item count and the mobile tab bar's
  * count (derived from the same rows) can't drift apart from each other.
  */
-export function MenuPageBody({ fulfilment }: { fulfilment?: Fulfilment }) {
+export function MenuPageBody({
+  fulfilment,
+  initialItemId = null,
+}: {
+  fulfilment?: Fulfilment;
+  /** `?item=` — the dish a guest was on when they went to sign in. */
+  initialItemId?: string | null;
+}) {
   const profilePromise = readCustomerProfile();
   const productsPromise = getProducts().then(r => (r.data ?? []).map(mapProductRow));
   const categoriesPromise = getCategories().then(r => (r.data ?? []).map(c => ({ id: c.category_id, name: c.category_name })));
@@ -72,6 +79,7 @@ export function MenuPageBody({ fulfilment }: { fulfilment?: Fulfilment }) {
         arrivalEstimatePromise={arrivalEstimatePromise}
         initialFulfilment={fulfilment}
         recentOrdersPromise={recentOrdersPromise}
+        initialItemId={initialItemId}
       />
     </ToastProvider>
   );

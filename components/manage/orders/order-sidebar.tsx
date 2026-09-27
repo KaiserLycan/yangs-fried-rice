@@ -1,43 +1,51 @@
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
-export type OrderStatus = "All" | "Queue" | "Preparation" | "Delivering" | "Completed" | "Canceled";
+export type OrderStatus = "All" | "Received" | "Preparing" | "Ready" | "PickedUp" | "Cancelled";
 
 interface OrderSidebarProps {
   activeStatus: OrderStatus;
   onStatusChange: (status: OrderStatus) => void;
 }
 
-const statuses: OrderStatus[] = [
-  "All",
-  "Queue",
-  "Preparation",
-  "Delivering",
-  "Completed",
-  "Canceled",
+/**
+ * The Orders tabs, named exactly as the customer's timeline names the same
+ * stages (docs/copy-glossary.md): Order received → Preparing → Ready for
+ * pickup → Picked up, or Cancelled. The shop is pickup-only (#114), so the old
+ * "Delivering / Pick Up" tab is "Ready for pickup"; it still lists any legacy
+ * order left at out_for_delivery so staff can finish it.
+ */
+export const ORDER_TABS: { id: OrderStatus; label: string; dbStatus?: string | string[] }[] = [
+  { id: "All", label: "All" },
+  { id: "Received", label: "Received", dbStatus: "pending" },
+  { id: "Preparing", label: "Preparing", dbStatus: "preparing" },
+  { id: "Ready", label: "Ready for pickup", dbStatus: ["ready", "out_for_delivery"] },
+  { id: "PickedUp", label: "Picked up", dbStatus: "completed" },
+  { id: "Cancelled", label: "Cancelled", dbStatus: "cancelled" },
 ];
 
-/** The tab holds delivery orders out with a rider AND take-out orders waiting for pick up. */
-const TAB_LABELS: Partial<Record<OrderStatus, string>> = {
-  Delivering: "Delivering / Pick Up",
-};
+/** The `order_status` value(s) a tab lists; undefined for All. */
+export function dbStatusForTab(tab: OrderStatus): string | string[] | undefined {
+  return ORDER_TABS.find((t) => t.id === tab)?.dbStatus;
+}
 
 export function OrderSidebar({ activeStatus, onStatusChange }: OrderSidebarProps) {
   return (
     <div className="w-full md:w-[200px] flex-shrink-0 flex flex-row md:flex-col gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0 scrollbar-hide">
-      <div className="hidden md:block text-xs font-bold text-gray-500 mb-2 tracking-wider">ORDER STATUS</div>
-      {statuses.map((status) => (
-        <button
+      <div className="hidden md:block text-xs leading-4 font-bold text-gray-500 mb-2 tracking-wider">ORDER STATUS</div>
+      {ORDER_TABS.map(({ id: status, label }) => (
+        <Button variant="unstyled"
           key={status}
           onClick={() => onStatusChange(status)}
           className={cn(
-            "whitespace-nowrap shrink-0 w-auto md:w-full text-center md:text-left px-4 py-2.5 md:py-3 rounded-[10px] md:rounded-lg text-[13px] md:text-sm font-semibold transition-colors",
+            "whitespace-nowrap shrink-0 w-auto md:w-full text-center md:text-left px-4 py-2.5 md:py-3 rounded-md md:rounded-lg text-sm md:text-sm md:leading-5 font-semibold transition-colors",
             activeStatus === status
-              ? "bg-[#efdfc6] text-black"
-              : "text-gray-600 hover:bg-[#efdfc6]/50 hover:text-black bg-black/5 md:bg-transparent"
+              ? "bg-selected text-black"
+              : "text-gray-600 hover:bg-selected/50 hover:text-black bg-black/5 md:bg-transparent"
           )}
         >
-          {TAB_LABELS[status] ?? status}
-        </button>
+          {label}
+        </Button>
       ))}
     </div>
   );

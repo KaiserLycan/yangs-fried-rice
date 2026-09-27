@@ -16,24 +16,26 @@ export type StaffAction = "Cancel" | "Confirm" | "Ready" | "Complete";
 /** Header label for an order's card / modal. */
 export function statusLabelFor(order: Pick<OrderData, "status" | "isDelivery">): string {
   switch (order.status) {
+    // The customer's stage names (docs/copy-glossary.md), in capitals for the
+    // card header. A legacy delivery order still out is the one exception.
     case "QUEUE":
-      return "QUEUE";
+      return "RECEIVED";
     case "PREP":
-      return "PREP";
+      return "PREPARING";
     case "DELIVERY":
-      return order.isDelivery === false ? "READY FOR PICK UP" : "DELIVERING";
+      return order.isDelivery === false ? "READY FOR PICKUP" : "OUT FOR DELIVERY";
     case "COMPLETED":
-      return "COMPLETED";
+      return "PICKED UP";
     case "CANCELED":
-      return "CANCELED";
+      return "CANCELLED";
   }
 }
 
 /**
  * The one forward action for an order, or null when there is none.
  *   queue  -> Confirm
- *   prep   -> Ready for pick up
- *   ready for pick up / legacy out for delivery -> Picked up
+ *   prep   -> Ready (for pickup)
+ *   ready for pickup / legacy out for delivery -> Picked up
  */
 export function primaryActionFor(
   order: Pick<OrderData, "status" | "isDelivery">,
@@ -44,7 +46,7 @@ export function primaryActionFor(
     case "PREP":
       return { type: "Ready", label: "Ready" };
     case "DELIVERY":
-      return { type: "Complete", label: "Picked Up" };
+      return { type: "Complete", label: "Picked up" };
     default:
       return null;
   }
@@ -76,28 +78,28 @@ export function actionCopy(action: StaffAction, orderNumber: string) {
       return {
         title: "Confirm order",
         description: `Confirm order #${orderNumber} and send it to the kitchen?`,
-        confirm: "Yes, Confirm",
+        confirm: "Yes, confirm",
         done: `Order #${orderNumber} confirmed.`,
       };
     case "Ready":
       return {
-        title: "Ready for pick up",
+        title: "Ready for pickup",
         description: `Mark order #${orderNumber} as ready for the customer to pick up?`,
-        confirm: "Yes, It's Ready",
-        done: `Order #${orderNumber} is ready for pick up.`,
+        confirm: "Yes, it's ready",
+        done: `Order #${orderNumber} is ready for pickup.`,
       };
     case "Complete":
       return {
         title: "Mark as picked up",
         description: `Has order #${orderNumber} been picked up by the customer or their courier?`,
-        confirm: "Yes, Picked Up",
-        done: `Order #${orderNumber} completed.`,
+        confirm: "Yes, picked up",
+        done: `Order #${orderNumber} picked up.`,
       };
     case "Cancel":
       return {
         title: "Cancel this order?",
         description:
-          "Canceling this order will notify the customer. Do you want to cancel this order?",
+          "Cancelling this order will notify the customer. Do you want to cancel this order?",
         confirm: "Confirm",
         done: `Order #${orderNumber} cancelled.`,
       };

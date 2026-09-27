@@ -17,11 +17,6 @@ import {
   ADDRESS_FIELD_LABELS,
 } from "@/components/forms/address-fields";
 import { FormErrorSummary } from "@/components/forms/form-error-summary";
-import {
-  AddressValidationNote,
-  type AddressValidationStatus,
-} from "@/components/checkout/address-validation-note";
-import { addressForGeocoding } from "@/lib/address/geocoding-query";
 import { useLiveValidation } from "@/lib/forms/use-live-validation";
 import { useSubmitShortcut } from "@/lib/hooks/use-shortcut";
 import { toInternationalMobile } from "@/lib/profile/mobile-number";
@@ -96,22 +91,10 @@ function SignupFormInner() {
   // Only for the strength meter; the form still reads the field itself.
   const [password, setPassword] = useState("");
   const [isPending, startTransition] = useTransition();
-  const [draftAddressStr, setDraftAddressStr] = useState("");
-  const [addressStatus, setAddressStatus] =
-    useState<AddressValidationStatus>("checking");
 
   const live = useLiveValidation({ schema: signupFormSchema, read: readSignupForm });
   const { errors } = live;
   useSubmitShortcut(live.formRef);
-
-  function handleFormChange(event: React.FormEvent<HTMLFormElement>) {
-    live.formProps.onChange(event);
-    const values = readSignupForm(new FormData(event.currentTarget));
-    // Street, barangay, city and ZIP only. The house/building number is left
-    // out on purpose: "B10 L10 Camella Homes" is a lot inside a subdivision
-    // that no map lists, and including it stops the street from matching.
-    setDraftAddressStr(addressForGeocoding(values));
-  }
 
   const handleSubmit = live.handleSubmit(async ({ terms: _terms, ...values }) => {
     setServerError(null);
@@ -141,15 +124,12 @@ function SignupFormInner() {
     });
   });
 
-  const addressBlocked = addressStatus === "invalid";
-
   return (
     <div className="relative flex flex-col px-6 pb-[30px] md:justify-center md:bg-background md:px-[52px] md:py-[48px]">
       <form
         {...live.formProps}
-        onChange={handleFormChange}
         onSubmit={handleSubmit}
-        className="flex flex-col gap-[10px] rounded-[22px] bg-background p-5 md:gap-[14px] md:rounded-none md:bg-transparent md:p-0"
+        className="flex flex-col gap-[10px] rounded-lg bg-background p-5 md:gap-[14px] md:rounded-none md:bg-transparent md:p-0"
       >
         <AuthTabs active="register" />
 
@@ -160,10 +140,10 @@ function SignupFormInner() {
             fields are optional — so that half is shown at every width
             (issue #106). */}
         <div className="flex flex-col gap-[5px]">
-          <h1 className="hidden font-display text-[30px] leading-[33px] text-foreground md:block">
+          <h1 className="hidden font-display text-3xl leading-[33px] text-foreground md:block">
             Create your account
           </h1>
-          <p className="text-[14px] text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Fill in your details and your address. Fields marked * are
             required. Orders are picked up at the counter.
           </p>
@@ -228,8 +208,8 @@ function SignupFormInner() {
                 "rounded-md border bg-white focus-within:ring-2 focus-within:ring-ring/40",
                 errors.phone ? "border-error-border" : "border-field-border"
               )}
-              prefixClassName="pl-[14px] text-[15px] text-muted-foreground"
-              inputClassName="px-[6px] py-[13px] text-[15px] text-foreground placeholder:text-placeholder md:py-[14px]"
+              prefixClassName="pl-[14px] text-base text-muted-foreground"
+              inputClassName="px-[6px] py-[13px] text-base text-foreground placeholder:text-placeholder md:py-[14px]"
             />
           </Field>
         </div>
@@ -262,19 +242,12 @@ function SignupFormInner() {
 
         <AddressFields idPrefix="signup" variant="auth" errors={errors} />
 
-        <div className="-mt-1 px-1">
-          <AddressValidationNote
-            address={draftAddressStr}
-            onStatusChange={setAddressStatus}
-          />
-        </div>
-
         {/* Only while the form is being sent — it is the moment the
             confirmation email goes out, and the login page repeats it. */}
         {isPending ? (
           <p
             role="status"
-            className="rounded-md bg-track px-[12px] py-[10px] text-[14px] leading-snug text-muted-foreground"
+            className="rounded-md bg-track px-[12px] py-[10px] text-sm leading-snug text-muted-foreground"
           >
             <span className="font-bold text-foreground">Check your email.</span>{" "}
             We&apos;re sending a confirmation link — please confirm your email
@@ -285,7 +258,7 @@ function SignupFormInner() {
         {/* Replaces the date of birth (F16). The birthday was the only age
             check, and the lawyer review (persona 15, J6) raised minors. */}
         <div className="flex flex-col gap-[4px]">
-          <label className="mt-1 flex min-h-[44px] items-start gap-[9px] text-[14px]">
+          <label className="mt-1 flex min-h-[44px] items-start gap-[9px] text-sm">
             <Checkbox
               id={`${ID_PREFIX}ageConfirmed`}
               name="ageConfirmed"
@@ -296,31 +269,25 @@ function SignupFormInner() {
               I am at least 18, or have a parent&apos;s permission.
             </span>
           </label>
-          {errors.ageConfirmed ? <p className="text-[14px] text-primary">{errors.ageConfirmed}</p> : null}
+          {errors.ageConfirmed ? <p className="text-sm text-primary">{errors.ageConfirmed}</p> : null}
         </div>
 
         <div className="flex flex-col gap-[4px]">
-          <label className="mb-1 flex min-h-[44px] items-start gap-[9px] text-[14px]">
+          <label className="mb-1 flex min-h-[44px] items-start gap-[9px] text-sm">
             <Checkbox id={`${ID_PREFIX}terms`} name="terms" required aria-invalid={Boolean(errors.terms) || undefined} />
             <span className="leading-tight text-muted-foreground">
               I have read and agree to the <Link href="/terms" target="_blank" className="font-bold text-primary hover:underline">Terms & Policy</Link>.
             </span>
           </label>
-          {errors.terms ? <p className="text-[14px] text-primary">{errors.terms}</p> : null}
+          {errors.terms ? <p className="text-sm text-primary">{errors.terms}</p> : null}
         </div>
 
-        {/* An address outside the delivery radius (or one the map can't find)
-            can't be used to sign up — the note above says why. */}
         <SubmitButton
           pending={isPending}
-          invalid={!live.isValid || addressBlocked}
+          invalid={!live.isValid}
           pendingLabel="Creating account…"
           hint="Create your account and sign in"
-          blockedHint={
-            addressBlocked
-              ? "We couldn't use this address — check the note above."
-              : "Complete the highlighted fields to continue."
-          }
+          blockedHint="Complete the highlighted fields to continue."
           wrapperClassName="w-full"
         >
           Create account
@@ -329,7 +296,7 @@ function SignupFormInner() {
         {/* The tabs above already lead back to login, but they read as a mode
             switch rather than an escape hatch. This is the sentence someone
             who thought they were signing in is looking for. */}
-        <p className="text-center text-[14px] text-muted-foreground">
+        <p className="text-center text-sm text-muted-foreground">
           Already have an account?{" "}
           <Link href="/login" className="font-bold text-primary">
             Log in

@@ -96,7 +96,7 @@ export function OrderPlacedScreen({
 
       <div className="mx-auto flex w-full max-w-[760px] flex-col gap-[16px] px-[20px] pb-[40px] pt-[24px] md:gap-[22px] md:px-[40px] md:pt-[36px]">
         <header className="flex flex-col gap-[6px]">
-          <h1 className="font-display text-[30px] text-foreground md:text-[38px] md:leading-[1.05]">
+          <h1 className="font-display text-3xl text-foreground md:text-5xl md:leading-[1.05]">
             ORDER PLACED
           </h1>
           {/* `normal-case` on the reference alone: the label keeps the
@@ -104,7 +104,7 @@ export function OrderPlacedScreen({
               it is stored in, so that the string here is the one staff can
               paste into a search and the one the kitchen is looking at
               (issue #106). */}
-          <p className="text-[14px] uppercase tracking-[1.92px] text-muted-foreground">
+          <p className="text-sm uppercase tracking-[1.92px] text-muted-foreground">
             Order{" "}
             <span className="normal-case">#{order.orderNumber}</span>
           </p>
@@ -114,7 +114,7 @@ export function OrderPlacedScreen({
               ticket 05 already had to fix once. */}
           <p
             data-testid="fulfilment-line"
-            className="pt-[2px] text-[14px] text-muted-strong"
+            className="pt-[2px] text-sm text-muted-strong"
           >
             {!canTrack
               ? // No arrival to promise: nobody starts this one until the
@@ -129,7 +129,7 @@ export function OrderPlacedScreen({
         </header>
 
         <section className="flex flex-col gap-[11px] rounded-lg border border-rule bg-card p-[20px]">
-          <h2 className="text-[14px] font-bold uppercase tracking-[1.54px] text-muted-foreground">
+          <h2 className="text-sm font-bold uppercase tracking-[1.54px] text-muted-foreground">
             Order summary
           </h2>
           <OrderSummaryRows
@@ -139,6 +139,7 @@ export function OrderPlacedScreen({
             fulfilment={order.fulfilment}
             lines={order.lines}
             totals={totals}
+            discount={order.discount}
           />
         </section>
 
@@ -156,7 +157,7 @@ export function OrderPlacedScreen({
         {canTrack ? (
           <Link
             href={`/orders/${order.orderId}`}
-            className="rounded-[13px] bg-accent p-[16px] text-center text-[15px] font-bold text-accent-foreground"
+            className="rounded-md bg-accent p-[16px] text-center text-base font-bold text-accent-foreground"
           >
             Track this order
           </Link>
@@ -164,7 +165,7 @@ export function OrderPlacedScreen({
           <div className="flex flex-col gap-[10px]">
             <p
               data-testid="tracking-blocked"
-              className="text-center text-[14px] leading-[18px] text-muted-strong"
+              className="text-center text-sm leading-[18px] text-muted-strong"
             >
               Complete payment to track your order. Nothing has been taken yet,
               and the kitchen hasn’t started it.

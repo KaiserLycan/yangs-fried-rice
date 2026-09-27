@@ -26,7 +26,7 @@ export async function notifyOrderCancelled(
     const { data: order } = await supabase
       .from("order")
       .select(
-        "order_id, cancellation_reason, customer:customer_id ( email, first_name ), transaction ( payment_method, payment_status, total_paid, subtotal, discount_amount )",
+        "order_id, order_number, cancellation_reason, customer:customer_id ( email, first_name ), transaction ( payment_method, payment_status, total_paid, subtotal, discount_amount )",
       )
       .eq("order_id", orderId)
       .maybeSingle();
@@ -46,7 +46,7 @@ export async function notifyOrderCancelled(
 
     const message = orderCancelledEmail({
       firstName: customer?.first_name ?? null,
-      orderNumber: formatOrderNumber(order.order_id),
+      orderNumber: formatOrderNumber(order.order_number, order.order_id),
       reason: order.cancellation_reason,
       cancelledBy,
       payment: transaction

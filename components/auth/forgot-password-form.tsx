@@ -84,18 +84,18 @@ export function ForgotPasswordForm({
   if (sent) {
     return (
       <div className="relative flex flex-col px-6 pb-[30px] md:justify-center md:bg-background md:px-[52px] md:py-[48px]">
-        <div className="flex flex-col gap-[14px] rounded-[22px] bg-background p-5 md:gap-[18px] md:rounded-none md:bg-transparent md:p-0">
-          <h1 className="font-display text-[30px] leading-[33px] text-foreground">
+        <div className="flex flex-col gap-[14px] rounded-lg bg-background p-5 md:gap-[18px] md:rounded-none md:bg-transparent md:p-0">
+          <h1 className="font-display text-3xl leading-[33px] text-foreground">
             Check your email
           </h1>
           <Alert tone="success" role="status">
             {RESET_LINK_SENT}
           </Alert>
-          <p className="text-[13px] text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             The link expires after a while. If it does, come back here and ask
             for another one.
           </p>
-          <BackToLogin from={from} className="text-[13px] font-bold text-primary" />
+          <BackToLogin from={from} className="text-sm font-bold text-primary" />
         </div>
       </div>
     );
@@ -106,13 +106,13 @@ export function ForgotPasswordForm({
       <form
         {...live.formProps}
         onSubmit={handleSubmit}
-        className="flex flex-col gap-[14px] rounded-[22px] bg-background p-5 md:gap-[18px] md:rounded-none md:bg-transparent md:p-0"
+        className="flex flex-col gap-[14px] rounded-lg bg-background p-5 md:gap-[18px] md:rounded-none md:bg-transparent md:p-0"
       >
         <div className="flex flex-col gap-[5px]">
-          <h1 className="font-display text-[30px] leading-[33px] text-foreground">
+          <h1 className="font-display text-3xl leading-[33px] text-foreground">
             Forgot your password?
           </h1>
-          <p className="text-[13px] text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Give us the email on your account and we’ll send a link to set a new
             password.
           </p>
@@ -146,7 +146,7 @@ export function ForgotPasswordForm({
 
         <BackToLogin
           from={from}
-          className="text-center text-[13px] font-bold text-primary"
+          className="text-center text-sm font-bold text-primary"
         />
       </form>
     </div>

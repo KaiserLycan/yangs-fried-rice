@@ -197,7 +197,7 @@ export async function getOpenOrderIssues(): Promise<ActionResult<OpenOrderIssue[
   const [orders, lines] = await Promise.all([
     supabase
       .from("order")
-      .select("order_id, customer:customer_id ( name, phone_number )")
+      .select("order_id, order_number, customer:customer_id ( name, phone_number )")
       .in("order_id", orderIds)
       .then((res) => res.data ?? []),
     supabase
@@ -209,6 +209,9 @@ export async function getOpenOrderIssues(): Promise<ActionResult<OpenOrderIssue[
 
   const customerByOrder = new Map(
     orders.map((row) => [row.order_id, first(row.customer)] as const),
+  );
+  const numberByOrder = new Map(
+    orders.map((row) => [row.order_id, row.order_number] as const),
   );
   const lineById = new Map(lines.map((line) => [line.order_item_id, line] as const));
 
@@ -225,7 +228,7 @@ export async function getOpenOrderIssues(): Promise<ActionResult<OpenOrderIssue[
       return {
         issueId: issue.issue_id,
         orderId: issue.order_id,
-        orderNumber: formatOrderNumber(issue.order_id),
+        orderNumber: formatOrderNumber(numberByOrder.get(issue.order_id), issue.order_id),
         customerName: customer?.name ?? "Deleted customer",
         customerPhone: customer?.phone_number ?? null,
         issueType: issue.issue_type as OrderIssueType,

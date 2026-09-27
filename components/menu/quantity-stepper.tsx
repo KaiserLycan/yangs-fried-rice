@@ -3,6 +3,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { clampQuantity, MAX_QUANTITY, MIN_QUANTITY } from "@/lib/menu/quantity";
+import { Button } from "@/components/ui/button";
 
 /**
  * The −/count/+ control on the item detail view, both breakpoints. The
@@ -44,8 +45,8 @@ export function QuantityStepper({
         value={value}
         onChange={onChange}
         className={cn(
-          "h-[44px] w-[56px] rounded-[11px] border border-field-border bg-card text-center font-display text-foreground",
-          size === "mobile" ? "text-[21px]" : "text-[20px]",
+          "h-[44px] w-[56px] rounded-md border border-field-border bg-card text-center font-display text-foreground",
+          size === "mobile" ? "text-2xl" : "text-lg",
         )}
       />
       <StepButton
@@ -139,17 +140,17 @@ function StepButton({
   onClick: () => void;
 }) {
   return (
-    <button
+    <Button variant="unstyled"
       type="button"
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "flex items-center justify-center rounded-[11px] border border-field-border bg-card text-[18px] font-bold text-foreground disabled:opacity-40",
+        "flex items-center justify-center rounded-md border border-field-border bg-card text-lg font-bold text-foreground disabled:opacity-40",
         size,
       )}
     >
       {glyph}
-    </button>
+    </Button>
   );
 }

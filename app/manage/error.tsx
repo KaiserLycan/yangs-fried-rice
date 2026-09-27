@@ -15,7 +15,7 @@ export default function ManageError({
   reset: () => void;
 }) {
   return (
-    <div className="mx-auto w-full max-w-[560px] rounded-xl border border-[#F0E6D8] bg-white p-6 md:mt-10 md:p-8">
+    <div className="mx-auto w-full max-w-[560px] rounded-md border border-track bg-white p-6 md:mt-10 md:p-8">
       <ErrorScreen
         error={error}
         reset={reset}

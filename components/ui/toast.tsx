@@ -95,14 +95,14 @@ export function ToastProvider({
             data-tone={toast.tone}
             className={cn(
               "pointer-events-auto flex w-full max-w-[380px] items-start gap-[10px] rounded-md px-[14px] py-[11px]",
-              "text-[13px] leading-[18.2px] shadow-[0_10px_24px_rgba(26,18,16,0.28)]",
+              "text-sm leading-[18.2px] shadow-[0_10px_24px_rgba(26,18,16,0.28)]",
               "animate-in fade-in slide-in-from-bottom-2",
               TONE_STYLES[toast.tone].surface,
             )}
           >
             <span
               aria-hidden="true"
-              className="flex size-[18px] shrink-0 items-center justify-center rounded-full bg-white/20 text-[11px] font-bold leading-none"
+              className="flex size-[18px] shrink-0 items-center justify-center rounded-full bg-white/20 text-sm font-bold leading-none"
             >
               {TONE_STYLES[toast.tone].glyph}
             </span>

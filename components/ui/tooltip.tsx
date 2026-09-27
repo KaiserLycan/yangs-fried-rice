@@ -50,7 +50,7 @@ export function Tooltip({
         id={id}
         role="tooltip"
         className={cn(
-          "pointer-events-none absolute left-1/2 z-50 w-max max-w-[240px] -translate-x-1/2 rounded-sm bg-foreground px-[9px] py-[6px] text-center text-[11.5px] font-medium leading-snug text-white opacity-0 shadow-lg transition-opacity delay-300 duration-150",
+          "pointer-events-none absolute left-1/2 z-50 w-max max-w-[240px] -translate-x-1/2 rounded-sm bg-foreground px-[9px] py-[6px] text-center text-sm font-medium leading-snug text-white opacity-0 shadow-lg transition-opacity delay-300 duration-150",
           "group-hover/tooltip:opacity-100 group-focus-within/tooltip:opacity-100",
           side === "top" ? "bottom-[calc(100%+6px)]" : "top-[calc(100%+6px)]",
         )}
@@ -78,7 +78,7 @@ export function Kbd({
   return (
     <kbd
       className={cn(
-        "inline-block rounded-[4px] border border-white/30 bg-white/10 px-[5px] py-[1px] font-sans text-[10.5px] font-bold leading-none",
+        "inline-block rounded-sm border border-white/30 bg-white/10 px-[5px] py-[1px] font-sans text-sm font-bold leading-none",
         className,
       )}
     >

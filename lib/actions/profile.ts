@@ -9,7 +9,6 @@ import {
 } from "@/lib/storage/stored-image";
 import { removeStoredImage } from "@/lib/storage/remove-stored-image";
 import { ORDER_ISSUE_PHOTO_BUCKET } from "@/lib/validation/order-issue";
-import { addressForGeocoding, outsideDeliveryRadiusMessage } from "@/lib/address/validate-ncr";
 import {
   ADDRESS_COLUMNS,
   addressPartsFromRow,
@@ -238,21 +237,6 @@ export async function addMyAddress(
     };
   }
 
-  // A "super far" address must not be saved (the form disables Save for it,
-  // but the form is not the only caller). Checked on the trimmed street + city,
-  // the same essential form sign-up geocodes.
-  const tooFar = await outsideDeliveryRadiusMessage(
-    addressForGeocoding({
-      street: parsed.data.street,
-      barangay: parsed.data.barangay,
-      city: parsed.data.city,
-      zip: parsed.data.zip,
-    }),
-  );
-  if (tooFar) {
-    return { data: null, error: tooFar, fieldErrors: { street: tooFar } };
-  }
-
   const row = addressRowFromParts(parsed.data);
 
   // Check for duplicates before inserting — part by part, case-insensitive,
@@ -336,18 +320,6 @@ export async function updateMyAddress(
       city: parsed.data.city!,
       zip: parsed.data.zip!,
     });
-
-    const tooFar = await outsideDeliveryRadiusMessage(
-      addressForGeocoding({
-        street: parsed.data.street,
-        barangay: parsed.data.barangay,
-        city: parsed.data.city,
-        zip: parsed.data.zip,
-      }),
-    );
-    if (tooFar) {
-      return { data: null, error: tooFar, fieldErrors: { street: tooFar } };
-    }
 
     if (await isDuplicateAddress(supabase, user.id, row, addressId)) {
       return {

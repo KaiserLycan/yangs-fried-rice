@@ -30,3 +30,13 @@ export function formatOrderTime(at: Date): string {
     hour12: true,
   }).format(at);
 }
+
+/** "3:45 PM", Manila time — the timeline stamps and "Promised by". */
+export function formatClockTime(at: Date): string {
+  return new Intl.DateTimeFormat("en-PH", {
+    timeZone: RESTAURANT_TIME_ZONE,
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(at);
+}

@@ -111,8 +111,8 @@ export function EmployeeContactDetailsCard({
                   "rounded-sm border bg-card",
                   errors.mobile ? "border-error-border" : "border-field-border",
                 )}
-                prefixClassName="pl-[12px] text-[15px] text-muted-foreground md:text-[14px]"
-                inputClassName="px-[6px] py-[13px] text-[15px] md:py-[11px] md:text-[14px]"
+                prefixClassName="pl-[12px] text-base text-muted-foreground md:text-sm"
+                inputClassName="px-[6px] py-[13px] text-base md:py-[11px] md:text-sm"
               />
             </CardField>
 

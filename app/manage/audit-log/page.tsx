@@ -19,6 +19,7 @@ import {
 } from "@/lib/audit/audit-actions";
 import type { AuditSortColumn } from "@/lib/validation/audit";
 import { roleDisplayLabel } from "@/lib/auth/roles";
+import { Button } from "@/components/ui/button";
 
 /**
  * Audit log (manager only). Every employee action, newest first — who did
@@ -70,39 +71,39 @@ function FilterDropdown({
 
   return (
     <div className="relative flex w-full md:w-auto md:min-w-[200px] flex-col gap-[6px]">
-      <span {...menu.labelProps} className="text-[11px] font-bold uppercase tracking-[1.32px] text-[#7a6a60]">
+      <span {...menu.labelProps} className="text-xs font-bold uppercase tracking-[1.32px] text-muted-foreground">
         {label}
       </span>
-      <button
+      <Button variant="unstyled"
         {...menu.triggerProps}
-        className="flex h-[46px] md:h-[50px] w-full items-center justify-between gap-2 rounded-[12px] border border-[#ddcdb8] bg-white px-3 md:px-[14px] text-[13px] md:text-[15px] hover:bg-[#FAF5EB] transition-colors focus:outline-none focus:ring-2 focus:ring-[#E8541F]"
+        className="flex h-[46px] md:h-[50px] w-full items-center justify-between gap-2 rounded-md border border-field-border bg-white px-3 md:px-[14px] text-sm md:text-base hover:bg-background transition-colors focus:outline-none focus:ring-2 focus:ring-accent"
       >
         <span className="flex min-w-0 items-center gap-2">
-          <Filter aria-hidden="true" className="h-[16px] w-[16px] shrink-0 text-[#A2938A]" />
-          <span className="truncate text-left text-[#1a1210]">{current}</span>
+          <Filter aria-hidden="true" className="h-[16px] w-[16px] shrink-0 text-placeholder" />
+          <span className="truncate text-left text-foreground">{current}</span>
         </span>
-        <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-[#A2938A]" />
-      </button>
+        <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-placeholder" />
+      </Button>
 
       {open && (
         <div
           {...menu.listProps}
-          className="absolute left-0 top-[calc(100%+8px)] z-20 w-full md:w-[240px] max-h-[300px] overflow-y-auto bg-white border border-[#DDCDB8] rounded-xl p-1 shadow-[0_8px_20px_rgba(26,18,16,0.08)]"
+          className="absolute left-0 top-[calc(100%+8px)] z-20 w-full md:w-[240px] max-h-[300px] overflow-y-auto bg-white border border-field-border rounded-md p-1 shadow-[0_8px_20px_rgba(26,18,16,0.08)]"
         >
           {options.map((option) => (
-            <button
+            <Button variant="unstyled"
               key={option.id}
               {...menu.optionProps(value === option.id)}
               onClick={() => {
                 onChange(option.id);
                 menu.close();
               }}
-              className={`w-full text-left px-3 py-2.5 rounded-lg text-[13px] transition-colors ${DROPDOWN_FOCUS_RING} ${
-                value === option.id ? "bg-[#F6E9D9] font-bold text-[#8C1C13]" : "text-[#1A1210] hover:bg-[#FAF5EB]"
+              className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors ${DROPDOWN_FOCUS_RING} ${
+                value === option.id ? "bg-highlight font-bold text-primary" : "text-foreground hover:bg-background"
               }`}
             >
               {option.label}
-            </button>
+            </Button>
           ))}
         </div>
       )}
@@ -222,11 +223,11 @@ function ManageAuditLogInner() {
     <div className="flex flex-col h-full gap-4 md:gap-0">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between pb-[10px] md:mb-8 gap-4 md:gap-0">
-        <h1 className="font-display text-[24px] md:text-[30px] leading-normal text-[#1a1210]">
+        <h1 className="font-display text-2xl md:text-3xl leading-normal text-foreground">
           AUDIT LOG
         </h1>
         <div className="relative w-full md:w-auto">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-[#A2938A]" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-placeholder" />
           <input
             ref={searchRef}
             type="search"
@@ -237,10 +238,10 @@ function ManageAuditLogInner() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             maxLength={80}
-            className="w-full md:w-[360px] h-[45px] pl-11 pr-10 rounded-xl border border-[#DDCDB8] bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#E8541F] placeholder:text-[#A2938A]"
+            className="w-full md:w-[360px] h-[45px] pl-11 pr-10 rounded-md border border-field-border bg-white text-sm leading-5 focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-placeholder"
           />
           {!searchQuery && (
-            <Kbd className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 border-[#DDCDB8] bg-transparent text-[#A2938A]">
+            <Kbd className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 border-field-border bg-transparent text-placeholder">
               /
             </Kbd>
           )}
@@ -260,25 +261,25 @@ function ManageAuditLogInner() {
           <DateInput label="End Date" max={today} value={endDate} onChange={setEndDate} />
         </div>
         {hasFilters && (
-          <button
+          <Button variant="unstyled"
             type="button"
             onClick={clearFilters}
-            className="flex h-[46px] md:h-[50px] items-center justify-center rounded-[12px] border border-[#ddcdb8] bg-white px-4 text-[13px] md:text-[15px] font-bold text-[#7A6A60] hover:bg-[#FAF5EB] transition-colors focus:outline-none focus:ring-2 focus:ring-[#E8541F]"
+            className="flex h-[46px] md:h-[50px] items-center justify-center rounded-md border border-field-border bg-white px-4 text-sm md:text-base font-bold text-muted-foreground hover:bg-background transition-colors focus:outline-none focus:ring-2 focus:ring-accent"
           >
             Clear filters
-          </button>
+          </Button>
         )}
       </div>
       {datesInvalid && (
-        <p role="alert" className="text-[13px] text-[#C0392B] -mt-2 md:-mt-4 mb-2">
+        <p role="alert" className="text-sm text-error-border -mt-2 md:-mt-4 mb-2">
           The start date must be on or before the end date.
         </p>
       )}
 
       {/* Table */}
       <div className="flex-1 flex flex-col min-h-0">
-        <div className="bg-white rounded-[12px] overflow-hidden flex flex-col min-h-0 border border-[#F0E6D8] shadow-[0_2px_10px_rgba(26,18,16,0.02)]">
-          <div className="hidden md:grid grid-cols-[1fr_1.1fr_1.1fr_2.4fr] px-8 py-5 border-b border-[#F0E6D8] bg-[#EAE0D5] text-[12px] font-bold text-[#7A6A60] uppercase tracking-[1px]">
+        <div className="bg-white rounded-md overflow-hidden flex flex-col min-h-0 border border-track shadow-[0_2px_10px_rgba(26,18,16,0.02)]">
+          <div className="hidden md:grid grid-cols-[1fr_1.1fr_1.1fr_2.4fr] px-8 py-5 border-b border-track bg-track text-xs font-bold text-muted-foreground uppercase tracking-[1px]">
             <SortableHeader label="When" currentSort={sortFor("occurred_at")} onSortChange={changeSort("occurred_at")} />
             <SortableHeader label="Employee" currentSort={sortFor("actor_name")} onSortChange={changeSort("actor_name")} />
             <SortableHeader label="Action" currentSort={sortFor("action")} onSortChange={changeSort("action")} />
@@ -289,16 +290,16 @@ function ManageAuditLogInner() {
             {isLoading ? (
               <div className="flex flex-col">
                 {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="flex flex-col md:grid md:grid-cols-[1fr_1.1fr_1.1fr_2.4fr] px-5 md:px-8 py-4 md:py-5 border-b border-[#F0E6D8] gap-2 md:gap-0 items-start md:items-center">
-                    <div className="h-[18px] w-[120px] bg-[#efe6d8] rounded-full animate-pulse" />
-                    <div className="h-[18px] w-[130px] bg-[#efe6d8] rounded-full animate-pulse" />
-                    <div className="h-[18px] w-[110px] bg-[#efe6d8] rounded-full animate-pulse" />
-                    <div className="hidden md:block h-[18px] w-[260px] bg-[#efe6d8] rounded-full animate-pulse" />
+                  <div key={i} className="flex flex-col md:grid md:grid-cols-[1fr_1.1fr_1.1fr_2.4fr] px-5 md:px-8 py-4 md:py-5 border-b border-track gap-2 md:gap-0 items-start md:items-center">
+                    <div className="h-[18px] w-[120px] bg-track rounded-full animate-pulse" />
+                    <div className="h-[18px] w-[130px] bg-track rounded-full animate-pulse" />
+                    <div className="h-[18px] w-[110px] bg-track rounded-full animate-pulse" />
+                    <div className="hidden md:block h-[18px] w-[260px] bg-track rounded-full animate-pulse" />
                   </div>
                 ))}
               </div>
             ) : entries.length === 0 ? (
-              <div className="p-8 text-center text-[#7A6A60]">
+              <div className="p-8 text-center text-muted-foreground">
                 {loadError
                   ? "The audit log couldn't be loaded."
                   : hasFilters
@@ -307,32 +308,32 @@ function ManageAuditLogInner() {
               </div>
             ) : (
               entries.map((entry, index) => (
-                <button
+                <Button variant="unstyled"
                   type="button"
                   key={entry.audit_id}
                   onClick={() => setSelectedEntry(entry)}
-                  className={`w-full text-left flex flex-col md:grid md:grid-cols-[1fr_1.1fr_1.1fr_2.4fr] px-5 md:px-8 py-4 md:py-5 cursor-pointer transition-colors hover:bg-[#FAF7F0] focus:outline-none focus-visible:bg-[#FAF7F0] gap-1 md:gap-3 ${
-                    index !== entries.length - 1 ? "border-b border-[#F0E6D8]" : ""
+                  className={`w-full text-left flex flex-col md:grid md:grid-cols-[1fr_1.1fr_1.1fr_2.4fr] px-5 md:px-8 py-4 md:py-5 cursor-pointer transition-colors hover:bg-background focus:outline-none focus-visible:bg-background gap-1 md:gap-3 ${
+                    index !== entries.length - 1 ? "border-b border-track" : ""
                   }`}
                 >
-                  <div className="text-[#7A6A60] md:text-[#1A1210] md:font-bold flex items-center text-[13px] md:text-[14px]">
+                  <div className="text-muted-foreground md:text-foreground md:font-bold flex items-center text-sm md:text-sm">
                     {formatAuditTime(entry.occurred_at)}
                   </div>
-                  <div className="font-bold text-[#1A1210] flex flex-col justify-center text-[15px]">
+                  <div className="font-bold text-foreground flex flex-col justify-center text-base">
                     <span>{entry.actor_name ?? "Unknown employee"}</span>
                     {entry.actor_role && (
-                      <span className="text-[12px] font-normal text-[#7A6A60]">{roleDisplayLabel(entry.actor_role)}</span>
+                      <span className="text-xs font-normal text-muted-foreground">{roleDisplayLabel(entry.actor_role)}</span>
                     )}
                   </div>
                   <div className="flex items-center">
-                    <span className="text-[11px] font-bold tracking-wide uppercase bg-[#f6e9d9] text-[#8c1c13] px-2 py-1 rounded-md">
+                    <span className="text-xs font-bold tracking-wide uppercase bg-highlight text-primary px-2 py-1 rounded-md">
                       {auditActionLabel(entry.action)}
                     </span>
                   </div>
-                  <div className="text-[#1A1210] flex items-center text-[14px] md:text-[15px] break-words">
+                  <div className="text-foreground flex items-center text-sm md:text-base break-words">
                     {entry.summary}
                   </div>
-                </button>
+                </Button>
               ))
             )}
           </div>
