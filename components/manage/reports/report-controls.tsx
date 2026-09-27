@@ -130,15 +130,17 @@ export function ReportDateFilters({
   const handleExportCSV = async () => {
     setIsExportingCSV(true);
     try {
-      const result = await exportReportCSV({ start_date: startDate, end_date: endDate });
+      const type = normalizeReportType(reportType);
+      const result = await exportReportCSV({ start_date: startDate, end_date: endDate }, type);
       if (result.error) {
         showToast(`Couldn't export CSV: ${result.error}`, "error");
       } else if (result.data) {
-        const blob = new Blob([result.data], { type: 'text/csv' });
+        const blob = new Blob([result.data], { type: "text/csv;charset=utf-8" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.download = `yangs_report_${startDate}_to_${endDate}.csv`;
+        // Same name as the PDF of the same report, so the two sort together.
+        link.download = reportPdfFileName(type, startDate, endDate).replace(/\.pdf$/, ".csv");
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
