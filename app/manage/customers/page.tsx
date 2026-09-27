@@ -229,7 +229,9 @@ function ManageCustomersInner() {
               </div>
             ) : customers.length === 0 ? (
               <div className="p-8 text-center text-[#7A6A60]">
-                No customers found.
+                {activeCustomerFilterCount(filters) > 0
+                  ? "No customers match these filters."
+                  : "No customers found."}
               </div>
             ) : (
               customers.map((customer, index) => (
