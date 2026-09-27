@@ -49,6 +49,12 @@ export const UNPAID_ORDER_STATUSES = [
   "payment_failed",
 ] as const;
 
+/**
+ * How long an online payment may sit in awaiting_payment before staff treat
+ * it as stuck. The Orders "Payment Issues" tab and the KDS both read this.
+ */
+export const STUCK_PAYMENT_MINUTES = 5;
+
 /** Is this an order nobody has paid for yet? */
 export function isUnpaidStatus(status: string | null | undefined): boolean {
   return (UNPAID_ORDER_STATUSES as readonly string[]).includes(status ?? "");
