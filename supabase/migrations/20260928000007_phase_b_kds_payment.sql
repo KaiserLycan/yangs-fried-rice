@@ -1,6 +1,6 @@
 -- Add ready_at to track when an order transitions to 'ready'
 ALTER TABLE "public"."order"
-  ADD COLUMN "ready_at" timestamp with time zone;
+  ADD COLUMN IF NOT EXISTS "ready_at" timestamp with time zone;
 
 -- Backfill legacy orders currently stuck in 'ready'
 UPDATE "public"."order"
