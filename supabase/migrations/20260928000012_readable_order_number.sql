@@ -23,23 +23,30 @@
 
 ALTER TABLE public."order" ADD COLUMN IF NOT EXISTS order_number bigint;
 
--- Number any order that has none yet, oldest first. Runs as the migration
--- role: the audit trigger records nothing (no employee), the notification
--- trigger does not fire (order_status is not being set).
-WITH numbered AS (
-  SELECT order_id,
-         (SELECT coalesce(max(order_number), 1000) FROM public."order")
-           + row_number() OVER (ORDER BY created_at, order_id) AS n
-  FROM public."order"
-  WHERE order_number IS NULL
-)
-UPDATE public."order" o
-SET order_number = numbered.n
-FROM numbered
-WHERE o.order_id = numbered.order_id;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_attribute
+    WHERE attrelid = 'public."order"'::regclass
+      AND attname = 'order_number'
+      AND attidentity <> ''
+  ) THEN
+    WITH numbered AS (
+      SELECT order_id,
+             (SELECT coalesce(max(order_number), 1000) FROM public."order")
+               + row_number() OVER (ORDER BY created_at, order_id) AS n
+      FROM public."order"
+      WHERE order_number IS NULL
+    )
+    UPDATE public."order" o
+    SET order_number = numbered.n
+    FROM numbered
+    WHERE o.order_id = numbered.order_id;
 
--- Every order has one now; an identity column must be NOT NULL first.
-ALTER TABLE public."order" ALTER COLUMN order_number SET NOT NULL;
+    -- Every order has one now; an identity column must be NOT NULL first.
+    ALTER TABLE public."order" ALTER COLUMN order_number SET NOT NULL;
+  END IF;
+END $$;
 
 -- From here the database hands out the numbers, and nothing can overwrite one.
 DO $$

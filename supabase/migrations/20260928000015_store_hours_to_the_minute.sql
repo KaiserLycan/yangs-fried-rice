@@ -23,10 +23,24 @@ ALTER TABLE public.store_setting
   ADD COLUMN IF NOT EXISTS open_time  time,
   ADD COLUMN IF NOT EXISTS close_time time;
 
-UPDATE public.store_setting
-SET open_time  = coalesce(open_time,  make_interval(hours => open_hour)::time),
-    close_time = coalesce(close_time, CASE WHEN close_hour = 24 THEN time '24:00'
-                                           ELSE make_interval(hours => close_hour)::time END);
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_attribute
+    WHERE attrelid = 'public.store_setting'::regclass
+      AND attname = 'open_hour'
+      AND NOT attisdropped
+  ) THEN
+    EXECUTE 'UPDATE public.store_setting
+             SET open_time  = coalesce(open_time,  make_interval(hours => open_hour)::time),
+                 close_time = coalesce(close_time, CASE WHEN close_hour = 24 THEN time ''24:00''
+                                                        ELSE make_interval(hours => close_hour)::time END)';
+  ELSE
+    UPDATE public.store_setting
+    SET open_time = coalesce(open_time, time '08:00'),
+        close_time = coalesce(close_time, time '18:00');
+  END IF;
+END $$;
 
 ALTER TABLE public.store_setting
   ALTER COLUMN open_time  SET DEFAULT time '08:00',
