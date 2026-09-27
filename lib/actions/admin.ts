@@ -979,15 +979,24 @@ export async function getCustomersPaginated({
   if (!auth.data) return { data: null, error: auth.error };
 
   const supabase = createClient();
-  let query = supabase.rpc("get_customer_stats", undefined, { count: "exact" });
+  // The search is a function argument, matched in SQL as a plain value
+  // (20260928000011) — never pasted into a PostgREST filter expression. The
+  // generated database types predate the parameter.
+  const rpc = supabase.rpc.bind(supabase) as unknown as (
+    fn: "get_customer_stats",
+    args: Record<string, unknown>,
+    options: { count: "exact" },
+  ) => ReturnType<typeof supabase.rpc<"get_customer_stats">>;
+  let query = rpc(
+    "get_customer_stats",
+    { p_search: search.trim() || null },
+    { count: "exact" },
+  );
 
-  if (search.trim()) {
-    query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,phone_number.ilike.%${search}%`);
-  }
-
-  // Handle sort
+  // Handle sort: only the columns the table offers.
+  const column = SORTABLE_CUSTOMER_COLUMNS.includes(sortColumn) ? sortColumn : "name";
   const isAsc = sortDirection === "asc";
-  query = query.order(sortColumn, { ascending: isAsc }).order("customer_id", { ascending: true });
+  query = query.order(column, { ascending: isAsc }).order("customer_id", { ascending: true });
 
   const offset = (page - 1) * pageSize;
   const limit = pageSize - 1;
