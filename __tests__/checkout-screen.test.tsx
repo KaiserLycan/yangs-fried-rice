@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { CheckoutScreen } from "@/components/checkout/checkout-screen";
 import { ToastProvider } from "@/components/ui/toast";
 import type { CartLine } from "@/lib/menu/cart-totals";
