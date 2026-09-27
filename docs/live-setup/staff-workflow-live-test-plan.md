@@ -411,16 +411,18 @@ Expected: no Customers link in the sidebar; the URL redirects or refuses access.
 1. Report type **Sales and Order**.
 
 Expected: **Export to PDF** (red) and **Export CSV** (orange) side by side. Both disabled if End date is before Start date.
-2. Switch to the menu / customer satisfaction report.
+2. Switch to **Menu & Customer Satisfaction**.
 
-Expected: Export CSV is not offered there.
+Expected: **Export CSV** is there too.
 - [ ] Pass - [ ] Fail — notes: ______
 
-**TC-04-02 CSV contents** · setup: at least 2 completed pay-in-store orders, 1 completed GCash order if available, 2 cancelled orders (one with preset reason, one with "Other" text containing a comma, e.g. `Rain, store flooded`)
-1. Range covering today → **Export CSV**.
+**TC-04-02 Sales CSV contents** · setup: at least 2 completed pay-in-store orders, 1 completed GCash order if available, 2 cancelled orders (one with preset reason, one with "Other" text containing a comma, e.g. `Rain, store flooded`)
+1. Sales and Order, range covering today → **Export CSV**.
 
-Expected file `yangs_report_<start>_to_<end>.csv` containing, in order:
-- `Yang's Fried Rice report`, `Date range`, `Times,Asia/Manila`
+Expected file `yangs-sales-and-order-<start>-to-<end>.csv` (same name as the PDF, `.csv`) containing, in order:
+- `Yang's Fried Rice report,Sales and Order`, `Date range`, `Times`
+- **Summary** — Total revenue, Total orders, Average order value, Average revenue per day, Average orders per day; the first three match the cards on screen
+- **Sales by day** — one row per day in the range, matching the chart
 - **Cash remitted (collected at the counter)** — `Date,Orders,Cash (PHP)` rows + `Total`
 - **Sales by payment method** — `Pay in store` / `GCash / e-wallet` rows
 - **Sales by hour of day** — exactly 24 rows
