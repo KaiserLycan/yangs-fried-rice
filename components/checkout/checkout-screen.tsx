@@ -148,6 +148,7 @@ export function CheckoutScreen({
                 paymentMethod={paymentMethod}
                 wallet={wallet}
                 arrivalEstimate={arrivalEstimate}
+                pickupBy={pickupBy}
               />
             </div>
           </div>
