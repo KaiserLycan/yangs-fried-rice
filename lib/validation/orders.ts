@@ -128,6 +128,9 @@ export const orderFilterSchema = z.object({
   customer_id: z.string().optional(),
   customer_phone: z.string().optional(),
   payment_method: z.string().optional(),
+  /** Order total (₱, items + add-ons) at least / at most this. */
+  min_total: z.coerce.number().min(0).max(10000000).optional(),
+  max_total: z.coerce.number().min(0).max(10000000).optional(),
   /** "take_out" (also matches legacy pickup spellings) or "dine_in". */
   order_type: z.enum(["take_out", "dine_in"]).optional(),
   /**
