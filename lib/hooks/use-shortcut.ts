@@ -16,7 +16,7 @@ import * as React from "react";
  */
 export const SHORTCUTS = {
   submitForm: { combo: "mod+enter", label: "Save / submit the open form" },
-  focusSearch: { combo: "/", label: "Search the menu" },
+  focusSearch: { combo: "/", label: "Search (menu, audit log)" },
   openCart: { combo: "shift+c", label: "Go to your cart" },
   openOrders: { combo: "shift+o", label: "Go to your orders" },
   placeOrder: { combo: "mod+enter", label: "Place order (checkout)" },

@@ -17,7 +17,7 @@ The shop is **pickup-only** (issue #114). There is no delivery or rider role; a 
 - Orders page with status tabs, search by order number, and a detail view.
 - Kitchen Display System (KDS) for the cooking queue.
 - Menu, categories and add-ons, with archiving instead of deleting.
-- Manager only: dashboard, sales reports with PDF export, customer and employee management.
+- Manager only: dashboard, sales reports with PDF export, customer and employee management, and the **audit log** (`/manage/audit-log`) — every action staff and managers take, who took it and when, with before/after values.
 
 ### User roles
 
@@ -98,6 +98,8 @@ A **disabled** account (`is_account_disabled`) is refused by every server guard 
 | `trg_guard_customer_order_update` | An `order` row is updated | For a signed-in non-employee, refuses any change except `order_status`, `cancelled_at`, `cancellation_reason` | `migrations/20260927000001_atomic_checkout_and_order_write_lockdown.sql` |
 | `trg_guard_employee_self_update` | An `employee` row is updated | Unless the caller is a manager (or the service role), refuses changing a role or the id, or re-enabling a disabled account | `migrations/20260927000002_security_hardening_indexes_and_storage.sql` |
 | `trg_guard_customer_self_update` | A `customer` row is updated | Stops a customer changing their id or re-enabling their own disabled account | `migrations/20260927000002_security_hardening_indexes_and_storage.sql` |
+| `trg_audit_employee_write` | An employee inserts, updates or deletes a row in `order`, `transaction`, `product`, `categories`, `add_on`, `employee`, `customer`, `reports`, `review` or `notification` | Writes one `audit_log` entry: who, when, the action (e.g. `order.status_change`, `product.price_change`), a readable summary and only the columns that changed. Skips customers, webhooks and the service role | `migrations/20260927000004_employee_audit_log.sql`, `…0005_audit_log_review_fixes.sql` |
+| `trg_audit_log_append_only`, `trg_audit_log_no_truncate` | Anyone tries to change, delete or truncate `audit_log` | Refuses — even the service role | `migrations/20260927000004_employee_audit_log.sql` |
 | `on_auth_user_password_update` | A user's password changes | Sets `password_last_updated` on the matching `employee` or `customer` row | `migrations/000_remote_schema.sql` |
 | `on_auth_email_confirmed` | A user confirms a new email | Copies the confirmed email into `customer.email` | `supabase/profile-rls-and-triggers.sql` (not a migration — run it by hand) |
 
@@ -106,8 +108,18 @@ A **disabled** account (`is_account_disabled`) is refused by every server guard 
 - `current_employee_role` — the caller's role, or null for a customer or a **disabled** employee. Staff policies go through it.
 - `get_customer_order_history` — the customer's My Orders list, newest first.
 - `submit_order_review` — saves an order's rating.
+- `record_employee_action` — adds an `audit_log` entry for what the trigger can't see: service-role writes (creating, editing, deleting employees; photos), password changes and resets (never the password), sign-in and sign-out, and report exports. The actor comes from the session, never a parameter; each action is checked (employee management and exports need a manager; session events, own photo and own account deletion must be about the caller). A customer calling it gets nothing written. Call it through `lib/audit/record-employee-action.ts`, which never throws.
 
 Every `SECURITY DEFINER` function has `search_path = public` pinned.
+
+### Audit log
+`audit_log` records every employee interaction — see the trigger and `record_employee_action` above. Rules worth knowing:
+- **Append-only.** Entries can't be updated, deleted or truncated by anyone, including the service role. Removing that takes a migration.
+- **Managers only** can read it (RLS), at `/manage/audit-log` or `GET /api/audit-log`. Staff see nothing.
+- **What's stored:** actor id, name and role (copied, so history survives deleting an employee), the action, the record, a summary, and `{ column: { from, to } }` for changed columns only.
+- **What isn't:** passwords; Senior/PWD ID numbers (`[redacted]`); a customer's personal data, review comments and order notes (recorded as changed, value `[personal data]`, so an erasure request is not defeated by a log that can't be purged). Customers are named `Customer #<id prefix>`.
+- **Adding a new employee action:** if it writes through the employee's session to one of the audited tables, it's captured automatically. If it uses the service role, Auth, or writes nothing, call `recordEmployeeAction` and add the action to `APP_AUDIT_ACTIONS` **and** to `record_employee_action`'s checks in a migration — a test fails if the two drift apart.
+- **Not decided yet:** a retention period (the log only grows), and alerting when an app-side entry fails (it's logged to the server console and never blocks the action).
 
 ### Row Level Security
 Every public table has RLS on. An `employee` row is readable by that employee and by staff, and writable by that employee or a manager. Creating and deleting employees goes through the service role after a manager check (`lib/actions/admin.ts`).
@@ -221,6 +233,7 @@ app/
 components/        # UI grouped by area (manage, orders, menu, auth, ui)
 lib/
   actions/         # Server actions (orders, cart, menu, reports, …)
+  audit/           # Audit log vocabulary and the app-side recorder
   auth/            # Roles, employee session, account status, login rate limit
   checkout/        # Payment methods, PayMongo, arrival estimate
   eta/             # Ready-time estimate engine

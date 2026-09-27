@@ -151,7 +151,7 @@ Chain apps don't publish their back office, so this section compares us with the
 | Loyalty tiers | ❌ | ✅ | — |
 | Refund workflow | ❌ | ✅ | — |
 | Cash shift / variance | ❌ (**L19** covers riders) | ✅ | — |
-| Audit log | ❌ (**L9** covers orders) | ✅ | — |
+| Audit log | ✅ every employee action, append-only, manager view | ✅ | — |
 | Pause store / busy mode | ❌ (**L7**) | — | — |
 | Dark mode, installable (PWA) | ❌ | ✅ | — |
 
@@ -176,7 +176,7 @@ inventory, refunds, shift cash counts and an audit log. These matter to a real o
 | Security headers (CSP, frame blocking) | ❌ (**L5**) | — | — | Recommended |
 | Two-factor login for managers | ❌ | — | — | Recommended |
 | CAPTCHA on sign-up | ❌ | — | — | Recommended |
-| Audit log | ❌ | ✅ | — | Recommended |
+| Audit log | ✅ | ✅ | — | Recommended |
 | Security test report | ✅ (Phase 4 report) | — | — | Recommended |
 
 **Analysis:** the login side is well protected: rate limiting, signed webhooks, a separate employee session and a security
@@ -204,7 +204,7 @@ on the measures that matter most.
   security headers (L5), notifications (L10), contact details (L11, L13), pause store (L7).
 
 **Behind (future work)**
-- Vouchers and rewards, scheduled orders, card payments, chat, live rider GPS, native app/push, inventory, refunds, audit log.
+- Vouchers and rewards, scheduled orders, card payments, chat, live rider GPS, native app/push, inventory, refunds.
 
 ---
 
