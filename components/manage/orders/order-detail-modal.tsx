@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { PickupFollowup } from "@/components/manage/orders/pickup-followup";
 import { changeDue } from "@/lib/checkout/order-rules";
 import { paymongoPaymentUrl } from "@/lib/checkout/paymongo-dashboard";
+import { OrderHistory } from "@/components/manage/orders/order-history";
 
 interface OrderDetailModalProps {
   order: OrderData | null;
@@ -121,6 +122,8 @@ export function OrderDetailModal({ order, isOpen, onClose, onAction, onChanged }
         {/* Scrollable Body */}
         <div className="p-5 flex-1 overflow-y-auto max-h-[60vh]">
           {order.refund ? <RefundNotice refund={order.refund} /> : null}
+
+          <OrderHistory orderId={order.id} />
 
           {/* Senior Citizen / PWD Verification */}
           {order.seniorPwd && (

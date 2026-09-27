@@ -882,3 +882,56 @@ export async function getPaymentIssuesForAdmin(): Promise<ActionResult<PaymentIs
   const supabase = createClient();
   return _fetchPaymentIssuesBase(supabase, false);
 }
+
+// ---------------------------------------------------------------------------
+// Status history (limitations #9, FINALE 9.7)
+// ---------------------------------------------------------------------------
+
+export type OrderHistoryEntry = {
+  toStatus: string;
+  changedAt: string;
+  /** Who did it: a staff name, "Customer", or "System" (webhook, timers). */
+  changedBy: string;
+  reason: string | null;
+};
+
+/**
+ * Every status change of one order, oldest first, with who made it — so the
+ * order itself answers "who cancelled this?" without a trip to the audit log.
+ */
+export async function getOrderStatusHistory(
+  orderId: string,
+): Promise<ActionResult<OrderHistoryEntry[]>> {
+  const auth = await requireManageAccess();
+  if (!auth.data) return { data: null, error: auth.error };
+
+  const supabase = createClient();
+  const { data: rows, error } = await supabase
+    .from("order_status_log")
+    .select("to_status, changed_at, changed_by, reason")
+    .eq("order_id", orderId)
+    .order("changed_at", { ascending: true });
+  if (error) return { data: null, error: "Couldn't load this order's history." };
+
+  const actorIds = Array.from(
+    new Set((rows ?? []).map((row) => row.changed_by).filter((id): id is string => Boolean(id))),
+  );
+  const { data: staff } = actorIds.length
+    ? await supabase.from("employee").select("employee_id, name").in("employee_id", actorIds)
+    : { data: [] as { employee_id: string; name: string | null }[] };
+  const staffName = new Map((staff ?? []).map((row) => [row.employee_id, row.name] as const));
+
+  return {
+    data: (rows ?? []).map((row) => ({
+      toStatus: row.to_status ?? "unknown",
+      changedAt: row.changed_at,
+      changedBy: !row.changed_by
+        ? "System"
+        : staffName.has(row.changed_by)
+          ? (staffName.get(row.changed_by) ?? "Staff")
+          : "Customer",
+      reason: row.reason,
+    })),
+    error: null,
+  };
+}
