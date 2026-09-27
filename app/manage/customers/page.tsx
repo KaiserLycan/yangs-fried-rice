@@ -11,6 +11,8 @@ import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast, ToastProvider } from "@/components/ui/toast";
 import { getCustomersPaginated, deleteCustomer, type CustomerStats } from "@/lib/actions/admin";
+import { CustomerFilterPopover } from "@/components/manage/customers/customer-filter-popover";
+import { activeCustomerFilterCount, type CustomerFilters } from "@/lib/validation/customer-filters";
 
 // Extend CustomerData to include lifetime stats for the table display
 export type EnhancedCustomerData = CustomerData & {
