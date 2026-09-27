@@ -295,10 +295,10 @@ describe("TrackOrderScreen", () => {
       screen.getByRole("button", { name: "Cancel order" }),
     ).toBeInTheDocument();
 
-    // A legacy `received` row (retired in issue #118): same "Order received"
-    // stage, but the backend will not cancel it, so the note shows instead.
+    // An older spelling of the first stage: same "Order received" stage,
+    // but the backend only cancels `pending`, so the note shows instead.
     rerender(
-      <TrackOrderScreen order={trackedOrder({ orderStatus: "received" })} />,
+      <TrackOrderScreen order={trackedOrder({ orderStatus: "pending_confirmation" })} />,
     );
     expect(
       screen.queryByRole("button", { name: "Cancel order" }),

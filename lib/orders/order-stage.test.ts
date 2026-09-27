@@ -34,12 +34,7 @@ function input(over: Partial<OrderStageInput> = {}): OrderStageInput {
 }
 
 describe("resolveOrderProgress", () => {
-  it("reads the vocabulary the back office writes, plus the retired `received` on old rows", () => {
-    expect(resolveOrderProgress(input({ orderStatus: "received" }))).toEqual({
-      kind: "stage",
-      stage: "received",
-      orderStatus: "received",
-    });
+  it("reads the vocabulary the back office writes", () => {
     expect(resolveOrderProgress(input({ orderStatus: "preparing" }))).toEqual({
       kind: "stage",
       stage: "preparing",
@@ -489,7 +484,7 @@ describe("stageReachedAt", () => {
   it("keeps the earliest time when a stage is reached twice", () => {
     const reached = stageReachedAt([
       { toStatus: "pending", changedAt: "2026-09-27T07:10:00Z" },
-      { toStatus: "received", changedAt: "2026-09-27T07:02:00Z" },
+      { toStatus: "pending", changedAt: "2026-09-27T07:02:00Z" },
     ]);
     expect(reached.received).toBe("2026-09-27T07:02:00Z");
   });

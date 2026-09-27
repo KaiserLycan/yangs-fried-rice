@@ -635,7 +635,7 @@ export async function getTodayOrderStats(): Promise<ActionResult<TodayOrderStats
   return {
     data: {
       placed: rows.length,
-      active: rows.filter((r) => ["pending", "received", "preparing", "ready"].includes(r.order_status ?? "")).length,
+      active: rows.filter((r) => ["pending", "preparing", "ready"].includes(r.order_status ?? "")).length,
       completed: rows.filter((r) => r.order_status === "completed").length,
       cancelled: rows.filter((r) => r.order_status === "cancelled").length,
       noShows: rows.filter((r) => r.no_show_reason !== null).length,

@@ -13,14 +13,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 /**
  * The statuses that mean "this is still cooking or waiting to".
  *
- * `order_status` is plain nullable text with no CHECK constraint, so this is
- * a list of the values the app actually writes rather than an enum anything
- * enforces. `awaiting_payment` and `payment_failed` are deliberately absent:
+ * Mirrors the kitchen count in `get_store_status()` and
+ * `submit_cart_to_order` (migration 20260929140000, which also added the
+ * CHECK on `order_status`). `awaiting_payment` and `payment_failed` are
+ * deliberately absent:
  * an unpaid order is not in the kitchen and must not lengthen anyone's wait.
  */
 export const ACTIVE_KITCHEN_STATUSES = [
   "pending",
-  "confirmed",
   "preparing",
 ] as const;
 

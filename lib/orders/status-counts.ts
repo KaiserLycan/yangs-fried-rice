@@ -4,7 +4,7 @@ import type { createClient } from "@/lib/supabase/server";
  * How many orders are in each stage, for the manager's store panel
  * (issue #115 follow-up). The same columns the Orders page uses:
  *
- *   Queue        pending + received      waiting to be cooked
+ *   Queue        pending                 waiting to be cooked
  *   Prep         preparing               being cooked
  *   For pickup   ready (+ legacy out_for_delivery)
  *   Completed    completed today
@@ -59,7 +59,7 @@ export async function readOrderStatusCounts(
 
   try {
     const [queue, prep, pickup, completedToday, cancelledToday] = await Promise.all([
-      orders().in("order_status", ["pending", "received"]).then(n),
+      orders().eq("order_status", "pending").then(n),
       orders().eq("order_status", "preparing").then(n),
       orders().in("order_status", ["ready", "out_for_delivery"]).then(n),
       orders().eq("order_status", "completed").gte("completed_at", since).then(n),

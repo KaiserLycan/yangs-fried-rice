@@ -199,9 +199,9 @@ function normaliseStatus(value: string | null): string | null {
 }
 
 const ORDER_STATUS_STAGES: Record<string, OrderStage | "cancelled"> = {
-  // lib/validation/orders.ts — the vocabulary the back office writes today,
-  // plus `received`, retired in issue #118 but still read for old rows.
-  received: "received",
+  // lib/validation/orders.ts — the vocabulary the back office writes today.
+  // `received` was retired in issue #118 and is refused by the CHECK on
+  // order_status since FINALE 7.3.
   preparing: "preparing",
   ready: "preparing", // Ready for pickup/dispatch is functionally still 'preparing' in the 4-step UI
   out_for_delivery: "out_for_delivery",
@@ -296,9 +296,9 @@ const CANCELLABLE_STATUS = "pending";
  * we cannot reason about.
  *
  * The line is drawn one notch finer than the stage (ticket 15, decision A).
- * Older spellings (`received`, `pending_confirmation`) also resolve to the
- * "Order received" stage, but the backend only cancels `pending` — nothing
- * writes `received` any more (issue #118). Offering the button on the others
+ * The older `pending_confirmation` spelling also resolves to the "Order
+ * received" stage, but the backend only cancels `pending`. Offering the
+ * button on it
  * would show it and then fail, so the rule reads the status the stage was
  * resolved from, not the stage.
  */
