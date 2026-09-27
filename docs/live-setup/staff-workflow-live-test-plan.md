@@ -666,14 +666,17 @@ Expected: it is not on Cancelled (Today).
 Expected: it appears — it's about when it was cancelled.
 - [ ] Pass - [ ] Fail — notes: ______
 
-**TC-08-06 For Pick-up tab works** (was always empty before this release)
+**TC-08-06 For Pick-up shows what is waiting now; overdue moves to Failed Pick-up**
 1. Mark O1 **Ready** on the KDS. Open **For Pick-up**.
 
-Expected: O1 is listed with a **Pay In-store** chip and a timer counting from when it was marked ready. Clicking the card opens **Order #… — Mark order as picked up**.
-2. Run helper **B4** on O1, open **Failed Pick-up**.
+Expected: O1 is listed (take-out or dine-in, any payment) with a **Pay In-store** chip if unpaid, and a timer counting from when it was marked ready. No order that has been ready for 90+ minutes is on this tab. Clicking the card opens **Order #… — Mark order as picked up**.
+2. Mark an order ready from **another app on the same database** (e.g. the live `main` site), or directly: `UPDATE public."order" SET order_status = 'ready' WHERE order_id::text LIKE 'ORDERNUM%';`
 
-Expected: O1 is listed there (ready 90+ minutes, pay in store, not collected).
-3. Mark it picked up.
+Expected: it appears on For Pick-up too (the database stamps the ready time itself).
+3. Run helper **B4** on O1, open **Failed Pick-up**.
+
+Expected: O1 has left For Pick-up and is on Failed Pick-up, header red, clock past 90:00. Old orders stuck at "ready" from before this release are here too, not on For Pick-up.
+4. Mark it picked up.
 - [ ] Pass - [ ] Fail — notes: ______
 
 **TC-08-07 No flicker on refresh**
