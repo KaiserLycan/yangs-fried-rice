@@ -1,7 +1,11 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { reviewSubmissionSchema, type ReviewSubmission } from "@/lib/validation/reviews";
+import {
+  orderRatingsSchema,
+  reviewSubmissionSchema,
+  type ReviewSubmission,
+} from "@/lib/validation/reviews";
 import {
   ACCOUNT_DISABLED_CODE,
   ACCOUNT_DISABLED_MESSAGE,
@@ -278,4 +282,55 @@ export async function submitReview(
   }
 
   return { data: data as unknown as ReviewResult, error: null };
+}
+
+/** Shape returned by the submit_order_ratings RPC. */
+export type OrderRatingsResult = {
+  order_id: string;
+  food: number;
+  service: number | null;
+  dishes_rated: number;
+};
+
+/**
+ * Rate a completed order: food (required), service (optional) and, if the
+ * customer chose to, each dish (FINALE 2.3).
+ *
+ * Calls `submit_order_ratings`, which writes the order-level `review` row
+ * (`rating` = food, `service_rating` = service) and one row per rated dish,
+ * and owns the same rules `submit_order_review` does — ownership, completed
+ * orders only, once per order. Dishes that were not in the order are skipped
+ * there, not trusted from here.
+ */
+export async function submitOrderRatings(
+  orderId: string,
+  rawData: unknown,
+): Promise<ActionResult<OrderRatingsResult>> {
+  const auth = await requireCustomer();
+  if (!auth.data) return { data: null, error: auth.error, code: auth.code };
+
+  const parsed = orderRatingsSchema.safeParse(rawData);
+  if (!parsed.success) {
+    return { data: null, error: parsed.error.errors[0].message };
+  }
+
+  const { food, service, comment, items } = parsed.data;
+
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("submit_order_ratings", {
+    p_order_id: orderId,
+    p_food: food,
+    p_service: service ?? undefined,
+    p_comment: comment ?? undefined,
+    p_items: items.map((item) => ({
+      product_id: item.productId,
+      rating: item.rating,
+    })),
+  });
+
+  if (error) {
+    return { data: null, error: error.message };
+  }
+
+  return { data: data as unknown as OrderRatingsResult, error: null };
 }

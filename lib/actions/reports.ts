@@ -115,6 +115,12 @@ export type CustomerSatisfaction = {
   totalReviews: number;
   /** One entry per star, 5 → 1, so a chart can draw them in order. */
   distribution: { rating: number; count: number }[];
+  /**
+   * Mean `review.service_rating` to one decimal (FINALE 2.3), or null when no
+   * order in the range was given a service score. Order-level rows only.
+   */
+  averageServiceRating: number | null;
+  serviceReviews: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -493,18 +499,24 @@ export async function getPlatformPerformance(
   // ratings yet" instead of returning an error.
   const { data: reviewRows } = await supabase
     .from("review")
-    .select("rating")
+    .select("rating, service_rating")
     .gte("created_at", manilaDayStart(start_date))
     .lte("created_at", manilaDayEnd(end_date));
 
-  const ratings = (reviewRows ?? [])
-    .map((row) => row.rating)
-    .filter((rating): rating is number => typeof rating === "number");
+  const scores = (column: "rating" | "service_rating") =>
+    (reviewRows ?? [])
+      .map((row) => row[column])
+      .filter((rating): rating is number => typeof rating === "number");
+  const mean = (values: number[]) =>
+    values.length > 0
+      ? Math.round((values.reduce((sum, r) => sum + r, 0) / values.length) * 10) / 10
+      : null;
+  const ratings = scores("rating");
+  const serviceRatings = scores("service_rating");
   const customerSatisfaction: CustomerSatisfaction = {
-    averageRating:
-      ratings.length > 0
-        ? Math.round((ratings.reduce((sum, r) => sum + r, 0) / ratings.length) * 10) / 10
-        : null,
+    averageRating: mean(ratings),
+    averageServiceRating: mean(serviceRatings),
+    serviceReviews: serviceRatings.length,
     totalReviews: ratings.length,
     distribution: [5, 4, 3, 2, 1].map((rating) => ({
       rating,
@@ -929,8 +941,21 @@ export async function generatePerformancePDF(
             : `${data.customerSatisfaction.averageRating} / 5 (${data.customerSatisfaction.totalReviews} reviews)`,
       },
       {
+        label: "Service Rating",
+        value:
+          data.customerSatisfaction.averageServiceRating === null
+            ? "No ratings yet"
+            : `${data.customerSatisfaction.averageServiceRating} / 5 (${data.customerSatisfaction.serviceReviews} orders)`,
+      },
+    ],
+    [
+      {
         label: "5-Star Reviews",
         value: `${data.customerSatisfaction.distribution.find((d) => d.rating === 5)?.count ?? 0}`,
+      },
+      {
+        label: "Completion Rate",
+        value: `${data.completionRate}% (${data.cancelledOrders} cancelled)`,
       },
     ],
   ]);

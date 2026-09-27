@@ -162,6 +162,7 @@ export function PastOrderCard({ order }: { order: PastOrder }) {
             <RateOrderButton
               orderId={order.orderId}
               orderNumber={order.orderNumber}
+              items={order.items}
             />
             {reorderButton}
           </div>

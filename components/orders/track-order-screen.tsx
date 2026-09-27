@@ -398,6 +398,7 @@ export function TrackOrderScreen({ order }: { order: TrackedOrder }) {
                   <RateOrderButton
                     orderId={orderId}
                     orderNumber={order.orderNumber}
+                    items={order.items}
                   />
                 </>
               )}

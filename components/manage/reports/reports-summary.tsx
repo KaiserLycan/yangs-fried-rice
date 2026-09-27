@@ -123,7 +123,8 @@ export function ReportsSummary({ type: rawType = SALES_REPORT, startDate, endDat
 
   if (type !== SALES_REPORT && perfData) {
     const topProduct = perfData.topSellingProducts[0];
-    const { averageRating, totalReviews } = perfData.customerSatisfaction;
+    const { averageRating, totalReviews, averageServiceRating, serviceReviews } =
+      perfData.customerSatisfaction;
     return (
       <div className="flex flex-col md:flex-row md:flex-wrap gap-3.5">
         <StatCard
@@ -145,6 +146,18 @@ export function ReportsSummary({ type: rawType = SALES_REPORT, startDate, endDat
           value={averageRating === null ? "No ratings" : `${averageRating.toFixed(1)} ★`}
           subtitle={`${totalReviews} ${totalReviews === 1 ? "review" : "reviews"}`}
           subtitleColor={averageRating !== null && averageRating >= 4 ? "green" : "muted"}
+        />
+        <StatCard
+          label="Service Rating"
+          value={
+            averageServiceRating === null
+              ? "No ratings"
+              : `${averageServiceRating.toFixed(1)} ★`
+          }
+          subtitle={`${serviceReviews} ${serviceReviews === 1 ? "order" : "orders"}`}
+          subtitleColor={
+            averageServiceRating !== null && averageServiceRating >= 4 ? "green" : "muted"
+          }
         />
         <StatCard
           label="Completion Rate"
