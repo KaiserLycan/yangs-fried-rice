@@ -399,8 +399,9 @@ Expected: no Customers link in the sidebar; the URL redirects or refuses access.
 > **Issue:** Write queries for detailed report breakdowns: by payment method, by hour-of-day/weekday, by cancellation reason. Wire up a frontend CSV download button next to the existing PDF button.
 
 **Acceptance criteria**
-- AC-04.1 On `/manage/reports` (Sales and Order report, manager), an **Export CSV** button sits next to **Export to PDF**.
-- AC-04.2 The CSV contains, for the chosen date range: **Cash remitted** by day with a total, **Sales by payment method**, **Sales by hour of day** (24 rows, 12 AM – 1 AM … 11 PM – 12 AM), **Sales by weekday** (Sunday … Saturday), **Cancellations by reason**.
+- AC-04.1 On `/manage/reports` (manager), an **Export CSV** button sits next to **Export to PDF** on **both** report views, and exports the view on screen.
+- AC-04.2 **Sales and Order** CSV, for the chosen date range: **Summary** (the page's figures), **Sales by day**, **Cash remitted** by day with a total, **Sales by payment method**, **Sales by hour of day** (24 rows, 12 AM – 1 AM … 11 PM – 12 AM), **Sales by weekday** (Sunday … Saturday), **Cancellations by reason**.
+- AC-04.2b **Menu & Customer Satisfaction** CSV: **Overview** (customers, orders, completed/cancelled, completion and cancellation rates, revenue, average order value, change vs the previous period, dishes on the menu), **Top selling dishes**, **Customer satisfaction** (average rating, reviews, count per star).
 - AC-04.3 Hours, weekdays and days are **Manila time** (the file says so).
 - AC-04.4 Payment method spellings are grouped: "Pay in store" and "GCash / e-wallet".
 - AC-04.5 Text with commas or quotes (e.g. a typed cancel reason) stays in one cell; the file opens correctly in Excel/Sheets (including ₱ and accents).
