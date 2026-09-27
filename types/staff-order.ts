@@ -22,6 +22,8 @@ export type OrderData = {
   id: string;
   rawCreatedAt?: string | null;
   rawReadyAt?: string | null;
+  /** The database status behind `status` — tells "awaiting payment" from "payment failed" under UNPAID. */
+  dbStatus?: string | null;
   paymentMethod?: string | null;
   /**
    * True only for an order placed before the shop went pickup-only
