@@ -63,6 +63,7 @@ export function CheckoutScreen({
   const [wallet, setWallet] = React.useState<WalletProvider>(
     DEFAULT_WALLET_PROVIDER,
   );
+  const [pickupBy, setPickupBy] = React.useState<PickupBy>("self_pickup");
 
   const totals = computeCartTotals({ lines, fulfilment, distanceKm });
 
