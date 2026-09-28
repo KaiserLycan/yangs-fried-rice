@@ -106,7 +106,7 @@ export function PromoCodeField({
       >
         Promo code
       </label>
-      <div className="flex gap-2">
+      <div className="flex w-full items-stretch gap-2">
         <Input
           id={inputId}
           name="promo_code"
@@ -129,14 +129,16 @@ export function PromoCodeField({
           disabled={disabled}
           invalid={Boolean(error)}
           aria-describedby={error ? errorId : blockedReason ? `${inputId}-blocked` : undefined}
-          className="font-mono uppercase"
+          className="min-w-0 flex-1 font-mono uppercase"
         />
         <Button
           type="button"
           variant="outline"
           onClick={() => void apply()}
           disabled={disabled || checking || draft.length === 0}
-          className="shrink-0"
+          // The outline variant is full width by default; here it hugs its
+          // label so the input gets the rest of the row.
+          className="w-auto shrink-0 whitespace-nowrap px-5"
         >
           {checking ? "Checking…" : "Apply"}
         </Button>
