@@ -25,6 +25,28 @@ export const SELLER_NAME = SITE_NAME;
 export const SELLER_ADDRESS = SITE_BRANCH;
 
 /**
+ * The seller block printed at the top of every receipt, in the order a
+ * Philippine sales receipt lists it.
+ *
+ * TODO(owner): fill in the TIN and the BIR permit number from the store's
+ * Certificate of Registration. Until then the receipt prints the label with
+ * a dash — the repository must never invent a tax number.
+ */
+export const RECEIPT_BUSINESS: {
+  registeredName: string;
+  tradeName: string;
+  address: string;
+  vatRegTin: string | null;
+  birPermitNumber: string | null;
+} = {
+  registeredName: SELLER_NAME,
+  tradeName: SITE_NAME,
+  address: SELLER_ADDRESS,
+  vatRegTin: null,
+  birPermitNumber: null,
+};
+
+/**
  * Where a customer collects their order. The "ready for pickup" notification
  * is written by a database trigger
  * (`20260928000000_notifications_order_issues_and_realtime.sql`) and spells

@@ -2,10 +2,6 @@
 
 import type { TablesUpdate } from "@/types/database.types";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { IMAGE_BUCKETS } from "@/lib/storage/stored-image";
-import { removeStoredImage } from "@/lib/storage/remove-stored-image";
-import { recordEmployeeAction } from "@/lib/audit/record-employee-action";
 import { isManager, resolveEmployeeRole, type EmployeeRole } from "@/lib/auth/roles";
 import { toInternationalMobile } from "@/lib/validation/phone";
 import { joinFullName } from "@/lib/validation/fields";
@@ -239,13 +235,13 @@ function describeProfileUpdateError(error: {
 }
 
 // ---------------------------------------------------------------------------
-// Deactivate / Delete (AC3)
+// Deactivate (AC3)
 // ---------------------------------------------------------------------------
 
 /**
  * Deactivates the caller's own account. Always available regardless of
  * history — reversible by a Manager later (lib/actions/admin.ts's
- * toggleEmployeeDisabled), unlike deletion.
+ * toggleEmployeeDisabled).
  */
 export async function deactivateMyEmployeeAccount(): Promise<
   ActionResult<undefined>
@@ -269,85 +265,8 @@ export async function deactivateMyEmployeeAccount(): Promise<
   return { success: true, data: undefined };
 }
 
-/**
- * Permanently deletes the caller's own employee account — ONLY when
- * they have no historical records referencing them (reports generated). Employee history is an audit
- * trail, not personal data the way a customer's cart is; deleting an
- * employee who has processed real orders would either violate FK
- * constraints or destroy accountability records depending on how those
- * FKs are configured. Per AC3's own wording ("preserved for record-
- * keeping... as required"), deactivation is the correct action once any
- * history exists — this function refuses deletion in that case rather
- * than silently anonymizing records that matter for accountability.
+/*
+ * There is deliberately no self-delete for employees: an employee account is
+ * never deleted, only deactivated (above) or disabled by a manager, so the
+ * records and audit history tied to it are preserved.
  */
-export async function deleteMyEmployeeAccount(): Promise<
-  ActionResult<undefined>
-> {
-  const supabase = createClient();
-  const caller = await requireEmployee(supabase);
-  if (!caller) {
-    return { success: false, error: "You must be signed in as an employee." };
-  }
-
-  // `order.employee_id` and the `delivery` table are both gone (nothing
-  // wrote the first; the second went with pickup-only, issue #114), so
-  // generated reports are the history left to protect. A failed count is
-  // treated as history: refusing is the safe answer when we can't tell.
-  const reportsResult = await supabase
-    .from("reports")
-    .select("report_id", { count: "exact", head: true })
-    .eq("generated_by_employee_id", caller.employeeId);
-
-  if (reportsResult.error || (reportsResult.count ?? 0) > 0) {
-    return {
-      success: false,
-      error:
-        "Your account has report history and can't be deleted. Deactivate your account instead.",
-    };
-  }
-
-  // Read before the row goes: the photo is only reachable through it.
-  const { data: photoRow } = await supabase
-    .from("employee")
-    .select("profileImage_URL, name")
-    .eq("employee_id", caller.employeeId)
-    .maybeSingle();
-
-  // Recorded first: once the row is deleted the database no longer knows
-  // this person as an employee, and the log would refuse to name them.
-  await recordEmployeeAction(supabase, {
-    action: "employee.delete",
-    entityType: "employee",
-    entityId: caller.employeeId,
-    summary: `Employee "${photoRow?.name ?? "Unknown employee"}" deleted their own account`,
-  });
-
-  // Service role: `employee` has no DELETE policy (RLS), so a session delete
-  // would match zero rows and "succeed" while leaving the row behind, and the
-  // auth user below would then be orphaned from it. The caller is verified
-  // above and the delete is pinned to their own id.
-  const admin = createAdminClient();
-  const { data: deletedRows, error: employeeError } = await admin
-    .from("employee")
-    .delete()
-    .eq("employee_id", caller.employeeId)
-    .select("employee_id");
-  if (employeeError || !deletedRows || deletedRows.length === 0) {
-    return { success: false, error: "Could not delete your account. Please try again." };
-  }
-
-  const { error: authDeleteError } = await admin.auth.admin.deleteUser(
-    caller.employeeId,
-  );
-  if (authDeleteError) {
-    return {
-      success: false,
-      error:
-        "Your data was removed, but we couldn't fully close your account. Please contact support.",
-    };
-  }
-
-  await removeStoredImage(IMAGE_BUCKETS.employeeAvatar, photoRow?.profileImage_URL);
-  await supabase.auth.signOut();
-  return { success: true, data: undefined };
-}

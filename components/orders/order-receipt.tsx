@@ -7,11 +7,13 @@ import { formatOrderType } from "@/lib/orders/format";
 import { isPaidStatus, paymentLabelFor } from "@/lib/orders/payment";
 import type { TrackedOrder } from "@/lib/orders/read-tracked-order";
 import {
+  formatReceiptNumber,
   formatReceiptPeso,
   formatReceiptTime,
+  receiptChange,
   receiptTotals,
 } from "@/lib/orders/receipt";
-import { PICKUP_COUNTER, SITE_BRANCH, SITE_NAME } from "@/lib/site/site-info";
+import { PICKUP_COUNTER, RECEIPT_BUSINESS, SUPPORT_PHONE } from "@/lib/site/site-info";
 import { Button } from "@/components/ui/button";
 
 export const NOT_OFFICIAL_RECEIPT = "This is not an official receipt";
@@ -29,12 +31,22 @@ type ReceiptOrder = Pick<
   | "fee"
   | "payment"
   | "specialInstructions"
+  | "completedAt"
+  | "cashTendered"
+  | "fulfillmentMethod"
+  | "customerName"
+  | "cashierName"
 >;
 
 /**
- * The order's receipt (limitations #12): every line with its add-ons, the
- * fee, any discount, the payment method and the order number, plus a
- * "Print / Save as PDF" button.
+ * The order's receipt (limitations #12), laid out the way a Philippine sales
+ * receipt is: the seller block (registered name, address, VAT Reg. TIN, BIR
+ * permit), the receipt and order numbers, date and time, cashier and
+ * customer; every line with its add-ons; the Senior Citizen / PWD or promo
+ * discount, the tip, the amount due, cash tendered and change; VATable,
+ * VAT-exempt and zero-rated sales with the 12% VAT; and the payment method
+ * with its reference. A Senior Citizen / PWD order also prints the ID number,
+ * the name on the ID and a signature line. Plus a "Print / Save as PDF" button.
  *
  * It is labelled "not an official receipt" on screen and on paper: the
  * store's BIR-registered receipt is issued at the counter, and this is the
@@ -74,8 +86,6 @@ export function OrderReceipt({ order }: { order: ReceiptOrder }) {
         ? createPortal(
             <div id={RECEIPT_PRINT_ROOT_ID} aria-hidden="true" className="hidden">
               <div className="receipt-paper">
-                <p className="receipt-brand">{SITE_NAME}</p>
-                <p>{SITE_BRANCH}</p>
                 <ReceiptBody order={order} />
               </div>
             </div>,
@@ -86,29 +96,80 @@ export function OrderReceipt({ order }: { order: ReceiptOrder }) {
   );
 }
 
+const DISCOUNT_LABEL: Record<string, string> = {
+  senior_citizen: "Senior Citizen",
+  pwd: "PWD",
+};
+
+function discountLabel(payment: ReceiptOrder["payment"]): string {
+  if (!payment?.discountType) return "";
+  if (payment.discountType === "promo") {
+    return payment.promoCode ? ` (Promo ${payment.promoCode})` : " (Promo)";
+  }
+  return ` (${DISCOUNT_LABEL[payment.discountType] ?? payment.discountType})`;
+}
+
+/** A label/value row; the value is right-aligned. */
+function Row({
+  label,
+  children,
+  strong = false,
+}: {
+  label: React.ReactNode;
+  children: React.ReactNode;
+  strong?: boolean;
+}) {
+  return (
+    <>
+      <dt className={strong ? "pt-[6px] text-base font-bold" : "text-muted-strong"}>{label}</dt>
+      <dd className={strong ? "pt-[6px] text-right text-base font-bold" : "text-right"}>{children}</dd>
+    </>
+  );
+}
+
 function ReceiptBody({ order }: { order: ReceiptOrder }) {
   const totals = receiptTotals(order);
   const payment = order.payment;
   const paid = isPaidStatus(payment?.status);
+  const isSeniorPwd = payment?.discountType === "senior_citizen" || payment?.discountType === "pwd";
+  const isCash = (payment?.method ?? "").toLowerCase() === "pay_in_store";
+  const tendered = isCash ? (order.cashTendered ?? null) : null;
+  const change = receiptChange(tendered, totals.amountDue);
 
   return (
     <div className="flex flex-col gap-[12px] text-sm text-foreground">
+      {/* Seller */}
+      <div className="flex flex-col items-center gap-[2px] text-center">
+        <p className="receipt-brand font-display text-2xl">{RECEIPT_BUSINESS.tradeName}</p>
+        {RECEIPT_BUSINESS.registeredName !== RECEIPT_BUSINESS.tradeName ? (
+          <p>{RECEIPT_BUSINESS.registeredName}</p>
+        ) : null}
+        <p className="text-muted-strong">{RECEIPT_BUSINESS.address}</p>
+        {SUPPORT_PHONE ? <p className="text-muted-strong">Tel. {SUPPORT_PHONE}</p> : null}
+        <p className="text-muted-strong">VAT Reg. TIN: {RECEIPT_BUSINESS.vatRegTin ?? "—"}</p>
+        <p className="text-muted-strong">BIR Permit No.: {RECEIPT_BUSINESS.birPermitNumber ?? "—"}</p>
+      </div>
+
       <p className="rounded-md border border-dashed border-field-border px-[12px] py-[8px] text-center text-sm font-bold uppercase tracking-[0.5px] text-muted-strong">
         {NOT_OFFICIAL_RECEIPT}
       </p>
 
+      {/* Receipt details */}
       <dl className="grid grid-cols-[auto_1fr] gap-x-[16px] gap-y-[4px]">
-        <dt className="text-muted-strong">Order number</dt>
-        <dd className="text-right font-bold">#{order.orderNumber}</dd>
-        <dt className="text-muted-strong">Placed</dt>
-        <dd className="text-right">{formatReceiptTime(order.placedAt)}</dd>
-        <dt className="text-muted-strong">Order type</dt>
-        <dd className="text-right">{formatOrderType(order.orderType)} · {PICKUP_COUNTER}</dd>
-        <dt className="text-muted-strong">Payment</dt>
-        <dd className="text-right">
-          {paymentLabelFor(payment?.method)}
-          {payment ? ` · ${paid ? "Paid" : "Not yet paid"}` : ""}
-        </dd>
+        <Row label="Receipt no.">
+          <span className="font-bold">{formatReceiptNumber(order.orderNumber)}</span>
+        </Row>
+        <Row label="Order number">#{order.orderNumber}</Row>
+        <Row label="Date / time placed">{formatReceiptTime(order.placedAt)}</Row>
+        {order.completedAt ? (
+          <Row label="Date / time picked up">{formatReceiptTime(order.completedAt)}</Row>
+        ) : null}
+        {order.cashierName ? <Row label="Cashier">{order.cashierName}</Row> : null}
+        <Row label="Customer">{order.customerName ?? "—"}</Row>
+        <Row label="Order type">
+          {formatOrderType(order.orderType)} · {PICKUP_COUNTER}
+          {order.fulfillmentMethod === "3rd_party_courier" ? " · Courier pickup" : ""}
+        </Row>
       </dl>
 
       <table className="w-full border-collapse">
@@ -152,48 +213,66 @@ function ReceiptBody({ order }: { order: ReceiptOrder }) {
         </tbody>
       </table>
 
+      {/* Amounts */}
       <dl className="grid grid-cols-[1fr_auto] gap-y-[4px] tabular-nums">
-        <dt>Subtotal</dt>
-        <dd className="text-right">{formatReceiptPeso(totals.subtotal)}</dd>
-        <dt>Fee</dt>
-        <dd className="text-right">{formatReceiptPeso(totals.fee)}</dd>
-        <dt>
-          Discount
-          {payment?.discountType
-            ? payment.discountType === "senior_citizen"
-              ? " (Senior Citizen)"
-              : payment.discountType === "pwd"
-                ? " (PWD)"
-                : payment.discountType === "promo"
-                  ? payment.promoCode
-                    ? ` (Promo ${payment.promoCode})`
-                    : " (Promo)"
-                  : ` (${payment.discountType})`
-            : ""}
-        </dt>
-        <dd className="text-right">
+        <Row label="Subtotal (VAT inclusive)">{formatReceiptPeso(totals.subtotal)}</Row>
+        {totals.fee > 0 ? <Row label="Fee">{formatReceiptPeso(totals.fee)}</Row> : null}
+        {isSeniorPwd ? <Row label="Less: VAT (12%)">−{formatReceiptPeso(totals.lessVat)}</Row> : null}
+        <Row label={`Less: Discount${discountLabel(payment)}`}>
           {totals.discount > 0 ? `−${formatReceiptPeso(totals.discount)}` : formatReceiptPeso(0)}
-        </dd>
-        {payment?.discountType === "senior_citizen" || payment?.discountType === "pwd" ? (
+        </Row>
+        <Row label="Total sale">{formatReceiptPeso(totals.total)}</Row>
+        {totals.tip > 0 ? <Row label="Tip">{formatReceiptPeso(totals.tip)}</Row> : null}
+        <Row label="Amount due" strong>
+          {formatReceiptPeso(totals.amountDue)}
+        </Row>
+        {tendered !== null ? (
           <>
-            <dt>VAT exempt</dt>
-            <dd className="text-right">{formatReceiptPeso(0)}</dd>
+            <Row label="Cash tendered">{formatReceiptPeso(tendered)}</Row>
+            <Row label="Change">{formatReceiptPeso(change ?? 0)}</Row>
           </>
-        ) : (
-          <>
-            <dt>VATable sales</dt>
-            <dd className="text-right">{formatReceiptPeso(totals.vatableSales)}</dd>
-            <dt>VAT (12%)</dt>
-            <dd className="text-right">{formatReceiptPeso(totals.vat)}</dd>
-          </>
-        )}
-        <dt className="pt-[6px] text-base font-bold">Total</dt>
-        <dd className="pt-[6px] text-right text-base font-bold">{formatReceiptPeso(totals.total)}</dd>
+        ) : null}
       </dl>
+
+      {/* VAT breakdown */}
+      <dl className="grid grid-cols-[1fr_auto] gap-y-[4px] border-t border-rule pt-[8px] tabular-nums">
+        <Row label="VATable sales">{formatReceiptPeso(totals.vatableSales)}</Row>
+        <Row label="VAT-exempt sales">{formatReceiptPeso(totals.vatExemptSales)}</Row>
+        <Row label="VAT zero-rated sales">{formatReceiptPeso(totals.zeroRatedSales)}</Row>
+        <Row label="VAT amount (12%)">{formatReceiptPeso(totals.vat)}</Row>
+      </dl>
+
+      {/* Payment */}
+      <dl className="grid grid-cols-[auto_1fr] gap-x-[16px] gap-y-[4px] border-t border-rule pt-[8px]">
+        <Row label="Payment">
+          {paymentLabelFor(payment?.method)}
+          {payment ? ` · ${paid ? "Paid" : "Not yet paid"}` : ""}
+        </Row>
+        {payment?.referenceNumber ? <Row label="Reference no.">{payment.referenceNumber}</Row> : null}
+      </dl>
+
+      {/* Senior Citizen / PWD — RA 9994 and RA 10754 ask for these on the receipt. */}
+      {isSeniorPwd ? (
+        <dl className="grid grid-cols-[auto_1fr] gap-x-[16px] gap-y-[4px] border-t border-rule pt-[8px]">
+          <Row label="Discount type">{DISCOUNT_LABEL[payment?.discountType ?? ""]}</Row>
+          <Row label={payment?.discountType === "pwd" ? "PWD ID no." : "OSCA / SC ID no."}>
+            {payment?.discountIdNumber ?? "—"}
+          </Row>
+          <Row label="Name on ID">{payment?.nameOnId ?? "—"}</Row>
+          <dt className="text-muted-strong">Signature</dt>
+          <dd className="h-[28px] border-b border-foreground">
+            <span className="sr-only">Signature line</span>
+          </dd>
+        </dl>
+      ) : null}
 
       {order.specialInstructions ? (
         <p className="text-muted-strong">Order note: {order.specialInstructions}</p>
       ) : null}
+
+      <p className="text-center text-muted-strong">
+        Thank you for ordering from {RECEIPT_BUSINESS.tradeName}!
+      </p>
     </div>
   );
 }

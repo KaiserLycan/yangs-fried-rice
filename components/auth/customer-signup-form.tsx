@@ -22,6 +22,7 @@ import { signupFormSchema } from "@/lib/validation/signup";
 import { registerCustomer } from "@/app/(auth)/actions";
 import { safeNextPath } from "@/lib/auth/safe-next";
 import { PasswordStrengthMeter } from "@/components/ui/password-strength-meter";
+import { PasswordRequirements } from "@/components/ui/password-requirements";
 
 const ID_PREFIX = "signup-";
 
@@ -220,7 +221,7 @@ function SignupFormInner() {
             name="password"
             type={showPassword ? "text" : "password"}
             autoComplete="new-password"
-            placeholder="8 to 72 characters"
+            placeholder="Create a password"
             required
             {...lengthProps("password")}
             invalid={Boolean(errors.password)}
@@ -228,6 +229,7 @@ function SignupFormInner() {
           />
           {/* Reused from the profile's password card (F16). Advice only. */}
           <PasswordStrengthMeter password={password} />
+          <PasswordRequirements password={password} />
         </Field>
 
         {/* Only while the form is being sent — it is the moment the

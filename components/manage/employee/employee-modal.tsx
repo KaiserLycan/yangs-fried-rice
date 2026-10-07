@@ -30,6 +30,7 @@ import {
   toInternationalMobile,
 } from "@/lib/validation/phone";
 import { Button } from "@/components/ui/button";
+import { PasswordRequirements } from "@/components/ui/password-requirements";
 
 /**
  * EmployeeModal — the manager's add / edit employee dialog.
@@ -49,7 +50,6 @@ interface EmployeeModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave?: (employeeData: any) => void;
-  onDelete?: (employeeData: any) => void;
   /** Field errors from the last failed save, keyed by form field. */
   serverErrors?: FieldErrors | null;
   employee?: {
@@ -123,7 +123,7 @@ const inputClass = (invalid: boolean) =>
     invalid ? "border-error-border" : "border-field-border",
   );
 
-export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, serverErrors }: EmployeeModalProps) {
+export function EmployeeModal({ isOpen, onClose, onSave, employee, serverErrors }: EmployeeModalProps) {
   const isEditMode = !!employee;
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -556,6 +556,9 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
               </Button>
             </div>
             {errors.password && <p className="text-xs text-error-border">{errors.password}</p>}
+            {/* In edit mode a blank box keeps the old password, so the
+                checklist only appears once a new one is being typed. */}
+            {(!isEditMode || password) && <PasswordRequirements password={password} />}
           </div>
 
           {/* Account status — only for an existing employee.
@@ -583,6 +586,10 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
                   labelledBy="employee-account-status-label"
                 />
               </div>
+              <p className="text-xs text-muted-foreground">
+                Employees can’t be deleted. When someone leaves, disable their
+                account — their orders, sign-ins and audit history are kept.
+              </p>
             </div>
           )}
 
@@ -637,17 +644,6 @@ export function EmployeeModal({ isOpen, onClose, onSave, onDelete, employee, ser
               </Tooltip>
             </div>
 
-            {isEditMode && (
-              <Button variant="unstyled"
-                type="button"
-                onClick={() => {
-                  onDelete?.(employee);
-                }}
-                className="w-full bg-backoffice rounded-md py-[10px] font-bold text-white text-sm hover:bg-backoffice/90 transition-colors"
-              >
-                Delete
-              </Button>
-            )}
           </div>
 
         </div>

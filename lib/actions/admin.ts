@@ -766,63 +766,12 @@ export async function updateEmployeeDetails(
 }
 
 
-/**
- * Delete an employee account and their Supabase Auth user.
- * Requires: manager only.
+/*
+ * There is deliberately no deleteEmployee. Employee accounts are never
+ * deleted — a manager disables one when the person leaves (`is_account_disabled`
+ * via updateEmployeeDetails / toggleEmployeeDisabled), so their orders,
+ * sign-ins and audit history stay attributable to them.
  */
-export async function deleteEmployee(
-  employeeId: string,
-): Promise<ActionResult<{ employee_id: string }>> {
-  const auth = await requireRole("MANAGER");
-  if (!auth.data) return { data: null, error: auth.error };
-
-  // Prevent self-deletion.
-  if (auth.data.employee_id === employeeId) {
-    return { data: null, error: "You cannot delete your own account." };
-  }
-
-  // Service role: `employee` has no DELETE policy, so a session delete would
-  // match zero rows and the Auth user below would be removed from under a
-  // row that is still there. The caller was verified as a manager above.
-  const admin = createAdminClient();
-  const { data: photoRow } = await admin
-    .from("employee")
-    .select("profileImage_URL, name, role, email")
-    .eq("employee_id", employeeId)
-    .maybeSingle();
-
-  const { error: deleteError } = await admin
-    .from("employee")
-    .delete()
-    .eq("employee_id", employeeId);
-
-  if (deleteError) {
-    return { data: null, error: deleteError.message };
-  }
-
-  // The row is gone, so its name survives only here.
-  await recordEmployeeAction(createClient(), {
-    action: "employee.delete",
-    entityType: "employee",
-    entityId: employeeId,
-    summary: `Employee "${photoRow?.name ?? "Unknown employee"}" deleted`,
-    changes: auditChanges(
-      { email: photoRow?.email, role: photoRow?.role },
-      { email: null, role: null },
-    ),
-  });
-
-  await removeStoredImage(IMAGE_BUCKETS.employeeAvatar, photoRow?.profileImage_URL);
-
-  try {
-    // Delete the Auth user so the email can be reused.
-    await admin.auth.admin.deleteUser(employeeId);
-  } catch (err: any) {
-    return { data: null, error: err.message || "Failed to delete user" };
-  }
-
-  return { data: { employee_id: employeeId }, error: null };
-}
 
 /**
  * Set an employee's profile photo.

@@ -103,7 +103,44 @@ export const passwordSchema = z
  * not one of them, so it must not satisfy the rule here either — otherwise
  * the form would accept a password that Supabase then rejects.
  */
-const PASSWORD_SYMBOL = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/;
+export const PASSWORD_SYMBOL = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/;
+
+export type PasswordRule = {
+  id: "length" | "lower" | "upper" | "digit" | "symbol";
+  /** The checklist line under the password box. */
+  label: string;
+  /** How the rule reads inside the "Password needs …" error sentence. */
+  need: string;
+  test: (value: string) => boolean;
+};
+
+/**
+ * Every requirement a new password must meet, in the order the checklist
+ * under the password box lists them. The schema below, the checklist and the
+ * strength meter all read this one list, so the three can't disagree.
+ */
+export const PASSWORD_RULES: readonly PasswordRule[] = [
+  {
+    id: "length",
+    label: `${FIELD_LIMITS.password.min} to ${FIELD_LIMITS.password.max} characters`,
+    need: `${FIELD_LIMITS.password.min} to ${FIELD_LIMITS.password.max} characters`,
+    test: (v) => v.length >= FIELD_LIMITS.password.min && v.length <= FIELD_LIMITS.password.max,
+  },
+  { id: "lower", label: "A lowercase letter (a–z)", need: "a lowercase letter", test: (v) => /[a-z]/.test(v) },
+  { id: "upper", label: "An uppercase letter (A–Z)", need: "an uppercase letter", test: (v) => /[A-Z]/.test(v) },
+  { id: "digit", label: "A number (0–9)", need: "a number", test: (v) => /[0-9]/.test(v) },
+  {
+    id: "symbol",
+    label: "A symbol such as ! @ # or ?",
+    need: "a symbol such as ! @ # or ?",
+    test: (v) => PASSWORD_SYMBOL.test(v),
+  },
+];
+
+/** True when the password meets every rule in `PASSWORD_RULES`. */
+export function meetsPasswordRules(value: string): boolean {
+  return PASSWORD_RULES.every((rule) => rule.test(value));
+}
 
 /**
  * A password being *set* — sign-up, reset, change, or a manager creating an
@@ -114,11 +151,10 @@ const PASSWORD_SYMBOL = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/;
  * rule existed must still be able to sign in.
  */
 export const newPasswordSchema = passwordSchema.superRefine((value, ctx) => {
-  const missing: string[] = [];
-  if (!/[a-z]/.test(value)) missing.push("a lowercase letter");
-  if (!/[A-Z]/.test(value)) missing.push("an uppercase letter");
-  if (!/[0-9]/.test(value)) missing.push("a number");
-  if (!PASSWORD_SYMBOL.test(value)) missing.push("a symbol such as ! @ # or ?");
+  // Length has its own messages from `passwordSchema`; this lists the rest.
+  const missing = PASSWORD_RULES.filter((rule) => rule.id !== "length" && !rule.test(value)).map(
+    (rule) => rule.need,
+  );
   if (missing.length === 0) return;
   ctx.addIssue({
     code: z.ZodIssueCode.custom,
