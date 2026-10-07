@@ -11,6 +11,7 @@ import { lengthProps } from "@/lib/validation/fields";
 import { ShowHideToggle } from "@/components/ui/show-hide-toggle";
 import { useToast } from "@/components/ui/toast";
 import { PasswordStrengthMeter } from "@/components/ui/password-strength-meter";
+import { PasswordRequirements } from "@/components/ui/password-requirements";
 import {
   passwordChangeSchema,
   type PasswordChangeField,
@@ -249,6 +250,7 @@ function PasswordFields({
           invalid={Boolean(errors.newPassword)}
         />
         <PasswordStrengthMeter password={newPassword} />
+        <PasswordRequirements password={newPassword} />
       </CardField>
 
       <CardField

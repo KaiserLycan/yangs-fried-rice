@@ -3,17 +3,20 @@
  *
  * This is the one piece of logic on the profile screen that is genuinely
  * frontend work rather than a stub — confirmed as approved, client-side
- * only. It advises; it never blocks submission, and the only rule that
- * actually gates a save is the shared minimum length in
- * `customerPasswordSchema`.
+ * only. It advises; it never blocks submission — `newPasswordSchema` does
+ * that.
  *
  * The score counts five independent signals rather than trying to model
  * real entropy: long enough to matter, long enough to be comfortable, mixed
- * case, a digit, and a symbol. None of them alone earns "Strong" — a
- * customer has to combine several — and the scale is coarse on purpose,
- * because a meter that swings on every keystroke reads as noise rather than
- * advice.
+ * case, a digit, and a symbol. The scale is coarse on purpose, because a
+ * meter that swings on every keystroke reads as noise rather than advice.
+ *
+ * "Strong" is only ever shown for a password that meets every requirement
+ * in `PASSWORD_RULES` — a long password missing its symbol tops out at
+ * "Good", so the meter can never call strong a password the form refuses.
  */
+
+import { meetsPasswordRules, PASSWORD_SYMBOL } from "@/lib/validation/fields";
 
 export type PasswordStrengthLabel = "Weak" | "Fair" | "Good" | "Strong";
 
@@ -26,7 +29,6 @@ export type PasswordStrength = {
 const HAS_LOWER = /[a-z]/;
 const HAS_UPPER = /[A-Z]/;
 const HAS_DIGIT = /[0-9]/;
-const HAS_SYMBOL = /[^a-zA-Z0-9]/;
 
 function scoreOf(password: string): number {
   let score = 0;
@@ -34,7 +36,7 @@ function scoreOf(password: string): number {
   if (password.length >= 12) score++;
   if (HAS_LOWER.test(password) && HAS_UPPER.test(password)) score++;
   if (HAS_DIGIT.test(password)) score++;
-  if (HAS_SYMBOL.test(password)) score++;
+  if (PASSWORD_SYMBOL.test(password)) score++;
   return score;
 }
 
@@ -49,6 +51,6 @@ export function passwordStrength(password: string): PasswordStrength {
 
   if (score <= 1) return { label: "Weak", percent: 25 };
   if (score === 2) return { label: "Fair", percent: 50 };
-  if (score === 3) return { label: "Good", percent: 75 };
+  if (score === 3 || !meetsPasswordRules(password)) return { label: "Good", percent: 75 };
   return { label: "Strong", percent: 100 };
 }

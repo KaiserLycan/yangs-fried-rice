@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { Alert } from "@/components/ui/alert";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { PasswordRequirements } from "@/components/ui/password-requirements";
+import { PasswordStrengthMeter } from "@/components/ui/password-strength-meter";
 import { ShowHideToggle } from "@/components/ui/show-hide-toggle";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useLiveValidation } from "@/lib/forms/use-live-validation";
@@ -37,6 +39,7 @@ export function ResetPasswordForm({
   const [ready, setReady] = React.useState<boolean | null>(null);
   const [serverError, setServerError] = React.useState<string | null>(null);
   const [showPassword, setShowPassword] = React.useState(false);
+  const [password, setPassword] = React.useState("");
   const [isPending, startTransition] = React.useTransition();
 
   React.useEffect(() => {
@@ -163,11 +166,14 @@ export function ResetPasswordForm({
             name="password"
             type={showPassword ? "text" : "password"}
             autoComplete="new-password"
-            placeholder="At least 8 characters"
+            placeholder="Create a password"
             required
             {...lengthProps("password")}
             invalid={Boolean(errors.password)}
+            onInput={(event) => setPassword(event.currentTarget.value)}
           />
+          <PasswordStrengthMeter password={password} />
+          <PasswordRequirements password={password} />
         </Field>
 
         <Field
@@ -191,7 +197,7 @@ export function ResetPasswordForm({
           invalid={!live.isValid}
           pendingLabel="Saving…"
           hint="Save this as my new password"
-          blockedHint="Enter a password of at least 8 characters, twice."
+          blockedHint="Enter a password that meets every requirement, twice."
           wrapperClassName="w-full"
         >
           Save new password

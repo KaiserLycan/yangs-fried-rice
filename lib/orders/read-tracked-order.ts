@@ -1,5 +1,6 @@
 import { orderItemName } from "@/lib/orders/item-name";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { formatOrderNumber } from "@/lib/orders/order-number";
 import type { OrderIssueType } from "@/lib/validation/order-issue";
 import type { StatusChange } from "@/lib/orders/order-stage";
@@ -36,6 +37,13 @@ export type TrackedOrderPayment = {
   promoCode?: string | null;
   taxAmount: number;
   totalPaid: number;
+  /** `transaction.tip_amount` — charged on top of the sale. */
+  tipAmount?: number;
+  /** The Senior Citizen / PWD ID number and the name on it, printed on the receipt. */
+  discountIdNumber?: string | null;
+  nameOnId?: string | null;
+  /** PayMongo's reference for a GCash / Maya payment. */
+  referenceNumber?: string | null;
 };
 
 export type TrackedOrderIssue = {
@@ -90,6 +98,17 @@ export type TrackedOrder = {
   /** The order-wide note the customer left at checkout. */
   specialInstructions: string | null;
   payment: TrackedOrderPayment | null;
+  /** "I'll pay with ₱___" from checkout, for a pay-in-store order. */
+  cashTendered?: number | null;
+  /** `self_pickup` or `3rd_party_courier`. */
+  fulfillmentMethod?: string | null;
+  /** The customer's name, for the receipt. */
+  customerName?: string | null;
+  /**
+   * The staff member who handed the order over (or, before that, accepted
+   * it) — the receipt's "Cashier". First name and last initial only.
+   */
+  cashierName?: string | null;
   /**
    * The order-level `review.rating`, or null when the customer has not rated
    * the order. Read so a rated order stops asking to be rated (P35, P37).
@@ -116,7 +135,7 @@ export async function readTrackedOrder(
   const { data: order } = await supabase
     .from("order")
     .select(
-      "order_id, order_number, order_status, order_type, cancelled_at, cancellation_reason, created_at, completed_at, delivery_fee, special_instructions, pending_at, promised_at, tracking_token"
+      "order_id, order_number, order_status, order_type, cancelled_at, cancellation_reason, created_at, completed_at, delivery_fee, special_instructions, pending_at, promised_at, tracking_token, cash_tendered, fulfillment_method"
     )
     .eq("order_id", orderId)
     .eq("customer_id", user.id)
@@ -124,7 +143,7 @@ export async function readTrackedOrder(
 
   if (!order) return null;
 
-  const [orderItems, orderAddOns, transaction, review, issue, statusLog] = await Promise.all([
+  const [orderItems, orderAddOns, transaction, review, issue, statusLog, customer] = await Promise.all([
     supabase
       .from("order_item")
       .select(
@@ -139,7 +158,7 @@ export async function readTrackedOrder(
       .then((res) => res.data),
     supabase
       .from("transaction")
-      .select("payment_method, payment_status, discount_amount, discount_type, promo_code, tax_amount, total_paid, transaction_date")
+      .select("payment_method, payment_status, discount_amount, discount_type, promo_code, tax_amount, total_paid, transaction_date, tip_amount, discount_id_number, name_on_id, provider_reference_id")
       .eq("order_id", order.order_id)
       .order("transaction_date", { ascending: false })
       .limit(1)
@@ -162,11 +181,19 @@ export async function readTrackedOrder(
       .then((res) => res.data),
     supabase
       .from("order_status_log")
-      .select("to_status, changed_at")
+      .select("to_status, changed_at, changed_by")
       .eq("order_id", order.order_id)
       .order("changed_at", { ascending: true })
       .then((res) => res.data),
+    supabase
+      .from("customer")
+      .select("first_name, last_name")
+      .eq("customer_id", user.id)
+      .maybeSingle()
+      .then((res) => res.data),
   ]);
+
+  const cashierName = await readCashierName(statusLog ?? []);
 
   return {
     orderId: order.order_id,
@@ -220,6 +247,10 @@ export async function readTrackedOrder(
     })),
     fee: Number(order.delivery_fee ?? 0),
     specialInstructions: order.special_instructions,
+    cashTendered: order.cash_tendered === null ? null : Number(order.cash_tendered),
+    fulfillmentMethod: order.fulfillment_method,
+    customerName: customer ? `${customer.first_name} ${customer.last_name}`.trim() || null : null,
+    cashierName,
     payment: transaction
       ? {
           method: transaction.payment_method,
@@ -229,6 +260,10 @@ export async function readTrackedOrder(
           promoCode: transaction.promo_code ?? null,
           taxAmount: Number(transaction.tax_amount ?? 0),
           totalPaid: Number(transaction.total_paid ?? 0),
+          tipAmount: Number(transaction.tip_amount ?? 0),
+          discountIdNumber: transaction.discount_id_number,
+          nameOnId: transaction.name_on_id,
+          referenceNumber: transaction.provider_reference_id,
         }
       : null,
     rating: review?.rating ?? null,
@@ -240,6 +275,38 @@ export async function readTrackedOrder(
         }
       : null,
   };
+}
+
+/**
+ * The receipt's cashier: whoever marked the order picked up, or failing that
+ * whoever moved it on most recently (ready, then preparing). `changed_by` is
+ * null for the PayMongo webhook, so those rows are skipped.
+ *
+ * Service role, read-only and narrowed to one name: a customer can't read the
+ * `employee` table under RLS, and only the first name and last initial leave
+ * this function — the same as a printed till receipt shows.
+ */
+async function readCashierName(
+  statusLog: { to_status: string | null; changed_by: string | null }[],
+): Promise<string | null> {
+  const byStatus = (status: string) =>
+    [...statusLog].reverse().find((row) => row.to_status === status && row.changed_by)?.changed_by;
+  const employeeId = byStatus("completed") ?? byStatus("ready") ?? byStatus("preparing");
+  if (!employeeId) return null;
+
+  try {
+    const { data } = await createAdminClient()
+      .from("employee")
+      .select("first_name, last_name")
+      .eq("employee_id", employeeId)
+      .maybeSingle();
+    if (!data?.first_name) return null;
+    const initial = data.last_name?.trim().charAt(0);
+    return initial ? `${data.first_name} ${initial}.` : data.first_name;
+  } catch {
+    // A missing service key only costs the receipt its cashier line.
+    return null;
+  }
 }
 
 /**

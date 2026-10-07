@@ -17,7 +17,6 @@ import type { FieldErrors } from "@/lib/validation/field-errors";
 import { 
   getAllEmployees, 
   createEmployee, 
-  deleteEmployee, 
   updateEmployeeDetails,
   setEmployeePhoto,
 } from "@/lib/actions/admin";
@@ -75,7 +74,6 @@ function ManageEmployeeInner() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeData | null>(null);
-  const [employeeToDelete, setEmployeeToDelete] = useState<EmployeeData | null>(null);
   const [employeeToAdd, setEmployeeToAdd] = useState<any | null>(null);
   const [employeeToEdit, setEmployeeToEdit] = useState<any | null>(null);
   // Field errors from the last failed add/edit, shown inside the dialog.
@@ -206,23 +204,6 @@ function ManageEmployeeInner() {
       setEmployeeToEdit(null);
       setSelectedEmployee(null);
       setIsAddModalOpen(false);
-    }
-    setIsProcessing(false);
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!employeeToDelete) return;
-    setIsProcessing(true);
-    
-    const result = await deleteEmployee(employeeToDelete.id);
-    
-    if (result.error) {
-      showToast(`Failed to delete employee: ${result.error}`, "error");
-    } else {
-      showToast("Employee account deleted successfully.", "success");
-      setEmployees(prev => prev.filter(e => e.id !== employeeToDelete.id));
-      setEmployeeToDelete(null);
-      setSelectedEmployee(null);
     }
     setIsProcessing(false);
   };
@@ -447,30 +428,6 @@ function ManageEmployeeInner() {
             setEmployeeToAdd(data);
           }
         }}
-        onDelete={(data) => {
-          setEmployeeToDelete(data);
-        }}
-      />
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={employeeToDelete !== null}
-        onClose={() => setEmployeeToDelete(null)}
-        title="Delete Employee?"
-        description={`Are you sure you want to permanently delete ${employeeToDelete?.name}? This action cannot be undone.`}
-        tone="danger"
-        footer={
-          <>
-            <Button variant="outline" onClick={() => setEmployeeToDelete(null)} disabled={isProcessing}>Cancel</Button>
-            <Button 
-              variant="confirm"
-              onClick={handleDeleteConfirm}
-              disabled={isProcessing}
-            >
-              {isProcessing ? "Deleting..." : "Delete Employee"}
-            </Button>
-          </>
-        }
       />
 
       {/* Add Confirmation Dialog */}

@@ -3,7 +3,6 @@ import {
   getMyEmployeeProfile as getMyEmployeeProfileAction,
   updateMyEmployeeProfile as updateMyEmployeeProfileAction,
   deactivateMyEmployeeAccount as deactivateMyEmployeeAccountAction,
-  deleteMyEmployeeAccount as deleteMyEmployeeAccountAction,
 } from "@/lib/actions/employee-profile";
 
 function errorToStatus(error: string): number {
@@ -60,25 +59,6 @@ export async function updateMyEmployeeProfile(request: Request) {
     );
   }
   return NextResponse.json({ message: "Profile updated successfully" });
-}
-
-/**
- * DELETE /api/employee/profile
- * Permanently deletes the signed-in employee's account — only succeeds
- * if they have no order/delivery/report history. See
- * lib/actions/employee-profile.ts's deleteMyEmployeeAccount for the
- * full reasoning.
- * Requires: authenticated employee.
- */
-export async function deleteMyEmployeeAccount() {
-  const result = await deleteMyEmployeeAccountAction();
-  if (!result.success) {
-    return NextResponse.json(
-      { error: result.error, fieldErrors: "fieldErrors" in result ? result.fieldErrors : undefined },
-      { status: errorToStatus(result.error) },
-    );
-  }
-  return NextResponse.json({ message: "Account deleted successfully" });
 }
 
 /**

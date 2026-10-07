@@ -50,6 +50,25 @@ describe("passwordStrength", () => {
     });
   });
 
+  // Five of the old signals (long, mixed case, digit) but no symbol: it fails
+  // the password rules, so it must not read as Strong.
+  it("never calls a password without a symbol Strong", () => {
+    expect(passwordStrength("Abcdefghijk1").label).toBe("Good");
+  });
+
+  it("never calls a password without an uppercase letter Strong", () => {
+    expect(passwordStrength("abcdefghijk1!").label).toBe("Good");
+  });
+
+  // A space or an accented letter is not one of the accepted symbols.
+  it("doesn't count a space as the symbol", () => {
+    expect(passwordStrength("Abcdefghij 1").label).toBe("Good");
+  });
+
+  it("calls Strong only once every requirement is met", () => {
+    expect(passwordStrength("Abcdefghijk1!")).toEqual({ label: "Strong", percent: 100 });
+  });
+
   it("never blocks on its own — it only advises", () => {
     // The function has no notion of pass/fail; it always returns a label.
     // The one real gate is customerPasswordSchema's minimum length.

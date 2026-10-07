@@ -3,7 +3,6 @@ import {
   getAllEmployees as getEmployeesAction,
   createEmployee as createEmployeeAction,
   changeEmployeeRole as changeRoleAction,
-  deleteEmployee as deleteEmployeeAction,
   toggleEmployeeDisabled as toggleEmployeeDisabledAction,
   resetEmployeePassword as resetEmployeePasswordAction,
   getAllCustomers as getCustomersAction,
@@ -124,29 +123,6 @@ export async function changeEmployeeRole(
 
   return NextResponse.json({
     message: "Employee role updated successfully",
-    data: result.data,
-  });
-}
-
-/**
- * DELETE /api/admin/employees/[id]
- * Delete employee account.
- * Requires: manager only.
- */
-export async function deleteEmployee(
-  _request: Request,
-  { params }: RouteParams
-) {
-  const result = await deleteEmployeeAction(params.id);
-  if (result.error || !result.data) {
-    return NextResponse.json(
-      { error: result.error },
-      { status: errorToStatus(result.error || "") }
-    );
-  }
-
-  return NextResponse.json({
-    message: "Employee deleted successfully",
     data: result.data,
   });
 }
