@@ -12,11 +12,15 @@ export function ShareTrackingLink({ orderId, token }: { orderId: string; token: 
   const [copied, setCopied] = React.useState(false);
   const [href, setHref] = React.useState(`/track/${orderId}?t=${token}`);
 
+  // Decided after mount: the server cannot know whether the browser has the
+  // Web Share API, so reading `navigator` during render made the Share button
+  // appear only on the client and failed hydration.
+  const [canShare, setCanShare] = React.useState(false);
+
   React.useEffect(() => {
     setHref(`${window.location.origin}/track/${orderId}?t=${token}`);
+    setCanShare(typeof navigator.share === "function");
   }, [orderId, token]);
-
-  const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
 
   async function copy() {
     try {
