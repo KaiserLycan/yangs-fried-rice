@@ -351,7 +351,8 @@ export function MenuScreen({
         </main>
 
         <Suspense fallback={
-          <aside className="sticky top-0 hidden h-[calc(100vh-58px)] w-[328px] shrink-0 flex-col gap-[14px] self-start border-l border-field-border bg-secondary/20 px-[22px] py-[24px] md:flex">
+          <aside className="hidden w-[328px] shrink-0 self-stretch border-l border-field-border bg-secondary/20 md:block">
+          <div className="sticky top-0 flex h-[calc(100vh-58px)] flex-col gap-[14px] px-[22px] py-[24px]">
             <div className="flex items-baseline justify-between">
               <h2 className="font-display text-2xl text-foreground">YOUR CART</h2>
               <div className="h-[16px] w-16 animate-pulse rounded-sm bg-secondary/40" />
@@ -367,6 +368,7 @@ export function MenuScreen({
                 </div>
               ))}
             </div>
+          </div>
           </aside>
         }>
           <ResolvedCartRail 
