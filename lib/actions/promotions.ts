@@ -5,6 +5,7 @@ import { type Database } from "@/types/database.types";
 import { z } from "zod";
 import { imageUploadProblem, imageExtensionFor, IMAGE_BUCKETS } from "@/lib/storage/stored-image";
 import { removeStoredImage } from "@/lib/storage/remove-stored-image";
+import { PROMOTIONS_ENABLED, PROMOTIONS_FORBIDDEN } from "@/lib/promotions/feature";
 import { promotionCodeTermsSchema, type PromotionCodeTerms } from "@/lib/validation/promo-code";
 
 type PromotionRow = Database["public"]["Tables"]["promotion"]["Row"];
@@ -17,6 +18,7 @@ export type Promotion = Omit<PromotionRow, "starts_at" | "ends_at" | "created_at
 };
 
 export async function getActivePromotions(): Promise<Promotion[]> {
+  if (!PROMOTIONS_ENABLED) return [];
   const supabase = createClient();
   const { data, error } = await supabase
     .from("promotion")
@@ -35,6 +37,7 @@ export async function getActivePromotions(): Promise<Promotion[]> {
 }
 
 export async function getAllPromotions(): Promise<Promotion[]> {
+  if (!PROMOTIONS_ENABLED) throw new Error(PROMOTIONS_FORBIDDEN.error);
   const supabase = createClient();
   const { data, error } = await supabase
     .from("promotion")
@@ -89,6 +92,7 @@ function toISO(dt: string): string {
 }
 
 export async function createPromotion(payload: unknown, formData: FormData) {
+  if (!PROMOTIONS_ENABLED) return { error: PROMOTIONS_FORBIDDEN.error, status: PROMOTIONS_FORBIDDEN.status };
   const parsed = promotionSchema.safeParse(payload);
   if (!parsed.success) {
     return { error: firstIssue(parsed.error) };
@@ -128,6 +132,7 @@ export async function createPromotion(payload: unknown, formData: FormData) {
 }
 
 export async function updatePromotion(id: string, payload: unknown, formData?: FormData) {
+  if (!PROMOTIONS_ENABLED) return { error: PROMOTIONS_FORBIDDEN.error, status: PROMOTIONS_FORBIDDEN.status };
   const parsed = promotionSchema.safeParse(payload);
   if (!parsed.success) {
     return { error: firstIssue(parsed.error) };
@@ -171,6 +176,7 @@ export async function updatePromotion(id: string, payload: unknown, formData?: F
 }
 
 export async function deletePromotion(id: string) {
+  if (!PROMOTIONS_ENABLED) return { error: PROMOTIONS_FORBIDDEN.error, status: PROMOTIONS_FORBIDDEN.status };
   const supabase = createClient();
   const { error } = await supabase
     .from("promotion")

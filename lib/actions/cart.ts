@@ -37,6 +37,7 @@ import {
   wouldExceedOrderCap,
 } from "@/lib/cart/limits";
 import { z } from "zod";
+import { PROMOTIONS_ENABLED, PROMOTIONS_FORBIDDEN } from "@/lib/promotions/feature";
 import { promoCodeSchema, type AppliedPromo } from "@/lib/validation/promo-code";
 import {
   compareCart,
@@ -908,6 +909,7 @@ export async function submitCart(
   if (!parsed.success) {
     return { data: null, error: parsed.error.issues[0]?.message ?? "Invalid submit input." };
   }
+  if (!PROMOTIONS_ENABLED && parsed.data.promo_code) return { ...PROMOTIONS_FORBIDDEN };
 
   const block = storeBlockFor(await readStoreStatus());
   if (block) {
@@ -1006,6 +1008,7 @@ export async function checkPromoCode(
   cartId: string,
   rawCode: string,
 ): Promise<ActionResult<AppliedPromo>> {
+  if (!PROMOTIONS_ENABLED) return { ...PROMOTIONS_FORBIDDEN };
   const auth = await requireCustomer();
   if (!auth.data) return { data: null, error: auth.error, code: auth.code };
 

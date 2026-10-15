@@ -1,3 +1,4 @@
+import { PROMOTIONS_ENABLED, PROMOTIONS_DISABLED_MESSAGE } from "@/lib/promotions/feature";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
@@ -101,6 +102,11 @@ export async function middleware(request: NextRequest) {
     (path) => pathname.startsWith(path)
   );
   const isEmployeeArea = pathname.startsWith("/manage");
+
+  // Promotions are not implemented yet: the page is refused outright.
+  if (!PROMOTIONS_ENABLED && pathname.startsWith("/manage/promotions")) {
+    return new NextResponse(PROMOTIONS_DISABLED_MESSAGE, { status: 403 });
+  }
 
   // Pages you reach precisely because you are not signed in — so a signed-in
   // visitor is sent on to their home instead (see below). /forgot-password

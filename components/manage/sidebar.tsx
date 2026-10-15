@@ -50,6 +50,8 @@ import {
   type EmployeeRole,
 } from "@/lib/auth/roles";
 import { Button } from "@/components/ui/button";
+import { Tooltip } from "@/components/ui/tooltip";
+import { PROMOTIONS_ENABLED, PROMOTIONS_DISABLED_MESSAGE } from "@/lib/promotions/feature";
 
 function initialsFromName(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -98,12 +100,15 @@ interface NavItem {
   label: string;
   href: string;
   icon: React.FC<{ className?: string }>;
+  /** Greyed out and unclickable; the tooltip says why. */
+  disabledReason?: string;
 }
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/manage/dashboard", icon: DashboardIcon },
   { label: "Reports", href: "/manage/reports", icon: ReportsIcon },
-  { label: "Promotions", href: "/manage/promotions", icon: PromotionsIcon },
+  { label: "Promotions", href: "/manage/promotions", icon: PromotionsIcon,
+    disabledReason: PROMOTIONS_ENABLED ? undefined : PROMOTIONS_DISABLED_MESSAGE },
   { label: "Menu", href: "/manage/menu", icon: MenuIcon },
   { label: "Orders", href: "/manage/orders", icon: OrdersIcon },
   { label: "KDS", href: "/manage/kds", icon: KdsIcon },
@@ -493,7 +498,7 @@ export function Sidebar({ role: roleProp = null }: { role?: EmployeeRole | null 
     // 232px column — there is no room to share. Collapsed it is the same slim
     // icon rail on every screen size.
     <div
-      className={`relative z-20 h-full shrink-0 overflow-hidden ${
+      className={`relative z-20 h-full shrink-0 ${
         animate ? "md:transition-[width] md:duration-300 md:ease-in-out" : ""
       } ${
         isCollapsed
@@ -537,6 +542,21 @@ export function Sidebar({ role: roleProp = null }: { role?: EmployeeRole | null 
       {NAV_ITEMS.filter((item) => canAccessManagePath(role, item.href)).map((item) => {
         const isActive = pathname.startsWith(item.href);
         const Icon = item.icon;
+        if (item.disabledReason) {
+          return (
+            <Tooltip key={item.href} content={item.disabledReason} side="right" className="w-full">
+              <span
+                role="link"
+                aria-disabled="true"
+                tabIndex={0}
+                className={`flex w-full cursor-not-allowed items-center gap-2.5 rounded-md py-[11px] text-sm font-bold text-background opacity-50 ${isCollapsed ? "justify-center px-0" : "px-3"}`}
+              >
+                <Icon className="shrink-0" />
+                {!isCollapsed && <span>{item.label}</span>}
+              </span>
+            </Tooltip>
+          );
+        }
         return (
           <Link
             key={item.href}

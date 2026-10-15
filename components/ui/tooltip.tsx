@@ -27,7 +27,7 @@ export function Tooltip({
   content: React.ReactNode;
   /** A `useShortcut` combo, e.g. "mod+enter". */
   shortcut?: string;
-  side?: "top" | "bottom";
+  side?: "top" | "bottom" | "right";
   className?: string;
   children: React.ReactElement;
 }) {
@@ -52,9 +52,14 @@ export function Tooltip({
         className={cn(
           // Out of layout until shown: a hidden tooltip next to the edge of a
           // scroll container otherwise widens it (the menu screen's + Add item).
-          "pointer-events-none absolute left-1/2 z-50 hidden w-max max-w-[240px] -translate-x-1/2 rounded-sm bg-foreground px-[9px] py-[6px] text-center text-sm font-medium leading-snug text-white shadow-lg",
+          "pointer-events-none absolute z-50 hidden w-max max-w-[240px] rounded-sm bg-foreground px-[9px] py-[6px] text-center text-sm font-medium leading-snug text-white shadow-lg",
           "group-hover/tooltip:block group-hover/tooltip:animate-in group-hover/tooltip:fade-in group-focus-within/tooltip:block group-focus-within/tooltip:animate-in group-focus-within/tooltip:fade-in",
-          side === "top" ? "bottom-[calc(100%+6px)]" : "top-[calc(100%+6px)]",
+          side === "right"
+            ? "left-[calc(100%+6px)] top-1/2 -translate-y-1/2"
+            : cn(
+                "left-1/2 -translate-x-1/2",
+                side === "top" ? "bottom-[calc(100%+6px)]" : "top-[calc(100%+6px)]",
+              ),
         )}
       >
         {content}
