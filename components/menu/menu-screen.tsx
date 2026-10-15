@@ -352,23 +352,37 @@ export function MenuScreen({
 
         <Suspense fallback={
           <aside className="hidden w-[328px] shrink-0 self-stretch border-l border-field-border bg-secondary/20 md:block">
-          <div className="sticky top-0 flex h-[calc(100vh-58px)] flex-col gap-[14px] px-[22px] py-[24px]">
-            <div className="flex items-baseline justify-between">
-              <h2 className="font-display text-2xl text-foreground">YOUR CART</h2>
-              <div className="h-[16px] w-16 animate-pulse rounded-sm bg-secondary/40" />
-            </div>
-            <div className="flex flex-col gap-[10px]">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="flex flex-col gap-[7px] rounded-md border border-field-border bg-card p-[11px]">
-                  <div className="flex justify-between">
-                    <div className="h-[18px] w-1/2 animate-pulse rounded-sm bg-secondary/40" />
-                    <div className="h-[18px] w-12 animate-pulse rounded-sm bg-secondary/40" />
+            <div className="sticky top-0 flex h-[calc(100vh-58px)] flex-col gap-[14px] px-[22px] py-[24px]">
+              <div className="flex items-baseline justify-between">
+                <h2 className="font-display text-2xl text-foreground">YOUR CART</h2>
+                <div className="h-[16px] w-16 animate-pulse rounded-sm bg-secondary/40" />
+              </div>
+              <div className="h-[40px] w-full animate-pulse rounded-md bg-secondary/30" />
+              <div className="flex flex-col gap-[10px]">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="flex flex-col gap-[7px] rounded-md border border-field-border bg-card p-[11px]">
+                    <div className="flex justify-between">
+                      <div className="h-[18px] w-1/2 animate-pulse rounded-sm bg-secondary/40" />
+                      <div className="h-[18px] w-12 animate-pulse rounded-sm bg-secondary/40" />
+                    </div>
+                    <div className="mt-2 h-[27px] w-[90px] animate-pulse rounded-sm bg-secondary/40" />
                   </div>
-                  <div className="mt-2 h-[27px] w-[90px] animate-pulse rounded-sm bg-secondary/40" />
+                ))}
+              </div>
+              <div className="flex-1" />
+              <div className="flex flex-col gap-[8px] border-t border-field-border pt-[14px]">
+                <div className="mb-1 h-[14px] w-48 animate-pulse rounded-sm bg-secondary/30" />
+                <div className="flex justify-between">
+                  <div className="h-[14px] w-[80px] animate-pulse rounded-sm bg-secondary/30" />
+                  <div className="h-[14px] w-[60px] animate-pulse rounded-sm bg-secondary/30" />
                 </div>
-              ))}
+                <div className="flex items-baseline justify-between pt-1">
+                  <div className="h-[16px] w-[50px] animate-pulse rounded-sm bg-secondary/40" />
+                  <div className="h-[24px] w-[80px] animate-pulse rounded-sm bg-secondary/40" />
+                </div>
+                <div className="mt-3 h-[48px] w-full animate-pulse rounded-full bg-primary/30" />
+              </div>
             </div>
-          </div>
           </aside>
         }>
           <ResolvedCartRail 
