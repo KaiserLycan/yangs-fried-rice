@@ -30,7 +30,6 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     let status = 400;
     if (result.code === "UNAUTHORIZED") status = 401;
     else if (result.code === "FORBIDDEN") status = 403;
-    else if (result.code === "CART_LOCKED") status = 409;
     else if (result.error.includes("not found")) status = 404;
     return NextResponse.json({ error: result.error }, { status });
   }
@@ -54,7 +53,6 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
     let status = 400;
     if (result.code === "UNAUTHORIZED") status = 401;
     else if (result.code === "FORBIDDEN") status = 403;
-    else if (result.code === "CART_LOCKED") status = 409;
     else if (result.error.includes("not found")) status = 404;
     return NextResponse.json({ error: result.error }, { status });
   }

@@ -4,10 +4,11 @@ import { submitCart } from "@/lib/actions/cart";
 /**
  * POST /api/cart/submit
  *
- * Finalizes and locks the cart immediately (sets is_final = true, status = 'submitted'),
- * creating a new order with order_status = 'pending'.
+ * Turns the cart into an order and deletes the cart. A repeat submit of the
+ * same cart finds nothing and is rejected.
  *
- * Rejects with 409 Conflict if the cart has already been submitted and locked.
+ * Rejects with 404 Not Found if the cart does not exist (including one that
+ * was already submitted).
  * Rejects with 400 Bad Request if the cart is empty.
  */
 export async function POST(request: Request) {
@@ -27,7 +28,7 @@ export async function POST(request: Request) {
     let status = 400;
     if (result.code === "UNAUTHORIZED") status = 401;
     else if (result.code === "FORBIDDEN") status = 403;
-    else if (result.code === "CART_LOCKED") status = 409;
+    else if (result.code === "NOT_FOUND") status = 404;
     return NextResponse.json({ error: result.error }, { status });
   }
 

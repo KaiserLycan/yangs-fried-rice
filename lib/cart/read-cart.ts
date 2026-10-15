@@ -16,11 +16,9 @@ const EMPTY: CartRead = { cartId: null, lines: [] };
  * `product_id`, `quantity` and `special_instructions`, not what the dish is
  * called or costs.
  *
- * "Active" means `is_final = false`. `submitCart` in `lib/actions/cart.ts`
- * flips the flag on the cart it turns into an order and creates a fresh one
- * the next time the customer adds something, so a customer who has ordered
- * before has several `cart` rows. Reading without the filter would pick the
- * wrong one — or, with `maybeSingle`, none at all.
+ * A customer has at most one cart (unique on `customer_id`): `submitCart`
+ * deletes it when it becomes an order, and a fresh one is created the next
+ * time the customer adds something.
  *
  * The id comes back alongside the lines because `submitCart` needs it, and
  * checkout is the one caller that does; the cart and menu screens ignore it.
@@ -34,18 +32,10 @@ export async function readCart(): Promise<CartRead> {
 
   if (!user) return EMPTY;
 
-  // Newest first, one row: nothing in the schema stops two active carts
-  // existing (there is no unique index on `customer_id where is_final =
-  // false`, and `getActiveCart` does check-then-insert), and `maybeSingle`
-  // would treat that as an error and read the cart as empty. Recorded in the
-  // handoff doc as an index to add; until then, prefer the most recent.
   const { data: cart } = await supabase
     .from("cart")
     .select("cart_id")
     .eq("customer_id", user.id)
-    .eq("is_final", false)
-    .order("updated_at", { ascending: false, nullsFirst: false })
-    .limit(1)
     .maybeSingle();
 
   if (!cart) return EMPTY;

@@ -68,10 +68,6 @@ export type CartItemDetail = {
 export type ActiveCart = {
   cart_id: string;
   customer_id: string;
-  is_final: boolean;
-  status: string;
-  order_id: string | null;
-  submitted_at: string | null;
   updated_at: string | null;
   items: CartItemDetail[];
   total_items: number;
@@ -290,7 +286,6 @@ export async function getActiveCart(): Promise<ActionResult<ActiveCart>> {
       )
     `)
     .eq("customer_id", auth.data.customer_id)
-    .eq("is_final", false)
     .maybeSingle();
 
   // If no active cart exists, create one
@@ -299,8 +294,6 @@ export async function getActiveCart(): Promise<ActionResult<ActiveCart>> {
       .from("cart")
       .insert({
         customer_id: auth.data.customer_id,
-        is_final: false,
-        status: "active",
       })
       .select()
       .single();
@@ -347,10 +340,6 @@ export async function getActiveCart(): Promise<ActionResult<ActiveCart>> {
     data: {
       cart_id: cart.cart_id,
       customer_id: cart.customer_id ?? auth.data.customer_id,
-      is_final: cart.is_final ?? false,
-      status: cart.status ?? "active",
-      order_id: cart.order_id ?? null,
-      submitted_at: cart.submitted_at ?? null,
       updated_at: cart.updated_at ?? null,
       items,
       total_items,
@@ -385,10 +374,9 @@ export async function addCartItem(
   const [cartResult, productResult] = await Promise.all([
     supabase
       .from("cart")
-      .select("cart_id, is_final")
+      .select("cart_id")
       .eq("customer_id", auth.data.customer_id)
-      .eq("is_final", false)
-      .maybeSingle(),
+        .maybeSingle(),
     supabase
       .from("product")
       .select("product_id, product_name, product_price, is_available")
@@ -402,22 +390,14 @@ export async function addCartItem(
       .from("cart")
       .insert({
         customer_id: auth.data.customer_id,
-        is_final: false,
-        status: "active",
       })
-      .select("cart_id, is_final")
+      .select("cart_id")
       .single();
 
     if (createError || !newCart) {
       return { data: null, error: createError?.message ?? "Failed to initialize cart." };
     }
     cart = newCart;
-  } else if (cart.is_final) {
-    return {
-      data: null,
-      error: "Cart is locked and cannot be modified.",
-      code: "CART_LOCKED",
-    };
   }
 
   const { data: product, error: prodError } = productResult;
@@ -602,8 +582,7 @@ export async function updateCartItem(
       special_instructions,
       cart!inner (
         cart_id,
-        customer_id,
-        is_final
+        customer_id
       ),
       product (
         product_name,
@@ -620,20 +599,10 @@ export async function updateCartItem(
   const parentCart = item.cart as unknown as {
     cart_id: string;
     customer_id: string;
-    is_final: boolean;
   };
 
   if (parentCart.customer_id !== auth.data.customer_id) {
     return { data: null, error: "Access denied.", code: "FORBIDDEN" };
-  }
-
-  // STRICT LOCKING ENFORCEMENT: reject if cart is final
-  if (parentCart.is_final) {
-    return {
-      data: null,
-      error: "Cart is locked and cannot be modified.",
-      code: "CART_LOCKED",
-    };
   }
 
   // Raising a line's quantity grows the cart; lowering it is always allowed.
@@ -754,8 +723,7 @@ export async function removeCartItem(
       cart_id,
       cart!inner (
         cart_id,
-        customer_id,
-        is_final
+        customer_id
       )
     `)
     .eq("cart_item_id", cartItemId)
@@ -768,20 +736,10 @@ export async function removeCartItem(
   const parentCart = item.cart as unknown as {
     cart_id: string;
     customer_id: string;
-    is_final: boolean;
   };
 
   if (parentCart.customer_id !== auth.data.customer_id) {
     return { data: null, error: "Access denied.", code: "FORBIDDEN" };
-  }
-
-  // STRICT LOCKING ENFORCEMENT
-  if (parentCart.is_final) {
-    return {
-      data: null,
-      error: "Cart is locked and cannot be modified.",
-      code: "CART_LOCKED",
-    };
   }
 
   const [deleteResult] = await Promise.all([
@@ -822,24 +780,14 @@ export async function clearCart(): Promise<
 
   const { data: cart } = await supabase
     .from("cart")
-    .select("cart_id, is_final")
+    .select("cart_id")
     .eq("customer_id", auth.data.customer_id)
-    .eq("is_final", false)
     .maybeSingle();
 
   if (!cart) {
     return {
       data: { success: true, message: "Cart is already empty." },
       error: null,
-    };
-  }
-
-  // STRICT LOCKING ENFORCEMENT
-  if (cart.is_final) {
-    return {
-      data: null,
-      error: "Cart is locked and cannot be modified.",
-      code: "CART_LOCKED",
     };
   }
 
@@ -875,10 +823,10 @@ export async function clearCart(): Promise<
  * Places the cart as a pickup order.
  *
  * All of it happens inside `submit_cart_to_order`
- * (supabase/migrations/20260927000001_*.sql): the cart row is locked, checked
- * for `is_final`, every line is priced from the menu, and the order, its
- * lines, add-ons, payment row and the cart's lock are written in one
- * transaction. There is deliberately no fallback. The old one did the same
+ * (supabase/migrations/20260927000001_*.sql): the cart row is locked, every
+ * line is priced from the menu, and the order, its lines, add-ons and payment
+ * row are written and the cart itself deleted in one transaction. The order
+ * keeps everything; the customer is left with no cart until they add again. There is deliberately no fallback. The old one did the same
  * steps as separate requests — two taps made two orders, and a failure part
  * way left an order with no lines — and it relied on customers being allowed
  * to insert into the order tables directly, which they no longer are.
@@ -898,8 +846,6 @@ export async function submitCart(
   ActionResult<{
     order_id: string;
     order_status: string;
-    cart_id: string;
-    is_final: boolean;
   }>
 > {
   const auth = await requireCustomer();
@@ -968,7 +914,7 @@ export async function submitCart(
     }
 
     // The function raises with a customer-facing message and a stable code
-    // in `hint` (CART_LOCKED, ITEM_UNAVAILABLE, ACCOUNT_DISABLED, …). Anything
+    // in `hint` (ITEM_UNAVAILABLE, ACCOUNT_DISABLED, …). Anything
     // without a hint is unexpected, so its raw text is logged, not shown.
     if (error?.hint) {
       return { data: null, error: error.message, code: error.hint };
@@ -987,8 +933,6 @@ export async function submitCart(
     data: data as {
       order_id: string;
       order_status: string;
-      cart_id: string;
-      is_final: boolean;
     },
     error: null,
   };
@@ -1068,7 +1012,6 @@ export async function recheckCart(
     .select("cart_id")
     .eq("cart_id", cartId)
     .eq("customer_id", auth.data.customer_id)
-    .eq("is_final", false)
     .maybeSingle();
   if (!cart) return { data: null, error: "Cart not found." };
 
@@ -1463,9 +1406,8 @@ export async function reorderPastOrder(
   // 4. Get active cart
   let { data: cart } = await supabase
     .from("cart")
-    .select("cart_id, is_final")
+    .select("cart_id")
     .eq("customer_id", auth.data.customer_id)
-    .eq("is_final", false)
     .maybeSingle();
 
   if (!cart) {
@@ -1473,22 +1415,14 @@ export async function reorderPastOrder(
       .from("cart")
       .insert({
         customer_id: auth.data.customer_id,
-        is_final: false,
-        status: "active",
       })
-      .select("cart_id, is_final")
+      .select("cart_id")
       .single();
 
     if (createError || !newCart) {
       return { data: null, error: createError?.message ?? "Failed to initialize cart." };
     }
     cart = newCart;
-  } else if (cart.is_final) {
-    return {
-      data: null,
-      error: "Cart is locked and cannot be modified.",
-      code: "CART_LOCKED",
-    };
   }
 
   // 5. Insert available items into cart, as they were ordered: same

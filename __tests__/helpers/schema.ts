@@ -21,6 +21,8 @@ const normalise = (sql: string) =>
 
 export const BASELINE = normalise(read("20260929100000_baseline.sql"));
 export const PLATFORM = normalise(read("20260929100001_platform_setup.sql"));
+/** Checkout deletes the cart (one cart per customer); supersedes the baseline's cart rules. */
+export const CART_CHECKOUT = normalise(read("20260929170000_delete_cart_on_checkout.sql"));
 export const SCHEMA = `${BASELINE}\n${PLATFORM}`;
 
 /** Every `CREATE [OR REPLACE] FUNCTION public.<name>(` definition, body included. */

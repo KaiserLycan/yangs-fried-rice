@@ -90,30 +90,18 @@ export type Database = {
           cart_id: string
           customer_id: string | null
           fulfillment_method: string | null
-          is_final: boolean
-          order_id: string | null
-          status: string
-          submitted_at: string | null
           updated_at: string | null
         }
         Insert: {
           cart_id?: string
           customer_id?: string | null
           fulfillment_method?: string | null
-          is_final?: boolean
-          order_id?: string | null
-          status?: string
-          submitted_at?: string | null
           updated_at?: string | null
         }
         Update: {
           cart_id?: string
           customer_id?: string | null
           fulfillment_method?: string | null
-          is_final?: boolean
-          order_id?: string | null
-          status?: string
-          submitted_at?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -123,13 +111,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "customer"
             referencedColumns: ["customer_id"]
-          },
-          {
-            foreignKeyName: "cart_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "order"
-            referencedColumns: ["order_id"]
           },
         ]
       }
@@ -404,7 +385,6 @@ export type Database = {
         Row: {
           cancellation_reason: string | null
           cancelled_at: string | null
-          cart_id: string | null
           cash_tendered: number | null
           completed_at: string | null
           created_at: string | null
@@ -425,7 +405,6 @@ export type Database = {
         Insert: {
           cancellation_reason?: string | null
           cancelled_at?: string | null
-          cart_id?: string | null
           cash_tendered?: number | null
           completed_at?: string | null
           created_at?: string | null
@@ -446,7 +425,6 @@ export type Database = {
         Update: {
           cancellation_reason?: string | null
           cancelled_at?: string | null
-          cart_id?: string | null
           cash_tendered?: number | null
           completed_at?: string | null
           created_at?: string | null
@@ -465,13 +443,6 @@ export type Database = {
           tracking_token?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "order_cart_id_fkey"
-            columns: ["cart_id"]
-            isOneToOne: false
-            referencedRelation: "cart"
-            referencedColumns: ["cart_id"]
-          },
           {
             foreignKeyName: "order_customer_id_fkey"
             columns: ["customer_id"]

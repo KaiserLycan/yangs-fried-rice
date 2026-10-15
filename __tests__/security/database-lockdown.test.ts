@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { BASELINE, PLATFORM, SCHEMA, functionSql, policiesOn, tableSql } from "../helpers/schema";
+import { BASELINE, CART_CHECKOUT, PLATFORM, SCHEMA, functionSql, policiesOn, tableSql } from "../helpers/schema";
 
 /**
  * Issue #114, checked statically.
@@ -15,15 +15,25 @@ import { BASELINE, PLATFORM, SCHEMA, functionSql, policiesOn, tableSql } from ".
 describe("atomic checkout (limitations #15)", () => {
   const body = functionSql("submit_cart_to_order");
 
-  it("locks the cart row before checking it", () => {
-    const lock = body.indexOf("FOR UPDATE");
-    const finalCheck = body.indexOf("IF v_cart.is_final THEN");
+  it("locks the cart row before deleting it", () => {
+    const latest = CART_CHECKOUT.slice(CART_CHECKOUT.indexOf("FUNCTION public.submit_cart_to_order"));
+    const lock = latest.indexOf("FOR UPDATE");
+    const cartDelete = latest.indexOf("DELETE FROM public.cart WHERE cart_id = p_cart_id");
     expect(lock).toBeGreaterThan(-1);
-    expect(finalCheck).toBeGreaterThan(lock);
+    expect(cartDelete).toBeGreaterThan(lock);
   });
 
-  it("backs the lock with a unique index on order.cart_id", () => {
-    expect(SCHEMA).toMatch(/CREATE UNIQUE INDEX order_cart_id_key ON public\.order USING btree \(cart_id\)/);
+  it("deletes the cart at checkout instead of keeping a finished one", () => {
+    const latest = CART_CHECKOUT.slice(
+      CART_CHECKOUT.indexOf("FUNCTION public.submit_cart_to_order"),
+      CART_CHECKOUT.indexOf("FUNCTION public.purge_expired_personal_data"),
+    );
+    expect(latest).not.toMatch(/is_final/);
+    expect(latest).not.toMatch(/UPDATE public\.cart/);
+  });
+
+  it("allows one cart per customer", () => {
+    expect(CART_CHECKOUT).toMatch(/CREATE UNIQUE INDEX one_cart_per_customer ON public\.cart USING btree \(customer_id\)/);
   });
 
   it("prices lines from the menu, not from the caller", () => {
