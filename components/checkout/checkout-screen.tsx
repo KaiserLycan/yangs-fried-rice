@@ -6,6 +6,7 @@ import { SiteNavBar } from "@/components/nav/site-nav-bar";
 import { OrderSummaryCard } from "@/components/checkout/order-summary-card";
 import { CashTenderedField } from "@/components/checkout/cash-tendered-field";
 import { PaymentMethodPicker } from "@/components/checkout/payment-method-picker";
+import { PROMOTIONS_ENABLED } from "@/lib/promotions/feature";
 import { PromoCodeField } from "@/components/checkout/promo-code-field";
 import { TipPicker } from "@/components/checkout/tip-picker";
 import { payInStoreBlock } from "@/lib/checkout/order-rules";
@@ -227,23 +228,25 @@ export function CheckoutScreen({
                 <TipPicker value={tip} onChange={setTip} />
               </section>
 
-              <section className="flex flex-col gap-[12px] md:rounded-lg md:border md:border-rule md:bg-card md:p-[20px]">
-                <h2 className="text-sm font-bold uppercase tracking-[1.44px] text-muted-foreground md:text-sm md:tracking-[1.54px]">
-                  Have a promo code?
-                </h2>
-                <PromoCodeField
-                  cartId={cartId}
-                  value={promo}
-                  onChange={setPromo}
-                  error={promoError}
-                  onErrorChange={setPromoError}
-                  blockedReason={
-                    seniorDiscount.enabled
-                      ? "Promo codes can't be combined with the Senior Citizen / PWD discount."
-                      : null
-                  }
-                />
-              </section>
+              {PROMOTIONS_ENABLED && (
+                <section className="flex flex-col gap-[12px] md:rounded-lg md:border md:border-rule md:bg-card md:p-[20px]">
+                  <h2 className="text-sm font-bold uppercase tracking-[1.44px] text-muted-foreground md:text-sm md:tracking-[1.54px]">
+                    Have a promo code?
+                  </h2>
+                  <PromoCodeField
+                    cartId={cartId}
+                    value={promo}
+                    onChange={setPromo}
+                    error={promoError}
+                    onErrorChange={setPromoError}
+                    blockedReason={
+                      seniorDiscount.enabled
+                        ? "Promo codes can't be combined with the Senior Citizen / PWD discount."
+                        : null
+                    }
+                  />
+                </section>
+              )}
 
               <SeniorPwdDiscountPicker
                 value={seniorDiscount}
