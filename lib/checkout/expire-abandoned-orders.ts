@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { discardSeniorPwdIdPhoto } from "@/lib/storage/senior-pwd-ids";
 import { UNPAID_ORDER_STATUSES } from "@/lib/validation/orders";
 import { ABANDONED_PAYMENT_REASON } from "@/lib/orders/order-stage";
 
@@ -108,5 +109,13 @@ export async function expireAbandonedOrders(
     return [];
   }
 
-  return (cancelled ?? []).map((row) => row.order_id);
+  const cancelledIds = (cancelled ?? []).map((row) => row.order_id);
+
+  // A cancelled order no longer needs the Senior Citizen / PWD ID photo
+  // (issue #116): every other cancel path discards it, so this one does too.
+  for (const id of cancelledIds) {
+    await discardSeniorPwdIdPhoto(admin, id);
+  }
+
+  return cancelledIds;
 }

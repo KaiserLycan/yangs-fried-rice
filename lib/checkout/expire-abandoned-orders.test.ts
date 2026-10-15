@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
+vi.mock("@/lib/storage/senior-pwd-ids", () => ({ discardSeniorPwdIdPhoto: vi.fn() }));
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { discardSeniorPwdIdPhoto } from "@/lib/storage/senior-pwd-ids";
 import {
   ABANDONED_REASON,
   PAYMENT_WINDOW_MS,
@@ -97,6 +99,19 @@ describe("expireAbandonedOrders", () => {
       cancelled_at: NOW.toISOString(),
       cancellation_reason: ABANDONED_REASON,
     });
+  });
+
+  it("discards the Senior / PWD ID photo of each order it cancels", async () => {
+    mockAdmin({
+      candidates: [{ order_id: "o-1" }, { order_id: "o-2" }],
+      cancelled: [{ order_id: "o-1" }, { order_id: "o-2" }],
+    });
+
+    await expireAbandonedOrders("cust-1", NOW);
+
+    expect(discardSeniorPwdIdPhoto).toHaveBeenCalledTimes(2);
+    expect(discardSeniorPwdIdPhoto).toHaveBeenCalledWith(expect.anything(), "o-1");
+    expect(discardSeniorPwdIdPhoto).toHaveBeenCalledWith(expect.anything(), "o-2");
   });
 
   it("looks only at this customer, only unpaid, only past the window", async () => {
