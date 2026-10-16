@@ -442,16 +442,27 @@ describe("refundNoticeFor (issue #115)", () => {
 });
 
 describe("paymentSummaryFrom (issue #115)", () => {
-  it("treats a PayMongo row that took money as paid online", () => {
+  it("treats a PayMongo or named wallet row that took money as paid online", () => {
     expect(paymentSummaryFrom({ method: "paymongo", status: "refund_pending", totalPaid: 250 })).toEqual({
       paidOnline: true,
       status: "refund_pending",
       amount: 250,
     });
+    expect(paymentSummaryFrom({ method: "gcash", status: "paid", totalPaid: 320 })).toEqual({
+      paidOnline: true,
+      status: "paid",
+      amount: 320,
+    });
+    expect(paymentSummaryFrom({ method: "paymaya", status: "refunded", totalPaid: 180 })).toEqual({
+      paidOnline: true,
+      status: "refunded",
+      amount: 180,
+    });
   });
 
   it("does not count an unpaid wallet attempt or the counter as paid online", () => {
     expect(paymentSummaryFrom({ method: "paymongo", status: "pending", totalPaid: 0 })?.paidOnline).toBe(false);
+    expect(paymentSummaryFrom({ method: "gcash", status: "pending", totalPaid: 0 })?.paidOnline).toBe(false);
     expect(paymentSummaryFrom({ method: "pay_in_store", status: "paid", totalPaid: 250 })?.paidOnline).toBe(false);
     expect(paymentSummaryFrom(null)).toBeNull();
   });

@@ -1,3 +1,5 @@
+import { isWalletMethod } from "@/lib/orders/payment";
+
 /**
  * The one place that turns stored status strings into the four stages the
  * tracking screen draws. Nothing outside this module reads a raw status —
@@ -482,7 +484,7 @@ export function paymentSummaryFrom(
   if (!payment) return null;
   const moneyTaken = ["paid", "refund_pending", "refunded", "refund_failed"];
   return {
-    paidOnline: payment.method === "paymongo" && moneyTaken.includes(payment.status ?? ""),
+    paidOnline: isWalletMethod(payment.method) && moneyTaken.includes(payment.status ?? ""),
     status: payment.status,
     amount: payment.totalPaid > 0 ? payment.totalPaid : null,
   };
